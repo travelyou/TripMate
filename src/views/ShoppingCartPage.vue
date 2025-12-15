@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const tourGroups = ref([
   {
@@ -68,10 +71,7 @@ function removeTour(id) {
 function goToCheckout() {
   if (selectedTour.value) {
     // *** 這是使用 Vue Router 跳轉到 /checkout 頁面的標準寫法 ***
-    // router.push('/checkout');
-
-    // 由於我們沒有 router 實例，這裡先用 alert 模擬成功跳轉
-    alert(`成功選中行程：${selectedTour.value.title}。準備跳轉到結帳頁面！`)
+    router.push('/checkout/step1')
   } else {
     // 沒有選中項目
     alert('請先選擇一個要結帳的行程！')
@@ -86,13 +86,13 @@ function goToCheckout() {
       <div v-show="!isCartEmpty" class="p-5 rounded-md">
         <ul class="grid gap-5 min-w-130">
           <li
-            v-for="(tour, index) in tourGroups"
+            v-for="tour in tourGroups"
             :key="tour.id"
             class="p-5 border border-gray-200 rounded-xl bg-white"
           >
             <div class="flex justify-between gap-10">
               <div class="flex gap-5">
-                <input type="radio" name="tour" :value="tour.id" v-model="selectedTourId" />
+                <input v-model="selectedTourId" type="radio" name="tour" :value="tour.id" />
                 <img
                   v-if="tour.image"
                   :src="tour.image"
@@ -114,8 +114,8 @@ function goToCheckout() {
                 <p class="text-right">NT.{{ tour.price }}</p>
                 <div class="flex gap-1 text-sm">
                   <button
-                    @click="decreasePersons(tour)"
                     class="h-5 w-5 leading-4 border border-gray-200 rounded-md cursor-pointer"
+                    @click="decreasePersons(tour)"
                   >
                     -
                   </button>
@@ -123,13 +123,13 @@ function goToCheckout() {
                     {{ tour.persons }}
                   </p>
                   <button
-                    @click="increasePersons(tour)"
                     class="h-5 w-5 leading-4 border border-gray-200 rounded-md cursor-pointer"
+                    @click="increasePersons(tour)"
                   >
                     +
                   </button>
                 </div>
-                <button @click="removeTour(tour.id)" class="text-red-500 cursor-pointer">
+                <button class="text-red-500 cursor-pointer" @click="removeTour(tour.id)">
                   刪除
                 </button>
               </div>
@@ -142,11 +142,12 @@ function goToCheckout() {
           <h1 class="text-xl">購物車是空的</h1>
           <p class="text-gray-500">快去挑選心儀的行程吧！</p>
         </div>
-        <button
+        <router-link
+          to="/featured-itinerary"
           class="py-2 px-8 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600"
         >
           前往精選行程
-        </button>
+        </router-link>
       </div>
       <div
         v-show="!isCartEmpty"
@@ -178,12 +179,16 @@ function goToCheckout() {
         <div class="flex flex-col gap-5">
           <button
             type="button"
-            @click="goToCheckout"
             class="p-2 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600"
+            @click="goToCheckout"
           >
             前往結帳
           </button>
-          <a href="#" class="p-2 text-center border border-gray-300 rounded-md">繼續購物</a>
+          <router-link
+            to="/featured-itinerary"
+            class="p-2 text-center border border-gray-300 rounded-md"
+            >繼續購物</router-link
+          >
         </div>
       </div>
     </div>

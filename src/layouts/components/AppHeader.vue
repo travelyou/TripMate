@@ -214,6 +214,8 @@ const handleLogout = () => {
     router.push('/')
   }
 }
+
+
 </script>
 
 <style scoped>
