@@ -59,8 +59,40 @@ const router = createRouter({
     },
     {
       path: '/cart',
-      name: 'Cart',
+      name: 'cart',
       component: ShoppingCart,
+    },
+    {
+      path: '/checkout',
+      name: 'checkout',
+      component: CheckoutLayout,
+      children: [
+        {
+          path: 'step1',
+          name: 'CheckoutStep1',
+          component: Step1Confirm,
+        },
+        {
+          path: 'step2',
+          name: 'CheckoutStep2',
+          component: Step2Form,
+        },
+        {
+          path: 'step3',
+          name: 'CheckoutStep3',
+          component: Step3Review,
+        },
+        {
+          path: 'step4',
+          name: 'CheckoutStep4',
+          component: Step4Payment,
+        },
+        {
+          path: 'step5',
+          name: 'CheckoutStep5',
+          component: Step5Done,
+        },
+      ],
     },
   ],
 })
