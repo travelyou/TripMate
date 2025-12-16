@@ -12,7 +12,7 @@ import {
   Hash
 } from 'lucide-vue-next'
 
-const emit = defineEmits(['close', 'submit-post']) // 移除了 'select-find-traveler'，因為現在由內部處理
+const emit = defineEmits(['close', 'submit-post'])
 
 // --- 狀態管理 ---
 const currentStep = ref('menu') // 'menu', 'edit', 'tags', 'preview'
@@ -28,19 +28,17 @@ const postData = ref({
 const tagSearch = ref('')
 
 // --- 模擬資料 ---
-// 我在這邊幫你補上了 '找旅伴' 這個選項，這樣下拉選單才會有它
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
 const suggestedTags = ['#北海道', '#獨旅', '#便宜機票', '#溫泉', '#滑雪']
 
 // --- 功能邏輯 ---
 
-// 切換到編輯模式 (新增了 initialBoard 參數來預設看板)
+// 切換到編輯模式
 const startPosting = (initialBoard = '') => {
-  // 如果有傳入看板名稱，就自動選取
   if (initialBoard) {
     postData.value.board = initialBoard
   } else {
-    postData.value.board = '' // 重置
+    postData.value.board = ''
   }
   currentStep.value = 'edit'
 }
@@ -127,7 +125,7 @@ const filteredTags = computed(() => {
       <div v-else-if="currentStep === 'edit'" class="flex flex-col h-full">
         <div class="p-4 border-b-2 border-gray-200 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <button @click="prevStep" class="hover:bg-gray-200 p-1 rounded"><ArrowLeft class="w-5 h-5"/></button>
+            <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
             <span class="font-bold text-lg">發文設定</span>
           </div>
           <select v-model="postData.board" class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500">
@@ -174,14 +172,14 @@ const filteredTags = computed(() => {
 
           <div class="flex gap-3">
              <button class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300">存入草稿</button>
-             <button @click="nextStep" class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black">下一步</button>
+             <button class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="nextStep">下一步</button>
           </div>
         </div>
       </div>
 
       <div v-else-if="currentStep === 'tags'" class="flex flex-col h-full">
         <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button @click="prevStep" class="hover:bg-gray-200 p-1 rounded"><ArrowLeft class="w-5 h-5"/></button>
+          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
           <span class="font-bold text-lg">新增標籤</span>
         </div>
 
@@ -201,7 +199,7 @@ const filteredTags = computed(() => {
             <div class="flex flex-wrap gap-2">
               <span v-for="(tag, index) in postData.tags" :key="index" class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-bold border border-orange-300 flex items-center gap-1">
                 #{{ tag }}
-                <button @click="removeTag(index)" class="hover:text-red-500"><X class="w-3 h-3"/></button>
+                <button class="hover:text-red-500" @click="removeTag(index)"><X class="w-3 h-3"/></button>
               </span>
             </div>
           </div>
@@ -210,8 +208,8 @@ const filteredTags = computed(() => {
             <h4 class="text-sm font-bold text-gray-500 mb-3">推薦話題 / 搜尋結果</h4>
             <button
               v-if="tagSearch"
-              @click="addTag(tagSearch)"
               class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 mb-2 text-orange-600"
+              @click="addTag(tagSearch)"
             >
               <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
                 <span class="font-bold text-lg">+</span>
@@ -225,8 +223,8 @@ const filteredTags = computed(() => {
               <button
                 v-for="tag in filteredTags"
                 :key="tag"
-                @click="addTag(tag)"
                 class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 transition-colors border-b border-gray-100"
+                @click="addTag(tag)"
               >
                 <div class="w-10 h-10 rounded-full bg-gray-200 border-2 border-black flex items-center justify-center font-bold text-gray-600">
                   #
@@ -241,13 +239,13 @@ const filteredTags = computed(() => {
         </div>
 
         <div class="p-4 border-t-2 border-gray-200 flex justify-end bg-gray-50 gap-3">
-           <button @click="nextStep" class="w-full py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black">預覽文章</button>
+           <button class="w-full py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="nextStep">預覽文章</button>
         </div>
       </div>
 
       <div v-else-if="currentStep === 'preview'" class="flex flex-col h-full">
          <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button @click="prevStep" class="hover:bg-gray-200 p-1 rounded"><ArrowLeft class="w-5 h-5"/></button>
+          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
           <span class="font-bold text-lg">預覽文章</span>
         </div>
 
@@ -274,8 +272,8 @@ const filteredTags = computed(() => {
         </div>
 
         <div class="p-4 border-t-2 border-gray-200 bg-white flex gap-3">
-           <button @click="prevStep" class="flex-1 py-2 text-sm font-bold text-gray-600 pixel-button bg-gray-200 border-4 border-black">返回修改</button>
-           <button @click="handleFinalSubmit" class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black">確認發布</button>
+           <button class="flex-1 py-2 text-sm font-bold text-gray-600 pixel-button bg-gray-200 border-4 border-black" @click="prevStep">返回修改</button>
+           <button class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="handleFinalSubmit">確認發布</button>
         </div>
       </div>
 
