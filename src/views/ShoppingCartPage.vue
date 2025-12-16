@@ -1,7 +1,7 @@
 <script setup>
+import { checkoutStore } from '@/stores/checkout'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-
 const router = useRouter()
 
 const tourGroups = ref([
@@ -70,7 +70,7 @@ function removeTour(id) {
 //前往結帳
 function goToCheckout() {
   if (selectedTour.value) {
-    // *** 這是使用 Vue Router 跳轉到 /checkout 頁面的標準寫法 ***
+    checkoutStore.selectedTour = selectedTour.value
     router.push('/checkout/step1')
   } else {
     // 沒有選中項目
@@ -88,7 +88,7 @@ function goToCheckout() {
           <li
             v-for="tour in tourGroups"
             :key="tour.id"
-            class="p-5 border border-gray-200 rounded-xl bg-white"
+            class="p-5 border border-gray-200 rounded-xl bg-white hover:bg-gray-100"
           >
             <div class="flex justify-between gap-10">
               <div class="flex gap-5">
@@ -151,7 +151,7 @@ function goToCheckout() {
       </div>
       <div
         v-show="!isCartEmpty"
-        class="p-5 bg-gray-100 rounded-md flex flex-col justify-between min-w-60"
+        class="p-5 bg-white rounded-md flex flex-col justify-between min-w-60"
       >
         <div>
           <h1>結算資訊</h1>
@@ -165,13 +165,13 @@ function goToCheckout() {
             </div>
             <div class="flex justify-between text-gray-700">
               <span>金額 </span>
-              <span>NT.{{ selectedTour ? selectedTour.price : 0 }} </span>
+              <span>NT$ {{ selectedTour ? selectedTour.price : 0 }} </span>
             </div>
           </div>
           <div class="border-t border-gray-300 pt-3 pb-3">
             <div class="flex justify-between text-gray-700">
               <span>小記</span>
-              <span>NT.{{ totalPrice }}</span>
+              <span>NT$ {{ totalPrice }}</span>
             </div>
           </div>
         </div>
@@ -186,7 +186,7 @@ function goToCheckout() {
           </button>
           <router-link
             to="/featured-itinerary"
-            class="p-2 text-center border border-gray-300 rounded-md"
+            class="p-2 text-center border border-gray-300 rounded-md hover:bg-gray-200"
             >繼續購物</router-link
           >
         </div>
