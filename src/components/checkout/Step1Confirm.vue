@@ -13,6 +13,11 @@ function nextStep() {
   router.push('/checkout/step2')
   //if () {} else {}
 }
+
+function backCart() {
+  router.push('/cart')
+  //if () {} else {}
+}
 </script>
 
 <template>
@@ -31,29 +36,33 @@ function nextStep() {
           />
           <div>
             <h1 class="text-3xl">{{ checkoutStore.selectedTour.title }}</h1>
-            <p>登上台北最高建築，俯瞰城市美景，品嚐在地特色美食</p>
-            <div>
+            <p>{{ checkoutStore.selectedTour.description }}</p>
+
+            <div class="flex justify-between mt-5 mb-2">
               <p>出發日期：{{ checkoutStore.selectedTour.date }}</p>
-              <p>行程時間：4小時</p>
+              <p>行程時間：{{ checkoutStore.selectedTour.duration }}</p>
             </div>
-            <div>
-              <p>人數：{{ checkoutStore.selectedTour.persons }} 人</p>
+            <p>人數：{{ checkoutStore.selectedTour.persons }} 人</p>
+            <div class="flex flex-col mt-10">
+              <div class="flex justify-between">
+                <p>商品價格:</p>
+                <p>NT$ {{ checkoutStore.selectedTour.price }}</p>
+              </div>
+              <div class="flex justify-between">
+                <p>打折:</p>
+                <p>NT$ 0</p>
+              </div>
+              <div class="flex justify-between py-2 mt-5 border-t">
+                <p>總金額：</p>
+                <p>NT$ {{ totalPrice }}</p>
+              </div>
             </div>
-            <div>
-              <p>商品價格:</p>
-              <p>NT$ {{ checkoutStore.selectedTour.price }}</p>
-            </div>
-            <div>
-              <p>打折:</p>
-              <p>NT$ 0</p>
-            </div>
-            <p>總金額：</p>
-            <p>NT$ {{ totalPrice }}</p>
           </div>
         </div>
         <div class="flex justify-between">
           <button
             class="p-2 text-center bg-white rounded-md border border-gray-200 hover:bg-blue-700 hover:bg-gray-200"
+            @click="backCart"
           >
             返回購物車
           </button>
