@@ -12,7 +12,7 @@
 - 💬 **即時聊天** - AI 助手和私人聊天功能
 - 🔐 **用戶認證** - 安全的登入和註冊系統（目前支援 Email/Password，Facebook 和 Google 登入開發中）
 
-## 技術棧
+## 技術
 
 - **前端框架**: Vue 3 + Vite
 - **狀態管理**: Pinia
@@ -51,23 +51,6 @@
 - 確保在 Firebase Console 中已啟用對應的登入方式
 - Facebook 應用程式需要通過審核才能供一般用戶使用（開發階段可以使用測試用戶）
 - 本地開發時，確保 Firebase 專案設定正確的授權網域
-
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
 
 ## Project Setup
 
