@@ -1,17 +1,12 @@
 <script setup>
 import { ref } from 'vue'
-import { Search as SearchIcon, Map as MapIcon } from 'lucide-vue-next'
-
-// 🎯 修正 1: 改為 useItineraryStore (單數)
+import { Map as MapIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 
 import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
-// ❌ 移除廣告 import
-// import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 
-// 🎯 修正 2: 使用正確的 Store 函數
 const itinerariesStore = useItineraryStore()
 
 // --- 模態框狀態管理 ---
@@ -71,17 +66,6 @@ const closeShareModal = () => {
       </div>
 
       <div class="pixel-card p-4 bg-white mb-6 space-y-4">
-        <div class="flex space-x-3">
-          <input
-            type="text"
-            placeholder="搜尋行程標題、地點、作者..."
-            class="flex-1 p-2 border-2 border-gray-300 rounded-md focus:border-indigo-500 transition shadow-inner"
-          />
-          <button class="bg-indigo-500 text-white p-2 rounded-md hover:bg-indigo-600 transition">
-            <SearchIcon class="w-6 h-6" />
-          </button>
-        </div>
-
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"

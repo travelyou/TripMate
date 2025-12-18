@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-[#fffef7] flex flex-col">
+  <div class="min-h-screen bg-[#fffef7] flex flex-col pb-24 lg:pb-0">
     <div class="sticky top-0 z-30 bg-[#fcf9f2] shadow-sm border-b border-gray-200 p-4">
-      <div class="max-w-7xl mx-auto w-full">
+      <div class="w-full">
         <div class="flex items-center gap-3 mb-4">
           <button
             class="p-2 -ml-2 hover:bg-gray-200 rounded-full transition text-gray-600 md:hidden"
@@ -37,7 +37,7 @@
           </button>
         </div>
 
-        <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar mb-2">
           <button
             v-for="tab in tabs"
             :key="tab.value"
@@ -52,10 +52,29 @@
             {{ tab.label }}
           </button>
         </div>
+
+        <div
+          v-if="currentSubFilters.length > 0"
+          class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-2 border-t border-gray-200"
+        >
+          <button
+            v-for="filter in currentSubFilters"
+            :key="filter"
+            :class="[
+              'px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition border',
+              activeSubFilter === filter
+                ? 'bg-orange-100 text-orange-700 border-orange-300'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+            ]"
+            @click="activeSubFilter = filter"
+          >
+            {{ filter }}
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="flex-1 w-full max-w-7xl mx-auto p-4 overflow-x-hidden">
+    <div class="flex-1 w-full p-4 overflow-x-hidden">
       <div class="w-full min-w-0">
         <div
           v-if="!hasSearched"
@@ -86,14 +105,15 @@
           <p class="text-sm mt-2">試試看切換其他分類，或使用更通用的關鍵字。</p>
         </div>
 
-        <div v-else class="space-y-4 pb-10">
+        <div v-else class="space-y-4">
           <p class="text-sm text-gray-500 mb-2 ml-1">
-            在 <span class="font-bold text-gray-700">{{ getTabLabel(activeTab) }}</span> 中找到
-            {{ filteredResults.length }} 筆結果
+            在 <span class="font-bold text-gray-700">{{ getTabLabel(activeTab) }}</span>
+            <span v-if="activeSubFilter !== '全部'"> ({{ activeSubFilter }}) </span>
+            中找到 {{ filteredResults.length }} 筆結果
           </p>
 
           <div
-            v-for="item in filteredResults"
+            v-for="item in paginatedResults"
             :key="`${item.type}-${item.id}`"
             class="bg-white p-4 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:shadow-md transition cursor-pointer flex gap-4 group"
             @click="handleResultClick(item)"
@@ -131,17 +151,69 @@
 
               <h3
                 class="font-bold text-gray-800 line-clamp-1 mb-1 group-hover:text-orange-600 transition"
-              >
-                {{ item.title }}
-              </h3>
-              <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                {{ item.description }}
-              </p>
+                v-html="highlightText(item.title)"
+              ></h3>
+
+              <p
+                class="text-xs text-gray-500 line-clamp-2 leading-relaxed"
+                v-html="highlightText(item.description)"
+              ></p>
+
+              <div v-if="item.tags && item.tags.length > 0" class="mt-2 flex gap-1">
+                <span
+                  v-for="tag in item.tags.slice(0, 3)"
+                  :key="tag"
+                  class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded"
+                  v-html="'#' + highlightText(tag)"
+                >
+                </span>
+              </div>
             </div>
+          </div>
+
+          <div
+            v-if="totalPages > 1"
+            class="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-gray-200"
+          >
+            <button
+              class="px-4 py-2 rounded-lg font-bold transition flex items-center gap-1"
+              :class="
+                currentPage === 1
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
+              "
+              :disabled="currentPage === 1"
+              @click="changePage(currentPage - 1)"
+            >
+              <ChevronLeftIcon class="w-5 h-5" />
+              上一頁
+            </button>
+
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-gray-800">
+                {{ currentPage }} / {{ totalPages }}
+              </span>
+            </div>
+
+            <button
+              class="px-4 py-2 rounded-lg font-bold transition flex items-center gap-1"
+              :class="
+                currentPage === totalPages
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
+              "
+              :disabled="currentPage === totalPages"
+              @click="changePage(currentPage + 1)"
+            >
+              下一頁
+              <ChevronRightIcon class="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
     </div>
+
+    <PostDetailModal v-if="isModalOpen" :post="selectedPost" @close="closePostDetailModal" />
   </div>
 </template>
 
@@ -151,31 +223,34 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   Search as SearchIcon,
   ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
   X as XIcon,
   Image as ImageIcon,
 } from 'lucide-vue-next'
 
-// Stores
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
 import { useItineraryStore } from '@/stores/itinerary'
-
-// Components
-// ❌ 移除廣告 import
-// import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
+import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 
-// Initialize Stores
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
 const itineraryStore = useItineraryStore()
+
+const isModalOpen = ref(false)
+const selectedPost = ref(null)
 
 const searchInput = ref(null)
 const searchQuery = ref('')
 const hasSearched = ref(false)
 const activeTab = ref('all')
+const activeSubFilter = ref('全部')
+
+const currentPage = ref(1)
+const itemsPerPage = 10
 
 const tabs = [
   { label: '全部', value: 'all' },
@@ -184,11 +259,24 @@ const tabs = [
   { label: '精選行程', value: 'itinerary' },
 ]
 
-// 聚合資料 (Aggregation)
+const subFilterOptions = {
+  all: [],
+  traveler: ['全部', '招募中', '已額滿', '單人遊', '團體遊'],
+  discussion: ['全部', '有圖', '新貼文', '找旅伴', '找話題'],
+  itinerary: ['全部', '旅行社精選', '導遊推薦', '短天數(1-5日)', '長天數(6日以上)', '亞洲'],
+}
+
+const currentSubFilters = computed(() => {
+  return subFilterOptions[activeTab.value] || []
+})
+
+watch([activeTab, activeSubFilter], () => {
+  currentPage.value = 1
+  if (activeTab.value) activeSubFilter.value = '全部'
+})
+
 const allData = computed(() => {
   const results = []
-
-  // Discussion
   if (discussionsStore.discussions) {
     discussionsStore.discussions.forEach((post) => {
       results.push({
@@ -198,12 +286,11 @@ const allData = computed(() => {
         description: post.content,
         image: post.image,
         date: post.time || '剛剛',
+        tags: post.tags || [],
         originalData: post,
       })
     })
   }
-
-  // Traveler
   if (travelersStore.recommendations) {
     travelersStore.recommendations.forEach((traveler) => {
       results.push({
@@ -213,12 +300,11 @@ const allData = computed(() => {
         description: traveler.content || `地點：${traveler.location}`,
         avatar: traveler.avatar || traveler.image,
         date: traveler.date || '近期',
+        tags: traveler.tag ? [traveler.tag] : [],
         originalData: traveler,
       })
     })
   }
-
-  // Itinerary
   if (itineraryStore.itineraries) {
     itineraryStore.itineraries.forEach((plan) => {
       results.push({
@@ -228,32 +314,123 @@ const allData = computed(() => {
         description: plan.description || '精彩的旅程規劃',
         image: plan.coverImage || plan.image,
         date: plan.date || '隨時出發',
+        tags: plan.tags || [],
         originalData: plan,
       })
     })
   }
-
   return results
 })
 
-// 搜尋與篩選邏輯
+// 🟢 Highlighting 輔助函式 (標示符合的關鍵字)
+// 這會把 "台北" 替換成 <span class="bg-yellow-200...">台北</span>
+const highlightText = (text) => {
+  if (!text) return ''
+  const query = searchQuery.value.trim()
+  if (!query) return text
+
+  // 1. 建立比對清單 (包含完整字串 + Bigrams)
+  // 目的是讓 "台北美食" 可以 highlight "台北"
+  const matchers = [query]
+  if (query.length >= 2) {
+    for (let i = 0; i < query.length - 1; i++) {
+      matchers.push(query.slice(i, i + 2))
+    }
+  }
+
+  // 2. 依照長度排序 (長詞優先，避免 "台北" 先被 "台" 取代壞掉)
+  matchers.sort((a, b) => b.length - a.length)
+
+  // 3. 建立 Regex: (Query|Bigram1|Bigram2)
+  // 使用 escape 防止特殊符號讓 Regex 報錯
+  const pattern = matchers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  const regex = new RegExp(`(${pattern})`, 'gi')
+
+  // 4. 替換文字，加上 highlight class
+  return text.replace(
+    regex,
+    '<span class="bg-yellow-200 text-amber-900 font-bold rounded-sm px-0.5">$1</span>',
+  )
+}
+
 const filteredResults = computed(() => {
   if (!hasSearched.value) return []
 
   const query = searchQuery.value.toLowerCase().trim()
+  if (!query) return []
 
-  let results = allData.value.filter((item) => {
-    const title = item.title ? item.title.toLowerCase() : ''
-    const desc = item.description ? item.description.toLowerCase() : ''
-    return title.includes(query) || desc.includes(query)
-  })
-
-  if (activeTab.value !== 'all') {
-    results = results.filter((item) => item.type === activeTab.value)
+  // Bigram 邏輯
+  const bigrams = []
+  if (query.length >= 2) {
+    for (let i = 0; i < query.length - 1; i++) {
+      bigrams.push(query.slice(i, i + 2))
+    }
   }
 
-  return results
+  let scoredItems = allData.value.map((item) => {
+    let score = 0
+    const title = item.title ? item.title.toLowerCase() : ''
+    const desc = item.description ? item.description.toLowerCase() : ''
+    const itemTags = item.tags ? item.tags.map((t) => t.toLowerCase()) : []
+
+    // 權重計分
+    if (title.includes(query)) score += 50
+    if (itemTags.some((t) => t.includes(query))) score += 30
+    if (desc.includes(query)) score += 10
+
+    if (bigrams.length > 0) {
+      bigrams.forEach((bg) => {
+        if (title.includes(bg)) score += 5
+        if (itemTags.some((t) => t.includes(bg))) score += 3
+        if (desc.includes(bg)) score += 1
+      })
+    } else if (query.length === 1) {
+      if (title.includes(query)) score += 2
+      if (desc.includes(query)) score += 1
+    }
+
+    return { ...item, score }
+  })
+
+  scoredItems = scoredItems.filter((item) => item.score > 0)
+
+  scoredItems = scoredItems.filter((item) => {
+    const matchTab = activeTab.value === 'all' || item.type === activeTab.value
+
+    let matchSubFilter = true
+    if (activeSubFilter.value !== '全部') {
+      const filter = activeSubFilter.value
+      const tagMatch = item.tags && item.tags.some((t) => t.includes(filter))
+      const textMatch = (item.title + item.description).includes(filter)
+
+      if (filter === '有圖') matchSubFilter = !!item.image
+      else if (filter === '招募中') matchSubFilter = !item.title.includes('額滿')
+      else if (filter === '已額滿') matchSubFilter = item.title.includes('額滿')
+      else if (filter === '短天數(1-5日)') matchSubFilter = item.description.includes('日')
+      else matchSubFilter = tagMatch || textMatch
+    }
+
+    return matchTab && matchSubFilter
+  })
+
+  return scoredItems.sort((a, b) => b.score - a.score)
 })
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredResults.value.length / itemsPerPage)
+})
+
+const paginatedResults = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredResults.value.slice(start, end)
+})
+
+const changePage = (page) => {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 onMounted(() => {
   if (route.query.q) {
@@ -277,6 +454,7 @@ watch(
 const performSearch = () => {
   if (!searchQuery.value.trim()) return
   hasSearched.value = true
+  currentPage.value = 1
 }
 
 const clearSearch = () => {
@@ -290,17 +468,14 @@ const quickSearch = (keyword) => {
   performSearch()
 }
 
-// 樣式輔助
 const getTabLabel = (val) => {
   const tab = tabs.find((t) => t.value === val)
   return tab ? tab.label : '全部'
 }
-
 const getCategoryLabel = (type) => {
   const map = { traveler: '找旅伴', discussion: '討論區', itinerary: '行程' }
   return map[type] || '其他'
 }
-
 const getCategoryStyle = (type) => {
   const map = {
     traveler: 'bg-green-50 text-green-600 border-green-200',
@@ -311,15 +486,13 @@ const getCategoryStyle = (type) => {
 }
 
 const handleResultClick = (item) => {
-  if (item.type === 'discussion') {
-    // 這裡通常會開啟 Modal 或導頁
-    console.log('打開討論貼文', item.originalData)
-  } else if (item.type === 'traveler') {
-    console.log('打開找旅伴', item.originalData)
-  } else if (item.type === 'itinerary') {
-    // 假設行程也是用 Modal 或新頁面
-    console.log('打開行程', item.originalData)
-  }
+  selectedPost.value = item.originalData
+  isModalOpen.value = true
+}
+
+const closePostDetailModal = () => {
+  isModalOpen.value = false
+  selectedPost.value = null
 }
 </script>
 
