@@ -1,12 +1,10 @@
 <script setup>
 import { ref } from 'vue'
-import { Search as SearchIcon, Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
+import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import { useTravelersStore } from '@/stores/travelers'
 import TravelerCard from '@/components/posts/TravelerCard.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PostDetailModal from '@/components/modals/PostDetailModal.vue'
-// ❌ 移除廣告 import
-// import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 
 const travelersStore = useTravelersStore()
 
@@ -54,17 +52,6 @@ const activeFilter = ref('全部')
       </div>
 
       <div class="mb-8 p-4 pixel-card bg-white/90">
-        <div class="flex items-center space-x-2 mb-4 border-b border-gray-200 pb-4">
-          <input
-            type="text"
-            placeholder="搜尋地點、時間、標籤..."
-            class="flex-1 p-2 border-2 border-gray-300 rounded-md focus:border-indigo-500 transition shadow-inner"
-          />
-          <button class="bg-indigo-500 text-white p-2 rounded-md hover:bg-indigo-600 transition">
-            <SearchIcon class="w-6 h-6" />
-          </button>
-        </div>
-
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"

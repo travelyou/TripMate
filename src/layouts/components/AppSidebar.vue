@@ -106,7 +106,7 @@ const handleMobileNavClick = (item) => {
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square pixel-button bg-yellow-300 flex flex-col items-center justify-center hover:bg-yellow-400 group transition-transform active:translate-y-1"
+        class="cursor-pointer w-[48%] aspect-square pixel-button flex flex-col items-center justify-center group transition-transform active:translate-y-1"
         @click="goToCollections"
       >
         <BookmarkIcon

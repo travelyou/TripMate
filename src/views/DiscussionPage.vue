@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue'
 import {
-  Search as SearchIcon,
   Plus as PlusIcon,
   Heart as HeartIcon,
   MessageCircle as MessageCircleIcon,
@@ -13,8 +12,6 @@ import { useDiscussionsStore } from '@/stores/discussions'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
-// ❌ 移除廣告 import
-// import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 
 const discussionsStore = useDiscussionsStore()
 
@@ -76,17 +73,6 @@ const activeFilter = ref('全部')
       </div>
 
       <div class="mb-8 p-4 pixel-card bg-white/90">
-        <div class="flex items-center space-x-2 mb-4 border-b border-gray-200 pb-4">
-          <input
-            type="text"
-            placeholder="搜尋話題、標籤..."
-            class="flex-1 p-2 border-2 border-gray-300 rounded-md focus:border-indigo-500 transition shadow-inner"
-          />
-          <button class="bg-indigo-500 text-white p-2 rounded-md hover:bg-indigo-600 transition">
-            <SearchIcon class="w-6 h-6" />
-          </button>
-        </div>
-
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
