@@ -1,11 +1,11 @@
 <script setup>
-import { defineProps } from 'vue'
 import {
-  MapPin as MapPinIcon,
   Calendar as CalendarIcon,
+  MapPin as MapPinIcon,
+  MessageCircle as MessageCircleIcon,
   Users as UsersIcon,
-  MessageCircle as MessageCircleIcon, // 留言圖示
 } from 'lucide-vue-next'
+import { defineProps } from 'vue'
 
 const props = defineProps({
   traveler: {

@@ -1,21 +1,20 @@
 <script setup>
 import { ref } from 'vue'
-// 🎯 修正: 移除 PlusIcon 導入
 import { Search as SearchIcon, Map as MapIcon } from 'lucide-vue-next'
-// 修正後的路徑
-import { useItinerariesStore } from '@/stores/itinerary'
+
+// 🎯 修正 1: 改為 useItineraryStore (單數)
+import { useItineraryStore } from '@/stores/itinerary'
+
 import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
-import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
+// ❌ 移除廣告 import
+// import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
-
-// 🎯 修正: 移除 PostingChoiceModal 導入
-
 import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 
-const itinerariesStore = useItinerariesStore()
+// 🎯 修正 2: 使用正確的 Store 函數
+const itinerariesStore = useItineraryStore()
 
 // --- 模態框狀態管理 ---
-// 🎯 修正: 移除 isPostingModalOpen 變數
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
 
@@ -60,8 +59,8 @@ const closeShareModal = () => {
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row gap-8 p-4 md:p-0 items-start overflow-x-hidden">
-    <div class="w-full lg:w-[calc(100%-310px)]">
+  <div class="p-4 md:p-0 overflow-x-hidden">
+    <div class="w-full">
       <div
         class="bg-orange-500 text-white font-black text-2xl p-4 mb-6 pixel-card-header shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] flex items-center"
       >
@@ -102,7 +101,7 @@ const closeShareModal = () => {
 
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <ItineraryCard
-          v-for="itinerary in itinerariesStore.itineraryList"
+          v-for="itinerary in itinerariesStore.itineraries"
           :key="itinerary.id"
           :itinerary="itinerary"
           @open-detail="openPostDetailModal"
@@ -110,8 +109,6 @@ const closeShareModal = () => {
         />
       </div>
     </div>
-
-    <RightSidebarAd />
   </div>
 
   <PostDetailModal

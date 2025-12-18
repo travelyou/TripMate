@@ -1,10 +1,9 @@
 <script setup>
-
 import {
+  Bot as BotIcon,
+  MessageSquare as MessageSquareIcon,
   Plus as PlusIcon,
   Zap as ZapIcon,
-  MessageSquare as MessageSquareIcon,
-  Bot as BotIcon,
 } from 'lucide-vue-next'
 
 // 定義我們要通知父層(MainLayout)的事件名稱

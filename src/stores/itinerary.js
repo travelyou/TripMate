@@ -3,7 +3,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-// 1. 大量模擬使用者 (50+ 個網名，確保多樣性)
+// 1. 大量模擬使用者
 const mockCommenters = [
   { nickname: '愛旅行的貓', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=cat' },
   { nickname: '背包客Jack', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jack' },
@@ -57,7 +57,7 @@ const mockCommenters = [
   { nickname: '快樂小資女', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=petty' },
 ]
 
-// 2. 豐富的留言內容庫 (30+ 種範本)
+// 2. 豐富的留言內容庫
 const commentTemplates = [
   '請問這個行程還有名額嗎？',
   '感覺很棒耶！想帶家人一起去。',
@@ -93,12 +93,9 @@ const commentTemplates = [
   '請問如果不參加自費行程可以在車上休息嗎？',
 ]
 
-// 3. 生成隨機留言函數 (每則貼文隨機 5-9 則)
+// 3. 生成隨機留言函數
 const generateMockComments = (postId) => {
-  // 平均每則行程 7 則留言 -> 20 則行程 x 7 = 140 則留言
   const count = Math.floor(Math.random() * 5) + 5
-
-  // 為了避免每次都取到一樣的人，我們隨機打亂一下順序
   const shuffledCommenters = [...mockCommenters].sort(() => 0.5 - Math.random())
 
   return Array.from({ length: count }, (_, i) => {
@@ -112,13 +109,13 @@ const generateMockComments = (postId) => {
       content: content,
       time: `${Math.floor(Math.random() * 24) + 1} 小時前`,
       likes: Math.floor(Math.random() * 20),
-      replies: [], // 預留回覆結構
+      replies: [],
       isLiked: false,
     }
   })
 }
 
-// 4. 模擬作者與旅行社 (保持不變)
+// 4. 模擬作者與旅行社
 const mockAuthors = [
   {
     id: 101,
@@ -155,8 +152,6 @@ const generateItinerary = (id) => {
   const agencyName = isAgency ? mockAgencies[Math.floor(Math.random() * mockAgencies.length)] : null
   const days = Math.floor(Math.random() * 8) + 3
   const price = Math.round((Math.random() * 50000 + 15000) / 1000) * 1000
-
-  // 生成留言陣列 (這裡會呼叫上面的函數產生大量留言)
   const commentsArray = generateMockComments(id)
 
   return {
@@ -165,31 +160,28 @@ const generateItinerary = (id) => {
     agencyName: agencyName,
     author: mockAuthors[authorIndex],
     durationDays: days,
-    destinations: ['東京', '大阪', '京都'], // 這裡可以隨機化，但先保持簡單
+    destinations: ['東京', '大阪', '京都'],
     coverImage: `https://picsum.photos/500/350?random=${id + 20}`,
     summary: `這是一個為期 ${days} 天，充滿探索與驚喜的行程。`,
     price: price,
     totalViews: Math.floor(Math.random() * 10000) + 1000,
     totalSaves: Math.floor(Math.random() * 1500) + 100,
-
-    // 關鍵數據
     comments: commentsArray,
     commentsCount: commentsArray.length,
-
     isFeatured: id % 5 === 0,
-    fullContent: `這是行程 ID ${id} 的完整詳細內容。\n\n第一天：集合出發 -> 抵達目的地\n第二天：深度市區觀光 -> 特色午餐\n第三天：自由活動或參加自費行程\n\n費用包含：機票、住宿、保險。\n費用不含：小費、個人消費。`,
+    fullContent: `這是行程 ID ${id} 的完整詳細內容...`,
   }
 }
 
 const itineraryData = Array.from({ length: 20 }, (_, i) => generateItinerary(i + 1))
 
-export const useItinerariesStore = defineStore('itineraries', () => {
-  const itineraryList = ref(itineraryData)
+// 🟢 修改處：使用 useItineraryStore (單數)，內部變數為 itineraries
+export const useItineraryStore = defineStore('itinerary', () => {
+  const itineraries = ref(itineraryData)
 
-  // 提供一個 helper function 方便查找
   const getItineraryById = (id) => {
-    return itineraryList.value.find((i) => i.id === id)
+    return itineraries.value.find((i) => i.id === id)
   }
 
-  return { itineraryList, getItineraryById }
+  return { itineraries, getItineraryById }
 })

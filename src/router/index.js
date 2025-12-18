@@ -10,6 +10,7 @@ import FeaturedItineraryPage from '@/views/FeaturedItineraryPage.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import MyItineraryPage from '@/views/MyItineraryPage.vue'
 import ProfilePage from '@/views/ProfilePage.vue'
+import SearchPage from '@/views/SearchPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -38,6 +39,7 @@ const router = createRouter({
       path: '/my-itinerary',
       name: 'my_itinerary',
       component: MyItineraryPage,
+      meta: { hideAd: true },
     },
     {
       path: '/favorites',
@@ -48,13 +50,19 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: ProfilePage,
+      meta: { hideAd: true },
     },
     {
       path: '/login',
       name: 'login',
       component: LoginPage,
+      meta: { hideAd: true },
     },
-    // 雖然你可能還沒創建所有頁面，但先註冊路由可以避免 Sidebar 報錯。
+    {
+      path: '/search',
+      name: 'search',
+      component: SearchPage,
+    },
   ],
 })
 
