@@ -60,37 +60,37 @@ const router = createRouter({
     {
       path: '/cart',
       name: 'cart',
-      component: ShoppingCart,
+      component: () => import('@/views/ShoppingCartPage.vue'),
     },
     {
       path: '/checkout',
       name: 'checkout',
-      component: CheckoutLayout,
+      component: () => import('@/views/CheckoutLayout.vue'),
       children: [
         {
           path: 'step1',
           name: 'CheckoutStep1',
-          component: Step1Confirm,
+          component: () => import('@/components/checkout/Step1Confirm.vue'),
         },
         {
           path: 'step2',
           name: 'CheckoutStep2',
-          component: Step2Form,
+          component: () => import('@/components/checkout/Step2Form.vue'),
         },
         {
           path: 'step3',
           name: 'CheckoutStep3',
-          component: Step3Review,
+          component: () => import('@/components/checkout/Step3Review.vue'),
         },
         {
           path: 'step4',
           name: 'CheckoutStep4',
-          component: Step4Payment,
+          component: () => import('@/components/checkout/Step4Payment.vue'),
         },
         {
           path: 'step5',
           name: 'CheckoutStep5',
-          component: Step5Done,
+          component: () => import('@/components/checkout/Step5Done.vue'),
         },
       ],
     },
