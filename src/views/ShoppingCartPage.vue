@@ -4,7 +4,9 @@ import SubButton from '@/components/checkout/SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 const router = useRouter()
+const userStore = useUserStore()
 
 const tourGroups = ref([
   {
@@ -79,6 +81,22 @@ function goToCheckout() {
     alert('請先選擇一個要結帳的行程！')
   }
 }
+
+//檢測是否登入才能結帳
+// function goToCheckout() {
+//   if (userStore.isLoggedIn) {
+//     if (selectedTour.value) {
+//       checkoutStore.selectedTour = selectedTour.value
+//       router.push('/checkout/step1')
+//     } else {
+//       // 沒有選中項目
+//       alert('請先選擇一個要結帳的行程！')
+//     }
+//   } else {
+//     // 沒有選中項目
+//     alert('請先登入！')
+//   }
+// }
 
 function goToFeatured() {
   router.push('/featured-itinerary')

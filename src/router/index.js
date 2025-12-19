@@ -61,10 +61,12 @@ const router = createRouter({
       path: '/cart',
       name: 'cart',
       component: () => import('@/views/ShoppingCartPage.vue'),
+      meta: { hideAd: true },
     },
     {
       path: '/checkout',
       name: 'checkout',
+      meta: { hideAd: true },
       component: () => import('@/views/CheckoutLayout.vue'),
       children: [
         {
