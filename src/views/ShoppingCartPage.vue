@@ -1,4 +1,6 @@
 <script setup>
+import MainButton from '@/components/checkout/MainButton.vue'
+import SubButton from '@/components/checkout/SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -77,10 +79,14 @@ function goToCheckout() {
     alert('請先選擇一個要結帳的行程！')
   }
 }
+
+function goToFeatured() {
+  router.push('/featured-itinerary')
+}
 </script>
 
 <template>
-  <section class="max-w-5xl mx-auto mt-10">
+  <section class="max-w-5xl mx-auto mt-10 mr-20">
     <h1 class="text-3xl font-bold">購物車</h1>
     <div class="flex gap-5">
       <div v-show="!isCartEmpty" class="p-5 rounded-md">
@@ -177,18 +183,8 @@ function goToCheckout() {
         </div>
 
         <div class="flex flex-col gap-5">
-          <button
-            type="button"
-            class="p-2 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600"
-            @click="goToCheckout"
-          >
-            前往結帳
-          </button>
-          <router-link
-            to="/featured-itinerary"
-            class="p-2 text-center border border-gray-300 rounded-md hover:bg-gray-200"
-            >繼續購物</router-link
-          >
+          <MainButton @click="goToCheckout"> 前往結帳 </MainButton>
+          <SubButton @click="goToFeatured">繼續購物</SubButton>
         </div>
       </div>
     </div>
