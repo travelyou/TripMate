@@ -8,10 +8,10 @@ const currentStep = computed(() => {
   const match = route.name?.match(/\d+/)
   return match ? Number(match[0]) : 1
 })
-
-
 </script>
 <template>
-  <CheckoutProgress :current-step="currentStep" />
-  <router-view />
+  <section class="mr-24">
+    <CheckoutProgress :current-step="currentStep" />
+    <router-view />
+  </section>
 </template>

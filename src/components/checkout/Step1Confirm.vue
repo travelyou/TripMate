@@ -24,7 +24,7 @@ function backCart() {
 
 <template>
   <section>
-    <div class="max-w-4xl mx-auto mr-20">
+    <div class="max-w-4xl mx-auto">
       <!-- 標題 -->
       <div class="m-5 mt-10">
         <h1 class="font-bold text-3xl">確認商品</h1>
@@ -32,7 +32,7 @@ function backCart() {
       </div>
 
       <!-- 行程資訊 -->
-      <div v-if="checkoutStore.selectedTour" class="mr-24">
+      <div v-if="checkoutStore.selectedTour">
         <div class="flex gap-10 bg-white rounded-xl p-10">
           <!-- 圖片 -->
           <img
