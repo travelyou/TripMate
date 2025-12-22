@@ -2,6 +2,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 // 🟢 只有 "首頁" 維持靜態引入 (因為一進來就要看，不用懶載)
+import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
 
 const router = createRouter({
@@ -33,18 +34,28 @@ const router = createRouter({
       path: '/my-itinerary',
       name: 'my_itinerary',
       component: () => import('@/views/MyItineraryPage.vue'),
-      meta: { hideAd: true },
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
     },
     {
       path: '/favorites',
       name: 'favorites',
+
       component: () => import('@/views/FavoritesPage.vue'),
+      meta: {
+        requiresAuth: true,
+      },
     },
     {
       path: '/profile',
       name: 'profile',
       component: () => import('@/views/ProfilePage.vue'),
-      meta: { hideAd: true },
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
     },
     {
       path: '/login',
@@ -61,12 +72,18 @@ const router = createRouter({
       path: '/cart',
       name: 'cart',
       component: () => import('@/views/ShoppingCartPage.vue'),
-      meta: { hideAd: true },
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
     },
     {
       path: '/checkout',
       name: 'checkout',
-      meta: { hideAd: true },
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
       component: () => import('@/views/CheckoutLayout.vue'),
       children: [
         {
@@ -98,5 +115,24 @@ const router = createRouter({
     },
   ],
 })
+// 檢查有些功能，需要登入後才能進入
+router.beforeEach((to, from, next) => {
+  const userStore = useUserStore()
 
+  if (to.name === `login` && userStore.isLoggedIn) {
+    next('/')
+    return
+  }
+
+  if (to.meta.requiresAuth) {
+    if (userStore.isLoggedIn) {
+      next()
+    } else {
+      next('/login')
+      alert('請先登入後才可使用')
+    }
+  } else {
+    next()
+  }
+})
 export default router
