@@ -88,7 +88,7 @@ function goToFeatured() {
 </script>
 
 <template>
-  <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 lg:mr-20 xl:mr-20">
+  <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 xl:mr-20">
     <h1 class="text-3xl font-bold ml-8 mb-5">購物車</h1>
 
     <div class="flex flex-col gap-5 lg:flex-row">
@@ -97,31 +97,35 @@ function goToFeatured() {
           <li
             v-for="tour in tourGroups"
             :key="tour.id"
-            class="p-5 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 min-w-[400px] lg:min-w-[500px] md:"
+            class="p-5 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 lg:min-w-[450px]"
           >
-            <div class="flex justify-between gap-10">
-              <div class="flex gap-5">
+            <div class="flex flex-col justify-between gap-10 sm:flex-row">
+              <!-- radio -->
+
+              <!-- radio/圖/資料 -->
+              <div class="flex flex-col gap-5 sm:flex-row">
                 <input v-model="selectedTourId" type="radio" name="tour" :value="tour.id" />
-                <div class="flex flex-col gap-5 sm:flex-row">
-                  <img
-                    v-if="tour.image"
-                    :src="tour.image"
-                    alt="旅遊圖片"
-                    class="w-32 h-24 rounded-lg overflow-hidden flex-shrink-0"
-                  />
-                  <div class="flex flex-col justify-between">
-                    <div>
-                      <h1 class="font-bold">{{ tour.title }}</h1>
-                      <p class="text-sm text-gray-500">{{ tour.description }}</p>
-                    </div>
-                    <div class="flex gap-5 mt-5">
-                      <p class="text-sm text-gray-500">{{ tour.date }}</p>
-                      <p class="text-sm text-gray-500">{{ tour.duration }}</p>
-                    </div>
+                <img
+                  v-if="tour.image"
+                  :src="tour.image"
+                  alt="旅遊圖片"
+                  class="w-32 h-24 rounded-lg overflow-hidden flex-shrink-0 self-center sm:self-right"
+                />
+
+                <div class="flex flex-col justify-between">
+                  <div>
+                    <h1 class="font-bold">{{ tour.title }}</h1>
+                    <p class="text-sm text-gray-500">{{ tour.description }}</p>
+                  </div>
+                  <div class="flex gap-5 mt-5">
+                    <p class="text-sm text-gray-500">{{ tour.date }}</p>
+                    <p class="text-sm text-gray-500">{{ tour.duration }}</p>
                   </div>
                 </div>
               </div>
-              <div class="flex flex-col justify-between">
+
+              <!-- 價錢/人數增減/刪除 -->
+              <div class="flex justify-between sm:flex-col">
                 <p class="text-right">NT.{{ tour.price }}</p>
                 <div class="flex gap-1 text-sm">
                   <button
@@ -162,7 +166,7 @@ function goToFeatured() {
         </router-link>
       </div>
 
-      <div v-show="!isCartEmpty" class="min-w-[400px] md:max-w-240 lg:min-w-64">
+      <div v-show="!isCartEmpty" class="min-w-48 md:max-w-240 lg:min-w-64">
         <div class="p-5 bg-white rounded-md flex flex-col justify-between">
           <div>
             <h1>結算資訊</h1>
