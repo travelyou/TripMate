@@ -23,7 +23,7 @@ function backStep() {
 </script>
 
 <template>
-  <section class="p-10 mr-20">
+  <section class="p-10">
     <!-- 標題 -->
     <div class="mb-5">
       <h2 class="text-3xl font-bold">填寫資料</h2>
@@ -31,7 +31,7 @@ function backStep() {
     </div>
     <!-- 表單 -->
     <form ref="formRef" @submit.prevent="onSubmit">
-      <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-5 justify-center">
         <div class="bg-white p-5 rounded-xl">
           <!-- 個人聯絡資訊 -->
           <h1 class="mb-5 text-xl">聯絡資訊</h1>
