@@ -6,37 +6,30 @@ import { useRouter } from 'vue-router'
 //import { computed } from 'vue'
 const router = useRouter()
 
-//之後金額必須在後端計算，避免被竄改
-// const totalPrice = computed(() => {
-//   return checkoutStore.selectedTour.price * checkoutStore.selectedTour.persons
-// })
-
 function nextStep() {
   router.push('/checkout/step2')
-  //if () {} else {}
 }
 
 function backCart() {
   router.push('/cart')
-  //if () {} else {}
 }
 </script>
 
 <template>
-  <section>
-    <div class="max-w-4xl mx-auto">
+  <section class="max-w-4xl mx-auto">
+    <div class="mx-5">
       <!-- 標題 -->
-      <div class="m-5 mt-10">
+      <div class="mt-10">
         <h1 class="font-bold text-3xl">確認商品</h1>
         <p class="text-gray-600">請確認您選購的行程資訊</p>
       </div>
 
       <!-- 行程資訊 -->
       <div v-if="checkoutStore.selectedTour">
-        <div class="flex gap-10 bg-white rounded-xl p-10">
+        <div class="flex flex-col gap-10 bg-white rounded-xl p-10 sm:flex-row sm:justify-center">
           <!-- 圖片 -->
           <img
-            class="w-36 h-36 rounded-lg overflow-hidden flex-shrink-0"
+            class="w-36 h-36 rounded-lg overflow-hidden flex-shrink-0 self-center sm:self-start"
             src="https://readdy.ai/api/search-image?query=taipei%20101%20observatory%20deck%20with%20panoramic%20city%20view%2C%20modern%20skyscraper%20interior%20with%20floor%20to%20ceiling%20windows%2C%20tourists%20enjoying%20the%20scenic%20vista%2C%20clean%20white%20background%20with%20soft%20lighting&width=300&height=300&seq=cart1&orientation=squarish"
             alt=""
           />
@@ -44,14 +37,16 @@ function backCart() {
           <div>
             <!-- 商品資訊區 -->
             <div>
-              <h1 class="text-3xl">{{ checkoutStore.selectedTour.title }}</h1>
-              <p>{{ checkoutStore.selectedTour.description }}</p>
+              <h1 class="text-xl font-bold sm:text-3xl">{{ checkoutStore.selectedTour.title }}</h1>
+              <p class="text-sm sm:text-base">{{ checkoutStore.selectedTour.description }}</p>
 
-              <div class="flex justify-between mt-5 mb-2">
+              <div class="grid grid-cols-1 mt-5 text-sm sm:text-base sm:grid-cols-2">
                 <p>出發日期：{{ checkoutStore.selectedTour.date }}</p>
                 <p>行程時間：{{ checkoutStore.selectedTour.duration }}</p>
+                <p class="text-sm sm:text-base">
+                  人數：{{ checkoutStore.selectedTour.persons }} 人
+                </p>
               </div>
-              <p>人數：{{ checkoutStore.selectedTour.persons }} 人</p>
             </div>
             <!-- 金額計算區 -->
             <div class="flex flex-col mt-10">

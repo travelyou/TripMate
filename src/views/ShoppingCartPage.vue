@@ -2,73 +2,39 @@
 import MainButton from '@/components/checkout/MainButton.vue'
 import SubButton from '@/components/checkout/SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
 const router = useRouter()
-const userStore = useUserStore()
 
-const tourGroups = ref([
-  {
-    id: 1,
-    title: '台北 101 觀景台 + 信義區美食之旅',
-    date: '2025年1月15日',
-    duration: '4小時',
-    price: 1800,
-    persons: 1,
-    description: '登上台北最高建築，俯瞰城市美景，品嚐在地特色美食',
-    image:
-      'https://readdy.ai/api/search-image?query=taipei%20101%20observatory%20deck%20with%20panoramic%20city%20view%2C%20modern%20skyscraper%20interior%20with%20floor%20to%20ceiling%20windows%2C%20tourists%20enjoying%20the%20scenic%20vista%2C%20clean%20white%20background%20with%20soft%20lighting&width=300&height=300&seq=cart1&orientation=squarish',
-  },
-  {
-    id: 2,
-    title: '九份老街 + 十分瀑布一日遊',
-    date: '2025年1月20日',
-    duration: '8小時',
-    price: 1400,
-    persons: 1,
-    description: '探索山城風情，體驗傳統文化，欣賞壯麗瀑布景觀',
-    image:
-      'https://readdy.ai/api/search-image?query=jiufen%20old%20street%20with%20traditional%20red%20lanterns%20and%20mountain%20scenery%2C%20charming%20taiwanese%20village%20architecture%2C%20tourists%20walking%20through%20narrow%20alleys%2C%20clean%20white%20background%20with%20warm%20ambient%20lighting&width=300&height=300&seq=cart2&orientation=squarish',
-  },
-])
+// 購物車資料存放於 checkoutStore
+const tourGroups = computed(() => checkoutStore.tourGroups)
 
-//選擇的項目ID
-const selectedTourId = ref(tourGroups.value[0].id)
-//選擇的項目本身
-const selectedTour = computed(() => {
-  return tourGroups.value.find((tour) => tour.id === selectedTourId.value)
+// 選擇的項目ID（雙向綁定到 store）
+const selectedTourId = computed({
+  get: () => checkoutStore.selectedCartTourId,
+  set: (val) => (checkoutStore.selectedCartTourId = val),
 })
 
-//結算總金額
-const totalPrice = computed(() => {
-  if (!selectedTour.value) return 0
-  return selectedTour.value.price * selectedTour.value.persons
-})
+// 選擇的項目本身
+const selectedTour = computed(() => checkoutStore.cartSelectedTour)
 
-//購物車是否為空
-const isCartEmpty = computed(() => tourGroups.value.length === 0)
+// 結算總金額
+const totalPrice = computed(() => checkoutStore.cartTotalPrice)
 
-//增加/減少人數
+// 購物車是否為空
+const isCartEmpty = computed(() => checkoutStore.tourGroups.length === 0)
+
+// 增加/減少人數
 function increasePersons(tour) {
-  tour.persons++
+  checkoutStore.increasePersons(tour.id)
 }
 function decreasePersons(tour) {
-  if (tour.persons > 1) {
-    tour.persons--
-  }
+  checkoutStore.decreasePersons(tour.id)
 }
 
-//刪除購物車項目
+// 刪除購物車項目
 function removeTour(id) {
-  tourGroups.value = tourGroups.value.filter((tour) => tour.id !== id)
-  // 如果還有資料，選第一筆
-  if (tourGroups.value.length > 0) {
-    selectedTourId.value = tourGroups.value[0].id
-  } else {
-    // 如果購物車空了
-    selectedTourId.value = null
-  }
+  checkoutStore.removeTour(id)
 }
 
 //前往結帳
@@ -82,6 +48,7 @@ function goToCheckout() {
   }
 }
 
+//去精選行程頁
 function goToFeatured() {
   router.push('/featured-itinerary')
 }
@@ -91,7 +58,9 @@ function goToFeatured() {
   <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 xl:mr-20">
     <h1 class="text-3xl font-bold ml-8 mb-5">購物車</h1>
 
+    <!-- 購物車整個區塊 -->
     <div class="flex flex-col gap-5 lg:flex-row">
+      <!-- 購物車列表 -->
       <div v-show="!isCartEmpty" class="rounded-md">
         <ul class="grid gap-5">
           <li
@@ -153,6 +122,7 @@ function goToFeatured() {
         </ul>
       </div>
 
+      <!-- 購物車是空的 -->
       <div v-show="isCartEmpty" class="max-w-5xl mx-auto mt-10 text-center">
         <div class="mb-5">
           <h1 class="text-xl">購物車是空的</h1>
@@ -165,6 +135,8 @@ function goToFeatured() {
           前往精選行程
         </router-link>
       </div>
+
+      <!-- 購物車小結區 -->
 
       <div v-show="!isCartEmpty" class="min-w-48 md:max-w-240 lg:min-w-64">
         <div class="p-5 bg-white rounded-md flex flex-col justify-between">
@@ -190,7 +162,7 @@ function goToFeatured() {
               </div>
             </div>
           </div>
-
+          <!-- 按鈕區 -->
           <div class="flex flex-col gap-5">
             <MainButton @click="goToCheckout"> 前往結帳 </MainButton>
             <SubButton @click="goToFeatured">繼續購物</SubButton>
