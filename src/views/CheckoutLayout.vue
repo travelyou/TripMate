@@ -10,7 +10,7 @@ const currentStep = computed(() => {
 })
 </script>
 <template>
-  <section class="mr-24">
+  <section class="lg:mr-24">
     <CheckoutProgress :current-step="currentStep" />
     <router-view />
   </section>
