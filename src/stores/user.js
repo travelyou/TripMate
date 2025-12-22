@@ -6,6 +6,7 @@ export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
     id: 1,
     name: 'Jovi',
+    nickname: 'Jovi',
     email: 'jovi@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
     bgImage: 'https://picsum.photos/1200/400?random=1',
@@ -17,49 +18,62 @@ export const useUserStore = defineStore('user', () => {
     followers: 1250,
     following: 340,
     tripsHosted: 5,
+    tags: ['攝影', '背包客', '美食', '自由行'],
+    reviews: [
+      {
+        id: 1,
+        author: '小美',
+        avatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M',
+        rating: 5,
+        content: '主揪超讚！行程安排得很順暢，人也很隨和～',
+        date: '2024/11/20'
+      },
+      {
+        id: 2,
+        author: 'Tom',
+        avatar: 'https://placehold.co/100x100/87CEEB/ffffff?text=T',
+        rating: 4,
+        content: '很棒的旅伴，下次有機會再一起出遊！',
+        date: '2024/10/15'
+      }
+    ]
   })
 
-  // 拜訪過的地點 (含日期)
-  const visitedPlaces = ref([
-    {
-      id: 1,
-      location: '大阪, 日本',
-      date: '2023-11-15',
-      image: 'https://picsum.photos/400/300?random=101',
-    },
-    {
-      id: 2,
-      location: '首爾, 韓國',
-      date: '2023-09-20',
-      image: 'https://picsum.photos/400/300?random=102',
-    },
-    {
-      id: 3,
-      location: '曼谷, 泰國',
-      date: '2023-08-05',
-      image: 'https://picsum.photos/400/300?random=103',
-    },
-    {
-      id: 4,
-      location: '巴黎, 法國',
-      date: '2022-12-25',
-      image: 'https://picsum.photos/400/300?random=104',
-    },
-  ])
+  // 拜訪過的地點 (含日期) - Modified to match source structure
+  const visitedPlaces = ref({
+    domestic: [
+      { name: '台北', date: '2024.01' },
+      { name: '台中', date: '2023.12' },
+      { name: '台南', date: '2023.10' },
+      { name: '花蓮', date: '2023.08' },
+      { name: '蘭嶼', date: '2023.07' }
+    ],
+    international: [
+      { name: '東京', date: '2023.11' },
+      { name: '大阪', date: '2023.09' },
+      { name: '首爾', date: '2023.05' },
+      { name: '曼谷', date: '2023.02' },
+      { name: '巴黎', date: '2022.12' }
+    ]
+  })
 
   // 願望清單 (收藏的文章或行程 ID)
-  const wishlist = ref([1, 3, 5])
+  const wishlist = ref(['冰島極光', '紐西蘭健行', '瑞士滑雪', '土耳其熱氣球'])
+
+  // Liked Posts
+  const likedPosts = ref([])
 
   // Actions
   const updateProfile = (newData) => {
     currentUser.value = { ...currentUser.value, ...newData }
   }
 
-  const addVisitedPlace = (place) => {
-    visitedPlaces.value.push({
-      id: Date.now(),
-      ...place,
-    })
+  const addVisitedPlace = (place, type = 'domestic') => {
+    if (type === 'domestic') {
+      visitedPlaces.value.domestic.push(place)
+    } else {
+      visitedPlaces.value.international.push(place)
+    }
   }
 
   const toggleWishlist = (id) => {
@@ -81,5 +95,6 @@ export const useUserStore = defineStore('user', () => {
     addVisitedPlace,
     toggleWishlist,
     isWishlisted,
+    likedPosts,
   }
 })
