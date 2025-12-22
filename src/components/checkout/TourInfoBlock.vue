@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { checkoutStore } from '@/stores/checkout'
 
+
+
 const tour = computed(() => checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null)
 const displayPrice = computed(() => {
   if (checkoutStore.selectedTour) return checkoutStore.totalPrice
