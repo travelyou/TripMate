@@ -26,24 +26,6 @@ const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 
-const backgroundImages = [
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1474487548417-781a5a858726?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1483347752454-e668de6d9e1d?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop',
-]
-
-const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
 
 // 🟢 優化後的圖片網址：w=1280 (寬度縮小), q=60 (品質壓縮), auto=format (自動轉 webp)
 const backgroundImages = [

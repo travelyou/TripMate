@@ -1,20 +1,8 @@
 // src/stores/user.js
 import { defineStore } from 'pinia'
-<<<<<<< HEAD
 import { ref, computed } from 'vue'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
-=======
-import { ref } from 'vue'
-import { auth } from '@/firebase/config'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-
-// 為了確保圖片能被正確打包引用，建議使用 import 方式 (Vite/Webpack)
-// 如果您的開發環境支援直接路徑引用，也可以直接寫字串
-// 這裡示範最穩定的 import 寫法：
-// 注意：請確保圖片檔案 src/assets/pic/PatStar.png 真實存在
-import patStarAvatar from '@/assets/pic/PatStar.png'
->>>>>>> a4974ce (feat:登入狀態未與 Firebase 同步)
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
@@ -104,19 +92,11 @@ export const useUserStore = defineStore('user', () => {
   // 登入狀態
   const isLoggedIn = ref(false)
 
-<<<<<<< HEAD
-  // 監聽 Firebase 認證狀態
-=======
   // 監聽 Firebase 認證狀態變化
->>>>>>> a4974ce (feat:登入狀態未與 Firebase 同步)
   onAuthStateChanged(auth, (user) => {
     isLoggedIn.value = user ? true : false
   })
 
-<<<<<<< HEAD
-  // 登入函數
-=======
->>>>>>> a4974ce (feat:登入狀態未與 Firebase 同步)
   const login = () => {
     // 登入狀態由 Firebase onAuthStateChanged 自動管理
     // 此函數保留以維持向後兼容性
