@@ -1,7 +1,6 @@
 {
   "name": "travel_mate",
   "version": "0.0.0",
-  "description": "一個專為旅行愛好者打造的社交平台，提供找旅伴、行程規劃、討論交流等功能，讓您的旅行更加精彩豐富",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,7 +14,7 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
-    "firebase": "^12.6.0",
+    "firebase": "^12.7.0",
     "lucide-vue-next": "^0.560.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.25",

@@ -16,8 +16,6 @@ const router = createRouter({
     {
       path: '/discussion',
       name: 'discussion',
-      // 🟢 改成箭頭函式 import()，這就是懶人載入！
-      // 只有切換到此頁面時，瀏覽器才會下載這部分的程式碼
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
@@ -115,29 +113,27 @@ const router = createRouter({
     },
   ],
 })
-// 檢查有些功能，需要登入後才能進入
+
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
 
-  if (to.name === `login` && userStore.isLoggedIn) {
+
+  if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
     return
   }
 
   if (to.meta.requiresAuth) {
+
     if (userStore.isLoggedIn) {
       next()
     } else {
+
       next('/login')
-      // 延遲顯示 Toast，確保在路由切換後再顯示
-      setTimeout(() => {
-        import('@/composables/useToast').then(({ useToast }) => {
-          const toast = useToast()
-          toast.warning('請先登入後才可使用')
-        })
-      }, 100)
+      alert('請先登入後才可使用')
     }
   } else {
+
     next()
   }
 })
