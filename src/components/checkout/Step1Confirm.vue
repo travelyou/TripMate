@@ -17,9 +17,9 @@ function backCart() {
 
 <template>
   <section class="max-w-4xl mx-auto">
-    <div class="mx-5">
+    <div>
       <!-- 標題 -->
-      <div class="mt-10">
+      <div class="my-2 sm:my-5">
         <h1 class="font-bold text-3xl">確認商品</h1>
         <p class="text-gray-600">請確認您選購的行程資訊</p>
       </div>
@@ -38,7 +38,9 @@ function backCart() {
             <!-- 商品資訊區 -->
             <div>
               <h1 class="text-xl font-bold sm:text-3xl">{{ checkoutStore.selectedTour.title }}</h1>
-              <p class="text-sm sm:text-base">{{ checkoutStore.selectedTour.description }}</p>
+              <p class="text-sm mt-5 sm:text-base sm:mt-0">
+                {{ checkoutStore.selectedTour.description }}
+              </p>
 
               <div class="grid grid-cols-1 mt-5 text-sm sm:text-base sm:grid-cols-2">
                 <p>出發日期：{{ checkoutStore.selectedTour.date }}</p>
