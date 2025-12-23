@@ -12,6 +12,62 @@ const paymentMethod = ref('')
 // 行動支付選項
 const mobileProvider = ref('')
 
+// 信用卡欄位及錯誤訊息
+const cardNumber = ref('')
+const cardName = ref('')
+const cardExpiry = ref('')
+const cardCVV = ref('')
+
+const cardNumberError = ref('')
+const cardNameError = ref('')
+const cardExpiryError = ref('')
+const cardCVVError = ref('')
+
+function clearCardErrors() {
+  cardNumberError.value = ''
+  cardNameError.value = ''
+  cardExpiryError.value = ''
+  cardCVVError.value = ''
+}
+
+function isValidCardNumber(value) {
+  if (!value) return false
+  const s = String(value).replace(/[^0-9]/g, '')
+  if (s.length < 13 || s.length > 19) return false
+  //  盧恩算法 (Luhn algorithm) 檢查
+  let sum = 0
+  let shouldDouble = false
+  for (let i = s.length - 1; i >= 0; i--) {
+    let digit = parseInt(s.charAt(i), 10)
+    if (shouldDouble) {
+      digit *= 2
+      if (digit > 9) digit -= 9
+    }
+    sum += digit
+    shouldDouble = !shouldDouble
+  }
+  return sum % 10 === 0
+}
+
+function isValidExpiry(value) {
+  if (!value) return false
+  const m = String(value).trim()
+  const re = /^(0[1-9]|1[0-2])\/\d{2}$/
+  if (!re.test(m)) return false
+  const parts = m.split('/')
+  const month = parseInt(parts[0], 10)
+  const year = parseInt(parts[1], 10) + 2000
+  const expiryDate = new Date(year, month - 1 + 1, 1) // 到期後，次月的第一天
+  const now = new Date()
+  // MM/YY 是否未過期
+  return expiryDate > now
+}
+
+function isValidCVV(value) {
+  if (!value) return false
+  return /^\d{3,4}$/.test(String(value).trim())
+}
+
 // 選擇付款方式
 const showCreditForm = computed(() => paymentMethod.value === 'credit')
 const showMobilePay = computed(() => paymentMethod.value === 'mobile')
@@ -23,6 +79,34 @@ function confirmPayment() {
     alert('請選擇付款方式')
     return
   }
+  // 若選擇信用卡，先驗證信用卡欄位格式
+  if (paymentMethod.value === 'credit') {
+    clearCardErrors()
+    let valid = true
+
+    if (!cardName.value || !String(cardName.value).trim()) {
+      cardNameError.value = '請輸入持卡人姓名'
+      valid = false
+    }
+
+    if (!isValidCardNumber(cardNumber.value)) {
+      cardNumberError.value = '請輸入正確卡號'
+      valid = false
+    }
+
+    if (!isValidExpiry(cardExpiry.value)) {
+      cardExpiryError.value = '請輸入有效期限，格式 MM/YY，且未過期'
+      valid = false
+    }
+
+    if (!isValidCVV(cardCVV.value)) {
+      cardCVVError.value = '請輸入 3 或 4 位數安全碼'
+      valid = false
+    }
+
+    if (!valid) return
+  }
+
   checkoutStore.paymentMethod = paymentMethod.value
   if (paymentMethod.value === 'mobile') {
     if (!mobileProvider.value) {
@@ -109,27 +193,47 @@ function backStep() {
             <div class="flex flex-col gap-2">
               <label>卡號 <span class="text-red-500">*</span></label>
               <input
+                v-model="cardNumber"
                 class="border border-gray-300 rounded p-1 w-full"
                 placeholder="1234 5678 9012 3456"
+                @input="cardNumberError = ''"
               />
+              <p v-if="cardNumberError" class="text-red-500 text-sm">{{ cardNumberError }}</p>
             </div>
 
             <div class="flex flex-col gap-2">
               <label>持卡人姓名 <span class="text-red-500">*</span></label>
               <input
+                v-model="cardName"
                 class="border border-gray-300 rounded p-1 w-full"
                 placeholder="CARDHOLDER NAME"
+                @input="cardNameError = ''"
               />
+              <p v-if="cardNameError" class="text-red-500 text-sm">{{ cardNameError }}</p>
             </div>
 
             <div class="flex flex-col gap-4 md:flex-row md:gap-8">
               <div class="flex flex-col gap-2">
                 <label>有效期限 <span class="text-red-500">*</span></label>
-                <input class="border border-gray-300 rounded p-1" placeholder="MM/YY" />
+                <input
+                  v-model="cardExpiry"
+                  class="border border-gray-300 rounded p-1"
+                  placeholder="MM/YY"
+                  @input="cardExpiryError = ''"
+                />
+                <p v-if="cardExpiryError" class="text-red-500 text-sm">
+                  {{ cardExpiryError }}
+                </p>
               </div>
               <div class="flex flex-col gap-2">
                 <label>安全碼 <span class="text-red-500">*</span></label>
-                <input class="border border-gray-300 rounded p-1" placeholder="CVV" />
+                <input
+                  v-model="cardCVV"
+                  class="border border-gray-300 rounded p-1"
+                  placeholder="CVV"
+                  @input="cardCVVError = ''"
+                />
+                <p v-if="cardCVVError" class="text-red-500 text-sm">{{ cardCVVError }}</p>
               </div>
             </div>
           </div>
