@@ -25,12 +25,12 @@ function backStep() {
 </script>
 
 <template>
-  <section >
-    <div class="max-w-4xl mx-auto mt-10">
+  <section>
+    <div class="max-w-4xl mx-auto">
       <!-- 標題 -->
       <div>
-        <h2 class="text-3xl font-bold">確認資料</h2>
-        <div class="flex flex-col gap-5 mt-5">
+        <h2 class="text-3xl font-bold mb-2">確認資料</h2>
+        <div class="flex flex-col gap-5">
           <!-- 旅程資訊 -->
           <TourInfoBlock />
           <!-- 資料確認區 -->

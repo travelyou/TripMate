@@ -23,7 +23,7 @@ function backStep() {
 </script>
 
 <template>
-  <section class="p-10">
+  <section>
     <!-- 標題 -->
     <div class="mb-5">
       <h2 class="text-3xl font-bold">填寫資料</h2>

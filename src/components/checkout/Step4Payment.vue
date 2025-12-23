@@ -47,13 +47,13 @@ function backStep() {
 </script>
 
 <template>
-  <section class="max-w-5xl mx-auto mt-10">
-    <div class="flex gap-10">
+  <section class="max-w-5xl mx-auto">
+    <div class="flex flex-col gap-10 md:flex-row">
       <!-- 左側：付款方式 -->
       <div class="flex-1 space-y-6">
         <!-- 安全提示 -->
         <div
-          class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg"
+          class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg text-sm sm:text-base"
         >
           🔒 您的付款資訊經過加密保護，我們不會儲存您的信用卡資訊
         </div>
@@ -122,7 +122,7 @@ function backStep() {
               />
             </div>
 
-            <div class="flex gap-4">
+            <div class="flex flex-col gap-4 md:flex-row md:gap-8">
               <div class="flex flex-col gap-2">
                 <label>有效期限 <span class="text-red-500">*</span></label>
                 <input class="border border-gray-300 rounded p-1" placeholder="MM/YY" />
@@ -196,7 +196,7 @@ function backStep() {
       </div>
 
       <!-- 右側：訂單摘要 -->
-      <div class="w-80 bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
+      <div class="min-w-[250px] bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
         <h3 class="text-xl font-bold">訂單摘要</h3>
 
         <div class="space-y-2">
