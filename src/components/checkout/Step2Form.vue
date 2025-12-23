@@ -8,11 +8,49 @@ const router = useRouter()
 
 const formRef = ref(null)
 
+const phoneError = ref('')
+const emergencyPhoneError = ref('')
+
+function clearPhoneError() {
+  phoneError.value = ''
+}
+
+function clearEmergencyPhoneError() {
+  emergencyPhoneError.value = ''
+}
+
+function isValidPhone(phone) {
+  if (!phone) return false
+  const s = String(phone).trim()
+  // Accept formats: 09XXXXXXXX or 09XX-XXX-XXX
+  const rePlain = /^09\d{8}$/
+  const reHyphen = /^09\d{2}-\d{3}-\d{3}$/
+  return rePlain.test(s) || reHyphen.test(s)
+}
+
 function onSubmit() {
   if (formRef.value && !formRef.value.checkValidity()) {
     formRef.value.reportValidity()
     return
   }
+
+  // 電話格式驗證
+  const contactPhone = checkoutStore.contact.phone
+  const emergencyPhone = checkoutStore.emergencyContact.phone
+
+  let valid = true
+
+  if (!isValidPhone(contactPhone)) {
+    phoneError.value = '請輸入正確手機號碼，格式例如 0987-654-321 或 0987654321'
+    valid = false
+  }
+
+  if (!isValidPhone(emergencyPhone)) {
+    emergencyPhoneError.value = '請輸入正確手機號碼，格式例如 0987-654-321 或 0987654321'
+    valid = false
+  }
+
+  if (!valid) return
 
   router.push('/checkout/step3')
 }
@@ -50,6 +88,7 @@ function backStep() {
               <p>聯絡電話(手機)<span class="text-red-500">*</span></p>
               <input
                 v-model="checkoutStore.contact.phone"
+                @input="clearPhoneError"
                 placeholder="0900-000-000"
                 type="tel"
                 class="border border-gray-300 rounded p-2 my-2"
@@ -57,6 +96,7 @@ function backStep() {
                 inputmode="tel"
                 required
               />
+              <p v-if="phoneError" class="text-red-500 text-sm mt-1">{{ phoneError }}</p>
             </div>
             <div>
               <p>電子郵件<span class="text-red-500">*</span></p>
@@ -90,12 +130,16 @@ function backStep() {
               <p>緊急聯絡人電話<span class="text-red-500">*</span></p>
               <input
                 v-model="checkoutStore.emergencyContact.phone"
+                @input="clearEmergencyPhoneError"
                 placeholder="0900-000-000"
                 class="border border-gray-300 rounded p-2 my-2"
                 name="emergencyPhone"
                 inputmode="tel"
                 required
               />
+              <p v-if="emergencyPhoneError" class="text-red-500 text-sm mt-1">
+                {{ emergencyPhoneError }}
+              </p>
             </div>
           </div>
         </div>
