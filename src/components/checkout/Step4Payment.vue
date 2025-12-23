@@ -18,11 +18,13 @@ const cardName = ref('')
 const cardExpiry = ref('')
 const cardCVV = ref('')
 
+// 錯誤訊息
 const cardNumberError = ref('')
 const cardNameError = ref('')
 const cardExpiryError = ref('')
 const cardCVVError = ref('')
 
+// 清除信用卡錯誤訊息
 function clearCardErrors() {
   cardNumberError.value = ''
   cardNameError.value = ''
@@ -30,6 +32,7 @@ function clearCardErrors() {
   cardCVVError.value = ''
 }
 
+// 驗證信用卡卡號
 function isValidCardNumber(value) {
   if (!value) return false
   const s = String(value).replace(/[^0-9]/g, '')
@@ -49,6 +52,7 @@ function isValidCardNumber(value) {
   return sum % 10 === 0
 }
 
+// 驗證有效期限 MM/YY 格式且未過期
 function isValidExpiry(value) {
   if (!value) return false
   const m = String(value).trim()
@@ -63,6 +67,7 @@ function isValidExpiry(value) {
   return expiryDate > now
 }
 
+// 驗證 CVV 為 3 或 4 位數字
 function isValidCVV(value) {
   if (!value) return false
   return /^\d{3,4}$/.test(String(value).trim())
