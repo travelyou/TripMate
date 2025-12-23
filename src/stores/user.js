@@ -1,6 +1,8 @@
 // src/stores/user.js
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { auth } from '@/firebase/config'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
@@ -87,8 +89,33 @@ export const useUserStore = defineStore('user', () => {
 
   const isWishlisted = (id) => wishlist.value.includes(id)
 
+  // 登入狀態
+  const isLoggedIn = ref(false)
+
+  // 監聽 Firebase 認證狀態
+  onAuthStateChanged(auth, (user) => {
+    isLoggedIn.value = user ? true : false
+  })
+
+  // 登入函數
+  const login = () => {
+    // 登入狀態由 Firebase onAuthStateChanged 自動管理
+    // 此函數保留以維持向後兼容性
+  }
+  const logout = async () => {
+    try {
+      await signOut(auth)
+      // onAuthStateChanged 會自動更新 isLoggedIn 狀態
+    } catch (error) {
+      console.error('登出失敗：', error)
+    }
+  }
+
+  const userProfile = computed(() => currentUser.value)
+
   return {
     currentUser,
+    userProfile,
     visitedPlaces,
     wishlist,
     updateProfile,
@@ -96,5 +123,9 @@ export const useUserStore = defineStore('user', () => {
     toggleWishlist,
     isWishlisted,
     likedPosts,
+    // 登入(出)狀態
+    isLoggedIn,
+    login,
+    logout,
   }
 })
