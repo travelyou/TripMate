@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { auth } from '@/firebase/config'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 
 // 為了確保圖片能被正確打包引用，建議使用 import 方式 (Vite/Webpack)
 // 如果您的開發環境支援直接路徑引用，也可以直接寫字串
@@ -230,11 +232,22 @@ export const useUserStore = defineStore('user', () => {
 
   //4.登入(出)判斷
   const isLoggedIn = ref(false)
+
+  // 監聽 Firebase 認證狀態變化
+  onAuthStateChanged(auth, (user) => {
+    isLoggedIn.value = user ? true : false
+  })
+
   const login = () => {
     isLoggedIn.value = true
   }
-  const logout = () => {
-    isLoggedIn.value = false
+  const logout = async () => {
+    try {
+      await signOut(auth)
+      // onAuthStateChanged 會自動更新 isLoggedIn 狀態
+    } catch (error) {
+      console.error('登出失敗：', error)
+    }
   }
 
   // 更新封面圖

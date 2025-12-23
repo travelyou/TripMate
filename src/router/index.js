@@ -129,7 +129,13 @@ router.beforeEach((to, from, next) => {
       next()
     } else {
       next('/login')
-      alert('請先登入後才可使用')
+      // 延遲顯示 Toast，確保在路由切換後再顯示
+      setTimeout(() => {
+        import('@/composables/useToast').then(({ useToast }) => {
+          const toast = useToast()
+          toast.warning('請先登入後才可使用')
+        })
+      }, 100)
     }
   } else {
     next()
