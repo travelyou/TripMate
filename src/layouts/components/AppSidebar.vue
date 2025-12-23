@@ -1,23 +1,49 @@
 <script setup>
-import { useRouter } from 'vue-router'
-import { Pin as PinIcon, Heart as HeartIcon, Bookmark as BookmarkIcon } from 'lucide-vue-next'
+import {
+  Home as HomeIcon,
+  MessagesSquare as ForumIcon,
+  Users as UsersIcon,
+  Map as MapIcon,
+  Calendar as CalendarIcon,
+  User as UserIcon,
+  Bookmark as BookmarkIcon,
+  Heart as HeartIcon,
+  Menu as MenuIcon,
+} from 'lucide-vue-next'
+import { useRouter, useRoute } from 'vue-router'
 
+const emit = defineEmits(['open-mobile-actions'])
 const router = useRouter()
+const route = useRoute()
 
-// 定義選單項目
+// 電腦版側邊欄選單 (保持不變)
 const menuItems = [
-  { name: 'home', label: '為你推薦', iconColor: 'text-amber-800', textColor: 'text-amber-900' },
-  { name: 'discussion', label: '討論區', iconColor: 'text-amber-800', textColor: 'text-amber-900' },
+  {
+    name: 'home',
+    label: '為你推薦',
+    icon: HomeIcon,
+    iconColor: 'text-amber-800',
+    textColor: 'text-amber-900',
+  },
+  {
+    name: 'discussion',
+    label: '討論區',
+    icon: ForumIcon,
+    iconColor: 'text-indigo-600',
+    textColor: 'text-amber-900',
+  },
   {
     name: 'find_traveler',
     label: '找旅伴',
-    iconColor: 'text-amber-800',
+    icon: UsersIcon,
+    iconColor: 'text-green-600',
     textColor: 'text-amber-900',
   },
   {
     name: 'featured_itinerary',
     label: '精選行程',
-    iconColor: 'text-amber-800',
+    icon: MapIcon,
+    iconColor: 'text-orange-600',
     textColor: 'text-amber-900',
   },
 ]
@@ -26,35 +52,53 @@ const bottomMenuItems = [
   {
     name: 'my_itinerary',
     label: '我的行程',
-    iconColor: 'text-amber-800',
+    icon: CalendarIcon,
+    iconColor: 'text-blue-600',
     textColor: 'text-amber-900',
   },
   {
     name: 'profile',
     label: '個人檔案',
-    iconColor: 'text-amber-700/80',
+    icon: UserIcon,
+    iconColor: 'text-gray-700',
     textColor: 'text-amber-900',
   },
 ]
 
-// 跳轉功能
+// 🟢 修正順序：手機版底部導航項目
+// 順序：首頁 -> 討論 -> 找伴 -> 精選(新增) -> 行程 -> 更多
+const mobileNavItems = [
+  { name: 'home', label: '首頁', icon: HomeIcon },
+  { name: 'discussion', label: '討論', icon: ForumIcon }, // 恢復順序
+  { name: 'find_traveler', label: '找伴', icon: UsersIcon }, // 恢復順序
+  { name: 'featured_itinerary', label: '精選', icon: MapIcon }, // ✨ 插在這裡 (符合電腦版邏輯)
+  { name: 'my_itinerary', label: '行程', icon: CalendarIcon },
+  { name: 'menu', label: '更多', icon: MenuIcon },
+]
+
 function goToFavorites() {
-  // 需確保 router/index.js 有設定 path: '/favorites', name: 'favorites'
   router.push({ name: 'favorites' })
 }
-
 function goToCollections() {
   alert('收藏功能開發中')
+}
+
+const handleMobileNavClick = (item) => {
+  if (item.name === 'menu') {
+    emit('open-mobile-actions')
+  } else {
+    router.push({ name: item.name })
+  }
 }
 </script>
 
 <template>
   <aside
-    class="fixed left-0 top-16 md:top-18 w-64 p-4 hidden lg:flex flex-col z-40 h-[calc(100vh-4rem)] md:h-[calc(100vh-4.5rem)] custom-scrollbar overflow-y-auto aside-nav"
+    class="fixed left-0 top-16 md:top-18 bottom-0 w-64 hidden lg:flex flex-col z-40 custom-scrollbar overflow-y-auto aside-nav p-4"
   >
     <div class="flex justify-between mb-4 pb-4 border-b-4 border-amber-300">
       <div
-        class="cursor-pointer w-[48%] aspect-square pixel-button bg-pink-300 flex flex-col items-center justify-center hover:bg-pink-400 group transition-transform active:translate-y-1"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center pixel-button group transition-transform active:translate-y-1"
         @click="goToFavorites"
       >
         <HeartIcon class="w-8 h-8 text-red-600 group-hover:text-red-700 transition fill-red-600" />
@@ -62,7 +106,7 @@ function goToCollections() {
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square pixel-button bg-yellow-300 flex flex-col items-center justify-center hover:bg-yellow-400 group transition-transform active:translate-y-1"
+        class="cursor-pointer w-[48%] aspect-square pixel-button flex flex-col items-center justify-center group transition-transform active:translate-y-1"
         @click="goToCollections"
       >
         <BookmarkIcon
@@ -80,7 +124,7 @@ function goToCollections() {
         class="nav-item flex items-center p-3 rounded-xl cursor-pointer"
         active-class="active"
       >
-        <PinIcon :class="['w-5 h-5 mr-3 fill-amber-800 transform rotate-45', item.iconColor]" />
+        <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
         <span
           :class="['font-bold', item.textColor]"
           style="text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8)"
@@ -98,7 +142,7 @@ function goToCollections() {
         class="nav-item flex items-center p-3 rounded-xl cursor-pointer hover:opacity-70"
         active-class="active"
       >
-        <PinIcon :class="['w-5 h-5 mr-3 transform rotate-45', item.iconColor]" />
+        <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
         <span
           :class="['font-bold', item.textColor]"
           style="text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8)"
@@ -108,35 +152,63 @@ function goToCollections() {
       </RouterLink>
     </nav>
   </aside>
+
+  <nav
+    class="fixed bottom-0 left-0 right-0 h-16 bg-[#fcf9f2] border-t-4 border-[#8b6f47] z-50 flex justify-between items-center px-1 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"
+  >
+    <button
+      v-for="item in mobileNavItems"
+      :key="item.name"
+      class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:bg-orange-50 transition active:scale-95 px-0.5"
+      :class="{ 'mobile-active': route.name === item.name && item.name !== 'menu' }"
+      @click="handleMobileNavClick(item)"
+    >
+      <component
+        :is="item.icon"
+        class="w-5 h-5 mb-1 transition-colors"
+        :class="
+          route.name === item.name && item.name !== 'menu'
+            ? 'text-orange-600 fill-orange-100'
+            : 'text-gray-500'
+        "
+      />
+      <span
+        class="text-[10px] font-bold transition-colors whitespace-nowrap scale-90 origin-center"
+        :class="
+          route.name === item.name && item.name !== 'menu' ? 'text-orange-600' : 'text-gray-500'
+        "
+      >
+        {{ item.label }}
+      </span>
+    </button>
+  </nav>
 </template>
 
 <style scoped>
 .aside-nav {
-  background: linear-gradient(180deg, #e8d5c4 0%, #d4c4b0 50%, #c9b8a5 100%);
-  border: 4px solid #8b6f47;
-  box-shadow:
-    5px 5px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -2px -2px 0px 0px rgba(255, 255, 255, 0.3);
+  border-right: 4px solid #8b6f47;
+  box-shadow: 5px 0px 0px 0px rgba(139, 111, 71, 0.2);
+
   font-family: 'Press Start 2P', monospace;
+  background-color: #f5e6d3;
 }
 
-/* 確保按鈕樣式 */
-.pixel-button {
+.pixel-button:hover {
   border: 3px solid #8b6f47;
   box-shadow:
     3px 3px 0px 0px rgba(139, 111, 71, 0.3),
     inset -1px -1px 0px 0px rgba(255, 255, 255, 0.4);
+  background-color: pink;
 }
 .pixel-button:active {
   box-shadow: none;
 }
-
 .nav-item {
   transition: all 0.2s;
   border: 2px solid transparent;
 }
 .nav-item:hover {
-  background-color: #f5e6d3;
+  background-color: #fff8ee;
   transform: translateX(3px);
   border: 2px solid #d4a574;
   box-shadow: 2px 2px 0px 0px rgba(139, 111, 71, 0.2);
@@ -145,5 +217,10 @@ function goToCollections() {
   background-color: #fff5e6;
   border: 3px solid #d4a574;
   box-shadow: 3px 3px 0px 0px rgba(139, 111, 71, 0.2);
+}
+.mobile-active {
+  background-color: #fff5e6;
+  border-top: 4px solid #f97316;
+  margin-top: -4px;
 }
 </style>

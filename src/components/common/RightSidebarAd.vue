@@ -1,6 +1,10 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
+
+// 1. 保留你原本的大型廣告資料庫
 const largeAds = [
   {
     id: 1,
@@ -94,6 +98,7 @@ const largeAds = [
   },
 ]
 
+// 2. 保留你原本的方形廣告資料庫
 const squareAds = [
   {
     id: 11,
@@ -201,6 +206,15 @@ const selectRandomAds = () => {
 onMounted(() => {
   selectRandomAds()
 })
+
+// ⭐️ 關鍵修改：監聽路由變化
+// 當網址改變時 (route.path)，重新執行 selectRandomAds
+watch(
+  () => route.path,
+  () => {
+    selectRandomAds()
+  },
+)
 </script>
 
 <template>

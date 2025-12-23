@@ -2,15 +2,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
-
-// 為了確保圖片能被正確打包引用，建議使用 import 方式 (Vite/Webpack)
-// 如果您的開發環境支援直接路徑引用，也可以直接寫字串
-// 這裡示範最穩定的 import 寫法：
-// 注意：請確保圖片檔案 src/assets/pic/PatStar.png 真實存在
 import patStarAvatar from '@/assets/pic/PatStar.png'
 
 export const useUserStore = defineStore('user', () => {
-  // 1. 我的行程詳細數據 (保留原本的數據)
+  // 1. 我的行程
   const myItineraries = ref([
     {
       id: 1,
@@ -168,7 +163,7 @@ export const useUserStore = defineStore('user', () => {
     },
   ])
 
-  // 2. 草稿夾數據
+  // 2. 草稿夾
   const drafts = ref([
     {
       id: 101,
@@ -213,13 +208,11 @@ export const useUserStore = defineStore('user', () => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
   }
 
-  // 3. 使用者個人資料 (🟢 修改處)
+  // 3. 使用者個人資料
   const userProfile = ref({
-    name: '派大星', // 🟢 名字改為派大星
+    name: '派大星', // 🟢 名字為派大星
     id: '#2848',
-    avatar: patStarAvatar, // 🟢 頭像引用引入的圖片變數
-    // 如果 import 方式報錯，您可以嘗試註解上面那行並使用下面這行直接路徑：
-    // avatar: '/src/assets/pic/PatStar.png',
+    avatar: patStarAvatar, // 🟢 頭像引用
 
     // 預設封面圖
     coverImage:
@@ -239,7 +232,6 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const login = () => {
-    isLoggedIn.value = true
   }
   const logout = async () => {
     try {

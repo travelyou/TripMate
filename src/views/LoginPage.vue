@@ -166,7 +166,6 @@ import {
 import { doc, setDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useToast } from '@/composables/useToast'
 
 //切換 login / register
 const activeTab = ref('login')
@@ -189,8 +188,6 @@ const registerForm = ref({
 //登入：送出資料
 const userStore = useUserStore()
 const router = useRouter()
-const toast = useToast()
-
 const handleLogin = async () => {
   try {
     const userCredential = await signInWithEmailAndPassword(
@@ -200,11 +197,10 @@ const handleLogin = async () => {
     )
     console.log('登入成功：', userCredential.user)
     userStore.login()
-    toast.success('登入成功！')
     router.push('/')
   } catch (error) {
     console.error('登入失敗：', error.message)
-    toast.error('登入失敗：' + error.message)
+    alert('登入失敗：' + error.message)
   }
 }
 
@@ -212,43 +208,45 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   try {
     // 1. 檢查必填欄位
-    if (!registerForm.value.realName || !registerForm.value.nickname) {
-      toast.warning('請填寫真實姓名和暱稱')
+    if (!registerForm.value.realName) {
+      alert('請填寫真實姓名')
       return
     }
-
+    if (!registerForm.value.nickname) {
+      alert('請填寫暱稱')
+      return
+    }
     if (!registerForm.value.email || !registerForm.value.password) {
-      toast.warning('請填寫電子信箱和密碼')
+      alert('請填寫電子信箱和密碼')
       return
     }
 
     // 2. 檢查 Email 格式
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(registerForm.value.email)) {
-      toast.warning('請輸入有效的電子信箱格式')
+      alert('請輸入有效的電子信箱格式')
       return
     }
 
     // 3. 檢查密碼長度
     if (registerForm.value.password.length < 6) {
-      toast.warning('密碼長度至少需要 6 個字元')
+      alert('密碼長度至少需要 6 個字元')
       return
     }
 
     // 4. 檢查密碼是否一致
     if (registerForm.value.password !== registerForm.value.confirmPassword) {
-      toast.warning('密碼不一致，請重新確認')
+      alert('密碼不一致，請重新確認')
       return
     }
 
-    // 5. 建立使用者帳號
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       registerForm.value.email,
       registerForm.value.password,
     )
 
-    // 6. 儲存使用者額外資料到 Firestore
+    // 儲存使用者額外資料到 Firestore
     await setDoc(doc(db, 'users', userCredential.user.uid), {
       realName: registerForm.value.realName,
       nickname: registerForm.value.nickname,
@@ -258,25 +256,24 @@ const handleRegister = async () => {
 
     console.log('註冊成功：', userCredential.user)
     userStore.login()
-    toast.success('註冊成功！')
     router.push('/')
   } catch (error) {
     console.log('註冊失敗', error.message)
-    toast.error('註冊失敗：' + error.message)
+    alert('註冊失敗：' + error.message)
   }
 }
 //忘記密碼
 const handleForgotPassword = async () => {
   try {
     if (!loginForm.value.email) {
-      toast.warning('請輸入註冊時的電子郵件')
+      alert('請輸入註冊時的電子郵件')
       return
     }
     await sendPasswordResetEmail(auth, loginForm.value.email)
-    toast.success('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
+    alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
     console.log('發送失敗：' + error.message)
-    toast.error('發送失敗：' + error.message)
+    alert('發送失敗：' + error.message)
   }
 }
 </script>

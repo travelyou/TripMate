@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue'
 import {
-  Search as SearchIcon,
   Plus as PlusIcon,
   Heart as HeartIcon,
   MessageCircle as MessageCircleIcon,
@@ -13,7 +12,6 @@ import { useDiscussionsStore } from '@/stores/discussions'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
-import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 
 const discussionsStore = useDiscussionsStore()
 
@@ -54,8 +52,8 @@ const activeFilter = ref('全部')
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row gap-8 p-4 md:p-0 items-start overflow-x-hidden">
-    <div class="w-full lg:w-[calc(100%-310px)]">
+  <div class="p-4 md:p-0 overflow-x-hidden">
+    <div class="w-full">
       <div
         class="bg-pink-100 p-5 rounded-xl mb-6 mt-4 border-4 border-pink-300 shadow-[4px_4px_0px_0px_rgba(236,72,153,0.5)]"
       >
@@ -75,17 +73,6 @@ const activeFilter = ref('全部')
       </div>
 
       <div class="mb-8 p-4 pixel-card bg-white/90">
-        <div class="flex items-center space-x-2 mb-4 border-b border-gray-200 pb-4">
-          <input
-            type="text"
-            placeholder="搜尋話題、標籤..."
-            class="flex-1 p-2 border-2 border-gray-300 rounded-md focus:border-indigo-500 transition shadow-inner"
-          />
-          <button class="bg-indigo-500 text-white p-2 rounded-md hover:bg-indigo-600 transition">
-            <SearchIcon class="w-6 h-6" />
-          </button>
-        </div>
-
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
@@ -197,8 +184,6 @@ const activeFilter = ref('全部')
         </div>
       </div>
     </div>
-
-    <RightSidebarAd />
   </div>
 
   <PostingChoiceModal v-if="isPostingModalOpen" @close="isPostingModalOpen = false" />
