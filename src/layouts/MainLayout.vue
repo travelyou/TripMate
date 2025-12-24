@@ -26,28 +26,25 @@ const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 
-// 🟢 優化後的圖片網址：w=1280 (寬度縮小), q=60 (品質壓縮), auto=format (自動轉 webp)
 const backgroundImages = [
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop', // 海灘
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=60&w=1280&auto=format&fit=crop', // 森林
-  'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=60&w=1280&auto=format&fit=crop', // 城市
-  'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=60&w=1280&auto=format&fit=crop', // 星空
-  'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=60&w=1280&auto=format&fit=crop', // 雪山
-  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=60&w=1280&auto=format&fit=crop', // 公路
-  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=1280&auto=format&fit=crop', // 湖泊
-  'https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=60&w=1280&auto=format&fit=crop', // 粉色天空
-  'https://images.unsplash.com/photo-1474487548417-781a5a858726?q=60&w=1280&auto=format&fit=crop', // 火車
-  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=60&w=1280&auto=format&fit=crop', // 露營
-  'https://images.unsplash.com/photo-1483347752454-e668de6d9e1d?q=60&w=1280&auto=format&fit=crop', // 極光
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=60&w=1280&auto=format&fit=crop', // 小屋
-  'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop', // 熱氣球
+  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1474487548417-781a5a858726?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1483347752454-e668de6d9e1d?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop',
 ]
 
-// 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
 
-// ... 其他函式保持不變
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
   isMobileActionMenuOpen.value = false
@@ -81,28 +78,27 @@ const handleToggleAiChat = () => {
   >
     <AppHeader @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div class="flex pt-16 md:pt-18 min-h-screen overflow-x-hidden">
-      <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
+    <div class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
+      <div
+        class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
+      >
+        <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
+      </div>
 
       <main
-        class="lg:ml-[280px] w-full min-w-0 flex flex-col lg:flex-row items-start transition-all duration-300"
-        :class="[isSearchPage ? 'pb-0 gap-6' : 'pb-24 md:pb-20 p-4 md:p-0 max-w-7xl mx-auto gap-6']"
+        class="flex-1 min-w-0 transition-all duration-300"
+        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 p-4 md:p-0']"
       >
-        <div
-          class="w-full min-w-0 transition-all duration-300"
-          :class="!route.meta.hideAd ? 'lg:w-[calc(100%-320px)]' : 'w-full'"
-        >
-          <RouterView />
-        </div>
-
-        <div
-          v-if="!route.meta.hideAd"
-          class="hidden lg:block w-[300px] shrink-0 mr-[10px]"
-          :class="{ 'mt-6': !isSearchPage }"
-        >
-          <RightSidebarAd />
-        </div>
+        <RouterView />
       </main>
+
+      <div
+        v-if="!route.meta.hideAd"
+        class="hidden lg:block w-[300px] shrink-0 mr-2"
+        :class="{ 'mt-6': !isSearchPage }"
+      >
+        <RightSidebarAd />
+      </div>
     </div>
 
     <div class="hidden lg:block">
@@ -124,7 +120,7 @@ const handleToggleAiChat = () => {
           @click="isMobileActionMenuOpen = false"
         ></div>
         <div
-          class="relative w-full bg-[#fffef7] rounded-t-3xl border-t-4 border-[#8b6f47] p-6 pb-24 shadow-2xl animate-slide-up"
+          class="relative w-full bg-[#fffef7] rounded-t-3xl p-6 pb-24 shadow-2xl animate-slide-up"
         >
           <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-2">
             <h3 class="text-xl font-bold text-amber-900">快速功能</h3>

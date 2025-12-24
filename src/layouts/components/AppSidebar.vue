@@ -16,7 +16,6 @@ const emit = defineEmits(['open-mobile-actions'])
 const router = useRouter()
 const route = useRoute()
 
-// 電腦版側邊欄選單 (保持不變)
 const menuItems = [
   {
     name: 'home',
@@ -65,13 +64,11 @@ const bottomMenuItems = [
   },
 ]
 
-// 🟢 修正順序：手機版底部導航項目
-// 順序：首頁 -> 討論 -> 找伴 -> 精選(新增) -> 行程 -> 更多
 const mobileNavItems = [
   { name: 'home', label: '首頁', icon: HomeIcon },
-  { name: 'discussion', label: '討論', icon: ForumIcon }, // 恢復順序
-  { name: 'find_traveler', label: '找伴', icon: UsersIcon }, // 恢復順序
-  { name: 'featured_itinerary', label: '精選', icon: MapIcon }, // ✨ 插在這裡 (符合電腦版邏輯)
+  { name: 'discussion', label: '討論', icon: ForumIcon },
+  { name: 'find_traveler', label: '找伴', icon: UsersIcon },
+  { name: 'featured_itinerary', label: '精選', icon: MapIcon },
   { name: 'my_itinerary', label: '行程', icon: CalendarIcon },
   { name: 'menu', label: '更多', icon: MenuIcon },
 ]
@@ -93,10 +90,8 @@ const handleMobileNavClick = (item) => {
 </script>
 
 <template>
-  <aside
-    class="fixed left-0 top-16 md:top-18 bottom-0 w-64 hidden lg:flex flex-col z-40 custom-scrollbar overflow-y-auto aside-nav p-4"
-  >
-    <div class="flex justify-between mb-4 pb-4 border-b-4 border-amber-300">
+  <aside class="w-full min-h-full hidden lg:flex flex-col aside-nav p-4">
+    <div class="flex justify-between mb-4 pb-4 border-b-4 border-amber-300 pl-4">
       <div
         class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center pixel-button group transition-transform active:translate-y-1"
         @click="goToFavorites"
@@ -154,7 +149,7 @@ const handleMobileNavClick = (item) => {
   </aside>
 
   <nav
-    class="fixed bottom-0 left-0 right-0 h-16 bg-[#fcf9f2] border-t-4 border-[#8b6f47] z-50 flex justify-between items-center px-1 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"
+    class="fixed bottom-0 left-0 right-0 h-16 bg-[#fcf9f2] z-50 flex justify-between items-center px-1 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"
   >
     <button
       v-for="item in mobileNavItems"
@@ -185,10 +180,8 @@ const handleMobileNavClick = (item) => {
 </template>
 
 <style scoped>
+/* 保持原本的樣式 */
 .aside-nav {
-  border-right: 4px solid #8b6f47;
-  box-shadow: 5px 0px 0px 0px rgba(139, 111, 71, 0.2);
-
   font-family: 'Press Start 2P', monospace;
   background-color: #f5e6d3;
 }
