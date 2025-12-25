@@ -8,11 +8,11 @@ import {
   Repeat2 as Repeat2Icon,
   MessageCircle as MessageCircleIcon,
 } from 'lucide-vue-next'
-import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
+// 暫時關閉登入回覆功能：mport { useUserStore } from '@/stores/user'
+// 暫時關閉登入回覆功能：import { useRouter } from 'vue-router'
 
-const userStore = useUserStore()
-const router = useRouter()
+// 暫時關閉登入回覆功能：const userStore = useUserStore()
+// 暫時關閉登入回覆功能：const router = useRouter()
 
 // 不需要引入特定的 Store，直接操作 props 即可通用
 
@@ -343,7 +343,8 @@ onMounted(() => {
           </button>
         </div>
 
-        <div v-if="userStore.isLoggedIn" class="flex space-x-3">
+        <!-- 先都關閉要登入才能使用：<div v-if="userStore.isLoggedIn" class="flex space-x-3"> -->
+          <div v-if="true" class="flex space-x-3">
           <input
             id="comment-input"
             ref="commentInputRef"
@@ -361,14 +362,14 @@ onMounted(() => {
             <SendIcon class="w-5 h-5" />
           </button>
         </div>
-<div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50  rounded-lg border-2 border-gray-200">
+<!-- 暫時關閉登入後才可回覆的功能：<div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50  rounded-lg border-2 border-gray-200">
   <p class="text-gray-600 mb-1">登入後才能回覆</p>
   <button
     class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
     @click="router.push('/login')"
   >登入
   </button>
-</div>
+</div>-->
       </footer>
     </div>
   </div>

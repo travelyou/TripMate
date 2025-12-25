@@ -116,24 +116,24 @@ const router = createRouter({
   ],
 })
 
-// 檢查有些功能，需要登入後才能進入
-router.beforeEach((to, from, next) => {
-  const userStore = useUserStore()
+//  先關閉登入後才可以進入的權限：檢查有些功能，需要登入後才能進入
+// router.beforeEach((to, from, next) => {
+//   const userStore = useUserStore()
 
-  if (to.name === 'login' && userStore.isLoggedIn) {
-    next('/')
-    return
-  }
+//   if (to.name === 'login' && userStore.isLoggedIn) {
+//     next('/')
+//     return
+//   }
 
-  if (to.meta.requiresAuth) {
-    if (userStore.isLoggedIn) {
-      next()
-    } else {
-      next('/login')
-      alert('請先登入後才可使用')
-    }
-  } else {
-    next()
-  }
-})
+//   if (to.meta.requiresAuth) {
+//     if (userStore.isLoggedIn) {
+//       next()
+//     } else {
+//       next('/login')
+//       alert('請先登入後才可使用')
+//     }
+//   } else {
+//     next()
+//   }
+// })
 export default router
