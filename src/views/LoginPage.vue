@@ -47,10 +47,17 @@
             <input
               id="email"
               v-model="loginForm.email"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2  px-4 py-2',
+                loginErrors.email ? 'border-red-500' : 'border-black',
+              ]"
               type="email"
               placeholder="請輸入電子信箱"
+              @input="loginErrors.email = ''"
             />
+            <span v-if="loginErrors.email" class="text-red-500 text-sm">{{
+              loginErrors.email
+            }}</span>
           </div>
         </div>
         <div class="formInput flex flex-row gap-2">
@@ -59,10 +66,17 @@
             <input
               id="password"
               v-model="loginForm.password"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2 px-4 py-2',
+                loginErrors.password ? 'border-red-500' : 'border-black',
+              ]"
               type="password"
               placeholder="請輸入密碼"
+              @input="loginErrors.password = ''"
             />
+            <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
+              loginErrors.password
+            }}</span>
           </div>
         </div>
         <button
@@ -90,10 +104,17 @@
             <input
               id="realName"
               v-model="registerForm.realName"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2 px-4 py-2',
+                registerErrors.realName ? 'border-red-500' : 'border-black',
+              ]"
               type="text"
               placeholder="請輸入本名(不公開)"
+              @input="registerErrors.realName = ''"
             />
+            <span v-if="registerErrors.realName" class="text-red-500 text-sm">
+              {{ registerErrors.realName }}
+            </span>
           </div>
         </div>
         <div class="formInput flex flex-row gap-2">
@@ -102,10 +123,17 @@
             <input
               id="nickname"
               v-model="registerForm.nickname"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2 px-4 py-2',
+                registerErrors.nickname ? 'border-red-500' : 'border-black',
+              ]"
               type="text"
               placeholder="請輸入使用者暱稱(公開)"
+              @input="registerErrors.nickname = ''"
             />
+            <span v-if="registerErrors.nickname" class="text-red-500 text-sm">
+              {{ registerErrors.nickname }}
+            </span>
           </div>
         </div>
         <div class="formInput flex flex-row gap-2">
@@ -114,10 +142,17 @@
             <input
               id="email"
               v-model="registerForm.email"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2 px-4 py-2',
+                registerErrors.email ? 'border-red-500' : 'border-black',
+              ]"
               type="email"
               placeholder="請輸入電子信箱"
+              @input="registerErrors.email = ''"
             />
+            <span v-if="registerErrors.email" class="text-red-500 text-sm">
+              {{ registerErrors.email }}
+            </span>
           </div>
         </div>
         <div class="formInput flex flex-row gap-2">
@@ -126,10 +161,17 @@
             <input
               id="password"
               v-model="registerForm.password"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2 px-4 py-2',
+                registerErrors.password ? 'border-red-500' : 'border-black',
+              ]"
               type="password"
               placeholder="請輸入密碼"
+              @input="registerErrors.password = ''"
             />
+            <span v-if="registerErrors.password" class="text-red-500 text-sm">
+              {{ registerErrors.password }}
+            </span>
           </div>
         </div>
         <div class="formInput flex flex-row gap-2">
@@ -138,10 +180,17 @@
             <input
               id="confirmPassword"
               v-model="registerForm.confirmPassword"
-              class="w-full border-2 border-black px-4 py-2"
+              :class="[
+                'w-full border-2 px-4 py-2',
+                registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
+              ]"
               type="password"
               placeholder="請輸入同樣的密碼"
+              @input="registerErrors.confirmPassword = ''"
             />
+            <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
+              {{ registerErrors.confirmPassword }}
+            </span>
           </div>
         </div>
         <button
@@ -189,6 +238,12 @@ const registerForm = ref({
 const userStore = useUserStore()
 const router = useRouter()
 const handleLogin = async () => {
+  //送出後出錯則欄位清空
+  loginErrors.value = {
+    email: '',
+    password: '',
+    general: '',
+  }
   try {
     const userCredential = await signInWithEmailAndPassword(
       auth,
@@ -200,43 +255,62 @@ const handleLogin = async () => {
     router.push('/')
   } catch (error) {
     console.error('登入失敗：', error.message)
-    alert('登入失敗：' + error.message)
+
+    //各種錯誤訊息顯示
+    //general 是假如網路連線、firebase、帳號被停用、其他未預期錯誤
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+      loginErrors.value.email = '該電子信箱不存在或是輸入錯誤'
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      loginErrors.value.password = '密碼輸入錯誤'
+    } else {
+      loginErrors.value.general = '登入失敗：' + error.message
+    }
   }
 }
+//登入錯誤訊息通知
+const loginErrors = ref({
+  email: '',
+  password: '',
+  general: '',
+})
 
 //註冊：送出資料
 const handleRegister = async () => {
   try {
     // 1. 檢查必填欄位
     if (!registerForm.value.realName) {
-      alert('請填寫真實姓名')
+      registerErrors.value.realName = '請填寫真實姓名'
       return
     }
     if (!registerForm.value.nickname) {
-      alert('請填寫暱稱')
+      registerErrors.value.nickname = '請填暱稱'
       return
     }
-    if (!registerForm.value.email || !registerForm.value.password) {
-      alert('請填寫電子信箱和密碼')
+    if (!registerForm.value.email) {
+      registerErrors.value.email = '請填寫電子信箱'
+      return
+    }
+    if (!registerForm.value.password) {
+      registerErrors.value.password = '請填寫密碼'
       return
     }
 
     // 2. 檢查 Email 格式
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(registerForm.value.email)) {
-      alert('請輸入有效的電子信箱格式')
+      registerErrors.value.email = '請填寫有效的電子信箱格式'
       return
     }
 
     // 3. 檢查密碼長度
     if (registerForm.value.password.length < 6) {
-      alert('密碼長度至少需要 6 個字元')
+      registerErrors.value.password = '密碼長度至少需要 6 個字元'
       return
     }
 
     // 4. 檢查密碼是否一致
     if (registerForm.value.password !== registerForm.value.confirmPassword) {
-      alert('密碼不一致，請重新確認')
+      registerErrors.value.password = '密碼不一致，請重新確認'
       return
     }
 
@@ -259,21 +333,38 @@ const handleRegister = async () => {
     router.push('/')
   } catch (error) {
     console.log('註冊失敗', error.message)
-    alert('註冊失敗：' + error.message)
+    // 不同狀況的註冊失敗
+    if (error.code === 'auth/email-already-in-use') {
+      registerErrors.value.email = '此電子信箱已被註冊使用'
+    } else if (error.code === 'auth/weak-password') {
+      registerErrors.value.password = '密碼強度不夠'
+    } else {
+      registerErrors.value.general = '註冊失敗：' + error.message
+    }
   }
 }
 //忘記密碼
 const handleForgotPassword = async () => {
   try {
     if (!loginForm.value.email) {
-      alert('請輸入註冊時的電子郵件')
+      loginErrors.value.email = '請輸入註冊時的電子郵件'
       return
     }
     await sendPasswordResetEmail(auth, loginForm.value.email)
     alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
     console.log('發送失敗：' + error.message)
-    alert('發送失敗：' + error.message)
+    loginErrors.value.email = '發送失敗：' + error.message
   }
 }
+
+//註冊發生錯誤
+const registerErrors = ref({
+  realName: '',
+  nickname: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  general: '',
+})
 </script>
