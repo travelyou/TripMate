@@ -91,16 +91,24 @@ export const useUserStore = defineStore('user', () => {
 
   // 登入狀態
   const isLoggedIn = ref(false)
+  // 追蹤 Firebase 的認證狀態是否初始化
+  const authReady = ref(false)
 
   // 監聽 Firebase 認證狀態變化
   onAuthStateChanged(auth, (user) => {
     isLoggedIn.value = user ? true : false
+    if (!authReady.value) {
+      authReady.value = true
+    }
   })
 
+  // 登入函數（保留以維持向後兼容性，實際登入狀態由 Firebase 自動管理）
   const login = () => {
     // 登入狀態由 Firebase onAuthStateChanged 自動管理
     // 此函數保留以維持向後兼容性
   }
+
+  // 登出函數
   const logout = async () => {
     try {
       await signOut(auth)
@@ -110,6 +118,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // userProfile 作為 currentUser 的別名，保持向後兼容性
   const userProfile = computed(() => currentUser.value)
 
   return {
