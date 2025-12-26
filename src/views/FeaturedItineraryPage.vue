@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { Map as MapIcon } from 'lucide-vue-next'
-import { useItineraryStore } from '@/stores/itinerary'
+import { useItineraryStore } from '@/stores/featured'
 
 import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
