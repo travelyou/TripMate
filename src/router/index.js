@@ -57,6 +57,12 @@ const router = createRouter({
         requiresAuth: true,
       },
     },
+    //暫時新增廠商頁面路徑，之後可刪除
+    {
+      path: '/vendor/:id',
+      name: 'VendorProfile',
+      component: () => import('@/views/VendorProfile.vue')
+    },
     {
       path: '/login',
       name: 'login',
