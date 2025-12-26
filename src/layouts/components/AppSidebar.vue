@@ -62,6 +62,14 @@ const bottomMenuItems = [
     iconColor: 'text-gray-700',
     textColor: 'text-amber-900',
   },
+
+  {
+    name: 'VendorProfile',
+    label: '廠商檔案',
+    icon: UserIcon,
+    iconColor: 'text-gray-700',
+    textColor: 'text-amber-900',
+  },
 ]
 
 const mobileNavItems = [
