@@ -65,6 +65,7 @@ const bottomMenuItems = [
 
   {
     name: 'VendorProfile',
+    params: { id: 'test' },
     label: '廠商檔案',
     icon: UserIcon,
     iconColor: 'text-gray-700',
@@ -141,7 +142,7 @@ const handleMobileNavClick = (item) => {
       <RouterLink
         v-for="item in bottomMenuItems"
         :key="item.name"
-        :to="{ name: item.name }"
+        :to="{ name: item.name, params: item.params }"
         class="nav-item flex items-center p-3 rounded-xl cursor-pointer hover:opacity-70"
         active-class="active"
       >
