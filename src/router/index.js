@@ -61,7 +61,7 @@ const router = createRouter({
     {
       path: '/vendor/:id',
       name: 'VendorProfile',
-      component: () => import('@/views/VendorProfile.vue')
+      component: () => import('@/views/VendorProfilePage.vue')
     },
     {
       path: '/login',
