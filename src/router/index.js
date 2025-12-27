@@ -113,6 +113,14 @@ const router = createRouter({
         },
       ],
     },
+    {
+      path: '/test',
+      name: 'PersonalityTest',
+      component: () => import('@/views/PersonalityTest.vue'),
+      meta: {
+        hideAd: true,
+      },
+    },
   ],
 })
 // 檢查有些功能，需要登入後才能進入
