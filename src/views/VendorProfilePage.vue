@@ -1,9 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
 import {
   Star as StarIcon,
-  // MapPin as MapPinIcon,
-  // Users as UsersIcon,
   Heart as HeartIcon,
   MessageCircle as MessageCircleIcon,
   UserPlus as UserPlusIcon,
@@ -11,23 +8,20 @@ import {
   FileText as FileTextIcon,
   Map as MapIcon,
   Calendar as CalendarIcon,
-  // DollarSign as DollarSignIcon,
   ShoppingCart as ShoppingCartIcon,
-  ChevronLeft as ChevronLeftIcon,
+  // ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-vue-next';
 
-// 廠商基本資料 (模擬數據)
+// 廠商基本資料 (模擬數據 - 靜態展示用)
 const vendor = {
   id: 'vendor001',
   name: '環遊世界旅行社',
   slogan: '帶您探索世界的每一個角落',
   avatar: 'https://picsum.photos/200?random=vendor',
   coverImage: 'https://picsum.photos/1200/400?random=travel',
-  bannerImage: 'https://picsum.photos/1200/600?random=banner', // 新增 Banner
-  regionTags: ['日本', '韓國', '東南亞', '歐洲', '美洲'], // 新增地區標籤 (可編輯)
+  bannerImage: 'https://picsum.photos/1200/600?random=banner',
+  regionTags: ['日本', '韓國', '東南亞', '歐洲', '美洲'],
   rating: 4.8,
   reviewCount: 328,
   postsCount: 45,
@@ -38,7 +32,7 @@ const vendor = {
   isVerified: true,
 }
 
-// 廠商貼文 (模擬數據)
+// 廠商貼文 (模擬數據 - 靜態展示用)
 const vendorPosts = [
   {
     id: 1,
@@ -75,7 +69,8 @@ const vendorPosts = [
   },
 ]
 
-// 精選行程 (模擬數據)
+// 精選行程 (模擬數據 - 靜態展示用)
+// 僅展示靜態結構，不做動態過濾
 const featuredItineraries = [
   {
     id: 1,
@@ -87,7 +82,7 @@ const featuredItineraries = [
     nights: 4,
     rating: 4.9,
     reviewCount: 156,
-    region: '日本', // 新增 region 欄位
+    region: '日本',
     tags: ['熱門', '限時優惠'],
     highlights: ['大阪環球影城', '京都古寺巡禮', '奈良餵鹿'],
   },
@@ -143,7 +138,7 @@ const featuredItineraries = [
     nights: 9,
     rating: 4.9,
     reviewCount: 67,
-    region: '美洲', // 假設歸類在美洲/大洋洲
+    region: '美洲',
     tags: ['限時優惠'],
     highlights: ['米佛峽灣', '皇后鎮跳傘', '魔戒拍攝地'],
   },
@@ -161,158 +156,7 @@ const featuredItineraries = [
     tags: [],
     highlights: ['在地小吃', '咖啡文化', '法式建築'],
   },
-  {
-    id: 7, // 補足資料以展示 Carousel 效果
-    name: '首爾時尚購物四日',
-    image: 'https://picsum.photos/400/300?random=seoul',
-    price: 15800,
-    originalPrice: 20000,
-    days: 4,
-    nights: 3,
-    rating: 4.5,
-    reviewCount: 300,
-    region: '韓國',
-    tags: ['購物', '美食'],
-    highlights: ['弘大商圈', '東大門', '景福宮'],
-  },
 ]
-
-// --- Logic ---
-
-// 1. 地區過濾
-const currentRegion = ref('');
-const filteredItineraries = computed(() => {
-  if (!currentRegion.value) return featuredItineraries;
-  return featuredItineraries.filter(i => i.region === currentRegion.value);
-});
-
-// 2. Expand/Collapse Logic
-const isExpanded = ref(false); // Default collapsed
-const desktopChunkIndex = ref(0);
-
-// Helper to chunk array
-const chunkArray = (arr, size) => {
-  const result = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-};
-
-// Desktop: 3x2 Grid (6 items per page)
-const desktopChunks = computed(() => {
-  return chunkArray(filteredItineraries.value, 6);
-});
-
-const prevDesktopPage = () => {
-  if (desktopChunkIndex.value > 0) {
-    desktopChunkIndex.value--;
-  }
-};
-
-const nextDesktopPage = () => {
-  if (desktopChunkIndex.value < desktopChunks.value.length - 1) {
-    desktopChunkIndex.value++;
-  }
-};
-
-// Reset page when filter changes
-watch(currentRegion, () => {
-  desktopChunkIndex.value = 0;
-  isExpanded.value = false; // Reset expansion too
-});
-
-
-// 3. Mobile Carousel Logic (Infinite Loop, 2 items visible)
-// Logic: Clone last 2 to start, first 2 to end.
-// Indices: 0,1 (Clones of Last 2) | 2,3 (Item 1,2) ... | N+2, N+3 (Clones of First 2)
-// Total items in carousel: N + 4
-// Initial index: 2 (Item 1)
-const currentMobileSlide = ref(2);
-const isMobileTransitioning = ref(false);
-let mobileTouchStartX = 0;
-let mobileTouchEndX = 0;
-
-const mobileCarouselItems = computed(() => {
-  if (filteredItineraries.value.length === 0) return [];
-  const items = filteredItineraries.value;
-  // If fewer than 2 items, duplication might be tricky for infinite loop of 2.
-  // But for now assuming adequate data or just standard behavior.
-  // Actually if we have say 1 item, we still clone.
-
-  // Clone last 2 (for scrolling left from start)
-  const last2 = items.length >= 2 ? items.slice(-2) : [...items, ...items].slice(-2);
-  // Clone first 2 (for scrolling right from end)
-  const first2 = items.length >= 2 ? items.slice(0, 2) : [...items, ...items].slice(0, 2);
-
-  return [...last2, ...items, ...first2];
-});
-
-const handleMobileTouchStart = (e) => {
-  mobileTouchStartX = e.changedTouches[0].screenX;
-};
-
-const handleMobileTouchEnd = (e) => {
-  mobileTouchEndX = e.changedTouches[0].screenX;
-  if (mobileTouchStartX - mobileTouchEndX > 50) {
-    nextMobileSlide();
-  } else if (mobileTouchEndX - mobileTouchStartX > 50) {
-    prevMobileSlide();
-  }
-};
-
-const nextMobileSlide = () => {
-  if (isMobileTransitioning.value) return;
-  isMobileTransitioning.value = true;
-  currentMobileSlide.value++;
-};
-
-const prevMobileSlide = () => {
-  if (isMobileTransitioning.value) return;
-  isMobileTransitioning.value = true;
-  currentMobileSlide.value--;
-};
-
-const handleMobileTransitionEnd = () => {
-  isMobileTransitioning.value = false;
-  const totalReal = filteredItineraries.value.length;
-  if (totalReal === 0) return;
-
-  // Real items start at index 2
-  // If we slide past the last real item (index N+1 is last real), we hit start-clones (N+2)
-  // Wait. mobileCarouselItems has N+4 items.
-  // Real items are at [2] to [2 + N - 1].
-  // Next slide after last real item (at 2+N-1) goes to 2+N (which is first clone of start).
-  // 2 + N corresponds to index 2.
-  if (currentMobileSlide.value >= totalReal + 2) {
-     const container = document.querySelector('.mobile-carousel-track');
-     if(container) {
-       container.style.transition = 'none';
-       // Calculate offset relative to real start
-       const offset = currentMobileSlide.value - (totalReal + 2);
-       currentMobileSlide.value = 2 + offset;
-       void container.offsetHeight;
-       container.style.transition = 'transform 300ms ease-out';
-     }
-  }
-  // If we slide before first real item (index 2), we hit last-clones (index 1)
-  else if (currentMobileSlide.value < 2) {
-    const container = document.querySelector('.mobile-carousel-track');
-    if(container) {
-      container.style.transition = 'none';
-      // Index 1 (last clone) corresponds to N+1 (last real).
-      // Index 0 (second to last clone) corresponds to N.
-      // General formula:
-      // Distance from 2 is (2 - current).
-      // Target is (N+2) - distance.
-      // E.g. current=1. Dist=1. Target = N+2-1 = N+1.
-      const offset = 2 - currentMobileSlide.value;
-      currentMobileSlide.value = (totalReal + 2) - offset;
-      void container.offsetHeight;
-      container.style.transition = 'transform 300ms ease-out';
-    }
-  }
-};
 </script>
 
 <template>
@@ -402,7 +246,7 @@ const handleMobileTransitionEnd = () => {
       <img :src="vendor.bannerImage" class="w-full h-full object-cover" />
       <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6">
         <h2 class="text-white text-2xl md:text-3xl font-black drop-shadow-lg tracking-wide">
-          {{ currentRegion ? `探索${currentRegion}的精采旅程` : '本季主打行程' }}
+          本季主打行程
         </h2>
       </div>
     </div>
@@ -415,39 +259,33 @@ const handleMobileTransitionEnd = () => {
           精選行程
         </h2>
 
-        <!-- 地區標籤 Tabs -->
+        <!-- 地區標籤 Tabs (示意 UI) -->
         <div class="flex overflow-x-auto pb-2 md:pb-0 gap-2 custom-scrollbar">
           <button
             v-for="region in ['全部', ...vendor.regionTags]"
             :key="region"
             class="px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border-2"
             :class="[
-              (region === '全部' && !currentRegion) || currentRegion === region
+              region === '全部'
                 ? 'bg-green-500 text-white border-green-600 shadow-md'
                 : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
             ]"
-            @click="currentRegion = region === '全部' ? '' : region"
           >
             {{ region }}
           </button>
         </div>
       </div>
 
-      <!-- 響應式網格與手機版無限輪播 -->
-      <!-- Desktop (3 cols) / Tablet (2 cols) / Mobile (Carousel) -->
-      <!-- 響應式網格與手機版無限輪播 -->
+      <!-- 響應式網格與手機版輪播 (CSS Only) -->
 
-      <!-- Desktop/Tablet View (md:block) -->
+      <!-- Desktop/Tablet View (md:block): Static Grid -->
       <div class="hidden md:block">
-        <!-- Mode 1: Collapsed (Pagination 3x2) -->
-        <div v-if="!isExpanded" class="relative group">
-           <!-- Container with fixed height to prevent jumping (approx 2 rows) -->
-           <!-- Assuming card height ~420px, 2 rows ~840px. Using min-h to be safe -->
-           <div class="grid grid-cols-2 lg:grid-cols-3 gap-6 h-[880px] overflow-hidden content-start">
+           <!-- Grid of 6 items -->
+           <div class="grid grid-cols-2 lg:grid-cols-3 gap-6">
               <div
-                v-for="itinerary in desktopChunks[desktopChunkIndex]"
+                v-for="itinerary in featuredItineraries.slice(0, 6)"
                 :key="itinerary.id"
-                class="pixel-card bg-white overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer h-[420px] flex flex-col"
+                class="pixel-card bg-white overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer h-full flex flex-col"
               >
                 <!-- 行程圖片 -->
                 <div class="relative h-52 overflow-hidden shrink-0">
@@ -493,96 +331,23 @@ const handleMobileTransitionEnd = () => {
               </div>
            </div>
 
-           <!-- Pagination Controls (Only if needed) -->
-           <div v-if="desktopChunks.length > 1" class="absolute top-1/2 -translate-y-1/2 left-0 w-full flex justify-between pointer-events-none px-2 z-10">
-              <button
-                @click="prevDesktopPage"
-                :disabled="desktopChunkIndex === 0"
-                class="pointer-events-auto bg-white/90 p-3 rounded-full shadow-lg text-amber-900 hover:bg-white hover:scale-110 transition disabled:opacity-30 disabled:cursor-not-allowed border-2 border-amber-900"
-              >
-                <ChevronLeftIcon class="w-6 h-6" />
-              </button>
-              <button
-                @click="nextDesktopPage"
-                :disabled="desktopChunkIndex === desktopChunks.length - 1"
-                class="pointer-events-auto bg-white/90 p-3 rounded-full shadow-lg text-amber-900 hover:bg-white hover:scale-110 transition disabled:opacity-30 disabled:cursor-not-allowed border-2 border-amber-900"
-              >
-                <ChevronRightIcon class="w-6 h-6" />
-              </button>
+           <!-- Pagination Controls (Static UI) -->
+           <div class="flex justify-center mt-6 gap-2">
+              <span class="w-6 h-3 rounded-full bg-amber-600"></span>
+              <span class="w-3 h-3 rounded-full bg-gray-300"></span>
+              <span class="w-3 h-3 rounded-full bg-gray-300"></span>
            </div>
-
-           <!-- Page Indicators -->
-           <div v-if="desktopChunks.length > 1" class="flex justify-center mt-4 gap-2">
-              <span
-                v-for="(chunk, idx) in desktopChunks"
-                :key="idx"
-                class="w-3 h-3 rounded-full transition-all duration-300"
-                :class="idx === desktopChunkIndex ? 'bg-amber-600 w-6' : 'bg-gray-300'"
-              ></span>
-           </div>
-        </div>
-
-        <!-- Mode 2: Expanded (Full Grid) -->
-        <div v-else class="grid grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-            <div
-                v-for="itinerary in filteredItineraries"
-                :key="itinerary.id"
-                class="pixel-card bg-white overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer flex flex-col"
-              >
-                <div class="relative h-52 overflow-hidden shrink-0">
-                  <img :src="itinerary.image" class="w-full h-full object-cover transition duration-500 hover:scale-110" />
-                  <div class="absolute top-3 left-3 flex flex-wrap gap-2">
-                    <span v-for="tag in itinerary.tags" :key="tag" class="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md border-2 border-white">
-                      {{ tag }}
-                    </span>
-                  </div>
-                  <div class="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1 shadow-md">
-                    <StarIcon class="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span class="font-bold text-sm text-gray-800">{{ itinerary.rating }}</span>
-                  </div>
-                </div>
-                <div class="p-5 flex-1 flex flex-col">
-                  <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">{{ itinerary.name }}</h3>
-                  <div class="flex items-center gap-4 mb-2 text-sm text-gray-600">
-                    <div class="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full">
-                      <CalendarIcon class="w-4 h-4 text-blue-600" />
-                      <span class="font-semibold text-blue-600">{{ itinerary.days }}天{{ itinerary.nights }}夜</span>
-                    </div>
-                  </div>
-                   <div class="pt-3 border-t-2 border-gray-100 mt-auto">
-                    <div class="flex items-baseline gap-1 mb-3">
-                       <span class="text-3xl font-black text-orange-600">{{ itinerary.price.toLocaleString() }}</span>
-                       <span class="text-sm text-gray-500 font-medium">起</span>
-                    </div>
-                    <button class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-2 rounded-xl font-bold hover:from-orange-600 hover:to-red-600 transition shadow-md flex items-center justify-center gap-2">
-                      <ShoppingCartIcon class="w-4 h-4" /> 立即預訂
-                    </button>
-                  </div>
-                </div>
-            </div>
-        </div>
       </div>
 
-      <!-- Mobile View (md:hidden) -->
+      <!-- Mobile View (md:hidden): CSS Scroll Snap Carousel -->
       <div class="md:hidden">
-        <!-- Mode 1: Infinite Carousel (2 columns visible) -->
-        <div
-            v-if="!isExpanded"
-            class="relative w-full overflow-hidden"
-            @touchstart="handleMobileTouchStart"
-            @touchmove="handleTouchMove"
-            @touchend="handleMobileTouchEnd"
-        >
-            <!-- 2 items visible => width 50% each. Translate by 50% per slide -->
-            <div
-              class="flex transition-transform duration-300 ease-out"
-              :style="{ transform: `translateX(-${currentMobileSlide * 50}%)` }"
-              @transitionend="handleMobileTransitionEnd"
-            >
+        <div class="relative w-full">
+            <!-- Scroll Snap Container -->
+            <div class="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 custom-scrollbar">
                <div
-                 v-for="(itinerary, index) in mobileCarouselItems"
-                 :key="`${itinerary.id}-${index}`"
-                 class="w-1/2 shrink-0 px-2"
+                 v-for="itinerary in featuredItineraries"
+                 :key="itinerary.id"
+                 class="snap-center w-[calc(50%-8px)] shrink-0 first:ml-0"
                >
                   <div class="pixel-card bg-white overflow-hidden h-full flex flex-col">
                       <div class="relative h-40 overflow-hidden">
@@ -602,48 +367,16 @@ const handleMobileTransitionEnd = () => {
                   </div>
                </div>
             </div>
-
-            <!-- Controls Overlay -->
-            <button @click="prevMobileSlide" class="absolute left-1 top-1/2 -translate-y-1/2 bg-white/80 p-1.5 rounded-full shadow-md z-10 hover:bg-white text-amber-900 border border-amber-900">
-               <ChevronLeftIcon class="w-5 h-5" />
-            </button>
-            <button @click="nextMobileSlide" class="absolute right-1 top-1/2 -translate-y-1/2 bg-white/80 p-1.5 rounded-full shadow-md z-10 hover:bg-white text-amber-900 border border-amber-900">
-               <ChevronRightIcon class="w-5 h-5" />
-            </button>
-        </div>
-
-        <!-- Mode 2: Expanded (2 Column Grid) -->
-        <div v-else class="grid grid-cols-2 gap-4 animate-fade-in">
-             <div
-                 v-for="itinerary in filteredItineraries"
-                 :key="itinerary.id"
-                 class="pixel-card bg-white overflow-hidden flex flex-col"
-               >
-                  <!-- Simplified Mobile Card for Grid -->
-                  <div class="relative h-40 overflow-hidden">
-                        <img :src="itinerary.image" class="w-full h-full object-cover" />
-                        <div v-if="itinerary.tags && itinerary.tags[0]" class="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md border border-white">{{ itinerary.tags[0] }}</div>
-                   </div>
-                      <div class="p-3">
-                        <h3 class="text-sm font-bold text-gray-900 mb-2 line-clamp-2 h-10">{{ itinerary.name }}</h3>
-                        <div class="flex flex-col gap-1">
-                          <span class="text-lg font-black text-orange-600">NT${{ itinerary.price.toLocaleString() }}</span>
-                        </div>
-                        <button class="w-full mt-3 bg-orange-500 text-white py-2 rounded-lg text-xs font-bold shadow-sm">查看</button>
-                      </div>
-               </div>
         </div>
       </div>
 
-      <!-- Expand/Collapse Button (Shared) -->
-      <div v-if="filteredItineraries.length > (filteredItineraries.length > 0 ? 0 : 0)" class="flex justify-center mt-8">
+      <!-- Expand Button (Static UI) -->
+       <div class="flex justify-center mt-4">
            <button
-             @click="isExpanded = !isExpanded"
              class="flex items-center gap-2 bg-white text-amber-900 border-2 border-amber-200 px-8 py-3 rounded-full font-bold shadow-sm hover:bg-amber-50 hover:border-amber-400 transition-all hover:shadow-md"
            >
-             <span>{{ isExpanded ? '收起列表' : `查看全部 ${filteredItineraries.length} 個行程` }}</span>
-             <ChevronUp v-if="isExpanded" class="w-5 h-5" />
-             <ChevronDown v-else class="w-5 h-5" />
+             <span>查看全部行程</span>
+             <ChevronRightIcon class="w-5 h-5" />
            </button>
       </div>
     </div>
@@ -713,5 +446,20 @@ const handleMobileTransitionEnd = () => {
   box-shadow:
     4px 4px 0px 0px rgba(139, 111, 71, 0.2),
     inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 </style>
