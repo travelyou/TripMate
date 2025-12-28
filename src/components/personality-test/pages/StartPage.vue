@@ -1,6 +1,12 @@
 <script setup>
 import { AlarmClock, Sparkles, Puzzle } from 'lucide-vue-next'
 defineEmits(['start'])
+
+// 內容:
+// - 標題+說明
+// - 注意事項
+// - 時間
+// - 題數
 </script>
 
 <template>

@@ -1,10 +1,17 @@
 <script setup>
+// 接收傳入的問題、選項、已選擇的答案
 defineProps({
   question: { type: String, default: '' },
   options: { type: Array, default: () => [] },
   selected: { type: String, default: null },
 })
+
+// 發出選擇答案事件
 defineEmits(['select'])
+
+// 內容：
+// - 問題標題
+// - 選項列表
 </script>
 
 <template>
@@ -25,7 +32,6 @@ defineEmits(['select'])
       >
         <div class="flex items-center justify-between gap-3">
           <span>{{ opt.label }}</span>
-          <span v-if="selected === opt.value" class="text-xs opacity-90">已選</span>
         </div>
       </button>
     </div>

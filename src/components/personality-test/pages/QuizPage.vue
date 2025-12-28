@@ -3,31 +3,40 @@ import { computed, ref } from 'vue'
 import ProgressBar from '@/components/personality-test/components/ProgressBar.vue'
 import QuestionCard from '@/components/personality-test/components/QuestionCard.vue'
 
+// 接收傳入的問題
 const props = defineProps({
   questions: { type: Array, required: true },
 })
 const emit = defineEmits(['finish'])
 
+// 狀態：目前題目索引、答案、目前題目、是否最後一題
 const currentIndex = ref(0)
 const answers = ref([]) // 之後可換成 store.answers
-
 const currentQuestion = computed(() => props.questions[currentIndex.value])
 const isLast = computed(() => currentIndex.value >= props.questions.length - 1)
 
+// 選擇答案
 const onSelect = (value) => {
   answers.value[currentIndex.value] = value
 }
 
+// 回到上一題
 const prev = () => {
   if (currentIndex.value > 0) currentIndex.value -= 1
 }
 
+// 到下一題 or 完成測驗
 const nextOrFinish = () => {
   if (answers.value[currentIndex.value] == null) return
 
   if (isLast.value) emit('finish', { answers: answers.value })
   else currentIndex.value += 1
 }
+
+// 內容：
+// - 進度條(import)
+// - 問題+選項(import)
+// - 按鈕
 </script>
 
 <template>
