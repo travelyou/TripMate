@@ -25,14 +25,14 @@ defineEmits(['start'])
     </div>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-2">
-      <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+      <div class="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">
         <div class="font-semibold flex gap-1">
           <AlarmClock class="h-5 w-4" />
           <p>時間</p>
         </div>
         <div class="mt-1 text-slate-600">約 1 分鐘</div>
       </div>
-      <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+      <div class="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">
         <div class="font-semibold flex gap-1">
           <Puzzle class="h-5 w-4" />
           <p>題數</p>

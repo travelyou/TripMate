@@ -40,10 +40,10 @@ defineProps({
     <!-- Body -->
     <div class="mt-6 grid gap-4 sm:grid-cols-2">
       <!-- Left: highlights -->
-      <div class="rounded-2xl bg-white/10 p-4">
+      <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200">
         <div class="flex gap-2">
           <FlagTriangleRight class="h-5 w-4" />
-          <div class="text-sm font-semibold">你在旅途中的優勢</div>
+          <div class="font-semibold">你在旅途中的優勢</div>
         </div>
         <ul class="mt-3 space-y-2 text-sm opacity-95">
           <li v-for="item in result.strengths || []" :key="item" class="flex gap-2">
@@ -55,11 +55,11 @@ defineProps({
       </div>
 
       <!-- Right: pitfalls -->
-      <div class="rounded-2xl bg-white/10 p-4">
+      <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200">
         <div v-if="(result.pitfalls || []).length">
           <div class="flex gap-2">
             <TriangleAlert class="h-5 w-4" />
-            <div class="text-sm font-semibold">可能會踩的雷</div>
+            <div class="font-semibold">可能會踩的雷</div>
           </div>
 
           <ul class="mt-3 space-y-2 text-sm opacity-95">
@@ -73,7 +73,7 @@ defineProps({
       <!-- bottom: one lines -->
       <div
         v-if="result.oneLiner"
-        class="col-span-1 rounded-xl bg-white/10 p-3 text-sm sm:col-span-2 sm:mt-5"
+        class="col-span-1 rounded-xl bg-slate-50 p-3 text-sm sm:col-span-2 sm:mt-5 border border-slate-200"
       >
         <div class="text-xs opacity-80">一句給你的建議</div>
         <div class="mt-1 font-semibold">{{ result.oneLiner }}</div>

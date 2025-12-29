@@ -83,8 +83,8 @@ const goResult = () => (step.value = 'result')
 </script>
 
 <template>
-  <div class="bg-slate-50 w-full min-h-screen rounded-md overflow-auto">
-    <div class="mx-auto max-w-3xl px-4 py-10 sm:px-10">
+  <div class="w-full min-h-screen rounded-md overflow-auto">
+    <div class="mx-auto max-w-3xl py-10 sm:px-4">
       <header class="mb-6">
         <div class="flex items-center justify-between">
           <div>
