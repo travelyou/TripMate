@@ -3,20 +3,8 @@ import MainButton from './MainButton.vue'
 import SubButton from './SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
 import { useRouter } from 'vue-router'
-import { computed } from 'vue'
+//import { computed } from 'vue'
 const router = useRouter()
-
-//之後金額必須在後端計算，避免被竄改
-// const totalPrice = computed(() => {
-//   return checkoutStore.selectedTour.price * checkoutStore.selectedTour.persons
-// })
-
-const tour = computed(() => checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null)
-
-const displayPrice = computed(() => {
-  if (checkoutStore.selectedTour) return checkoutStore.totalPrice
-  return checkoutStore.lastOrder?.totalPrice ?? 0
-})
 
 function nextStep() {
   router.push('/checkout/step2')
@@ -37,7 +25,7 @@ function backCart() {
       </div>
 
       <!-- 行程資訊 -->
-      <div v-if="tour">
+      <div v-if="checkoutStore.selectedTour">
         <div class="flex flex-col gap-10 bg-white rounded-xl p-10 sm:flex-row sm:justify-center">
           <!-- 圖片 -->
           <img
@@ -55,10 +43,10 @@ function backCart() {
               </p>
 
               <div class="grid grid-cols-1 mt-5 text-sm sm:text-base sm:grid-cols-2">
-                <p>出發日期：{{ tour.date }}</p>
-                <p>行程時間：{{ tour.duration }}</p>
+                <p>出發日期：{{ checkoutStore.selectedTour.date }}</p>
+                <p>行程時間：{{ checkoutStore.selectedTour.duration }}</p>
                 <p class="text-sm sm:text-base">
-                  人數：{{ tour.persons }} 人
+                  人數：{{ checkoutStore.selectedTour.persons }} 人
                 </p>
               </div>
             </div>
@@ -66,7 +54,7 @@ function backCart() {
             <div class="flex flex-col mt-10">
               <div class="flex justify-between">
                 <p>商品價格:</p>
-                <p>NT$ {{ tour.price }}</p>
+                <p>NT$ {{ checkoutStore.selectedTour.price }}</p>
               </div>
               <div class="flex justify-between">
                 <p>打折:</p>
@@ -74,7 +62,7 @@ function backCart() {
               </div>
               <div class="flex justify-between py-2 mt-5 border-t">
                 <p>總計：</p>
-                <p>NT$ {{ displayPrice }}</p>
+                <p>NT$ {{ checkoutStore.totalPrice }}</p>
               </div>
             </div>
           </div>
