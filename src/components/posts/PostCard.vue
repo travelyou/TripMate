@@ -102,14 +102,19 @@ const itemData = computed(() => ({
       </button>
 
       <button
-        class="flex items-center space-x-1 transition mr-6 group"
+        class="flex items-center space-x-1 transition group"
         :class="userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600'"
-        @click.stop="userStore.toggleCollection(itemData)"
+        @click.stop="
+          userStore.isCollected(itemData)
+            ? userStore.removeFromCollection(itemData)
+            : userStore.openCollectionModal(itemData)
+        "
       >
         <Bookmark
           class="w-4 h-4 transition-transform group-active:scale-125"
           :class="{ 'fill-current': userStore.isCollected(itemData) }"
         />
+        <span>{{ (post.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0) }}</span>
       </button>
 
       <button

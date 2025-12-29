@@ -1,15 +1,14 @@
 <script setup>
-import { computed } from 'vue' // 1. 引入 computed
-import { useUserStore } from '@/stores/user' // 2. 引入 UserStore
+import { computed } from 'vue'
+import { useUserStore } from '@/stores/user'
 import {
   Calendar as CalendarIcon,
   MapPin as MapPinIcon,
   MessageCircle as MessageCircleIcon,
   Users as UsersIcon,
-  Heart as HeartIcon, // 新增 Icon
-  Bookmark as BookmarkIcon, // 新增 Icon
+  Heart as HeartIcon,
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
-import { defineProps } from 'vue'
 
 const props = defineProps({
   traveler: {
@@ -18,13 +17,9 @@ const props = defineProps({
   },
 })
 
-// 3. 初始化 Store
 const userStore = useUserStore()
 
-// 4. 定義 Emit (如果需要點擊卡片跳轉，保留原本邏輯)
-// 注意：如果外層有用 @click，這裡的按鈕要加 .stop 阻止冒泡
-
-// 5. 準備寫入 Store 的資料格式
+// 準備寫入 Store 的資料格式
 const itemData = computed(() => ({
   id: props.traveler.id,
   type: 'traveler', // 標記類型
@@ -134,18 +129,25 @@ const getStatusClasses = (status) => {
             </button>
 
             <button
-              class="flex items-center group transition"
+              class="flex items-center space-x-1 transition group"
               :class="
                 userStore.isCollected(itemData)
                   ? 'text-yellow-500'
                   : 'text-gray-400 hover:text-yellow-600'
               "
-              @click.stop="userStore.toggleCollection(itemData)"
+              @click.stop="
+                userStore.isCollected(itemData)
+                  ? userStore.removeFromCollection(itemData)
+                  : userStore.openCollectionModal(itemData)
+              "
             >
               <BookmarkIcon
-                class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
+                class="w-4 h-4 transition-transform group-active:scale-125"
                 :class="{ 'fill-current': userStore.isCollected(itemData) }"
               />
+              <span>{{
+                (traveler.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
+              }}</span>
             </button>
 
             <span class="flex items-center text-indigo-500 ml-auto md:ml-0">

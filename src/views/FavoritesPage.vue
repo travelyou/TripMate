@@ -35,7 +35,7 @@ const handleCardClick = (item) => {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto w-full">
+  <div class="max-w-5xl mx-auto w-full mt-[20px]">
     <div
       class="relative bg-gradient-to-r from-pink-500 to-rose-400 rounded-3xl p-8 mb-8 text-white shadow-lg overflow-hidden"
     >
@@ -89,7 +89,7 @@ const handleCardClick = (item) => {
         class="text-center py-20 text-gray-400 bg-white/50 rounded-3xl border-2 border-dashed border-gray-200"
       >
         <Heart class="w-16 h-16 mx-auto mb-4 text-gray-300" />
-        <p class="font-bold text-lg">目前沒有{{ tabs.find((t) => t.id === activeTab).label }}</p>
+        <p class="font-bold text-lg">這裡目前是空的</p>
         <p class="text-sm">快去探索並點擊愛心收藏吧！</p>
       </div>
 

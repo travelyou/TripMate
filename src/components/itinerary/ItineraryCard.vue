@@ -130,7 +130,11 @@ const formatPrice = (price) => {
           <button
             class="flex items-center space-x-1 transition group"
             :class="userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600'"
-            @click.stop="userStore.toggleCollection(itemData)"
+            @click.stop="
+              userStore.isCollected(itemData)
+                ? userStore.removeFromCollection(itemData)
+                : userStore.openCollectionModal(itemData)
+            "
           >
             <BookmarkIcon
               class="w-4 h-4 transition-transform group-active:scale-125"

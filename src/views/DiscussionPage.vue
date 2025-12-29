@@ -192,7 +192,11 @@ const getPostData = (post) => ({
                   ? 'text-yellow-500'
                   : 'hover:text-yellow-600'
               "
-              @click.stop="userStore.toggleCollection(getPostData(post))"
+              @click.stop="
+                userStore.isCollected(getPostData(post))
+                  ? userStore.removeFromCollection(getPostData(post))
+                  : userStore.openCollectionModal(getPostData(post))
+              "
             >
               <BookmarkIcon
                 class="w-4 h-4 transition-transform group-active:scale-125"

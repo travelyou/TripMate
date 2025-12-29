@@ -7,8 +7,9 @@ import {
   RefreshCcw as RefreshCcwIcon,
   Repeat2 as Repeat2Icon,
   MessageCircle as MessageCircleIcon,
+  Bookmark as BookmarkIcon, // 記得引入 Bookmark 圖示
 } from 'lucide-vue-next'
-import { useUserStore } from '@/stores/user' // 1. 引入 Store
+import { useUserStore } from '@/stores/user' // 1. 確保正確引入 Store
 
 const userStore = useUserStore() // 2. 初始化
 
@@ -35,9 +36,6 @@ const isShareModalOpen = ref(false)
 const itemData = computed(() => {
   const p = props.post
   // 簡單的判斷邏輯：
-  // 如果有 price 或 agencyName -> 行程 (itinerary)
-  // 如果有 status 或 people -> 找旅伴 (traveler)
-  // 否則 -> 討論區 (discussion)
   let type = 'discussion'
   if (p.type) {
     type = p.type
@@ -54,13 +52,13 @@ const itemData = computed(() => {
   }
 })
 
-// --- 核心修正 1: 統一取得留言陣列 ---
+// 統一取得留言陣列
 const normalizedComments = computed(() => {
   if (!props.post) return []
   return props.post.commentsData || props.post.comments || []
 })
 
-// --- 核心修正 2: 計算留言總數 (含回覆) ---
+// 計算留言總數 (含回覆)
 const totalCommentCount = computed(() => {
   const comments = normalizedComments.value
   if (!comments.length) return 0
@@ -74,7 +72,7 @@ const totalCommentCount = computed(() => {
   return total
 })
 
-// 處理留言按讚 (這部分僅影響當下顯示，暫不存入 userStore)
+// 處理留言按讚 (這部分僅影響當下顯示)
 const toggleCommentLike = (item) => {
   if (typeof item.likes !== 'number') item.likes = 0
   if (item.isLiked) {
@@ -243,24 +241,20 @@ onMounted(() => {
             <button
               :class="[
                 'flex items-center space-x-1 transition mr-6 group',
-                userStore.isCollected(itemData) ? 'text-yellow-600' : 'hover:text-yellow-600',
+                userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600',
               ]"
-              @click="userStore.toggleCollection(itemData)"
+              @click="
+                userStore.isCollected(itemData)
+                  ? userStore.removeFromCollection(itemData)
+                  : userStore.openCollectionModal(itemData)
+              "
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-4 h-4 transition-transform group-active:scale-125"
-                :fill="userStore.isCollected(itemData) ? 'currentColor' : 'none'"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                />
-              </svg>
+              <BookmarkIcon
+                :class="[
+                  'w-4 h-4 transition-transform group-active:scale-125',
+                  { 'fill-current': userStore.isCollected(itemData) },
+                ]"
+              />
             </button>
 
             <button
