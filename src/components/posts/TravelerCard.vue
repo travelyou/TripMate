@@ -1,9 +1,13 @@
 <script setup>
+import { computed } from 'vue' // 1. 引入 computed
+import { useUserStore } from '@/stores/user' // 2. 引入 UserStore
 import {
   Calendar as CalendarIcon,
   MapPin as MapPinIcon,
   MessageCircle as MessageCircleIcon,
   Users as UsersIcon,
+  Heart as HeartIcon, // 新增 Icon
+  Bookmark as BookmarkIcon, // 新增 Icon
 } from 'lucide-vue-next'
 import { defineProps } from 'vue'
 
@@ -13,6 +17,29 @@ const props = defineProps({
     required: true,
   },
 })
+
+// 3. 初始化 Store
+const userStore = useUserStore()
+
+// 4. 定義 Emit (如果需要點擊卡片跳轉，保留原本邏輯)
+// 注意：如果外層有用 @click，這裡的按鈕要加 .stop 阻止冒泡
+
+// 5. 準備寫入 Store 的資料格式
+const itemData = computed(() => ({
+  id: props.traveler.id,
+  type: 'traveler', // 標記類型
+  title: props.traveler.title,
+  content: props.traveler.content,
+  image: props.traveler.image,
+  author: props.traveler.author,
+  avatar: props.traveler.avatar,
+  location: props.traveler.location,
+  date: props.traveler.date,
+  status: props.traveler.status,
+  people: props.traveler.people,
+  tags: props.traveler.tags,
+  comments: props.traveler.comments,
+}))
 
 // 根據招募狀態返回不同的樣式
 const getStatusClasses = (status) => {
@@ -83,7 +110,7 @@ const getStatusClasses = (status) => {
             </span>
           </div>
 
-          <div class="flex items-center space-x-4">
+          <div class="flex items-center flex-wrap gap-4 mt-2">
             <span class="flex items-center">
               <MapPinIcon class="w-4 h-4 mr-1 text-red-500" />
               {{ traveler.location }}
@@ -92,9 +119,38 @@ const getStatusClasses = (status) => {
               <CalendarIcon class="w-4 h-4 mr-1 text-amber-500" />
               {{ traveler.date }}
             </span>
-            <span class="flex items-center text-indigo-500">
+
+            <button
+              class="flex items-center group transition"
+              :class="
+                userStore.isFavorite(itemData) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+              "
+              @click.stop="userStore.toggleFavorite(itemData)"
+            >
+              <HeartIcon
+                class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
+                :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+              />
+            </button>
+
+            <button
+              class="flex items-center group transition"
+              :class="
+                userStore.isCollected(itemData)
+                  ? 'text-yellow-500'
+                  : 'text-gray-400 hover:text-yellow-600'
+              "
+              @click.stop="userStore.toggleCollection(itemData)"
+            >
+              <BookmarkIcon
+                class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
+                :class="{ 'fill-current': userStore.isCollected(itemData) }"
+              />
+            </button>
+
+            <span class="flex items-center text-indigo-500 ml-auto md:ml-0">
               <MessageCircleIcon class="w-4 h-4 mr-1" />
-              {{ traveler.comments }}
+              {{ traveler.comments || 0 }}
             </span>
           </div>
 

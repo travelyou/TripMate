@@ -3,6 +3,7 @@ import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
+import { useUserStore } from '@/stores/user' // 1. 引入 UserStore
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -10,11 +11,14 @@ import {
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
   Users as UsersIcon,
+  Bookmark as BookmarkIcon, // 引入 Bookmark
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
+const userStore = useUserStore() // 2. 初始化
+
 const scrollContainer = ref(null)
 
 const isModalOpen = ref(false)
@@ -85,6 +89,21 @@ const getTagColor = (tagText) => {
   const index = Math.abs(hash) % colors.length
   return colors[index]
 }
+
+// 3. Helper
+const getPostData = (post) => ({
+  id: post.id,
+  type: 'discussion',
+  title: post.title,
+  image: post.image,
+  author: post.author,
+  avatar: post.avatar,
+  content: post.content,
+  time: post.time,
+  tags: post.tags,
+  likes: post.likes,
+  comments: post.comments,
+})
 </script>
 
 <template>
@@ -231,8 +250,18 @@ const getTagColor = (tagText) => {
             </div>
 
             <div class="flex items-center text-gray-400 text-sm pt-1">
-              <button class="flex items-center space-x-1 hover:text-red-500 transition mr-6">
-                <HeartIcon class="w-4 h-4" /> <span>{{ post.likes }}</span>
+              <button
+                class="flex items-center space-x-1 transition mr-6 group"
+                :class="
+                  userStore.isFavorite(getPostData(post)) ? 'text-red-500' : 'hover:text-red-500'
+                "
+                @click.stop="userStore.toggleFavorite(getPostData(post))"
+              >
+                <HeartIcon
+                  class="w-4 h-4 transition-transform group-active:scale-125"
+                  :class="{ 'fill-current': userStore.isFavorite(getPostData(post)) }"
+                />
+                <span>{{ post.likes + (userStore.isFavorite(getPostData(post)) ? 1 : 0) }}</span>
               </button>
 
               <button
@@ -242,21 +271,19 @@ const getTagColor = (tagText) => {
                 <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
               </button>
 
-              <button class="flex items-center space-x-1 hover:text-yellow-600 transition mr-6">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                  />
-                </svg>
+              <button
+                class="flex items-center space-x-1 transition mr-6 group"
+                :class="
+                  userStore.isCollected(getPostData(post))
+                    ? 'text-yellow-500'
+                    : 'hover:text-yellow-600'
+                "
+                @click.stop="userStore.toggleCollection(getPostData(post))"
+              >
+                <BookmarkIcon
+                  class="w-4 h-4 transition-transform group-active:scale-125"
+                  :class="{ 'fill-current': userStore.isCollected(getPostData(post)) }"
+                />
               </button>
 
               <button

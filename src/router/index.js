@@ -1,7 +1,4 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-
-// 🟢 只有 "首頁" 維持靜態引入 (因為一進來就要看，不用懶載)
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
 
@@ -16,8 +13,6 @@ const router = createRouter({
     {
       path: '/discussion',
       name: 'discussion',
-      // 🟢 改成箭頭函式 import()，這就是懶人載入！
-      // 只有切換到此頁面時，瀏覽器才會下載這部分的程式碼
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
@@ -56,6 +51,16 @@ const router = createRouter({
         hideAd: true,
         requiresAuth: true,
       },
+    },
+    {
+      path: '/favorites',
+      name: 'favorites',
+      component: () => import('@/views/FavoritesPage.vue'),
+    },
+    {
+      path: '/collections',
+      name: 'collections',
+      component: () => import('@/views/CollectionsPage.vue'),
     },
     {
       path: '/login',
@@ -116,24 +121,4 @@ const router = createRouter({
   ],
 })
 
-//  先關閉登入後才可以進入的權限：檢查有些功能，需要登入後才能進入
-// router.beforeEach((to, from, next) => {
-//   const userStore = useUserStore()
-
-//   if (to.name === 'login' && userStore.isLoggedIn) {
-//     next('/')
-//     return
-//   }
-
-//   if (to.meta.requiresAuth) {
-//     if (userStore.isLoggedIn) {
-//       next()
-//     } else {
-//       next('/login')
-//       alert('請先登入後才可使用')
-//     }
-//   } else {
-//     next()
-//   }
-// })
 export default router

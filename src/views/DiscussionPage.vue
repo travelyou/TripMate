@@ -5,8 +5,10 @@ import {
   Heart as HeartIcon,
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
+import { useUserStore } from '@/stores/user'
 
 // 引入組件
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
@@ -14,6 +16,7 @@ import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 
 const discussionsStore = useDiscussionsStore()
+const userStore = useUserStore()
 
 // --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
@@ -49,6 +52,21 @@ const closeShareModal = () => {
 // --- 篩選/搜尋狀態 ---
 const filterOptions = ref(['全部', '有圖', '新貼文', '找旅伴', '找話題'])
 const activeFilter = ref('全部')
+
+// Helper
+const getPostData = (post) => ({
+  id: post.id,
+  type: 'discussion',
+  title: post.title,
+  image: post.image,
+  author: post.author,
+  avatar: post.avatar,
+  content: post.content,
+  time: post.time,
+  tags: post.tags,
+  likes: post.likes,
+  comments: post.comments,
+})
 </script>
 
 <template>
@@ -72,7 +90,7 @@ const activeFilter = ref('全部')
         </div>
       </div>
 
-      <div class="mb-8 p-4 pixel-card bg-white/90">
+      <div class="mb-8 p-4 bg-white/90">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
@@ -146,8 +164,18 @@ const activeFilter = ref('全部')
           </div>
 
           <div class="flex items-center text-gray-400 text-sm pt-1">
-            <button class="flex items-center space-x-1 hover:text-red-500 transition mr-6">
-              <HeartIcon class="w-4 h-4" /> <span>{{ post.likes }}</span>
+            <button
+              class="flex items-center space-x-1 transition mr-6 group"
+              :class="
+                userStore.isFavorite(getPostData(post)) ? 'text-red-500' : 'hover:text-red-500'
+              "
+              @click.stop="userStore.toggleFavorite(getPostData(post))"
+            >
+              <HeartIcon
+                class="w-4 h-4 transition-transform group-active:scale-125"
+                :class="{ 'fill-current': userStore.isFavorite(getPostData(post)) }"
+              />
+              <span>{{ post.likes + (userStore.isFavorite(getPostData(post)) ? 1 : 0) }}</span>
             </button>
 
             <button
@@ -157,21 +185,19 @@ const activeFilter = ref('全部')
               <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
             </button>
 
-            <button class="flex items-center space-x-1 hover:text-yellow-600 transition mr-6">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                />
-              </svg>
+            <button
+              class="flex items-center space-x-1 transition mr-6 group"
+              :class="
+                userStore.isCollected(getPostData(post))
+                  ? 'text-yellow-500'
+                  : 'hover:text-yellow-600'
+              "
+              @click.stop="userStore.toggleCollection(getPostData(post))"
+            >
+              <BookmarkIcon
+                class="w-4 h-4 transition-transform group-active:scale-125"
+                :class="{ 'fill-current': userStore.isCollected(getPostData(post)) }"
+              />
             </button>
 
             <button
@@ -195,3 +221,12 @@ const activeFilter = ref('全部')
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
+
+<style scoped>
+.pixel-card {
+  border: 3px solid #8b6f47;
+  box-shadow:
+    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
+    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
+}
+</style>

@@ -1,11 +1,12 @@
 <script setup>
+import { computed } from 'vue'
+import { useUserStore } from '@/stores/user'
 import {
   MapPin as MapPinIcon,
   Calendar as CalendarIcon,
   Bookmark as BookmarkIcon,
-  Eye as EyeIcon,
+  Heart as HeartIcon,
   DollarSign as DollarSignIcon,
-  // 🟢 修正 1: 確保引入留言和分享圖示
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
 } from 'lucide-vue-next'
@@ -18,11 +19,26 @@ const props = defineProps({
   },
 })
 
-// 定義 Emit 事件
+const userStore = useUserStore()
 const emit = defineEmits(['open-detail', 'open-share'])
 
-// 格式化價格
+const itemData = computed(() => ({
+  id: props.itinerary.id,
+  type: 'itinerary',
+  title: props.itinerary.title,
+  coverImage: props.itinerary.coverImage,
+  price: props.itinerary.price,
+  agencyName: props.itinerary.agencyName,
+  durationDays: props.itinerary.durationDays,
+  destinations: props.itinerary.destinations,
+  totalViews: props.itinerary.totalViews,
+  totalSaves: props.itinerary.totalSaves,
+  likes: props.itinerary.likes,
+  comments: props.itinerary.comments,
+}))
+
 const formatPrice = (price) => {
+  if (price === undefined || price === null) return 'NT$ 0'
   return price
     .toLocaleString('en-US', {
       style: 'currency',
@@ -31,22 +47,6 @@ const formatPrice = (price) => {
       maximumFractionDigits: 0,
     })
     .replace('TWD', 'NT$')
-}
-
-// 根據 animal 標籤決定圖標
-const getAnimalEmoji = (animal) => {
-  switch (animal) {
-    case 'Cat':
-      return '🐱'
-    case 'Eagle':
-      return '🦅'
-    case 'Wolf':
-      return '🐺'
-    case 'Panda':
-      return '🐼'
-    default:
-      return '🧳'
-  }
 }
 </script>
 
@@ -59,10 +59,14 @@ const getAnimalEmoji = (animal) => {
       @click="emit('open-detail', props.itinerary, false)"
     >
       <img
+        v-if="props.itinerary.coverImage"
         :src="props.itinerary.coverImage"
-        :alt="props.itinerary.title"
+        :alt="props.itinerary.title || '行程圖片'"
         class="w-full h-full object-cover"
       />
+      <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+        無圖片
+      </div>
 
       <div
         v-if="props.itinerary.isFeatured"
@@ -91,31 +95,50 @@ const getAnimalEmoji = (animal) => {
         class="text-lg font-black text-gray-900 line-clamp-2 hover:text-orange-500 transition"
         @click="emit('open-detail', props.itinerary, false)"
       >
-        {{ props.itinerary.title }}
+        {{ props.itinerary.title || '未命名行程' }}
       </h3>
 
       <div class="flex items-center space-x-4 text-sm text-gray-600">
         <div class="flex items-center space-x-1">
           <CalendarIcon class="w-4 h-4 text-green-500" />
-          <span>{{ props.itinerary.durationDays }} 天</span>
+          <span>{{ props.itinerary.durationDays || 0 }} 天</span>
         </div>
         <div class="flex items-center space-x-1">
           <MapPinIcon class="w-4 h-4 text-red-500" />
           <span class="font-bold line-clamp-1">
-            {{ props.itinerary.destinations.join(', ') }}
+            {{ props.itinerary.destinations?.join('...') || '地點未定' }}
           </span>
         </div>
       </div>
 
       <div class="flex items-center justify-between border-t border-gray-100 pt-3">
         <div class="flex items-center space-x-4 text-xs text-gray-500">
-          <div class="flex items-center space-x-1">
-            <EyeIcon class="w-4 h-4" />
-            <span>{{ props.itinerary.totalViews.toLocaleString() }}</span>
-          </div>
-          <button class="flex items-center space-x-1 hover:text-red-500 transition">
-            <BookmarkIcon class="w-4 h-4" />
-            <span>{{ props.itinerary.totalSaves.toLocaleString() }}</span>
+          <button
+            class="flex items-center space-x-1 transition group"
+            :class="userStore.isFavorite(itemData) ? 'text-red-500' : 'hover:text-red-500'"
+            @click.stop="userStore.toggleFavorite(itemData)"
+          >
+            <HeartIcon
+              class="w-4 h-4 transition-transform group-active:scale-125"
+              :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+            />
+            <span>{{
+              (props.itinerary.likes || 0) + (userStore.isFavorite(itemData) ? 1 : 0)
+            }}</span>
+          </button>
+
+          <button
+            class="flex items-center space-x-1 transition group"
+            :class="userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600'"
+            @click.stop="userStore.toggleCollection(itemData)"
+          >
+            <BookmarkIcon
+              class="w-4 h-4 transition-transform group-active:scale-125"
+              :class="{ 'fill-current': userStore.isCollected(itemData) }"
+            />
+            <span>{{
+              (props.itinerary.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
+            }}</span>
           </button>
         </div>
 
@@ -141,6 +164,13 @@ const getAnimalEmoji = (animal) => {
 </template>
 
 <style scoped>
+.pixel-card {
+  border: 3px solid #8b6f47;
+  box-shadow:
+    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
+    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
+}
+
 .pixel-card-mini {
   border: 2px solid #374151;
   box-shadow: 2px 2px 0px 0px rgba(55, 65, 81, 0.5);
