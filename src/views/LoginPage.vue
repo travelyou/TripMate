@@ -1,12 +1,18 @@
 <template>
-  <div
-    class="loginRegisterPage min-h-screen bg-[#fffef7] flex flex-col items-center justify-center p-4"
-  >
-    <div class="flex flex-col items-center gap-3 mb-6">
-      <div class="flex items-center gap-4">
+  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row">
+    <div class="flex flex-none lg:flex-1 items-end lg:items-center justify-center p-3 sm:p-4 pb-0 overflow-hidden order-1 lg:order-none">
+      <img
+        src="@/assets/pic/loginPage-removebg.png"
+        alt="loginPage"
+        class="w-[240px] sm:w-[420px] md:w-[560px] lg:w-[900px] xl:w-[1000px] max-w-full object-contain transform -translate-y-0 sm:-translate-y-10 lg:-translate-y-20 max-h-[40vh] sm:max-h-[50vh] lg:max-h-full"
+      />
+    </div>
+
+    <div class="flex flex-none lg:flex-1 flex-col items-center justify-start lg:justify-center p-4 pt-0 sm:pt-1 lg:pt-4 order-2 lg:order-none">
+      <div class="w-full max-w-md flex items-center justify-center gap-3 sm:gap-4 px-2 sm:px-0 pt-2 pb-1 sm:pt-3 sm:pb-2 lg:pt-6 lg:pb-4">
         <span
           :class="[
-            'text-3xl font-semibold transition-colors duration-200 cursor-pointer',
+            'text-2xl sm:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
             activeTab === 'login' ? 'text-orange-600' : 'text-gray-400',
           ]"
           @click="activeTab = 'login'"
@@ -15,7 +21,7 @@
         </span>
         <button
           type="button"
-          class="relative inline-flex h-8 w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          class="relative inline-flex h-8 w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shrink-0"
           :class="activeTab === 'login' ? 'bg-orange-600' : 'bg-gray-300'"
           @click="activeTab = activeTab === 'login' ? 'register' : 'login'"
         >
@@ -26,7 +32,7 @@
         </button>
         <span
           :class="[
-            'text-3xl font-semibold transition-colors duration-200 cursor-pointer',
+            'text-2xl sm:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
             activeTab === 'register' ? 'text-orange-600' : 'text-gray-400',
           ]"
           @click="activeTab = 'register'"
@@ -34,11 +40,11 @@
           註冊
         </span>
       </div>
-    </div>
-    <div class="form-wrapper w-full max-w-md min-h-[600px] flex itmes-start justify-center">
+
+      <div class="form-wrapper w-full max-w-md min-h-0 sm:min-h-[560px] lg:min-h-[600px] flex items-start justify-center">
       <form
         v-if="activeTab === 'login'"
-        class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-6 space-y-4"
+        class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-6 space-y-4"
         @submit.prevent="handleLogin"
       >
         <div class="formInput flex flex-row gap-2">
@@ -92,10 +98,9 @@
           >忘記密碼?</a
         >
       </form>
-
       <form
-        v-if="activeTab === 'register'"
-        class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-6 space-y-4"
+        v-else
+        class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-6 space-y-4"
         @submit.prevent="handleRegister"
       >
         <div class="formInput flex flex-row gap-2">
@@ -192,7 +197,8 @@
               {{ registerErrors.confirmPassword }}
             </span>
           </div>
-        </div>
+      </div>
+
         <button
           type="submit"
           class="formSubmit block mx-auto text-center px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold"
@@ -200,6 +206,7 @@
           註冊
         </button>
       </form>
+      </div>
     </div>
   </div>
 </template>
