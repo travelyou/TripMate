@@ -87,12 +87,12 @@ const goResult = () => (step.value = 'result')
     <div class="mx-auto max-w-3xl py-10 sm:px-4">
       <header class="mb-6">
         <div class="flex items-center justify-between">
-          <div>
+          <div class="px-4">
             <h1 class="text-2xl font-bold tracking-tight">旅遊動物人格測驗</h1>
-            <p class="mt-1 text-sm text-slate-600">8–10 題，找出你的旅行風格</p>
+            <p class="mt-1 text-sm text-slate-600">找出你的旅行風格</p>
           </div>
           <button
-            v-if="step !== 'start'"
+            v-if="step == 'quiz'"
             class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
             @click="goStart"
           >
