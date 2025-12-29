@@ -1,0 +1,115 @@
+TripMate/
+├─ .editorconfig
+├─ .eslintignore
+├─ .gitattributes
+├─ .gitignore
+├─ .prettierrc.json
+├─ .vscode/
+│  └─ extensions.json
+├─ aaa.html
+├─ index.html
+├─ eslint.config.js
+├─ postcss.config.js
+├─ package.json
+├─ package-lock.json
+├─ jsconfig.json
+├─ README.md
+├─ tailwind.config.js
+├─ vite.config.js
+└─ src/
+   ├─ App.vue (應用主體：根組件，負責整體布局與全域元件註冊)
+   ├─ main.js (應用入口：建立 Vue app、掛載路由與 store)
+   ├─ assets/
+   │  ├─ base.css (基礎樣式變數與 reset)
+   │  ├─ main.css (全域樣式、Tailwind 輔助樣式)
+   │  ├─ icons/
+   │  │  ├─ X_icon.png (關閉按鈕圖示)
+   │  │  ├─ TripMate_icon.png (網站 Logo)
+   │  │  ├─ Threads_icon.png (社群圖示)
+   │  │  ├─ LINE_icon.png (LINE 分享圖示)
+   │  │  ├─ Instagram_icon.png (Instagram 分享圖示)
+   │  │  └─ Facebook_icon.png (Facebook 分享圖示)
+   │  └─ pic/
+   │     └─ PatStar.png (示意頭像 / 裝飾圖)
+   ├─ components/
+   │  ├─ PostModal.vue (發文/貼文彈窗元件：建立或查看貼文)
+   │  ├─ chat/
+   │  │  ├─ ChatWindow.vue (即時討論視窗：群組/公開聊天室介面)
+   │  │  └─ PrivateChatWindow.vue (私人聊天視窗：一對一私訊介面)
+   │  ├─ checkout/   (結帳相關元件)
+   │  │  ├─ CheckoutProgress.vue (顯示結帳進度條)
+   │  │  ├─ MainButton.vue (共用樣式按鈕，用於結帳流程)
+   │  │  ├─ Step1Confirm.vue (結帳步驟1：訂單確認頁面)
+   │  │  ├─ Step2Form.vue (結帳步驟2：輸入訂購者 / 付款資料表單)
+   │  │  ├─ Step3Review.vue (結帳步驟3：檢視與確認訂單資訊)
+   │  │  ├─ Step4Payment.vue (結帳步驟4：付款流程與第三方支付整合)
+   │  │  ├─ Step5Done.vue (結帳步驟5：完成頁面與訂單摘要)
+   │  │  ├─ SubButton.vue (次要操作按鈕元件)
+   │  │  └─ TourInfoBlock.vue (行程資訊區塊，用於結帳或行程頁面)
+   │  ├─ comments/
+   │  │  ├─ CommentInput.vue (留言輸入框：提交留言用)
+   │  │  ├─ CommentItem.vue (單則留言項目：顯示留言內容與互動按鈕)
+   │  │  └─ CommentList.vue (留言列表，包含多則 CommentItem)
+   │  ├─ common/
+   │  │  └─ RightSidebarAd.vue (右側廣告 / 推薦區塊元件)
+   │  ├─ itinerary/
+   │  │  ├─ ActivityItem.vue (行程中的單一活動項目顯示)
+   │  │  ├─ ItineraryCard.vue (行程卡片：摘要視圖用於列表)
+   │  │  ├─ ItineraryTimeline.vue (行程時間軸：日程順序顯示)
+   │  │  └─ PackingList.vue (打包清單元件，提醒旅客攜帶物品)
+   │  ├─ modals/
+   │  │  ├─ BaseModal.vue (彈窗基底元件：共用樣式與功能)
+   │  │  ├─ ItineraryDetailModal.vue (行程細節彈窗)
+   │  │  ├─ PostEditorModal.vue (貼文編輯器彈窗)
+   │  │  ├─ PostDetailModal.vue (貼文詳細檢視彈窗)
+   │  │  ├─ PostingChoiceModal.vue (發文類型選擇彈窗)
+   │  │  └─ ShareModal.vue (分享彈窗：社群/連結分享選項)
+   │  ├─ posts/
+   │  │  ├─ PostCard.vue (貼文卡片：列表摘要顯示內容、作者、互動)
+   │  │  ├─ PostDetail.vue (貼文詳細頁面的展示元件)
+   │  │  └─ TravelerCard.vue (旅伴卡片：顯示使用者/旅伴資訊)
+   │  ├─ shared/
+   │  │  ├─ AppFABs.vue (浮動操作按鈕群組，用於行動版快速操作)
+   │  │  ├─ TagBadge.vue (標籤徽章元件)
+   │  │  └─ UserAvatar.vue (使用者頭像顯示元件)
+   │  └─ ui/
+   │     ├─ EmojiPicker.vue (表情選擇器元件)
+   │     ├─ FloatingActionButton.vue (單一浮動按鈕元件)
+   │     └─ SearchFilter.vue (搜尋與篩選 UI 元件)
+   ├─ composables/
+   │  ├─ useChat.js (聊天相關邏輯的可複用組合函式)
+   │  ├─ useComments.js (留言系統的狀態與操作函式)
+   │  ├─ useDragAndDrop.js (拖放功能的邏輯抽象)
+   │  ├─ useItinerary.js (行程資料與操作邏輯)
+   │  ├─ usePosts.js (貼文列表與操作的邏輯)
+   │  └─ useProfilePhysics.js (個人檔案動畫/物理效果的邏輯)
+   ├─ firebase/
+   │  └─ config.js (Firebase 初始化與設定)
+   ├─ layouts/
+   │  ├─ MainLayout.vue (主要頁面布局：包含 header/aside/main)</n+   │  └─ components/
+   │     ├─ AppHeader.vue (頁首導覽：Logo、搜尋、通知、使用者選單)
+   │     └─ AppSidebar.vue (側邊導覽：主要導航與行動版選單)
+   ├─ router/
+   │  └─ index.js (路由設定：定義各頁面路由與懶載入策略)
+   ├─ stores/
+   │  ├─ checkout.js (結帳流程的狀態管理)
+   │  ├─ counter.js (範例計數器狀態)
+   │  ├─ discussions.js (討論區狀態與資料管理)
+   │  ├─ itinerary.js (行程相關狀態管理)
+   │  ├─ modal.js (全域彈窗狀態管理)
+   │  ├─ travelers.js (旅伴清單與相關資料)
+   │  └─ user.js (使用者狀態與認證資訊)
+   └─ views/
+      ├─ AboutView.vue (關於頁面)
+      ├─ CheckoutLayout.vue (結帳流程頁面布局)
+      ├─ DiscussionPage.vue (討論區頁面：貼文列表與互動)
+      ├─ FavoritesPage.vue (我的最愛：收藏的貼文或行程)
+      ├─ FeaturedItineraryPage.vue (精選行程頁面：展示推薦行程)
+      ├─ FindTravelerPage.vue (找旅伴頁面：搜尋與配對旅伴)
+      ├─ HomePage.vue (為你推薦 / 首頁：主要內容匯集)
+      ├─ LoginPage.vue (登入 / 註冊頁面)
+      ├─ MyItineraryPage.vue (我的行程管理頁面)
+      ├─ PostDetailPage.vue (貼文詳細頁面)
+      ├─ ProfilePage.vue (個人檔案與設定頁面)
+      ├─ SearchPage.vue (搜尋結果頁面)
+      └─ ShoppingCartPage.vue (購物車頁面)

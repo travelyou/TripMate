@@ -69,7 +69,7 @@ const activeFilter = ref('全部')
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <TravelerCard
           v-for="traveler in travelersStore.recommendations"
           :key="traveler.id"
