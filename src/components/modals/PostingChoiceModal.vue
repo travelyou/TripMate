@@ -1,15 +1,18 @@
 <script setup>
+import ItineraryDetailModal from './ItineraryDetailModal.vue'
 import { ref, computed } from 'vue'
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
   ArrowLeft,
   Image as ImageIcon,
+  Briefcase as BriefcaseIcon,
   Smile,
   BarChart2,
   FileVideo,
   X,
   Hash
+  MapPin
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close', 'submit-post'])
@@ -26,6 +29,16 @@ const postData = ref({
 })
 
 const tagSearch = ref('')
+
+const showItineraryModal = ref(false)
+
+const attachedItinerary = ref(null)
+
+const handleItinerarySave = (itineraryData) => {
+  console.log('收到行程資料了:', itineraryData)
+  attachedItinerary.value = itineraryData
+  showItineraryModal.value = false
+}
 
 // --- 模擬資料 ---
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
@@ -95,7 +108,7 @@ const filteredTags = computed(() => {
             class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
             @click="startPosting()"
           >
-            <MessageSquareIcon class="w-6 h-6 text-orange-700 mr-4" />
+            <MessageSquareIcon class="w-6 h-6 bg-pink-100 mr-4" />
             <div class="text-left">
               <p class="font-bold text-black">發起討論</p>
               <p class="text-xs text-gray-700">分享經驗或尋求建議</p>
@@ -110,6 +123,17 @@ const filteredTags = computed(() => {
             <div class="text-left">
               <p class="font-bold text-black">尋找旅伴</p>
               <p class="text-xs text-gray-700">找到志同道合的夥伴</p>
+            </div>
+          </button>
+
+          <button
+            class="w-full flex items-center p-4 bg-indigo-300 hover:bg-green-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
+            @click="startPosting('規劃行程')"
+          >
+            <BriefcaseIcon class="w-6 h-6 text-green-700 mr-4" />
+            <div class="text-left">
+              <p class="font-bold text-black">規劃行程</p>
+              <p class="text-xs text-gray-700">這周末想做什麼?</p>
             </div>
           </button>
         </div>
