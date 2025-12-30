@@ -1,5 +1,17 @@
 <template>
-  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row">
+  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row relative">
+    <!-- Logo 按鈕 - 左上角 -->
+    <button
+      class="absolute top-4 left-4 z-10 p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+      title="返回首頁"
+      @click="router.push('/')"
+    >
+      <img
+        src="@/assets/icons/TripMate_icon.png"
+        alt="TripMate Logo"
+        class="h-10 md:h-12 w-auto object-contain"
+      />
+    </button>
     <div class="flex flex-none lg:flex-1 items-end lg:items-center justify-center p-3 sm:p-4 pb-0 overflow-hidden order-1 lg:order-none">
       <img
         src="@/assets/pic/loginPage-removebg.png"
@@ -8,9 +20,10 @@
       />
     </div>
 
-    <div class="flex flex-none lg:flex-1 flex-col items-center justify-start lg:justify-center p-4 pt-0 sm:pt-1 lg:pt-4 order-2 lg:order-none">
-      <div class="w-full max-w-md flex items-center justify-center gap-3 sm:gap-4 px-2 sm:px-0 pt-2 pb-1 sm:pt-3 sm:pb-2 lg:pt-6 lg:pb-4">
-        <span
+    <div class="flex flex-none lg:flex-1 items-center justify-center p-4 order-2 lg:order-none min-h-screen lg:min-h-0">
+      <div class="w-full max-w-md flex flex-col items-center justify-center">
+        <div class="w-full flex items-center justify-center gap-3 sm:gap-4 mb-6">
+                <span
           :class="[
             'text-2xl sm:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
             activeTab === 'login' ? 'text-orange-600' : 'text-gray-400',
@@ -39,173 +52,186 @@
         >
           註冊
         </span>
-      </div>
+        </div>
 
-      <div class="form-wrapper w-full max-w-md min-h-0 sm:min-h-[560px] lg:min-h-[600px] flex items-start justify-center">
-      <form
-        v-if="activeTab === 'login'"
-        class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-6 space-y-4"
-        @submit.prevent="handleLogin"
-      >
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="email">電子信箱</label>
-            <input
-              id="email"
-              v-model="loginForm.email"
-              :class="[
-                'w-full border-2  px-4 py-2',
-                loginErrors.email ? 'border-red-500' : 'border-black',
-              ]"
-              type="email"
-              placeholder="請輸入電子信箱"
-              @input="loginErrors.email = ''"
-            />
-            <span v-if="loginErrors.email" class="text-red-500 text-sm">{{
-              loginErrors.email
-            }}</span>
-          </div>
-        </div>
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="password">密碼</label>
-            <input
-              id="password"
-              v-model="loginForm.password"
-              :class="[
-                'w-full border-2 px-4 py-2',
-                loginErrors.password ? 'border-red-500' : 'border-black',
-              ]"
-              type="password"
-              placeholder="請輸入密碼"
-              @input="loginErrors.password = ''"
-            />
-            <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
-              loginErrors.password
-            }}</span>
-          </div>
-        </div>
-        <button
-          type="submit"
-          class="formSubmit block mx-auto text-center px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold"
-        >
-          登入
-        </button>
-        <a
-          href="#"
-          class="block text-center text-sm text-gray-600 hover:text-orange-600 transition-colors cursor-pointer"
-          @click.prevent="handleForgotPassword"
-          >忘記密碼?</a
-        >
-      </form>
-      <form
-        v-else
-        class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-6 space-y-4"
-        @submit.prevent="handleRegister"
-      >
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="realName">真實姓名</label>
-            <input
-              id="realName"
-              v-model="registerForm.realName"
-              :class="[
-                'w-full border-2 px-4 py-2',
-                registerErrors.realName ? 'border-red-500' : 'border-black',
-              ]"
-              type="text"
-              placeholder="請輸入本名(不公開)"
-              @input="registerErrors.realName = ''"
-            />
-            <span v-if="registerErrors.realName" class="text-red-500 text-sm">
-              {{ registerErrors.realName }}
-            </span>
-          </div>
-        </div>
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="nickname">暱稱</label>
-            <input
-              id="nickname"
-              v-model="registerForm.nickname"
-              :class="[
-                'w-full border-2 px-4 py-2',
-                registerErrors.nickname ? 'border-red-500' : 'border-black',
-              ]"
-              type="text"
-              placeholder="請輸入使用者暱稱(公開)"
-              @input="registerErrors.nickname = ''"
-            />
-            <span v-if="registerErrors.nickname" class="text-red-500 text-sm">
-              {{ registerErrors.nickname }}
-            </span>
-          </div>
-        </div>
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="email">電子信箱</label>
-            <input
-              id="email"
-              v-model="registerForm.email"
-              :class="[
-                'w-full border-2 px-4 py-2',
-                registerErrors.email ? 'border-red-500' : 'border-black',
-              ]"
-              type="email"
-              placeholder="請輸入電子信箱"
-              @input="registerErrors.email = ''"
-            />
-            <span v-if="registerErrors.email" class="text-red-500 text-sm">
-              {{ registerErrors.email }}
-            </span>
-          </div>
-        </div>
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="password">密碼</label>
-            <input
-              id="password"
-              v-model="registerForm.password"
-              :class="[
-                'w-full border-2 px-4 py-2',
-                registerErrors.password ? 'border-red-500' : 'border-black',
-              ]"
-              type="password"
-              placeholder="請輸入密碼"
-              @input="registerErrors.password = ''"
-            />
-            <span v-if="registerErrors.password" class="text-red-500 text-sm">
-              {{ registerErrors.password }}
-            </span>
-          </div>
-        </div>
-        <div class="formInput flex flex-row gap-2">
-          <div class="flex flex-col gap-2 flex-1">
-            <label for="confirmPassword">確認密碼</label>
-            <input
-              id="confirmPassword"
-              v-model="registerForm.confirmPassword"
-              :class="[
-                'w-full border-2 px-4 py-2',
-                registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
-              ]"
-              type="password"
-              placeholder="請輸入同樣的密碼"
-              @input="registerErrors.confirmPassword = ''"
-            />
-            <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
-              {{ registerErrors.confirmPassword }}
-            </span>
-          </div>
-      </div>
+        <div class="form-wrapper w-full flex items-center justify-center">
+          <form
+            v-if="activeTab === 'login'"
+            class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-6 space-y-4"
+            @submit.prevent="handleLogin"
+          >
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="email">
+                  電子信箱
+                  <span class="text-xs text-gray-500 font-normal">(必須包含@)</span>
+                </label>
+                <input
+                  id="email"
+                  v-model="loginForm.email"
+                  :class="[
+                    'w-full border-2  px-4 py-2',
+                    loginErrors.email ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="email"
+                  placeholder="請輸入電子信箱(必須包含@)"
+                  @input="loginErrors.email = ''"
+                />
+                <span v-if="loginErrors.email" class="text-red-500 text-sm">{{
+                  loginErrors.email
+                }}</span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="password">
+                  密碼
+                  <span class="text-xs text-gray-500 font-normal">(6位以上英、數字，必須包含大小寫)</span>
+                </label>
+                <input
+                  id="password"
+                  v-model="loginForm.password"
+                  :class="[
+                    'w-full border-2 px-4 py-2',
+                    loginErrors.password ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請輸入密碼(6位以上英、數字，必須包含大小寫)"
+                  @input="loginErrors.password = ''"
+                />
+                <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
+                  loginErrors.password
+                }}</span>
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="formSubmit block mx-auto text-center px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold"
+            >
+              登入
+            </button>
+            <a
+              href="#"
+              class="block text-center text-sm text-gray-600 hover:text-orange-600 transition-colors cursor-pointer"
+              @click.prevent="handleForgotPassword"
+              >忘記密碼?</a
+            >
+          </form>
+          <form
+            v-else
+            class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-6 space-y-4"
+            @submit.prevent="handleRegister"
+          >
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="realName">真實姓名</label>
+                <input
+                  id="realName"
+                  v-model="registerForm.realName"
+                  :class="[
+                    'w-full border-2 px-4 py-2',
+                    registerErrors.realName ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="text"
+                  placeholder="請輸入本名(不公開)"
+                  @input="registerErrors.realName = ''"
+                />
+                <span v-if="registerErrors.realName" class="text-red-500 text-sm">
+                  {{ registerErrors.realName }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="nickname">暱稱</label>
+                <input
+                  id="nickname"
+                  v-model="registerForm.nickname"
+                  :class="[
+                    'w-full border-2 px-4 py-2',
+                    registerErrors.nickname ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="text"
+                  placeholder="請輸入使用者暱稱(公開)"
+                  @input="registerErrors.nickname = ''"
+                />
+                <span v-if="registerErrors.nickname" class="text-red-500 text-sm">
+                  {{ registerErrors.nickname }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="email">
+                  電子信箱
+                  <span class="text-xs text-gray-500 font-normal">(必須包含@)</span>
+                </label>
+                <input
+                  id="email"
+                  v-model="registerForm.email"
+                  :class="[
+                    'w-full border-2 px-4 py-2',
+                    registerErrors.email ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="email"
+                  placeholder="請輸入電子信箱(必須包含@)"
+                  @input="registerErrors.email = ''"
+                />
+                <span v-if="registerErrors.email" class="text-red-500 text-sm">
+                  {{ registerErrors.email }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="password">
+                  密碼
+                  <span class="text-xs text-gray-500 font-normal">(6位以上英、數字，必須包含大小寫)</span>
+                </label>
+                <input
+                  id="password"
+                  v-model="registerForm.password"
+                  :class="[
+                    'w-full border-2 px-4 py-2',
+                    registerErrors.password ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請輸入密碼(6位以上英、數字，必須包含大小寫)"
+                  @input="registerErrors.password = ''"
+                />
+                <span v-if="registerErrors.password" class="text-red-500 text-sm">
+                  {{ registerErrors.password }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-2 flex-1">
+                <label for="confirmPassword">確認密碼</label>
+                <input
+                  id="confirmPassword"
+                  v-model="registerForm.confirmPassword"
+                  :class="[
+                    'w-full border-2 px-4 py-2',
+                    registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請輸入同樣的密碼"
+                  @input="registerErrors.confirmPassword = ''"
+                />
+                <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
+                  {{ registerErrors.confirmPassword }}
+                </span>
+              </div>
+            </div>
 
-        <button
-          type="submit"
-          class="formSubmit block mx-auto text-center px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold"
-        >
-          註冊
-        </button>
-      </form>
+            <button
+              type="submit"
+              class="formSubmit block mx-auto text-center px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold"
+            >
+              註冊
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -302,7 +328,11 @@ const handleRegister = async () => {
       return
     }
 
-    // 2. 檢查 Email 格式
+    // 2. 檢查 Email 格式（必須包含@）
+    if (!registerForm.value.email.includes('@')) {
+      registerErrors.value.email = '電子信箱必須包含@'
+      return
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(registerForm.value.email)) {
       registerErrors.value.email = '請填寫有效的電子信箱格式'
@@ -315,7 +345,30 @@ const handleRegister = async () => {
       return
     }
 
-    // 4. 檢查密碼是否一致
+    // 4. 檢查密碼格式（必須包含大小寫字母和數字）
+    const hasUpperCase = /[A-Z]/.test(registerForm.value.password)
+    const hasLowerCase = /[a-z]/.test(registerForm.value.password)
+    const hasNumber = /[0-9]/.test(registerForm.value.password)
+    const hasOnlyLettersAndNumbers = /^[A-Za-z0-9]+$/.test(registerForm.value.password)
+
+    if (!hasUpperCase) {
+      registerErrors.value.password = '密碼必須包含至少一個大寫字母'
+      return
+    }
+    if (!hasLowerCase) {
+      registerErrors.value.password = '密碼必須包含至少一個小寫字母'
+      return
+    }
+    if (!hasNumber) {
+      registerErrors.value.password = '密碼必須包含至少一個數字'
+      return
+    }
+    if (!hasOnlyLettersAndNumbers) {
+      registerErrors.value.password = '密碼只能包含英文字母和數字'
+      return
+    }
+
+    // 5. 檢查密碼是否一致
     if (registerForm.value.password !== registerForm.value.confirmPassword) {
       registerErrors.value.password = '密碼不一致，請重新確認'
       return
