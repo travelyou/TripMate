@@ -1,8 +1,8 @@
 <template>
   <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row relative">
-    <!-- Logo 按鈕 - 左上角 -->
+    <!-- Logo 按鈕 - 手機版獨立一行，桌面版左上角 -->
     <button
-      class="absolute top-2 left-2 sm:top-4 sm:left-4 z-10 p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+      class="lg:absolute lg:top-4 lg:left-4 z-10 p-2 sm:p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer mx-auto mt-4 mb-2 lg:mx-0 lg:mt-0 lg:mb-0"
       title="返回首頁"
       @click="router.push('/')"
     >
@@ -12,7 +12,7 @@
         class="h-8 sm:h-10 md:h-12 w-auto object-contain"
       />
     </button>
-    <div class="flex flex-none lg:flex-1 items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none">
+    <div class="flex flex-none lg:flex-1 items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0">
       <img
         src="@/assets/pic/loginPage-removebg.png"
         alt="loginPage"
@@ -20,7 +20,7 @@
       />
     </div>
 
-    <div class="flex flex-none lg:flex-1 items-center justify-center p-0 sm:p-3 md:p-4 lg:p-6 order-2 lg:order-none min-h-0 lg:min-h-0 pt-0 sm:pt-16 md:pt-20 lg:pt-4">
+    <div class="flex flex-none lg:flex-1 items-center justify-center p-0 sm:p-3 md:p-4 lg:p-6 order-2 lg:order-none min-h-0 lg:min-h-0 -mt-2 sm:mt-0 lg:pt-4">
       <div class="w-full max-w-md flex flex-col items-center justify-center px-4 sm:px-0">
         <div class="w-full flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
                 <span
