@@ -133,6 +133,7 @@ export const useUserStore = defineStore('user', () => {
     likedPosts,
     // 登入(出)狀態
     isLoggedIn,
+    authReady,
     login,
     logout,
   }
