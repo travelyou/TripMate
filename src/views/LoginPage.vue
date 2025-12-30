@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row relative">
+  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row relative overflow-y-auto">
     <!-- Logo 按鈕 - 手機版獨立一行，桌面版左上角 -->
     <button
       class="lg:absolute lg:top-4 lg:left-4 z-10 p-2 sm:p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer mx-auto mt-4 mb-2 lg:mx-0 lg:mt-0 lg:mb-0"
