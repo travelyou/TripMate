@@ -1,5 +1,6 @@
 <script setup>
-import { defineProps, defineEmits, ref, computed, nextTick, onMounted } from 'vue'
+  //defineProps, defineEmits,<-Vue 3.3+ 版本中，defineProps 和 defineEmits 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
+import { ref, computed, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,

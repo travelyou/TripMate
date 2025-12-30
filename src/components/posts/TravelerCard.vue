@@ -19,10 +19,9 @@ const props = defineProps({
 
 const userStore = useUserStore()
 
-// 準備寫入 Store 的資料格式
 const itemData = computed(() => ({
   id: props.traveler.id,
-  type: 'traveler', // 標記類型
+  type: 'traveler', 
   title: props.traveler.title,
   content: props.traveler.content,
   image: props.traveler.image,
@@ -36,7 +35,6 @@ const itemData = computed(() => ({
   comments: props.traveler.comments,
 }))
 
-// 根據招募狀態返回不同的樣式
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
