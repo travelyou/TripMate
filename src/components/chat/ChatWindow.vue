@@ -7,8 +7,7 @@ defineEmits(['close'])
 const messageInput = ref('')
 const messagesContainer = ref(null)
 
-// 避免訊息無限累積導致記憶體爆掉（尤其在長時間聊天後）
-const MAX_MESSAGES = 200
+
 let replyTimeoutId = null
 
 // 預設歡迎訊息 (使用 v-html 可以渲染列表)
@@ -30,13 +29,7 @@ const messages = ref([
   },
 ])
 
-const trimMessages = () => {
-  // 保留第一則歡迎訊息，其他只保留最後 MAX_MESSAGES-1 則
-  if (messages.value.length <= MAX_MESSAGES) return
-  const overflow = messages.value.length - MAX_MESSAGES
-  // index=1 開始刪，避免把歡迎訊息刪掉
-  messages.value.splice(1, overflow)
-}
+
 
 const sendMessage = () => {
   const text = messageInput.value.trim()
@@ -48,7 +41,7 @@ const sendMessage = () => {
     type: 'user',
     content: text,
   })
-  trimMessages()
+
 
   messageInput.value = ''
   scrollToBottom()
@@ -62,7 +55,7 @@ const sendMessage = () => {
       type: 'bot',
       content: '感謝您的提問！這是一個示範回應。如果您串接了後端 API，我就可以真正回答您的問題囉！',
     })
-    trimMessages()
+
     scrollToBottom()
   }, 800)
 }

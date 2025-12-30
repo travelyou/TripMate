@@ -9,7 +9,6 @@ const messageInput = ref('')
 const messagesContainer = ref(null)
 
 // 避免訊息無限累積導致記憶體爆掉
-const MAX_MESSAGES = 200
 let replyTimeoutId = null
 
 // 假資料：預設訊息
@@ -18,11 +17,6 @@ const messages = ref([
   { id: 2, text: '您可以在這裡與其他用戶進行私人對話。', isUser: false },
 ])
 
-const trimMessages = () => {
-  if (messages.value.length <= MAX_MESSAGES) return
-  const overflow = messages.value.length - MAX_MESSAGES
-  messages.value.splice(0, overflow)
-}
 
 // 發送訊息的功能
 const sendMessage = () => {
@@ -35,7 +29,7 @@ const sendMessage = () => {
     text: text,
     isUser: true,
   })
-  trimMessages()
+
 
   // 清空輸入框
   messageInput.value = ''
@@ -48,7 +42,7 @@ const sendMessage = () => {
       text: '已收到您的訊息！這是一個示範回應。',
       isUser: false,
     })
-    trimMessages()
+
     scrollToBottom()
   }, 500)
 
