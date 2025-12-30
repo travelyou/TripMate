@@ -132,6 +132,7 @@ export const useUserStore = defineStore('user', () => {
     isWishlisted,
     likedPosts,
     // 登入(出)狀態
+    authReady,
     isLoggedIn,
     authReady,
     login,

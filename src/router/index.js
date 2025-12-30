@@ -116,9 +116,21 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async(to, from, next) => {
   const userStore = useUserStore()
-
+//等 firebase 初始化認證，等1秒，最多3秒
+await new Promise((resolve)=>{
+  const checkAuth=setInterval(()=>{
+    if(userStore.authReady){
+      clearInterval(checkAuth)
+      resolve()
+    }
+  },100)
+  setTimeout(()=>{
+    clearInterval(checkAuth)
+    resolve()
+  },3000)
+})
   if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
     return
