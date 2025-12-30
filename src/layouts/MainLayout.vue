@@ -108,7 +108,7 @@ const handleToggleAiChat = () => {
       </div>
     </div>
 
-    <div v-else class="w-screen h-screen overflow-hidden">
+    <div v-else class="w-screen h-screen overflow-y-auto scrollable-container">
   <RouterView />
 </div>
 
@@ -200,5 +200,10 @@ const handleToggleAiChat = () => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(100%);
+}
+
+.scrollable-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 </style>
