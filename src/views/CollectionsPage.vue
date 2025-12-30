@@ -223,11 +223,7 @@ const getTabStyle = (isActive) => {
   opacity: 0;
   transform: translateY(20px);
 }
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.custom-scroll::-webkit-scrollbar {
+  height: 6px;
 }
 </style>

@@ -37,9 +37,9 @@
           <BellIcon class="w-6 h-6" />
         </button>
 
-      <router-link to="/cart" class="p-2 hover:bg-gray-100 rounded-full transition">
-        <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-gray-600" />
-      </router-link>
+        <router-link to="/cart" class="p-2 hover:bg-gray-100 rounded-full transition">
+          <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-gray-600" />
+        </router-link>
 
         <div class="relative ml-1" ref="menuRef">
           <button
@@ -180,7 +180,7 @@ const goToFavorites = () => {
 
 const goToCollections = () => {
   closeMenu()
-  alert('收藏功能開發中')
+  router.push({ name: 'collections' })
 }
 
 const goToAbout = () => {
