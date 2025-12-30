@@ -1,9 +1,11 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
+import { watch } from 'vue'
 
 // 🟢 只有 "首頁" 維持靜態引入 (因為一進來就要看，不用懶載)
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -61,7 +63,9 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginPage.vue'),
-      meta: { hideAd: true ,hideSidebar:true},
+      meta: { hideAd: true,
+        hideLayout:true
+      },
     },
     {
       path: '/search',
@@ -118,19 +122,28 @@ const router = createRouter({
 
 router.beforeEach(async(to, from, next) => {
   const userStore = useUserStore()
-//等 firebase 初始化認證，等1秒，最多3秒
-await new Promise((resolve)=>{
-  const checkAuth=setInterval(()=>{
-    if(userStore.authReady){
-      clearInterval(checkAuth)
-      resolve()
-    }
-  },100)
-  setTimeout(()=>{
-    clearInterval(checkAuth)
-    resolve()
-  },3000)
-})
+
+  if(!userStore.authReady){
+    await new Promise((resolve) => {
+      // 先检查是否已经 ready（防止竞态条件）
+      if (userStore.authReady) {
+        resolve()
+        return
+      }
+
+      const unwatch = watch(
+        () => userStore.authReady,
+        (ready) => {
+          if (ready) {
+            unwatch()
+            resolve()
+          }
+        },
+        { immediate: true }
+      )
+    })
+  }
+
   if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
     return

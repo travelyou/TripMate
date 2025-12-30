@@ -104,8 +104,6 @@ export const useUserStore = defineStore('user', () => {
 
   // 登入函數（保留以維持向後兼容性，實際登入狀態由 Firebase 自動管理）
   const login = () => {
-    // 登入狀態由 Firebase onAuthStateChanged 自動管理
-    // 此函數保留以維持向後兼容性
   }
 
   // 登出函數
@@ -134,7 +132,6 @@ export const useUserStore = defineStore('user', () => {
     // 登入(出)狀態
     authReady,
     isLoggedIn,
-    authReady,
     login,
     logout,
   }

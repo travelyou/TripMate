@@ -364,16 +364,12 @@ onMounted(() => {
             <SendIcon class="w-5 h-5" />
           </button>
         </div>
-        <div
-          v-else
-          class="flex flex-col items-center justify-center p-1 bg-gray-50  rounded-lg border-2 border-gray-200"
-        >
+        <div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200">
           <p class="text-gray-600 mb-1">登入後才能回覆</p>
           <button
             class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
             @click="router.push('/login')"
-          >
-            登入
+          >登入
           </button>
         </div>
       </footer>
