@@ -11,8 +11,8 @@ import {
   BarChart2,
   FileVideo,
   X,
-  Hash
-  MapPin
+  Hash,
+  MapPin,
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close', 'submit-post'])
@@ -40,6 +40,21 @@ const handleItinerarySave = (itineraryData) => {
   showItineraryModal.value = false
 }
 
+// ... 其他程式碼 ...
+
+// 🟢 準備一個空白的行程物件，傳給組員的彈窗使用
+const blankItinerary = {
+  id: Date.now(), // 給一個臨時 ID
+  title: '',
+  startDate: '',
+  endDate: '',
+  days: [],       // ⚠️ 必須有這個空陣列，不然組員的 addDay 會壞掉
+  packingList: [] // ⚠️ 必須有這個空陣列，不然組員的 addCategory 會壞掉
+}
+
+
+// ...
+
 // --- 模擬資料 ---
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
 const suggestedTags = ['#北海道', '#獨旅', '#便宜機票', '#溫泉', '#滑雪']
@@ -54,6 +69,10 @@ const startPosting = (initialBoard = '') => {
     postData.value.board = ''
   }
   currentStep.value = 'edit'
+}
+
+const openItineraryDirectly = () => {
+  showItineraryModal.value = true
 }
 
 const addTag = (tagText) => {
@@ -89,6 +108,8 @@ const filteredTags = computed(() => {
   if (!tagSearch.value) return suggestedTags
   return suggestedTags.filter(t => t.includes(tagSearch.value))
 })
+
+
 </script>
 
 <template>
@@ -128,7 +149,7 @@ const filteredTags = computed(() => {
 
           <button
             class="w-full flex items-center p-4 bg-indigo-300 hover:bg-green-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
-            @click="startPosting('規劃行程')"
+            @click="openItineraryDirectly"
           >
             <BriefcaseIcon class="w-6 h-6 text-green-700 mr-4" />
             <div class="text-left">
@@ -182,6 +203,39 @@ const filteredTags = computed(() => {
             placeholder="請輸入你的內文..."
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
           ></textarea>
+
+          <div class="mb-4" v-if="postData.board === '找旅伴' || attachedItinerary"></div>
+
+          <div class="mb-4">
+          <div
+            v-if="attachedItinerary"
+            class="w-full p-3 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-center justify-between"
+          >
+            <div class="flex items-center gap-2 text-blue-700">
+              <MapPin class="w-5 h-5" />
+              <div>
+                <p class="font-bold text-sm">已連結行程</p>
+                <p class="text-xs">{{ attachedItinerary.title || '我的旅遊規劃' }}</p>
+              </div>
+            </div>
+            <button
+              class="text-xs text-red-500 font-bold hover:underline"
+              @click="attachedItinerary = null"
+
+            >
+              移除
+            </button>
+          </div>
+
+          <button
+            v-else
+            class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
+           @click="showItineraryModal = true"
+            >
+            <MapPin class="w-4 h-4" />
+            ＋ 加入行程規劃
+          </button>
+</div>
         </div>
 
         <div class="p-3 border-t-2 border-gray-200 bg-gray-50">
@@ -302,8 +356,16 @@ const filteredTags = computed(() => {
       </div>
 
     </div>
+
+   <ItineraryDetailModal
+      v-if="showItineraryModal"
+      :itinerary="blankItinerary"
+      @close="showItineraryModal = false"
+      @save="handleItinerarySave"
+    />
+
   </div>
-</template>
+  </template>
 
 <style scoped>
 @keyframes popIn {

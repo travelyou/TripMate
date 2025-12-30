@@ -27,9 +27,13 @@ const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
 
 const activeDayIndex = ref(0)
 const activeDay = computed(() => {
-  if (!localItinerary.value.days) localItinerary.value.days = []
-  return localItinerary.value.days[activeDayIndex.value] || { activities: [] }
+  // 1. 先把 days 拿出來，如果是 undefined 就當作空陣列 (不要用 = 去賦值修改它)
+  const days = localItinerary.value.days || []
+
+  // 2. 安全地回傳當天的內容，如果找不到就回傳空活動
+  return days[activeDayIndex.value] || { activities: [] }
 })
+
 
 const getDayLabel = (index) => {
   const startDateStr = localItinerary.value.startDate
@@ -124,7 +128,7 @@ const handleDelete = () => {
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
+    class="fixed inset-0 bg-black/60 z-[200] flex justify-center items-center p-4"
     @click.self="emit('close')"
   >
     <div
