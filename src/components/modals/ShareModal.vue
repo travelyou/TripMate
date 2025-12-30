@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+//import { defineProps, defineEmits } from 'vue'// <-Vue 3.3+ 版本中，defineProps 和 defineEmits 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
 import {
   X as XIcon,
   Link as LinkIcon, // 保持 LinkIcon，因為你沒有提供複製連結的圖

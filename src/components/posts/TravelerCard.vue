@@ -1,18 +1,18 @@
 <script setup>
-import { defineProps } from 'vue'
 import {
-  MapPin as MapPinIcon,
   Calendar as CalendarIcon,
+  MapPin as MapPinIcon,
+  MessageCircle as MessageCircleIcon,
   Users as UsersIcon,
-  MessageCircle as MessageCircleIcon, // 留言圖示
 } from 'lucide-vue-next'
+//import { defineProps } from 'vue'// <-Vue 3.3+ 版本中，defineProps 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
 
-const props = defineProps({
-  traveler: {
-    type: Object,
-    required: true,
-  },
-})
+// const props = defineProps({
+//   traveler: {
+//     type: Object,
+//     required: true,
+//   },
+// })<-本檔案沒有引用到 props，先註解掉，後續可編//
 
 // 根據招募狀態返回不同的樣式
 const getStatusClasses = (status) => {

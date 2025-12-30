@@ -40,8 +40,6 @@ const handleItinerarySave = (itineraryData) => {
   showItineraryModal.value = false
 }
 
-// ... 其他程式碼 ...
-
 // 🟢 準備一個空白的行程物件，傳給組員的彈窗使用
 const blankItinerary = {
   id: Date.now(), // 給一個臨時 ID
@@ -51,9 +49,6 @@ const blankItinerary = {
   days: [],       // ⚠️ 必須有這個空陣列，不然組員的 addDay 會壞掉
   packingList: [] // ⚠️ 必須有這個空陣列，不然組員的 addCategory 會壞掉
 }
-
-
-// ...
 
 // --- 模擬資料 ---
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
@@ -129,7 +124,7 @@ const filteredTags = computed(() => {
             class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
             @click="startPosting()"
           >
-            <MessageSquareIcon class="w-6 h-6 bg-pink-100 mr-4" />
+            <MessageSquareIcon class="w-6 h-6 text-orange-700 mr-4" />
             <div class="text-left">
               <p class="font-bold text-black">發起討論</p>
               <p class="text-xs text-gray-700">分享經驗或尋求建議</p>
@@ -203,8 +198,6 @@ const filteredTags = computed(() => {
             placeholder="請輸入你的內文..."
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
           ></textarea>
-
-          <div class="mb-4" v-if="postData.board === '找旅伴' || attachedItinerary"></div>
 
           <div class="mb-4">
           <div

@@ -1,5 +1,6 @@
 <script setup>
-import { defineProps, defineEmits, ref, computed, nextTick, onMounted } from 'vue'
+  //defineProps, defineEmits,<-Vue 3.3+ 版本中，defineProps 和 defineEmits 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
+import { ref, computed, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -8,6 +9,11 @@ import {
   Repeat2 as Repeat2Icon,
   MessageCircle as MessageCircleIcon,
 } from 'lucide-vue-next'
+// 暫時關閉登入回覆功能：mport { useUserStore } from '@/stores/user'
+// 暫時關閉登入回覆功能：import { useRouter } from 'vue-router'
+
+// 暫時關閉登入回覆功能：const userStore = useUserStore()
+// 暫時關閉登入回覆功能：const router = useRouter()
 
 // 不需要引入特定的 Store，直接操作 props 即可通用
 
@@ -337,7 +343,9 @@ onMounted(() => {
             <XIcon class="w-3 h-3" />
           </button>
         </div>
-        <div class="flex space-x-3">
+
+        <!-- 先都關閉要登入才能使用：<div v-if="userStore.isLoggedIn" class="flex space-x-3"> -->
+          <div v-if="true" class="flex space-x-3">
           <input
             id="comment-input"
             ref="commentInputRef"
@@ -355,6 +363,14 @@ onMounted(() => {
             <SendIcon class="w-5 h-5" />
           </button>
         </div>
+<!-- 暫時關閉登入後才可回覆的功能：<div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50  rounded-lg border-2 border-gray-200">
+  <p class="text-gray-600 mb-1">登入後才能回覆</p>
+  <button
+    class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
+    @click="router.push('/login')"
+  >登入
+  </button>
+</div>-->
       </footer>
     </div>
   </div>
