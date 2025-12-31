@@ -61,7 +61,7 @@ export const useUserStore = defineStore('user', () => {
   const wishlist = ref(['冰島極光', '紐西蘭健行', '瑞士滑雪', '土耳其熱氣球'])
   const likedPosts = ref([])
 
-  // ---  1. 愛心功能 (Favorites) ---
+
   const favorites = ref([])
   const toggleFavorite = (item) => {
     const itemType = item.type || 'discussion'
@@ -77,7 +77,7 @@ export const useUserStore = defineStore('user', () => {
     return favorites.value.some((i) => i.id === item.id && i.type === itemType)
   }
 
-  // ---  2. 收藏功能 (Collections - 含分類) ---
+
   const collectionCategories = ref([
     { id: 'default', name: '未分類項目', items: [] },
     { id: 'domestic', name: '國內旅遊', items: [] },
@@ -87,13 +87,13 @@ export const useUserStore = defineStore('user', () => {
   const isCollectionModalOpen = ref(false)
   const pendingCollectionItem = ref(null)
 
-  // 打開收藏視窗
+
   const openCollectionModal = (item) => {
     pendingCollectionItem.value = { ...item, type: item.type || 'discussion' }
     isCollectionModalOpen.value = true
   }
 
-  // 儲存到指定分類
+
   const saveToCategory = (categoryId, item = null) => {
     const targetItem = item || pendingCollectionItem.value
     if (!targetItem) return
@@ -111,7 +111,7 @@ export const useUserStore = defineStore('user', () => {
     pendingCollectionItem.value = null
   }
 
-  // 建立新分類並儲存
+
   const createCategoryAndSave = (name) => {
     const newId = 'cat_' + Date.now()
     collectionCategories.value.push({
@@ -122,7 +122,7 @@ export const useUserStore = defineStore('user', () => {
     saveToCategory(newId)
   }
 
-  // 移除收藏
+
   const removeFromCollection = (item, categoryId = null) => {
     const itemType = item.type || 'discussion'
     if (categoryId) {
@@ -139,7 +139,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // 檢查是否已收藏
+
   const isCollected = (item) => {
     const itemType = item.type || 'discussion'
     return collectionCategories.value.some((cat) =>
@@ -147,14 +147,13 @@ export const useUserStore = defineStore('user', () => {
     )
   }
 
-  // 扁平化收藏列表
+
   const collections = computed(() => {
     const all = []
     collectionCategories.value.forEach((cat) => all.push(...cat.items))
     return all
   })
 
-  // --- 其他 Actions ---
   const updateProfile = (newData) => {
     currentUser.value = { ...currentUser.value, ...newData }
   }
@@ -221,6 +220,7 @@ export const useUserStore = defineStore('user', () => {
     addVisitedPlace,
     toggleWishlist,
     isWishlisted,
+    authReady,
     isLoggedIn,
     login,
     logout,

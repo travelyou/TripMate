@@ -1,11 +1,14 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { X as XIcon, Send as SendIcon, Bot as BotIcon, User as UserIcon } from 'lucide-vue-next'
 
 defineEmits(['close'])
 
 const messageInput = ref('')
 const messagesContainer = ref(null)
+
+
+let replyTimeoutId = null
 
 // 預設歡迎訊息 (使用 v-html 可以渲染列表)
 const messages = ref([
@@ -26,6 +29,8 @@ const messages = ref([
   },
 ])
 
+
+
 const sendMessage = () => {
   const text = messageInput.value.trim()
   if (!text) return
@@ -37,16 +42,20 @@ const sendMessage = () => {
     content: text,
   })
 
+
   messageInput.value = ''
   scrollToBottom()
 
   // 2. 模擬 AI 回覆 (延遲 0.8 秒)
-  setTimeout(() => {
+  // 若視窗很快被關閉，避免 timeout 回來後還繼續 push（造成不必要的記憶體持有）
+  if (replyTimeoutId) clearTimeout(replyTimeoutId)
+  replyTimeoutId = setTimeout(() => {
     messages.value.push({
       id: Date.now() + 1,
       type: 'bot',
       content: '感謝您的提問！這是一個示範回應。如果您串接了後端 API，我就可以真正回答您的問題囉！',
     })
+
     scrollToBottom()
   }, 800)
 }
@@ -60,6 +69,13 @@ const scrollToBottom = async () => {
 
 onMounted(() => {
   scrollToBottom()
+})
+
+onUnmounted(() => {
+  if (replyTimeoutId) {
+    clearTimeout(replyTimeoutId)
+    replyTimeoutId = null
+  }
 })
 </script>
 

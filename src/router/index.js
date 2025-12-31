@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { watch } from 'vue' 
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
 
@@ -35,9 +36,8 @@ const router = createRouter({
       },
     },
     {
-      path: '/favorites',
+      path: '/favorites', 
       name: 'favorites',
-
       component: () => import('@/views/FavoritesPage.vue'),
       meta: {
         requiresAuth: true,
@@ -52,16 +52,10 @@ const router = createRouter({
         requiresAuth: true,
       },
     },
-    //暫時新增廠商頁面路徑，之後可刪除
     {
       path: '/vendor/:id',
       name: 'VendorProfile',
-      component: () => import('@/views/VendorProfilePage.vue')
-    },
-    {
-      path: '/favorites',
-      name: 'favorites',
-      component: () => import('@/views/FavoritesPage.vue'),
+      component: () => import('@/views/VendorProfilePage.vue'),
     },
     {
       path: '/collections',
@@ -72,8 +66,9 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginPage.vue'),
-      meta: { hideAd: true,
-        hideLayout:true
+      meta: {
+        hideAd: true,
+        hideLayout: true,
       },
     },
     {
@@ -137,8 +132,28 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
+
+  if (!userStore.authReady) {
+    await new Promise((resolve) => {
+      if (userStore.authReady) {
+        resolve()
+        return
+      }
+
+      const unwatch = watch(
+        () => userStore.authReady,
+        (ready) => {
+          if (ready) {
+            unwatch()
+            resolve()
+          }
+        },
+        { immediate: true },
+      )
+    })
+  }
 
   if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
@@ -156,4 +171,5 @@ router.beforeEach((to, from, next) => {
     next()
   }
 })
+
 export default router

@@ -176,7 +176,7 @@ const generateItinerary = (id) => {
 const itineraryData = Array.from({ length: 20 }, (_, i) => generateItinerary(i + 1))
 
 // 🟢 修改處：使用 useItineraryStore (單數)，內部變數為 itineraries
-export const useItineraryStore = defineStore('itinerary', () => {
+export const useItineraryStore = defineStore('featured', () => {
   const itineraries = ref(itineraryData)
 
   const getItineraryById = (id) => {

@@ -150,7 +150,10 @@ onMounted(() => {
   if (props.scrollToComments) {
     nextTick(() => {
       if (commentsSectionRef.value) {
-        commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        commentsSectionRef.value.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
         if (commentInputRef.value) commentInputRef.value.focus()
       }
     })

@@ -80,13 +80,15 @@ const handleToggleAiChat = () => {
 
 <template>
   <div
-    class="min-h-screen bg-[#f5e6d3] pixel-bg relative transition-all duration-1000 bg-cover bg-center bg-fixed bg-no-repeat"
-    :style="{ backgroundImage: `url('${currentBgImage}')` }"
+  class="min-h-screen relative transition-all duration-1000"
+  :class="hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'"
+  :style="{ backgroundImage: `url('${currentBgImage}')` }"
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
     <div v-if="!hideLayout" class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
       <div
+        v-if="!isSearchPage"
         class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
       >
 
@@ -138,8 +140,8 @@ const handleToggleAiChat = () => {
           <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-2">
             <h3 class="text-xl font-bold text-amber-900">快速功能</h3>
             <button
-              @click="isMobileActionMenuOpen = false"
               class="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+              @click="isMobileActionMenuOpen = false"
             >
               <XIcon class="w-5 h-5 text-gray-600" />
             </button>
