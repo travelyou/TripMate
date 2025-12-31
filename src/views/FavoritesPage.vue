@@ -86,7 +86,7 @@ const handleCardClick = (item) => {
     <div class="space-y-6 min-h-[400px]">
       <div
         v-if="filteredItems.length === 0"
-        class="text-center py-20 text-gray-400 bg-white/50 rounded-3xl border-2 border-dashed border-gray-200"
+        class="text-center py-20 text-gray-400 bg-white/90 rounded-3xl border-2 border-dashed border-gray-200"
       >
         <Heart class="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <p class="font-bold text-lg">這裡目前是空的</p>

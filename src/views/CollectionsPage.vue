@@ -173,7 +173,7 @@ const getTabStyle = (isActive) => {
 
       <div
         v-if="filteredItems.length === 0"
-        class="text-center py-20 text-gray-400 bg-white/95 backdrop-blur-sm rounded-3xl border-2 border-dashed border-gray-300 shadow-sm"
+        class="text-center py-20 text-gray-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-gray-300 shadow-sm"
       >
         <Bookmark class="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <p class="font-bold text-lg">這裡目前是空的</p>
