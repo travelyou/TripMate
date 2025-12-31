@@ -86,7 +86,9 @@ function goToFavorites() {
   router.push({ name: 'favorites' })
 }
 function goToCollections() {
-  alert('收藏功能開發中')
+  // 修改這裡，不再彈出 alert
+  // alert('收藏功能開發中')
+  router.push({ name: 'collections' }) // 假設你有設定 collections 路由
 }
 
 const handleMobileNavClick = (item) => {
