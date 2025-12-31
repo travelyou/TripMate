@@ -1,4 +1,3 @@
-// src/stores/user.js
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { auth } from '@/firebase/config'
@@ -28,7 +27,7 @@ export const useUserStore = defineStore('user', () => {
         avatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M',
         rating: 5,
         content: '主揪超讚！行程安排得很順暢，人也很隨和～',
-        date: '2024/11/20'
+        date: '2024/11/20',
       },
       {
         id: 2,
@@ -36,36 +35,126 @@ export const useUserStore = defineStore('user', () => {
         avatar: 'https://placehold.co/100x100/87CEEB/ffffff?text=T',
         rating: 4,
         content: '很棒的旅伴，下次有機會再一起出遊！',
-        date: '2024/10/15'
-      }
-    ]
+        date: '2024/10/15',
+      },
+    ],
   })
 
-  // 拜訪過的地點 (含日期) - Modified to match source structure
+  // 拜訪過的地點
   const visitedPlaces = ref({
     domestic: [
       { name: '台北', date: '2024.01' },
       { name: '台中', date: '2023.12' },
       { name: '台南', date: '2023.10' },
       { name: '花蓮', date: '2023.08' },
-      { name: '蘭嶼', date: '2023.07' }
+      { name: '蘭嶼', date: '2023.07' },
     ],
     international: [
       { name: '東京', date: '2023.11' },
       { name: '大阪', date: '2023.09' },
       { name: '首爾', date: '2023.05' },
       { name: '曼谷', date: '2023.02' },
-      { name: '巴黎', date: '2022.12' }
-    ]
+      { name: '巴黎', date: '2022.12' },
+    ],
   })
 
-  // 願望清單 (收藏的文章或行程 ID)
   const wishlist = ref(['冰島極光', '紐西蘭健行', '瑞士滑雪', '土耳其熱氣球'])
-
-  // Liked Posts
   const likedPosts = ref([])
 
-  // Actions
+  // ---  1. 愛心功能 (Favorites) ---
+  const favorites = ref([])
+  const toggleFavorite = (item) => {
+    const itemType = item.type || 'discussion'
+    const index = favorites.value.findIndex((i) => i.id === item.id && i.type === itemType)
+    if (index > -1) {
+      favorites.value.splice(index, 1)
+    } else {
+      favorites.value.push({ ...item, type: itemType })
+    }
+  }
+  const isFavorite = (item) => {
+    const itemType = item.type || 'discussion'
+    return favorites.value.some((i) => i.id === item.id && i.type === itemType)
+  }
+
+  // ---  2. 收藏功能 (Collections - 含分類) ---
+  const collectionCategories = ref([
+    { id: 'default', name: '未分類項目', items: [] },
+    { id: 'domestic', name: '國內旅遊', items: [] },
+    { id: 'international', name: '國外旅遊', items: [] },
+  ])
+
+  const isCollectionModalOpen = ref(false)
+  const pendingCollectionItem = ref(null)
+
+  // 打開收藏視窗
+  const openCollectionModal = (item) => {
+    pendingCollectionItem.value = { ...item, type: item.type || 'discussion' }
+    isCollectionModalOpen.value = true
+  }
+
+  // 儲存到指定分類
+  const saveToCategory = (categoryId, item = null) => {
+    const targetItem = item || pendingCollectionItem.value
+    if (!targetItem) return
+
+    const category = collectionCategories.value.find((c) => c.id === categoryId)
+    if (category) {
+      const exists = category.items.some(
+        (i) => i.id === targetItem.id && i.type === targetItem.type,
+      )
+      if (!exists) {
+        category.items.push(targetItem)
+      }
+    }
+    isCollectionModalOpen.value = false
+    pendingCollectionItem.value = null
+  }
+
+  // 建立新分類並儲存
+  const createCategoryAndSave = (name) => {
+    const newId = 'cat_' + Date.now()
+    collectionCategories.value.push({
+      id: newId,
+      name: name,
+      items: [],
+    })
+    saveToCategory(newId)
+  }
+
+  // 移除收藏
+  const removeFromCollection = (item, categoryId = null) => {
+    const itemType = item.type || 'discussion'
+    if (categoryId) {
+      const category = collectionCategories.value.find((c) => c.id === categoryId)
+      if (category) {
+        const index = category.items.findIndex((i) => i.id === item.id && i.type === itemType)
+        if (index > -1) category.items.splice(index, 1)
+      }
+    } else {
+      collectionCategories.value.forEach((cat) => {
+        const index = cat.items.findIndex((i) => i.id === item.id && i.type === itemType)
+        if (index > -1) cat.items.splice(index, 1)
+      })
+    }
+  }
+
+  // 檢查是否已收藏
+  const isCollected = (item) => {
+    const itemType = item.type || 'discussion'
+    return collectionCategories.value.some((cat) =>
+      cat.items.some((i) => i.id === item.id && i.type === itemType),
+    )
+  }
+
+  // 扁平化收藏列表
+  const collections = computed(() => {
+    const all = []
+    collectionCategories.value.forEach((cat) => all.push(...cat.items))
+    return all
+  })
+
+  // --- 其他 Actions ---
   const updateProfile = (newData) => {
     currentUser.value = { ...currentUser.value, ...newData }
   }
@@ -89,12 +178,9 @@ export const useUserStore = defineStore('user', () => {
 
   const isWishlisted = (id) => wishlist.value.includes(id)
 
-  // 登入狀態
   const isLoggedIn = ref(false)
-  // 追蹤 Firebase 的認證狀態是否初始化
   const authReady = ref(false)
 
-  // 監聽 Firebase 認證狀態變化
   onAuthStateChanged(auth, (user) => {
     isLoggedIn.value = user ? true : false
     if (!authReady.value) {
@@ -102,23 +188,16 @@ export const useUserStore = defineStore('user', () => {
     }
   })
 
-  // 登入函數（保留以維持向後兼容性，實際登入狀態由 Firebase 自動管理）
-  const login = () => {
-    // 登入狀態由 Firebase onAuthStateChanged 自動管理
-    // 此函數保留以維持向後兼容性
-  }
+  const login = () => {}
 
-  // 登出函數
   const logout = async () => {
     try {
       await signOut(auth)
-      // onAuthStateChanged 會自動更新 isLoggedIn 狀態
     } catch (error) {
       console.error('登出失敗：', error)
     }
   }
 
-  // userProfile 作為 currentUser 的別名，保持向後兼容性
   const userProfile = computed(() => currentUser.value)
 
   return {
@@ -126,12 +205,22 @@ export const useUserStore = defineStore('user', () => {
     userProfile,
     visitedPlaces,
     wishlist,
+    likedPosts,
+    favorites,
+    toggleFavorite,
+    isFavorite,
+    collectionCategories,
+    collections,
+    isCollectionModalOpen,
+    openCollectionModal,
+    saveToCategory,
+    createCategoryAndSave,
+    removeFromCollection,
+    isCollected,
     updateProfile,
     addVisitedPlace,
     toggleWishlist,
     isWishlisted,
-    likedPosts,
-    // 登入(出)狀態
     isLoggedIn,
     login,
     logout,

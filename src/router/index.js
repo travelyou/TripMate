@@ -1,7 +1,4 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-
-// 🟢 只有 "首頁" 維持靜態引入 (因為一進來就要看，不用懶載)
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
 
@@ -16,8 +13,6 @@ const router = createRouter({
     {
       path: '/discussion',
       name: 'discussion',
-      // 🟢 改成箭頭函式 import()，這就是懶人載入！
-      // 只有切換到此頁面時，瀏覽器才會下載這部分的程式碼
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
@@ -56,6 +51,22 @@ const router = createRouter({
         hideAd: true,
         requiresAuth: true,
       },
+    },
+    //暫時新增廠商頁面路徑，之後可刪除
+    {
+      path: '/vendor/:id',
+      name: 'VendorProfile',
+      component: () => import('@/views/VendorProfilePage.vue')
+    },
+    {
+      path: '/favorites',
+      name: 'favorites',
+      component: () => import('@/views/FavoritesPage.vue'),
+    },
+    {
+      path: '/collections',
+      name: 'collections',
+      component: () => import('@/views/CollectionsPage.vue'),
     },
     {
       path: '/login',
