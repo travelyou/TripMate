@@ -1,5 +1,6 @@
 <script setup>
-import { defineProps, defineEmits, ref, computed, nextTick, onMounted } from 'vue'
+  //defineProps, defineEmits,<-Vue 3.3+ 版本中，defineProps 和 defineEmits 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
+import { ref, computed, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -7,6 +8,7 @@ import {
   RefreshCcw as RefreshCcwIcon,
   Repeat2 as Repeat2Icon,
   MessageCircle as MessageCircleIcon,
+  Bookmark as BookmarkIcon, // 記得引入 Bookmark 圖示
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -33,17 +35,35 @@ const newComment = ref('')
 const isReplyingTo = ref(null)
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
-const isLiked = ref(false)
-const isBookmarked = ref(false)
 const isShareModalOpen = ref(false)
 
-// --- 核心修正 1: 統一取得留言陣列 ---
+// 3. 智慧判斷內容類型 (因為 Modal 是共用的)
+const itemData = computed(() => {
+  const p = props.post
+  // 簡單的判斷邏輯：
+  let type = 'discussion'
+  if (p.type) {
+    type = p.type
+  } else if (p.price || p.agencyName) {
+    type = 'itinerary'
+  } else if (p.status || p.people) {
+    type = 'traveler'
+  }
+
+  return {
+    ...p,
+    type, // 強制覆寫正確的 type
+    id: p.id,
+  }
+})
+
+// 統一取得留言陣列
 const normalizedComments = computed(() => {
   if (!props.post) return []
   return props.post.commentsData || props.post.comments || []
 })
 
-// --- 核心修正 2: 計算留言總數 (含回覆) ---
+// 計算留言總數 (含回覆)
 const totalCommentCount = computed(() => {
   const comments = normalizedComments.value
   if (!comments.length) return 0
@@ -57,9 +77,9 @@ const totalCommentCount = computed(() => {
   return total
 })
 
-const toggleLike = (item) => {
+// 處理留言按讚 (這部分僅影響當下顯示)
+const toggleCommentLike = (item) => {
   if (typeof item.likes !== 'number') item.likes = 0
-
   if (item.isLiked) {
     item.likes--
   } else {
@@ -76,7 +96,6 @@ const startReply = (commentId, authorName) => {
   }
 }
 
-// 🟢 新增：取消回覆函式 (解決格式化報錯問題)
 const cancelReply = () => {
   isReplyingTo.value = null
   newComment.value = ''
@@ -91,7 +110,7 @@ const submitComment = () => {
 
   const newCommentObj = {
     id: Date.now(),
-    author: '當前用戶', // 之後可改為從 UserStore 拿
+    author: '當前用戶',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user',
     time: '剛剛',
     content: content,
@@ -100,11 +119,9 @@ const submitComment = () => {
     replies: [],
   }
 
-  // --- 核心修正 3: 直接操作 props.post，不依賴特定 Store ---
   const targetPost = props.post
 
   if (isReply) {
-    // 找出父留言
     const commentsList = targetPost.commentsData || targetPost.comments || []
     const parentComment = commentsList.find((c) => c.id === isReplyingTo.value)
 
@@ -113,7 +130,6 @@ const submitComment = () => {
       parentComment.replies.push(newCommentObj)
     }
   } else {
-    // 新增主留言
     if (Array.isArray(targetPost.commentsData)) {
       targetPost.commentsData.unshift(newCommentObj)
     } else if (Array.isArray(targetPost.comments)) {
@@ -123,7 +139,6 @@ const submitComment = () => {
     }
   }
 
-  // 更新計數 (相容兩種命名)
   if (typeof targetPost.comments === 'number') targetPost.comments++
   if (typeof targetPost.commentsCount === 'number') targetPost.commentsCount++
 
@@ -211,39 +226,45 @@ onMounted(() => {
           <div class="flex items-center text-gray-400 text-sm mt-4 border-t border-gray-100 pt-3">
             <button
               :class="[
-                'flex items-center space-x-1 hover:text-red-500 transition mr-6',
-                { 'text-red-500': isLiked },
+                'flex items-center space-x-1 transition mr-6 group',
+                userStore.isFavorite(itemData) ? 'text-red-500' : 'hover:text-red-500',
               ]"
-              @click="isLiked = !isLiked"
+              @click="userStore.toggleFavorite(itemData)"
             >
-              <HeartIcon :class="['w-4 h-4', { 'fill-red-500': isLiked }]" />
-              <span>{{ post.likes || post.totalSaves || 0 }}</span>
+              <HeartIcon
+                :class="[
+                  'w-4 h-4 transition-transform group-active:scale-125',
+                  { 'fill-current': userStore.isFavorite(itemData) },
+                ]"
+              />
+              <span>{{
+                (post.likes || post.totalSaves || 0) + (userStore.isFavorite(itemData) ? 1 : 0)
+              }}</span>
             </button>
+
             <div class="flex items-center space-x-1 text-indigo-600 mr-6">
               <MessageCircleIcon class="w-4 h-4" /> <span>{{ totalCommentCount }} 留言</span>
             </div>
+
             <button
               :class="[
-                'flex items-center space-x-1 hover:text-yellow-600 transition mr-6',
-                { 'text-yellow-600': isBookmarked },
+                'flex items-center space-x-1 transition mr-6 group',
+                userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600',
               ]"
-              @click="isBookmarked = !isBookmarked"
+              @click="
+                userStore.isCollected(itemData)
+                  ? userStore.removeFromCollection(itemData)
+                  : userStore.openCollectionModal(itemData)
+              "
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-4 h-4"
-                :fill="isBookmarked ? 'currentColor' : 'none'"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                />
-              </svg>
+              <BookmarkIcon
+                :class="[
+                  'w-4 h-4 transition-transform group-active:scale-125',
+                  { 'fill-current': userStore.isCollected(itemData) },
+                ]"
+              />
             </button>
+
             <button
               class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
               @click="isShareModalOpen = true"
@@ -279,7 +300,7 @@ onMounted(() => {
                   <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                     <button
                       class="flex items-center space-x-1 hover:text-red-500 transition"
-                      @click="toggleLike(comment)"
+                      @click="toggleCommentLike(comment)"
                     >
                       <HeartIcon
                         :class="[
@@ -314,7 +335,7 @@ onMounted(() => {
                           <div class="flex items-center space-x-4 mt-1 text-[10px] text-gray-500">
                             <button
                               class="flex items-center space-x-1 hover:text-red-500 transition"
-                              @click="toggleLike(reply)"
+                              @click="toggleCommentLike(reply)"
                             >
                               <HeartIcon
                                 :class="[

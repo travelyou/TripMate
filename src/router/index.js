@@ -1,11 +1,7 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-import { watch } from 'vue'
-
-// 🟢 只有 "首頁" 維持靜態引入 (因為一進來就要看，不用懶載)
+import { watch } from 'vue' 
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
-
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,8 +14,6 @@ const router = createRouter({
     {
       path: '/discussion',
       name: 'discussion',
-      // 🟢 改成箭頭函式 import()，這就是懶人載入！
-      // 只有切換到此頁面時，瀏覽器才會下載這部分的程式碼
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
@@ -42,9 +36,8 @@ const router = createRouter({
       },
     },
     {
-      path: '/favorites',
+      path: '/favorites', 
       name: 'favorites',
-
       component: () => import('@/views/FavoritesPage.vue'),
       meta: {
         requiresAuth: true,
@@ -60,11 +53,22 @@ const router = createRouter({
       },
     },
     {
+      path: '/vendor/:id',
+      name: 'VendorProfile',
+      component: () => import('@/views/VendorProfilePage.vue'),
+    },
+    {
+      path: '/collections',
+      name: 'collections',
+      component: () => import('@/views/CollectionsPage.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginPage.vue'),
-      meta: { hideAd: true,
-        hideLayout:true
+      meta: {
+        hideAd: true,
+        hideLayout: true,
       },
     },
     {
@@ -117,15 +121,22 @@ const router = createRouter({
         },
       ],
     },
+    {
+      path: '/test',
+      name: 'PersonalityTest',
+      component: () => import('@/views/PersonalityTest.vue'),
+      meta: {
+        hideAd: true,
+      },
+    },
   ],
 })
 
-router.beforeEach(async(to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
 
-  if(!userStore.authReady){
+  if (!userStore.authReady) {
     await new Promise((resolve) => {
-      // 先检查是否已经 ready（防止竞态条件）
       if (userStore.authReady) {
         resolve()
         return
@@ -139,7 +150,7 @@ router.beforeEach(async(to, from, next) => {
             resolve()
           }
         },
-        { immediate: true }
+        { immediate: true },
       )
     })
   }
@@ -160,4 +171,5 @@ router.beforeEach(async(to, from, next) => {
     next()
   }
 })
+
 export default router

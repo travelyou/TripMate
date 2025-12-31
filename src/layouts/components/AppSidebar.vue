@@ -62,6 +62,15 @@ const bottomMenuItems = [
     iconColor: 'text-gray-700',
     textColor: 'text-amber-900',
   },
+
+  {
+    name: 'VendorProfile',
+    params: { id: 'test' },
+    label: '廠商檔案',
+    icon: UserIcon,
+    iconColor: 'text-gray-700',
+    textColor: 'text-amber-900',
+  },
 ]
 
 const mobileNavItems = [
@@ -77,7 +86,9 @@ function goToFavorites() {
   router.push({ name: 'favorites' })
 }
 function goToCollections() {
-  alert('收藏功能開發中')
+  // 修改這裡，不再彈出 alert
+  // alert('收藏功能開發中')
+  router.push({ name: 'collections' }) // 假設你有設定 collections 路由
 }
 
 const handleMobileNavClick = (item) => {
@@ -133,7 +144,7 @@ const handleMobileNavClick = (item) => {
       <RouterLink
         v-for="item in bottomMenuItems"
         :key="item.name"
-        :to="{ name: item.name }"
+        :to="{ name: item.name, params: item.params }"
         class="nav-item flex items-center p-3 rounded-xl cursor-pointer hover:opacity-70"
         active-class="active"
       >

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row relative overflow-y-auto">
+  <div class="min-h-screen bg-[#fffef7] flex flex-col lg:flex-row relative">
     <button
       class="lg:absolute lg:top-4 lg:left-4 z-10 p-2 sm:p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer mx-auto mt-4 mb-2 lg:mx-0 lg:mt-0 lg:mb-0"
       title="返回首頁"
@@ -11,7 +11,7 @@
         class="h-8 sm:h-10 md:h-12 w-auto object-contain"
       />
     </button>
-    <div class="flex flex-none lg:flex-1 items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0">
+    <div class="flex flex-none lg:flex-[2] items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0">
       <img
         src="@/assets/pic/loginPage-removebg.png"
         alt="loginPage"
@@ -19,8 +19,8 @@
       />
     </div>
 
-    <div class="flex flex-none lg:flex-1 items-center justify-center p-0 sm:p-3 md:p-4 lg:p-6 order-2 lg:order-none min-h-0 lg:min-h-0 -mt-2 sm:mt-0 lg:pt-4">
-      <div class="w-full max-w-md flex flex-col items-center justify-center px-4 sm:px-0">
+    <div class="flex flex-none lg:flex-[3] items-center justify-center sm:p-0 md:p-0 lg:p-0 order-2 lg:order-none min-h-0 lg:-mt-2 sm:mt-0 lg:pt-8">
+      <div class="w-full max-w-lg flex flex-col items-center justify-center px-4 sm:px-0">
         <div class="w-full flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
                 <span
           :class="[
@@ -56,14 +56,14 @@
         <div class="form-wrapper w-full flex items-center justify-center px-2 sm:px-0">
           <form
             v-if="activeTab === 'login'"
-            class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4"
+            class="formContainer w-full max-w-lg bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4"
             @submit.prevent="handleLogin"
           >
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="email" class="text-sm sm:text-base">
                   電子信箱
-                  <span class="text-xs text-gray-500 font-normal block sm:inline">(必須包含@)</span>
+                  <span class="text-sm text-gray-500 font-normal block sm:inline">(必須包含@)</span>
                 </label>
                 <input
                   id="email"
@@ -118,7 +118,7 @@
           </form>
           <form
             v-else
-            class="formContainer w-full max-w-md bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4"
+            class="formContainer w-full max-w-lg bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4"
             @submit.prevent="handleRegister"
           >
             <div class="formInput flex flex-row gap-2">

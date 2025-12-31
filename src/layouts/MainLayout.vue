@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
+import { useUserStore } from '@/stores/user' // 確保引入 Store
+
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
@@ -8,6 +10,7 @@ import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
+import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue' // ✅ 關鍵：一定要引入這個元件！
 
 import {
   Plus as PlusIcon,
@@ -17,6 +20,7 @@ import {
   X as XIcon,
 } from 'lucide-vue-next'
 
+const userStore = useUserStore()
 const route = useRoute()
 const isSearchPage = computed(() => route.name === 'search')
 const hideLayout=computed(()=>route.meta.hideLayout === true)
@@ -27,8 +31,7 @@ const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 
-
-// 🟢 優化後的圖片網址：w=1280 (寬度縮小), q=60 (品質壓縮), auto=format (自動轉 webp)
+// 背景圖片陣列
 const backgroundImages = [
   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop', // 海灘
@@ -49,7 +52,6 @@ const backgroundImages = [
 // 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
 
-// ... 其他函式保持不變
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
   isMobileActionMenuOpen.value = false
@@ -191,6 +193,10 @@ const handleToggleAiChat = () => {
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
     <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
   </div>
+
+  <Transition name="fade">
+    <AddToCollectionModal v-if="userStore.isCollectionModalOpen" />
+  </Transition>
 </template>
 
 <style scoped>
