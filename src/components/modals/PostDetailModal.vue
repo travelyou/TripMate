@@ -10,9 +10,13 @@ import {
   MessageCircle as MessageCircleIcon,
   Bookmark as BookmarkIcon, // 記得引入 Bookmark 圖示
 } from 'lucide-vue-next'
-import { useUserStore } from '@/stores/user' // 1. 確保正確引入 Store
+import { useUserStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
 
-const userStore = useUserStore() // 2. 初始化
+const userStore = useUserStore()
+const router = useRouter()
+
+// 不需要引入特定的 Store，直接操作 props 即可通用
 
 const props = defineProps({
   post: {
@@ -360,7 +364,7 @@ onMounted(() => {
           </button>
         </div>
 
-        <div class="flex space-x-3">
+        <div v-if="userStore.isLoggedIn" class="flex space-x-3">
           <input
             id="comment-input"
             ref="commentInputRef"
@@ -376,6 +380,14 @@ onMounted(() => {
             @click="submitComment"
           >
             <SendIcon class="w-5 h-5" />
+          </button>
+        </div>
+        <div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200">
+          <p class="text-gray-600 mb-1">登入後才能回覆</p>
+          <button
+            class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
+            @click="router.push('/login')"
+          >登入
           </button>
         </div>
       </footer>

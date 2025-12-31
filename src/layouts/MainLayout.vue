@@ -23,6 +23,7 @@ import {
 const userStore = useUserStore()
 const route = useRoute()
 const isSearchPage = computed(() => route.name === 'search')
+const hideLayout=computed(()=>route.meta.hideLayout === true)
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
@@ -82,13 +83,14 @@ const handleToggleAiChat = () => {
     class="min-h-screen bg-[#f5e6d3] pixel-bg relative transition-all duration-1000 bg-cover bg-center bg-fixed bg-no-repeat"
     :style="{ backgroundImage: `url('${currentBgImage}')` }"
   >
-    <AppHeader @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
+    <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
+    <div v-if="!hideLayout" class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
       <div
         class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
       >
-        <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
+
+        <AppSidebar  @open-mobile-actions="isMobileActionMenuOpen = true" />
       </div>
 
       <main
@@ -98,8 +100,9 @@ const handleToggleAiChat = () => {
         <RouterView />
       </main>
 
+
       <div
-        v-if="!route.meta.hideAd"
+        v-if="!hideLayout && !route.meta.hideAd"
         class="hidden lg:block w-[300px] shrink-0 mr-2"
         :class="{ 'mt-6': !isSearchPage }"
       >
@@ -107,7 +110,11 @@ const handleToggleAiChat = () => {
       </div>
     </div>
 
-    <div class="hidden lg:block">
+    <div v-else class="w-screen h-screen overflow-y-auto scrollable-container">
+  <RouterView />
+</div>
+
+    <div v-if="!hideLayout" class="hidden lg:block">
       <AppFABs
         @open-posting="handleOpenPosting"
         @quick-action="handleQuickAction"
@@ -201,12 +208,8 @@ const handleToggleAiChat = () => {
   transform: translateY(100%);
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.scrollable-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 </style>

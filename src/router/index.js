@@ -72,7 +72,9 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginPage.vue'),
-      meta: { hideAd: true },
+      meta: { hideAd: true,
+        hideLayout:true
+      },
     },
     {
       path: '/search',
@@ -127,4 +129,23 @@ const router = createRouter({
   ],
 })
 
+router.beforeEach((to, from, next) => {
+  const userStore = useUserStore()
+
+  if (to.name === 'login' && userStore.isLoggedIn) {
+    next('/')
+    return
+  }
+
+  if (to.meta.requiresAuth) {
+    if (userStore.isLoggedIn) {
+      next()
+    } else {
+      next('/login')
+      alert('請先登入後才可使用')
+    }
+  } else {
+    next()
+  }
+})
 export default router
