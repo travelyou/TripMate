@@ -117,7 +117,7 @@ const getTabStyle = (isActive) => {
     </div>
 
     <div
-      class="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 mb-6 flex overflow-x-auto no-scrollbar items-center gap-2"
+      class="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 mb-6 flex overflow-x-auto custom-scroll items-center gap-2"
     >
       <button
         v-for="tab in tabs"
@@ -223,7 +223,39 @@ const getTabStyle = (isActive) => {
   opacity: 0;
   transform: translateY(20px);
 }
+
+.custom-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 .custom-scroll::-webkit-scrollbar {
-  height: 6px;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .custom-scroll {
+    scrollbar-width: auto;
+    -ms-overflow-style: auto;
+  }
+
+  .custom-scroll::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 10px;
+    margin: 0 10px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
 }
 </style>
