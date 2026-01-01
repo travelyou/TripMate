@@ -1,7 +1,9 @@
 <script setup>
 import { FlagTriangleRight, TriangleAlert, Dot } from 'lucide-vue-next'
 
-
+defineProps({
+  result: { type: Object, required: true },
+})
 
 // 內容：
 // - 動物圖像、動物名稱、簡短描述、標籤

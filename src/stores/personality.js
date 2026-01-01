@@ -77,13 +77,19 @@ function calcMbti(answers) {
   return `${pick('E', 'I')}${pick('S', 'N')}${pick('T', 'F')}${pick('J', 'P')}`
 }
 
-function mbtiToGroup(mbti) {
+function mbtiToAnimalKey(mbti) {
   const E = mbti.includes('E')
   const J = mbti.includes('J')
-  if (E && J) return 'fox'
-  if (E && !J) return 'otter'
-  if (!E && J) return 'wolf'
-  return 'cat'
+  const S = mbti.includes('S') // N = !S
+
+  if (E && J && S) return 'dog_leader'
+  if (E && J && !S) return 'fox_planner'
+  if (E && !J && S) return 'leopard_dash'
+  if (E && !J && !S) return 'otter_free_spirit'
+  if (!E && J && S) return 'bear_caretaker'
+  if (!E && J && !S) return 'wolf_strategist'
+  if (!E && !J && S) return 'turtle_slow'
+  return 'cat_solo'
 }
 
 // 動物人格資料
@@ -457,24 +463,30 @@ export const usePersonalityStore = defineStore('personalityTest', {
 
     finishTest() {
       const mbti = calcMbti(this.answers)
-      const group = mbtiToGroup(mbti)
 
-      const profile = ANIMAL_PROFILES[groupKey]
+      // 用 8 種分組 key（對應 ANIMAL_PROFILES 的 key）
+      const key = mbtiToAnimalKey(mbti)
+      const profile = ANIMAL_PROFILES[key] || ANIMAL_PROFILES.cat_solo
+
       const shareLink = `${window.location.origin}/test`
-      const shareText = `${profile.animalEmoji} 我是「${profile.animalName}」\n${profile.summary}\n\n#旅遊動物人格 ${profile.tags.map((t) => `#${t}`).join(' ')}\n\n來測看看：${shareLink}`
-      this.result = { ...profile, shareLink, shareText }
+      const shareText =
+        `${profile.animalEmoji} 我是「${profile.animalName}」\n` +
+        `${profile.summary}\n\n` +
+        `#旅遊動物人格 ${profile.tags.map((t) => `#${t}`).join(' ')}\n\n` +
+        `來測看看：${shareLink}`
 
       this.result = {
+        key,
         mbti,
-        group,
         shareLink,
         shareText,
         ...profile,
       }
 
       this.step = 'result'
-    },
+      console.log('[finishTest]', { mbti, key, result: this.result })
 
+    },
     resetTest() {
       this.step = 'start'
       this.questions = []
