@@ -485,7 +485,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
 
       this.step = 'result'
       console.log('[finishTest]', { mbti, key, result: this.result })
-
     },
     resetTest() {
       this.step = 'start'

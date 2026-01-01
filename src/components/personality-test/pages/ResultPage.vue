@@ -7,10 +7,15 @@ const props = defineProps({
 })
 defineEmits(['restart'])
 
+// 複製狀態：追蹤是否已成功複製分享文字
 const copied = ref(false)
 
+// 分享文字：從 result 物件中取得已格式化的分享文字
+// 格式：emoji + 動物名稱 + 描述 + hashtags + 邀請連結
 const shareText = computed(() => props.result?.shareText || '')
 
+// 複製分享文字到剪貼簿
+// 使用瀏覽器 Clipboard API，成功後顯示「已複製」提示 1.5 秒
 const copyShareText = async () => {
   try {
     await navigator.clipboard.writeText(shareText.value)
@@ -32,7 +37,6 @@ const copyShareText = async () => {
     <section class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
       <div class="flex items-center justify-between">
         <h3 class="text-base font-semibold text-slate-900">相容旅伴</h3>
-        <span class="text-xs text-slate-500">（參考用）</span>
       </div>
 
       <p class="mt-2 text-sm text-slate-600">這些旅伴類型通常跟你玩得很順：節奏合拍、衝突少。</p>
@@ -99,11 +103,12 @@ const copyShareText = async () => {
 
     <!-- 按鈕列：放最底下 -->
     <div class="grid gap-3 sm:grid-cols-2">
-      <button
+      <router-link
+        to="/profile"
         class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
       >
         儲存到個人頁
-      </button>
+      </router-link>
 
       <button
         class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm hover:bg-slate-50"

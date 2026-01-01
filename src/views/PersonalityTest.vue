@@ -6,8 +6,8 @@ import ResultPage from '@/components/personality-test/pages/ResultPage.vue'
 import { usePersonalityStore } from '@/stores/personality'
 
 const store = usePersonalityStore()
-const step = computed(() => store.step)
-const result = computed(() => store.result)
+const step = computed(() => store.step) // 當前測驗階段
+const result = computed(() => store.result) // 測驗結果
 </script>
 
 <template>

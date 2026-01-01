@@ -6,16 +6,22 @@ import { usePersonalityStore } from '@/stores/personality'
 
 const store = usePersonalityStore()
 
-const total = computed(() => store.questions.length)
-const current = computed(() => store.currentIndex + 1)
-const currentQuestion = computed(() => store.currentQuestion)
-const selected = computed(() => store.answers?.[store.currentIndex])
-const isLast = computed(() => store.isLast)
+// 計算屬性：從 store 取得測驗相關狀態
+const total = computed(() => store.questions.length) // 總題數
+const current = computed(() => store.currentIndex + 1) // 當前題號（從 1 開始顯示）
+const currentQuestion = computed(() => store.currentQuestion) // 當前題目物件
+const selected = computed(() => store.answers?.[store.currentIndex]) // 當前題目已選擇的答案
+const isLast = computed(() => store.isLast) // 是否為最後一題
 
+// 選擇答案：將答案儲存到 store.answers 陣列中對應的索引位置
 const onSelect = (value) => {
   store.selectAnswer(value)
 }
 
+// 下一題或完成測驗：
+// - 如果未選擇答案，直接返回（按鈕已被禁用，此為雙重保護）
+// - 如果是最後一題，調用 finishTest() 計算結果並切換到結果頁
+// - 否則，移動到下一題
 const nextOrFinish = () => {
   if (selected.value == null) return
   if (isLast.value) store.finishTest()

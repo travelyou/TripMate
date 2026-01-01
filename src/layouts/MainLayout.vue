@@ -24,6 +24,7 @@ const userStore = useUserStore()
 const route = useRoute()
 const isSearchPage = computed(() => route.name === 'search')
 const hideLayout=computed(()=>route.meta.hideLayout === true)
+const hideSidebar = computed(() => route.meta.hideSidebar === true)
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
@@ -88,7 +89,7 @@ const handleToggleAiChat = () => {
 
     <div v-if="!hideLayout" class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
       <div
-        v-if="!isSearchPage"
+        v-if="!isSearchPage && !hideSidebar"
         class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
       >
 
