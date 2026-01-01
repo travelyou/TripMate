@@ -105,7 +105,7 @@ const copyShareText = async () => {
     <div class="grid gap-3 sm:grid-cols-2">
       <router-link
         to="/profile"
-        class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+        class="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-center font-semibold text-white hover:bg-slate-800"
       >
         儲存到個人頁
       </router-link>
