@@ -33,7 +33,11 @@ const result = computed(() => store.result)
       <main class="px-4 sm:px-0">
         <StartPage v-if="step === 'start'" @start="store.startTest" />
         <QuizPage v-else-if="step === 'quiz'" />
-        <ResultPage v-else :result="result" @restart="store.resetTest" />
+        <ResultPage
+          v-else-if="step === 'result' && result"
+          :result="result"
+          @restart="store.resetTest"
+        />
       </main>
     </div>
   </div>
