@@ -37,7 +37,7 @@ defineEmits(['start'])
           <Puzzle class="h-5 w-4" />
           <p>題數</p>
         </div>
-        <div class="mt-1 text-slate-600">10 題</div>
+        <div class="mt-1 text-slate-600">8 題</div>
       </div>
     </div>
 
