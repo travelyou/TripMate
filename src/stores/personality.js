@@ -82,14 +82,19 @@ function mbtiToAnimalKey(mbti) {
   const J = mbti.includes('J')
   const S = mbti.includes('S') // N = !S
 
-  if (E && J && S) return 'dog_leader'
-  if (E && J && !S) return 'fox_planner'
-  if (E && !J && S) return 'leopard_dash'
-  if (E && !J && !S) return 'otter_free_spirit'
-  if (!E && J && S) return 'bear_caretaker'
-  if (!E && J && !S) return 'wolf_strategist'
-  if (!E && !J && S) return 'turtle_slow'
-  return 'cat_solo'
+  if (E) {
+    if (J) {
+      return S ? 'dog_leader' : 'fox_planner'
+    } else {
+      return S ? 'leopard_dash' : 'otter_free_spirit'
+    }
+  } else {
+    if (J) {
+      return S ? 'bear_caretaker' : 'wolf_strategist'
+    } else {
+      return S ? 'turtle_slow' : 'cat_solo'
+    }
+  }
 }
 
 // 動物人格資料
@@ -484,7 +489,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
       }
 
       this.step = 'result'
-      console.log('[finishTest]', { mbti, key, result: this.result })
     },
     resetTest() {
       this.step = 'start'
