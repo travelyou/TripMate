@@ -21,7 +21,7 @@ const copyShareText = async () => {
     await navigator.clipboard.writeText(shareText.value)
     copied.value = true
     window.setTimeout(() => (copied.value = false), 1500)
-  } catch (e) {
+  } catch {
     alert('複製失敗，請手動選取文字複製')
   }
 }
@@ -29,46 +29,7 @@ const copyShareText = async () => {
 
 <template>
   <div class="space-y-6">
-    <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-      <ResultCard :result="result" />
-    </div>
-
-    <!-- 相容旅伴 -->
-    <section class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-      <div class="flex items-center justify-between">
-        <h3 class="text-base font-semibold text-slate-900">相容旅伴</h3>
-      </div>
-
-      <p class="mt-2 text-sm text-slate-600">這些旅伴類型通常跟你玩得很順：節奏合拍、衝突少。</p>
-
-      <div class="mt-4 grid gap-3 sm:grid-cols-3">
-        <div
-          v-for="buddy in result.compatibleBuddies || []"
-          :key="buddy.id || buddy.name"
-          class="rounded-2xl border border-slate-200 bg-white p-4"
-        >
-          <div class="flex items-center gap-3">
-            <div class="text-3xl">{{ buddy.emoji }}</div>
-            <div>
-              <div class="font-semibold text-slate-900">{{ buddy.name }}</div>
-              <div class="text-xs text-slate-500">{{ buddy.tagline }}</div>
-            </div>
-          </div>
-
-          <p class="mt-3 text-sm text-slate-600">{{ buddy.reason }}</p>
-
-          <div class="mt-3 flex flex-wrap gap-2">
-            <span
-              v-for="t in buddy.tags || []"
-              :key="t"
-              class="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700 ring-1 ring-slate-200"
-            >
-              {{ t }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <ResultCard :result="result" />
 
     <!-- 分享結果 -->
     <section class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
@@ -101,7 +62,7 @@ const copyShareText = async () => {
       </ul>
     </section>
 
-    <!-- 按鈕列：放最底下 -->
+    <!-- 按鈕列 -->
     <div class="grid gap-3 sm:grid-cols-2">
       <router-link
         to="/profile"
