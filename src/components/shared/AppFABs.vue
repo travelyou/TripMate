@@ -6,7 +6,6 @@ import {
   Zap as ZapIcon,
 } from 'lucide-vue-next'
 
-// 定義我們要通知父層(MainLayout)的事件名稱
 defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-chat'])
 </script>
 
@@ -53,15 +52,14 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 </template>
 
 <style scoped>
-/* 確保按鈕有像截圖一樣的像素邊框 */
 .pixel-button {
-  border: 3px solid #8b6f47; /* 深咖啡色邊框 */
+  border: 3px solid #8b6f47;
   box-shadow:
     3px 3px 0px 0px rgba(139, 111, 71, 0.3),
     inset -1px -1px 0px 0px rgba(255, 255, 255, 0.4);
 }
 .pixel-button:active {
-  transform: translate(2px, 2px); /* 按下去的效果 */
+  transform: translate(2px, 2px);
   box-shadow: none;
 }
 </style>
