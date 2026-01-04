@@ -1,7 +1,5 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-
-// 🟢 只有 "首頁" 維持靜態引入 (因為一進來就要看，不用懶載)
+import { watch } from 'vue' 
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
 
@@ -16,8 +14,6 @@ const router = createRouter({
     {
       path: '/discussion',
       name: 'discussion',
-      // 🟢 改成箭頭函式 import()，這就是懶人載入！
-      // 只有切換到此頁面時，瀏覽器才會下載這部分的程式碼
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
@@ -40,9 +36,8 @@ const router = createRouter({
       },
     },
     {
-      path: '/favorites',
+      path: '/favorites', 
       name: 'favorites',
-
       component: () => import('@/views/FavoritesPage.vue'),
       meta: {
         requiresAuth: true,
@@ -57,17 +52,24 @@ const router = createRouter({
         requiresAuth: true,
       },
     },
-    //暫時新增廠商頁面路徑，之後可刪除
     {
       path: '/vendor/:id',
       name: 'VendorProfile',
-      component: () => import('@/views/VendorProfilePage.vue')
+      component: () => import('@/views/VendorProfilePage.vue'),
+    },
+    {
+      path: '/collections',
+      name: 'collections',
+      component: () => import('@/views/CollectionsPage.vue'),
     },
     {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginPage.vue'),
-      meta: { hideAd: true },
+      meta: {
+        hideAd: true,
+        hideLayout: true,
+      },
     },
     {
       path: '/search',
@@ -119,27 +121,55 @@ const router = createRouter({
         },
       ],
     },
+    {
+      path: '/test',
+      name: 'PersonalityTest',
+      component: () => import('@/views/PersonalityTest.vue'),
+      meta: {
+        hideAd: true,
+      },
+    },
   ],
 })
 
-//  先關閉登入後才可以進入的權限：檢查有些功能，需要登入後才能進入
-// router.beforeEach((to, from, next) => {
-//   const userStore = useUserStore()
+router.beforeEach(async (to, from, next) => {
+  const userStore = useUserStore()
 
-//   if (to.name === 'login' && userStore.isLoggedIn) {
-//     next('/')
-//     return
-//   }
+  if (!userStore.authReady) {
+    await new Promise((resolve) => {
+      if (userStore.authReady) {
+        resolve()
+        return
+      }
 
-//   if (to.meta.requiresAuth) {
-//     if (userStore.isLoggedIn) {
-//       next()
-//     } else {
-//       next('/login')
-//       alert('請先登入後才可使用')
-//     }
-//   } else {
-//     next()
-//   }
-// })
+      const unwatch = watch(
+        () => userStore.authReady,
+        (ready) => {
+          if (ready) {
+            unwatch()
+            resolve()
+          }
+        },
+        { immediate: true },
+      )
+    })
+  }
+
+  if (to.name === 'login' && userStore.isLoggedIn) {
+    next('/')
+    return
+  }
+
+  if (to.meta.requiresAuth) {
+    if (userStore.isLoggedIn) {
+      next()
+    } else {
+      next('/login')
+      alert('請先登入後才可使用')
+    }
+  } else {
+    next()
+  }
+})
+
 export default router

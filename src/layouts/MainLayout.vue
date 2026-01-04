@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
+import { useUserStore } from '@/stores/user' // 確保引入 Store
+
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
@@ -8,6 +10,7 @@ import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
+import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue' // ✅ 關鍵：一定要引入這個元件！
 
 import {
   Plus as PlusIcon,
@@ -17,8 +20,10 @@ import {
   X as XIcon,
 } from 'lucide-vue-next'
 
+const userStore = useUserStore()
 const route = useRoute()
 const isSearchPage = computed(() => route.name === 'search')
+const hideLayout=computed(()=>route.meta.hideLayout === true)
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
@@ -26,8 +31,7 @@ const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 
-
-// 🟢 優化後的圖片網址：w=1280 (寬度縮小), q=60 (品質壓縮), auto=format (自動轉 webp)
+// 背景圖片陣列
 const backgroundImages = [
   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop', // 海灘
@@ -48,7 +52,6 @@ const backgroundImages = [
 // 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
 
-// ... 其他函式保持不變
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
   isMobileActionMenuOpen.value = false
@@ -77,16 +80,19 @@ const handleToggleAiChat = () => {
 
 <template>
   <div
-    class="min-h-screen bg-[#f5e6d3] pixel-bg relative transition-all duration-1000 bg-cover bg-center bg-fixed bg-no-repeat"
-    :style="{ backgroundImage: `url('${currentBgImage}')` }"
+  class="min-h-screen relative transition-all duration-1000"
+  :class="hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'"
+  :style="{ backgroundImage: `url('${currentBgImage}')` }"
   >
-    <AppHeader @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
+    <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
+    <div v-if="!hideLayout" class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
       <div
+        v-if="!isSearchPage"
         class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
       >
-        <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
+
+        <AppSidebar  @open-mobile-actions="isMobileActionMenuOpen = true" />
       </div>
 
       <main
@@ -96,8 +102,9 @@ const handleToggleAiChat = () => {
         <RouterView />
       </main>
 
+
       <div
-        v-if="!route.meta.hideAd"
+        v-if="!hideLayout && !route.meta.hideAd"
         class="hidden lg:block w-[300px] shrink-0 mr-2"
         :class="{ 'mt-6': !isSearchPage }"
       >
@@ -105,7 +112,11 @@ const handleToggleAiChat = () => {
       </div>
     </div>
 
-    <div class="hidden lg:block">
+    <div v-else class="w-screen h-screen overflow-y-auto scrollable-container">
+  <RouterView />
+</div>
+
+    <div v-if="!hideLayout" class="hidden lg:block">
       <AppFABs
         @open-posting="handleOpenPosting"
         @quick-action="handleQuickAction"
@@ -129,8 +140,8 @@ const handleToggleAiChat = () => {
           <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-2">
             <h3 class="text-xl font-bold text-amber-900">快速功能</h3>
             <button
-              @click="isMobileActionMenuOpen = false"
               class="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+              @click="isMobileActionMenuOpen = false"
             >
               <XIcon class="w-5 h-5 text-gray-600" />
             </button>
@@ -182,6 +193,10 @@ const handleToggleAiChat = () => {
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
     <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
   </div>
+
+  <Transition name="fade">
+    <AddToCollectionModal v-if="userStore.isCollectionModalOpen" />
+  </Transition>
 </template>
 
 <style scoped>
@@ -193,5 +208,10 @@ const handleToggleAiChat = () => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(100%);
+}
+
+.scrollable-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 </style>
