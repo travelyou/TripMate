@@ -199,36 +199,25 @@ const filteredTags = computed(() => {
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
           ></textarea>
 
-          <div class="mb-4">
-          <div
-            v-if="attachedItinerary"
-            class="w-full p-3 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-center justify-between"
+        <div
+            v-if="postData.board === '找旅伴' || attachedItinerary"
+            class="mb-4"
           >
-            <div class="flex items-center gap-2 text-blue-700">
-              <MapPin class="w-5 h-5" />
-              <div>
-                <p class="font-bold text-sm">已連結行程</p>
-                <p class="text-xs">{{ attachedItinerary.title || '我的旅遊規劃' }}</p>
-              </div>
-            </div>
-            <button
-              class="text-xs text-red-500 font-bold hover:underline"
-              @click="attachedItinerary = null"
-
+            <div
+              v-if="attachedItinerary"
+              class="w-full p-3 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-center justify-between"
             >
-              移除
+              </div>
+
+            <button
+              v-else
+              class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
+             @click="showItineraryModal = true"
+            >
+              <MapPin class="w-4 h-4" />
+              ＋ 加入行程規劃
             </button>
           </div>
-
-          <button
-            v-else
-            class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
-           @click="showItineraryModal = true"
-            >
-            <MapPin class="w-4 h-4" />
-            ＋ 加入行程規劃
-          </button>
-</div>
         </div>
 
         <div class="p-3 border-t-2 border-gray-200 bg-gray-50">
