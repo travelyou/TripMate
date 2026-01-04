@@ -12,7 +12,21 @@ import {
   Tent as TentIcon,
 } from 'lucide-vue-next'
 
+// ==========================================
+// 1. 設定參數 (Configuration)
+// ==========================================
+
+const SWIPE_THRESHOLD = 100 // 手指滑動超過多少 px 才會觸發配對
+const FEEDBACK_THRESHOLD = 50 // 手指滑動超過多少 px 才會顯示 LIKE/NOPE 印章
+const AUTO_SWIPE_DISTANCE = 1000 // 點擊按鈕時，卡片飛出的距離 (px)
+const ROTATION_FACTOR = 0.1 // 卡片跟隨手指移動時的旋轉幅度係數
+const ANIMATION_DURATION = 500 // 卡片飛出動畫的時間 (ms)
+
 const emit = defineEmits(['close'])
+
+// ==========================================
+// 2. 資料與狀態
+// ==========================================
 
 const candidates = ref([
   {
@@ -25,7 +39,7 @@ const candidates = ref([
     bio: '剛畢業想去環島！找人一起騎機車吹風，我不怕曬，只怕餓肚子 🛵',
     wishlist: ['蘭嶼', '綠島', '台南'],
     activities: ['逛夜市', '看海', '騎機車', '探店'],
-    tags: ['機車環島', '銅板美食'], // 資料留著備用，但畫面不顯示
+    tags: ['機車環島', '銅板美食'],
     gallery: [
       'https://images.unsplash.com/photo-1558273614-2575dc29f427?q=60&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=60&w=600&auto=format&fit=crop',
@@ -113,19 +127,25 @@ const isDragging = ref(false)
 const cardElement = ref(null)
 
 const cardStyle = computed(() => {
+  // 自動滑動 (按鈕觸發)
   if (autoSwipeDirection.value) {
     const rotate = autoSwipeDirection.value === 'right' ? 20 : -20
-    const translateX = autoSwipeDirection.value === 'right' ? 1000 : -1000
+    const translateX =
+      autoSwipeDirection.value === 'right' ? AUTO_SWIPE_DISTANCE : -AUTO_SWIPE_DISTANCE
+
+    const durationSec = ANIMATION_DURATION / 1000
+
     return {
       transform: `translateX(${translateX}px) rotate(${rotate}deg)`,
       opacity: 0,
-      transition: 'transform 0.5s ease-out, opacity 0.5s ease-out',
+      transition: `transform ${durationSec}s ease-out, opacity ${durationSec}s ease-out`,
     }
   }
 
+  // 手動拖曳
   if (isDragging.value) {
     const xDiff = currentX.value - startX.value
-    const rotate = xDiff * 0.1
+    const rotate = xDiff * ROTATION_FACTOR
     return {
       transform: `translateX(${xDiff}px) rotate(${rotate}deg)`,
       transition: 'none',
@@ -133,6 +153,7 @@ const cardStyle = computed(() => {
     }
   }
 
+  // 靜止歸位
   return {
     transform: 'translateX(0) rotate(0)',
     transition: 'transform 0.3s ease-out',
@@ -141,10 +162,11 @@ const cardStyle = computed(() => {
 
 const swipeFeedback = computed(() => {
   if (autoSwipeDirection.value) return autoSwipeDirection.value === 'right' ? 'like' : 'nope'
+
   if (isDragging.value) {
     const xDiff = currentX.value - startX.value
-    if (xDiff > 50) return 'like'
-    if (xDiff < -50) return 'nope'
+    if (xDiff > FEEDBACK_THRESHOLD) return 'like'
+    if (xDiff < -FEEDBACK_THRESHOLD) return 'nope'
   }
   return null
 })
@@ -177,11 +199,10 @@ const onTouchEnd = () => {
   isDragging.value = false
 
   const xDiff = currentX.value - startX.value
-  const threshold = 100
 
-  if (xDiff > threshold) {
+  if (xDiff > SWIPE_THRESHOLD) {
     handleButtonClick('right')
-  } else if (xDiff < -threshold) {
+  } else if (xDiff < -SWIPE_THRESHOLD) {
     handleButtonClick('left')
   } else {
     currentX.value = 0
@@ -190,13 +211,12 @@ const onTouchEnd = () => {
 }
 
 const finishSwipe = (direction) => {
-  console.log(`User swiped ${direction} on ${currentCard.value.name}`)
   setTimeout(() => {
     currentIndex.value++
     autoSwipeDirection.value = null
     startX.value = 0
     currentX.value = 0
-  }, 300)
+  }, ANIMATION_DURATION)
 }
 </script>
 
@@ -207,7 +227,9 @@ const finishSwipe = (direction) => {
       @click="$emit('close')"
     ></div>
 
-    <div class="relative w-full max-w-sm h-[650px] flex flex-col perspective-1000">
+    <div
+      class="relative w-full max-w-sm h-[650px] max-h-[calc(100dvh-2rem)] flex flex-col perspective-1000"
+    >
       <div
         v-if="isFinished"
         class="absolute inset-0 bg-[#fffef7] rounded-3xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-4 border-gray-800 z-0"
@@ -239,7 +261,11 @@ const finishSwipe = (direction) => {
         @touchend="onTouchEnd"
       >
         <div class="relative h-[60%] w-full overflow-hidden bg-gray-100">
-          <img :src="currentCard.image" class="w-full h-full object-cover pointer-events-none" />
+          <img
+            :src="currentCard.image"
+            :alt="currentCard.name"
+            class="w-full h-full object-cover pointer-events-none"
+          />
           <div
             class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"
           ></div>
@@ -323,7 +349,11 @@ const finishSwipe = (direction) => {
             @touchstart.stop
           >
             <div class="relative h-[45%] shrink-0 bg-gray-100">
-              <img :src="currentCard.image" class="w-full h-full object-cover" />
+              <img
+                :src="currentCard.image"
+                :alt="currentCard.name"
+                class="w-full h-full object-cover"
+              />
               <div
                 class="absolute inset-0 bg-gradient-to-t from-[#fffef7] via-transparent to-transparent"
               ></div>
@@ -388,11 +418,12 @@ const finishSwipe = (direction) => {
                 <div class="grid grid-cols-2 gap-2">
                   <div
                     v-for="(photo, idx) in currentCard.gallery"
-                    :key="idx"
+                    :key="photo"
                     class="aspect-square rounded-xl overflow-hidden bg-gray-200"
                   >
                     <img
                       :src="photo"
+                      :alt="`${currentCard.name} 的旅遊照片 ${idx + 1}`"
                       class="w-full h-full object-cover hover:scale-110 transition duration-500"
                     />
                   </div>

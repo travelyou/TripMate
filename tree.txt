@@ -19,40 +19,33 @@ TripMate/
 └─ src/
    ├─ main.js                  (應用啟動程式)
    ├─ App.vue                  (根 Vue 元件)
+   ├─ firebase/
+   │  └─ config.js             (Firebase 初始化與設定)
    ├─ assets/
-   │  ├─ base.css              (基礎樣式)
    │  ├─ main.css              (主要樣式)
-   │  ├─ icons/
-   │  │  ├─ LINE_icon.png      (LINE 圖示)
-   │  │  ├─ Threads_icon.png   (Threads 圖示)
-   │  │  ├─ Instagram_icon.png (Instagram 圖示)
-   │  │  ├─ Facebook_icon.png  (Facebook 圖示)
-   │  │  ├─ TripMate_icon.png  (品牌 Logo 圖示)
-   │  │  └─ X_icon.png         (關閉/取消 圖示)
+   │  ├─ base.css              (基礎樣式)
    │  └─ pic/
    │     ├─ PatStar.png        (範例/資源圖片)
    │     ├─ loginPage-removebg.png (登入頁背景圖)
    │     └─ loginPage (1).jpg  (登入頁圖片)
    ├─ layouts/
-   │  ├─ MainLayout.vue        (應用主要版面配置)
-   │  └─ components/
-   │     ├─ AppHeader.vue      (頁首：Logo、搜尋、通知、使用者選單)
-   │     └─ AppSidebar.vue     (側邊/行動底部導覽元件)
+   │  └─ MainLayout.vue        (應用主要版面配置)
+   ├─ layouts/components/
+   │  ├─ AppHeader.vue         (頁首：Logo、搜尋、通知、使用者選單)
+   │  └─ AppSidebar.vue        (側邊/行動底部導覽元件)
    ├─ router/
    │  └─ index.js              (路由設定檔，定義各頁面路由)
-   ├─ firebase/
-   │  └─ config.js             (Firebase 初始化與設定)
    ├─ stores/
-   │  ├─ discussions.js       (討論區 state 管理)
-   │  ├─ featured.js          (精選資料 state 管理)
-   │  ├─ counter.js           (計數器示例 state)
-   │  ├─ checkout.js          (結帳流程 state 管理)
-   │  ├─ itinerary.js         (行程相關 state)
-   │  ├─ modal.js             (Modal 顯示狀態管理)
-   │  ├─ user.js              (使用者資料與登入狀態)
+   │  ├─ counter.js           (計數器 state)
+   │  ├─ user.js              (使用者 state)
    │  ├─ travelers.js         (旅伴資料 state)
    │  ├─ personality.js       (性格測驗 state)
-   │  └─ myItinerary.js       (我的行程 state)
+   │  ├─ myItinerary.js       (我的行程 state)
+   │  ├─ modal.js             (Modal 顯示狀態管理)
+   │  ├─ itinerary.js         (行程相關 state)
+   │  ├─ featured.js          (精選資料 state)
+   │  ├─ discussions.js      (討論區 state)
+   │  └─ checkout.js         (結帳流程 state)
    ├─ composables/
    │  ├─ useChat.js           (聊天室邏輯與狀態)
    │  ├─ useComments.js       (留言系統邏輯)
@@ -80,7 +73,8 @@ TripMate/
    │  │  ├─ AddToCollectionModal.vue (加入收藏 Modal)
    │  │  ├─ ShareModal.vue    (分享 Modal)
    │  │  ├─ PostingChoiceModal.vue (發文選擇 Modal)
-   │  │  └─ PostDetailModal.vue (貼文細節 Modal)
+   │  │  ├─ PostDetailModal.vue (貼文細節 Modal)
+   │  │  └─ SwipeMatchModal.vue (配對滑動 Modal)
    │  ├─ checkout/
    │  │  ├─ CheckoutProgress.vue (結帳進度條元件)
    │  │  ├─ MainButton.vue    (結帳主要按鈕元件)
