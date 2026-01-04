@@ -16,11 +16,11 @@ import {
 // 1. 設定參數 (Configuration)
 // ==========================================
 
-const SWIPE_THRESHOLD = 100 // 手指滑動超過多少 px 才會觸發配對
-const FEEDBACK_THRESHOLD = 50 // 手指滑動超過多少 px 才會顯示 LIKE/NOPE 印章
-const AUTO_SWIPE_DISTANCE = 1000 // 點擊按鈕時，卡片飛出的距離 (px)
-const ROTATION_FACTOR = 0.1 // 卡片跟隨手指移動時的旋轉幅度係數
-const ANIMATION_DURATION = 500 // 卡片飛出動畫的時間 (ms)
+const SWIPE_THRESHOLD = 100
+const FEEDBACK_THRESHOLD = 50
+const AUTO_SWIPE_DISTANCE = 1000
+const ROTATION_FACTOR = 0.1
+const ANIMATION_DURATION = 500
 
 const emit = defineEmits(['close'])
 
