@@ -1,7 +1,3 @@
-# travel_mate
-
-This template should help get you started developing with Vue 3 in Vite.
-
 ## 專案簡介
 
 「TripMate 找旅伴」是一個以社群與行程為核心的旅遊平台，幫助使用者發掘與購買精選行程、討論分享旅遊經驗、以及找尋或配對旅伴。
@@ -12,11 +8,11 @@ This template should help get you started developing with Vue 3 in Vite.
 
 ## Team Member
 
-[Hannah](www.google.com)
-
-## Team Member
-
-[Hannah](www.google.com)
+[Hannah]
+[chyt93620]
+[yuntailee]
+[redpiigpig]
+[a00680701-coder]
 
 ## Recommended IDE Setup
 
