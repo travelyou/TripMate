@@ -11,7 +11,7 @@ const result = computed(() => store.result) // 測驗結果
 </script>
 
 <template>
-  <div class="w-full min-h-screen rounded-md overflow-auto">
+  <div class="bg-slate-50 w-full rounded-xl overflow-auto">
     <div class="mx-auto max-w-3xl py-10 sm:px-4">
       <header class="mb-6">
         <div class="flex items-center justify-between">
