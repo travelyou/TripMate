@@ -122,7 +122,25 @@ const prevStep = () => {
 }
 
 const handleFinalSubmit = () => {
-  console.log('最終發布資料:', postData.value)
+  console.log('🔵 最終發布資料:', postData.value)
+  
+  // 基本驗證
+  if (!postData.value.title || !postData.value.title.trim()) {
+    alert('請輸入標題')
+    return
+  }
+  
+  if (!postData.value.content || !postData.value.content.trim()) {
+    alert('請輸入內容')
+    return
+  }
+  
+  if (!postData.value.board) {
+    alert('請選擇看板')
+    return
+  }
+  
+  console.log('✅ 驗證通過，提交發文...')
   emit('submit-post', {
     ...postData.value,
     imageFiles: imageFiles.value, // 傳遞圖片文件
