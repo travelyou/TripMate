@@ -244,7 +244,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -283,6 +283,43 @@ const handleLogin = async () => {
       loginForm.value.password,
     )
     console.log('登入成功：', userCredential.user)
+    
+    // 從 Firestore 獲取用戶資料
+    try {
+      const userDocRef = doc(db, 'users', userCredential.user.uid)
+      const userDoc = await getDoc(userDocRef)
+      
+      if (userDoc.exists()) {
+        // 更新 user store
+        const userData = userDoc.data()
+        userStore.setUserProfile({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          ...userData,
+        })
+      } else {
+        // 如果 Firestore 中沒有用戶資料，創建一個
+        const defaultUserData = {
+          realName: '',
+          nickname: userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
+          email: userCredential.user.email,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
+          bio: '',
+          spiritAnimal: '',
+          createdAt: new Date(),
+        }
+        await setDoc(userDocRef, defaultUserData)
+        userStore.setUserProfile({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          ...defaultUserData,
+        })
+      }
+    } catch (error) {
+      console.error('獲取用戶資料失敗：', error)
+      // 即使獲取失敗也允許登入
+    }
+    
     userStore.login()
     router.push('/')
   } catch (error) {
@@ -380,11 +417,22 @@ const handleRegister = async () => {
     )
 
     // 儲存使用者額外資料到 Firestore
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
+    const userData = {
       realName: registerForm.value.realName,
       nickname: registerForm.value.nickname,
       email: registerForm.value.email,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
+      bio: '',
+      spiritAnimal: '',
       createdAt: new Date(),
+    }
+    await setDoc(doc(db, 'users', userCredential.user.uid), userData)
+
+    // 更新 user store
+    userStore.setUserProfile({
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      ...userData,
     })
 
     console.log('註冊成功：', userCredential.user)

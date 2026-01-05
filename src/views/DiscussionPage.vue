@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   Plus as PlusIcon,
   Heart as HeartIcon,
@@ -9,6 +9,9 @@ import {
 } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useUserStore } from '@/stores/user'
+import { auth } from '@/firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
+import { toggleLike } from '@/api/likes'
 
 // 引入組件
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
@@ -17,6 +20,171 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 
 const discussionsStore = useDiscussionsStore()
 const userStore = useUserStore()
+
+// 當前用戶 UID
+const currentUserUid = ref(null)
+
+// 監聽 Firebase 認證狀態
+onAuthStateChanged(auth, async (user) => {
+  const previousUid = currentUserUid.value
+  currentUserUid.value = user ? user.uid : null
+  
+  console.log('認證狀態變化：', {
+    previousUid,
+    newUid: currentUserUid.value,
+    userEmail: user?.email,
+  })
+  
+  // 如果用戶登入狀態改變，重新載入按讚狀態
+  if (previousUid !== currentUserUid.value && currentUserUid.value && discussionsStore.discussions.length > 0) {
+    await Promise.all(
+      discussionsStore.discussions.map(async (post) => {
+        try {
+          const { getLikesInfo } = await import('@/api/likes')
+          const info = await getLikesInfo(post.id, currentUserUid.value)
+          post.isLiked = info.isLiked
+          post.likes = info.likesCount || post.likes
+        } catch (error) {
+          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+        }
+      })
+    )
+  } else if (!currentUserUid.value) {
+    // 如果登出，清除所有按讚狀態
+    discussionsStore.discussions.forEach(post => {
+      post.isLiked = false
+    })
+  }
+})
+
+// 在組件掛載時載入貼文
+onMounted(async () => {
+  // 確保獲取當前用戶（如果已經登入）
+  const firebaseUser = auth.currentUser
+  if (firebaseUser && !currentUserUid.value) {
+    currentUserUid.value = firebaseUser.uid
+    console.log('組件掛載時檢測到已登入用戶：', currentUserUid.value)
+  }
+  
+  try {
+    await discussionsStore.loadDiscussions()
+    // 載入每個貼文的按讚狀態
+    if (currentUserUid.value) {
+      await Promise.all(
+        discussionsStore.discussions.map(async (post) => {
+          try {
+            const { getLikesInfo } = await import('@/api/likes')
+            const info = await getLikesInfo(post.id, currentUserUid.value)
+            post.isLiked = info.isLiked
+            post.likes = info.likesCount || post.likes
+          } catch (error) {
+            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+          }
+        })
+      )
+    }
+  } catch (error) {
+    console.error('載入貼文失敗：', error)
+  }
+})
+
+// 處理貼文按讚
+const handlePostLike = async (post) => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+
+  try {
+    const result = await toggleLike(post.id, currentUserUid.value)
+    post.isLiked = result.liked
+    post.likes = result.likesCount
+  } catch (error) {
+    console.error('按讚操作失敗：', error)
+    alert('按讚操作失敗，請稍後再試')
+  }
+}
+
+// 處理貼文提交
+const handleSubmitPost = async (postData) => {
+  try {
+    // 檢查用戶是否已登入（也檢查 Firebase Auth 的當前用戶）
+    const firebaseUser = auth.currentUser
+    const uid = currentUserUid.value || firebaseUser?.uid
+    
+    if (!uid) {
+      alert('請先登入後才能發布貼文')
+      console.error('發布貼文失敗：用戶未登入', {
+        currentUserUid: currentUserUid.value,
+        firebaseUser: firebaseUser?.uid,
+      })
+      return
+    }
+    
+    console.log('準備發布貼文，用戶 UID：', uid)
+
+    // 如果有圖片，先上傳圖片到 Supabase Storage
+    let imageUrls = []
+    if (postData.imageFiles && postData.imageFiles.length > 0) {
+      try {
+        const { uploadMultipleImages } = await import('@/api/storage')
+        imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
+      } catch (error) {
+        console.error('圖片上傳失敗：', error)
+        // 詢問用戶是否要繼續發布（不帶圖片）
+        const shouldContinue = confirm(
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
+        )
+        if (!shouldContinue) {
+          return
+        }
+        // 如果用戶選擇繼續，imageUrls 保持為空陣列
+      }
+    }
+
+    // 準備提交的資料
+    const submitData = {
+      author_uid: uid,
+      board: postData.board || 'general',
+      title: postData.title,
+      content: postData.content,
+      tags: postData.tags || [],
+      image_urls: imageUrls, // 使用上傳後的 URL
+    }
+
+    console.log('提交貼文資料：', {
+      author_uid: submitData.author_uid,
+      board: submitData.board,
+      title: submitData.title?.substring(0, 50),
+      contentLength: submitData.content?.length,
+      tagsCount: submitData.tags?.length,
+      imageUrlsCount: submitData.image_urls?.length,
+    })
+
+    // 調用 API 創建貼文
+    const newPost = await discussionsStore.addPost(submitData)
+    
+    console.log('貼文發布成功：', newPost)
+
+    // 關閉模態框
+    isPostingModalOpen.value = false
+
+    // 重新載入貼文列表以確保數據同步
+    await discussionsStore.loadDiscussions()
+
+    // 顯示成功訊息
+    alert('貼文發布成功！')
+  } catch (error) {
+    console.error('發布貼文失敗：', error)
+    console.error('錯誤詳情：', {
+      message: error.message,
+      stack: error.stack,
+      currentUserUid: currentUserUid.value,
+      firebaseUser: auth.currentUser?.uid,
+    })
+    alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
+  }
+}
 
 // --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
@@ -167,15 +335,15 @@ const getPostData = (post) => ({
             <button
               class="flex items-center space-x-1 transition mr-6 group"
               :class="
-                userStore.isFavorite(getPostData(post)) ? 'text-red-500' : 'hover:text-red-500'
+                post.isLiked ? 'text-red-500' : 'hover:text-red-500'
               "
-              @click.stop="userStore.toggleFavorite(getPostData(post))"
+              @click.stop="handlePostLike(post)"
             >
               <HeartIcon
                 class="w-4 h-4 transition-transform group-active:scale-125"
-                :class="{ 'fill-current': userStore.isFavorite(getPostData(post)) }"
+                :class="{ 'fill-current': post.isLiked }"
               />
-              <span>{{ post.likes + (userStore.isFavorite(getPostData(post)) ? 1 : 0) }}</span>
+              <span>{{ post.likes || 0 }}</span>
             </button>
 
             <button
@@ -216,7 +384,11 @@ const getPostData = (post) => ({
     </div>
   </div>
 
-  <PostingChoiceModal v-if="isPostingModalOpen" @close="isPostingModalOpen = false" />
+  <PostingChoiceModal
+    v-if="isPostingModalOpen"
+    @close="isPostingModalOpen = false"
+    @submit-post="handleSubmitPost"
+  />
   <PostDetailModal
     v-if="isDetailModalOpen"
     :post="selectedPost"
