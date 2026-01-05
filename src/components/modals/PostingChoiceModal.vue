@@ -1,6 +1,8 @@
 <script setup>
+import { useMyItineraryStore } from '@/stores/myItinerary'
 import ItineraryDetailModal from './ItineraryDetailModal.vue'
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router' // 🔥 補上這一行
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
@@ -16,6 +18,7 @@ import {
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close', 'submit-post'])
+const router = useRouter()
 
 // --- 狀態管理 ---
 const currentStep = ref('menu') // 'menu', 'edit', 'tags', 'preview'
@@ -28,27 +31,74 @@ const postData = ref({
   tags: []   // 標籤
 })
 
+const itineraryStore = useMyItineraryStore()
+
 const tagSearch = ref('')
 
 const showItineraryModal = ref(false)
 
 const attachedItinerary = ref(null)
 
+// 🟢 1. 行程規劃彈窗 -> 按下「儲存」 (變成正式行程)
 const handleItinerarySave = (itineraryData) => {
-  console.log('收到行程資料了:', itineraryData)
-  attachedItinerary.value = itineraryData
+  console.log('收到行程資料，準備存檔:', itineraryData)
+
+  // 呼叫 Store 存入行程列表
+  itineraryStore.saveItinerary(itineraryData)
+
   showItineraryModal.value = false
+  emit('close')
+  router.push({ name: 'my_itinerary' }) // 跳轉去看結果
+}
+
+// 🟢 2. 行程規劃彈窗 -> 按下「暫存草稿」
+const handleItineraryDraftSave = (itineraryData) => {
+  // 呼叫 Store 存入草稿
+  itineraryStore.addDraft({
+    type: 'itinerary',
+    typeLabel: '規劃行程',
+    title: itineraryData.title || '(未命名行程)',
+    content: `日期: ${itineraryData.startDate || '?'} ~ ${itineraryData.endDate || '?'}`,
+    rawItinerary: itineraryData
+  })
+
+  alert('✨ 行程已存入草稿夾！')
+  showItineraryModal.value = false
+  emit('close')
+  router.push({ name: 'my_itinerary' })
+} // 🔥 注意這裡！這個大括號是用來結束 handleItineraryDraftSave 的
+
+// 🟢 3. 發起討論/找旅伴 -> 按下「存入草稿」
+// (把它搬到外面來，不要放在上面那個函式裡面)
+const handleSaveDraft = () => {
+  // 判斷目前的類型
+  const isTraveler = postData.value.board === '找旅伴'
+
+  // 呼叫 Store 存入草稿
+  itineraryStore.addDraft({
+    type: isTraveler ? 'traveler' : 'discussion',
+    typeLabel: postData.value.board || '討論區',
+    title: postData.value.title || '(無標題)',
+    content: postData.value.content || '(無內容)',
+    tags: postData.value.tags
+  })
+
+  alert('✨ 文章已存入草稿夾！')
+  emit('close')
+  router.push({ name: 'profile' })
 }
 
 // 🟢 準備一個空白的行程物件，傳給組員的彈窗使用
-const blankItinerary = {
-  id: Date.now(), // 給一個臨時 ID
+const getBlankItinerary = () => ({
+  id: null, // 設為 null，讓 Store 自己去產生 ID
   title: '',
   startDate: '',
   endDate: '',
-  days: [],       // ⚠️ 必須有這個空陣列，不然組員的 addDay 會壞掉
-  packingList: [] // ⚠️ 必須有這個空陣列，不然組員的 addCategory 會壞掉
-}
+  days: [
+    { day: 1, date: '', activities: [] } // 🟢 貼心設計：預設給他第一天，不然使用者會不知道怎麼開始
+  ],
+  packingList: []
+})
 
 // --- 模擬資料 ---
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
@@ -103,6 +153,7 @@ const filteredTags = computed(() => {
   if (!tagSearch.value) return suggestedTags
   return suggestedTags.filter(t => t.includes(tagSearch.value))
 })
+
 
 
 </script>
@@ -231,7 +282,11 @@ const filteredTags = computed(() => {
           </div>
 
           <div class="flex gap-3">
-             <button class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300">存入草稿</button>
+             <button
+                class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300"
+                @click="handleSaveDraft">
+                  存入草稿
+             </button>
              <button class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="nextStep">下一步</button>
           </div>
         </div>
@@ -339,11 +394,12 @@ const filteredTags = computed(() => {
 
     </div>
 
-   <ItineraryDetailModal
+<ItineraryDetailModal
       v-if="showItineraryModal"
-      :itinerary="blankItinerary"
+      :itinerary="getBlankItinerary()"
       @close="showItineraryModal = false"
       @save="handleItinerarySave"
+      @save-draft="handleItineraryDraftSave"
     />
 
   </div>
