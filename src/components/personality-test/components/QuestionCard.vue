@@ -6,7 +6,6 @@ defineProps({
   selected: { type: String, default: null },
 })
 
-// 發出選擇答案事件
 defineEmits(['select'])
 
 // 內容：
