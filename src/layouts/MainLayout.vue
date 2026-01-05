@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
-import { useUserStore } from '@/stores/user' // 確保引入 Store
+import { useUserStore } from '@/stores/user'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -10,7 +10,8 @@ import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
-import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue' // ✅ 關鍵：一定要引入這個元件！
+import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
+import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
 
 import {
   Plus as PlusIcon,
@@ -23,7 +24,8 @@ import {
 const userStore = useUserStore()
 const route = useRoute()
 const isSearchPage = computed(() => route.name === 'search')
-const hideLayout=computed(()=>route.meta.hideLayout === true)
+
+const hideLayout = computed(() => route.meta.hideLayout === true)
 const hideSidebar = computed(() => route.meta.hideSidebar === true)
 
 const isMobileMenuOpen = ref(false)
@@ -31,6 +33,7 @@ const isPostingModalOpen = ref(false)
 const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
+const isSwipeModalOpen = ref(false)
 
 // 背景圖片陣列
 const backgroundImages = [
@@ -64,7 +67,7 @@ const handleSelectFindTraveler = () => {
   isPostingModalOpen.value = false
 }
 const handleQuickAction = () => {
-  alert('抽卡功能開發中')
+  isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
 const handleTogglePrivateChat = () => {
@@ -81,19 +84,25 @@ const handleToggleAiChat = () => {
 
 <template>
   <div
-  class="min-h-screen relative transition-all duration-1000"
-  :class="hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'"
-  :style="{ backgroundImage: `url('${currentBgImage}')` }"
+    class="min-h-screen relative transition-all duration-1000"
+    :class="
+      hideLayout
+        ? 'bg-[#fffef7]'
+        : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'
+    "
+    :style="{ backgroundImage: `url('${currentBgImage}')` }"
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div v-if="!hideLayout" class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
+    <div
+      v-if="!hideLayout"
+      class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5"
+    >
       <div
         v-if="!isSearchPage && !hideSidebar"
         class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
       >
-
-        <AppSidebar  @open-mobile-actions="isMobileActionMenuOpen = true" />
+        <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
       </div>
 
       <main
@@ -102,7 +111,6 @@ const handleToggleAiChat = () => {
       >
         <RouterView />
       </main>
-
 
       <div
         v-if="!hideLayout && !route.meta.hideAd"
@@ -114,8 +122,8 @@ const handleToggleAiChat = () => {
     </div>
 
     <div v-else class="w-screen h-screen overflow-y-auto scrollable-container">
-  <RouterView />
-</div>
+      <RouterView />
+    </div>
 
     <div v-if="!hideLayout" class="hidden lg:block">
       <AppFABs
@@ -193,6 +201,7 @@ const handleToggleAiChat = () => {
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
     <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+    <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 
   <Transition name="fade">
