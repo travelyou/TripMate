@@ -8,7 +8,7 @@ import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
-import ChatWindow from '@/components/chat/ChatWindow.vue'
+import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
 import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
@@ -24,7 +24,6 @@ import {
 const userStore = useUserStore()
 const route = useRoute()
 const isSearchPage = computed(() => route.name === 'search')
-
 const hideLayout = computed(() => route.meta.hideLayout === true)
 const hideSidebar = computed(() => route.meta.hideSidebar === true)
 
@@ -200,7 +199,7 @@ const handleToggleAiChat = () => {
       @select-find-traveler="handleSelectFindTraveler"
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
-    <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+ <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 
