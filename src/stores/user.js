@@ -76,11 +76,107 @@ export const useUserStore = defineStore('user', () => {
     return favorites.value.some((i) => i.id === item.id && i.type === itemType)
   }
 
+  // 收藏的分類列表
+  // Future: 允許使用者自定義分類的顏色或圖示
   const collectionCategories = ref([
     { id: 'default', name: '未分類項目', items: [] },
     { id: 'domestic', name: '國內旅遊', items: [] },
     { id: 'international', name: '國外旅遊', items: [] },
   ])
+
+  // 模擬參加過的行程資料 (Participated Trips)
+  // 這些資料未來應該從後端的 Orders 或 Tickets 表中撈取
+  // Future: 新增參加狀態 (例如: 已付款、已完成、已取消)
+  const participatedTrips = ref([
+    {
+      id: 201,
+      title: '澎湖花火節三天兩夜',
+      location: '澎湖, 台灣',
+      date: '2023-06-20',
+      type: 'participated', // 標記為參與
+    },
+    {
+      id: 202,
+      title: '京都賞楓攝影團',
+      location: '京都, 日本',
+      date: '2023-11-15',
+      type: 'participated',
+    }
+  ])
+
+  // ----------------------------------------------------------------
+  // 護照資料聚合邏輯 (Passport Aggregation)
+  // 將所有零散的足跡資料 (手動輸入、主揪、參加) 整合為單一列表
+  // ----------------------------------------------------------------
+  const passportEntries = computed(() => {
+    const entries = []
+
+    // 1. 處理手動輸入的國內足跡
+    // Future: 增加經緯度資料以在地圖上顯示
+    if (visitedPlaces.value.domestic) {
+      visitedPlaces.value.domestic.forEach((place, index) => {
+        entries.push({
+          type: 'domestic', // 類型：國內
+          location: place.name,
+          date: place.date, // 格式: YYYY.MM
+          source: 'manual', // 來源：手動
+          originalIndex: index // 保存原始索引以便刪除
+        })
+      })
+    }
+
+    // 2. 處理手動輸入的國外足跡
+    if (visitedPlaces.value.international) {
+      visitedPlaces.value.international.forEach((place, index) => {
+        entries.push({
+          type: 'international', // 類型：國外
+          location: place.name,
+          date: place.date,
+          source: 'manual',
+          originalIndex: index
+        })
+      })
+    }
+
+    // 3. 整合參加過的行程 (Participated)
+    // Future: 只有狀態為 'completed' 的行程才加入護照
+    participatedTrips.value.forEach((trip, index) => {
+      entries.push({
+        type: 'participated', // 類型：參加
+        location: trip.location.split(',')[0], // 簡化地點顯示
+        date: trip.date.slice(0, 7).replace('-', '.'), // 統一日期格式 YYYY.MM
+        title: trip.title, // 額外保存標題供 tooltip 使用
+        source: 'system', // 來源：系統
+        originalIndex: index
+      })
+    })
+
+    // 4. 整合主揪過的行程 (Hosted)
+    // 從 itineraryStore 獲取資料 (這裡假設我們已經有 myItineraries)
+    // 由於 store 之間互相引用可能導致循環依賴，這裡先使用 userStore 內的簡單計數或假設資料
+    // 若要嚴謹實作，應在組件層級合併，或確保 itineraryStore 已初始化
+    // 這裡我們先用一個模擬的主揪資料做演示
+    // Future: 接上真實的 ItineraryStore
+    const mockHosted = [
+      { title: '東京櫻花團', location: '東京', date: '2024-03' },
+    ]
+    mockHosted.forEach((trip, index) => {
+      entries.push({
+        type: 'hosted', // 類型：主揪
+        location: trip.location,
+        date: trip.date.replace('-', '.'),
+        title: trip.title,
+        source: 'system',
+        originalIndex: index
+      })
+    })
+
+    // 依日期排序 (新的在後，或在前，護照通常是按時間蓋)
+    // 這裡我們讓新的在前面 (Desc) 方便查看
+    return entries.sort((a, b) => {
+      return b.date.localeCompare(a.date)
+    })
+  })
 
   const isCollectionModalOpen = ref(false)
   const pendingCollectionItem = ref(null)
@@ -216,5 +312,7 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     login,
     logout,
+    participatedTrips, // Export for debug/usage
+    passportEntries // Export aggregated passport data
   }
 })
