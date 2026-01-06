@@ -195,7 +195,7 @@ const handleSubmitPost = async (postData) => {
     >
       <div
         v-if="!isSearchPage && !hideSidebar"
-        class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
+        class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
       >
         <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
       </div>

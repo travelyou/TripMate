@@ -101,63 +101,63 @@ const handleMobileNavClick = (item) => {
 </script>
 
 <template>
-  <aside class="w-full min-h-full hidden lg:flex flex-col p-4 bg-[#f5e6d3]">
-    <div class="flex justify-between mb-4 pb-4 border-b-4 border-amber-300 pl-4">
+  <aside
+    class="w-full min-h-full hidden lg:flex flex-col p-4 rounded-2xl shadow-lg overflow-hidden"
+  >
+    <div class="flex justify-between my-4 pb-4 gap-4">
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center group transition-transform active:translate-y-1 group-hover:border-4 group-hover:border-amber-700 group-hover:shadow-md group-hover:bg-pink-100 active:shadow-none"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center bg-white rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToFavorites"
       >
-        <HeartIcon class="w-8 h-8 text-red-600 group-hover:text-red-700 transition fill-red-600" />
+        <HeartIcon class="w-8 h-8 text-red-600 hover:text-red-700 transition fill-red-600" />
         <span class="text-xs font-bold mt-1 text-black">愛心</span>
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center group transition-transform active:translate-y-1 group-hover:border-4 group-hover:border-amber-700 group-hover:shadow-md group-hover:bg-pink-100 active:shadow-none"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center bg-white rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToCollections"
       >
         <BookmarkIcon
-          class="w-8 h-8 text-amber-700 group-hover:text-amber-800 transition fill-amber-700"
+          class="w-8 h-8 text-amber-700 hover:text-amber-800 transition fill-amber-700"
         />
         <span class="text-xs font-bold mt-1 text-black">收藏</span>
       </div>
     </div>
 
-    <nav class="space-y-1">
-      <RouterLink
-        v-for="item in menuItems"
-        :key="item.name"
-        :to="{ name: item.name }"
-        :class="[
-          'flex items-center p-3 rounded-xl cursor-pointer transition-all duration-200 border-2 border-transparent',
-          route.name === item.name
-            ? 'bg-[#fff5e6] border-4 border-[#d4a574] shadow-sm'
-            : 'hover:bg-[#fff8ee] hover:translate-x-1 hover:border-[#d4a574] hover:shadow-sm',
-        ]"
-      >
-        <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
-        <span :class="['font-bold', item.textColor]">
-          {{ item.label }}
-        </span>
-      </RouterLink>
+    <nav>
+      <div class="bg-white p-4 rounded-xl shadow-sm overflow-hidden">
+        <RouterLink
+          v-for="item in menuItems"
+          :key="item.name"
+          :to="{ name: item.name }"
+          :class="[
+            'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
+            route.name === item.name ? 'bg-[#fff5e6]' : 'hover:bg-[#fff8ee]',
+          ]"
+        >
+          <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
+          <span :class="['font-bold', item.textColor]">
+            {{ item.label }}
+          </span>
+        </RouterLink>
 
-      <div class="my-2 border-t border-amber-300"></div>
+        <div class="border-t border-gray-100"></div>
 
-      <RouterLink
-        v-for="item in bottomMenuItems"
-        :key="item.name"
-        :to="{ name: item.name, params: item.params }"
-        :class="[
-          'flex items-center p-3 rounded-xl cursor-pointer transition-all duration-200 border-2 border-transparent',
-          route.name === item.name
-            ? 'bg-[#fff5e6] border-4 border-[#d4a574] shadow-sm'
-            : 'hover:bg-[#fff8ee] hover:translate-x-1 hover:border-[#d4a574] hover:shadow-sm hover:opacity-70',
-        ]"
-      >
-        <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
-        <span :class="['font-bold', item.textColor]">
-          {{ item.label }}
-        </span>
-      </RouterLink>
+        <RouterLink
+          v-for="item in bottomMenuItems"
+          :key="item.name"
+          :to="{ name: item.name, params: item.params }"
+          :class="[
+            'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
+            route.name === item.name ? 'bg-[#fff5e6]' : 'hover:bg-[#fff8ee]',
+          ]"
+        >
+          <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
+          <span :class="['font-bold', item.textColor]">
+            {{ item.label }}
+          </span>
+        </RouterLink>
+      </div>
     </nav>
   </aside>
 
