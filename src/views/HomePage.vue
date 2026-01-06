@@ -4,6 +4,9 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
 import { useUserStore } from '@/stores/user' // 1. 引入 UserStore
+import { auth } from '@/firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
+import { toggleLike } from '@/api/likes'
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -13,11 +16,81 @@ import {
   Users as UsersIcon,
   Bookmark as BookmarkIcon, // 引入 Bookmark
 } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
-const userStore = useUserStore() // 2. 初始化
+const userStore = useUserStore()
+
+// 當前用戶 UID
+const currentUserUid = ref(null)
+
+// 監聽 Firebase 認證狀態
+onAuthStateChanged(auth, async (user) => {
+  const previousUid = currentUserUid.value
+  currentUserUid.value = user ? user.uid : null
+  
+  // 如果用戶登入狀態改變，重新載入按讚狀態
+  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+    await Promise.all(
+      discussionsStore.discussions.map(async (post) => {
+        try {
+          const { getLikesInfo } = await import('@/api/likes')
+          const info = await getLikesInfo(post.id, currentUserUid.value)
+          post.isLiked = info.isLiked
+          post.likes = info.likesCount || post.likes
+        } catch (error) {
+          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+        }
+      })
+    )
+  } else if (!currentUserUid.value) {
+    // 如果登出，清除所有按讚狀態
+    discussionsStore.discussions.forEach(post => {
+      post.isLiked = false
+    })
+  }
+})
+
+// 處理貼文按讚
+const handlePostLike = async (post) => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+
+  try {
+    const result = await toggleLike(post.id, currentUserUid.value)
+    post.isLiked = result.liked
+    post.likes = result.likesCount
+  } catch (error) {
+    console.error('按讚操作失敗：', error)
+    alert('按讚操作失敗，請稍後再試')
+  }
+}
+
+// 在組件掛載時載入貼文
+onMounted(async () => {
+  try {
+    await discussionsStore.loadDiscussions()
+    // 載入每個貼文的按讚狀態
+    if (currentUserUid.value) {
+      await Promise.all(
+        discussionsStore.discussions.map(async (post) => {
+          try {
+            const { getLikesInfo } = await import('@/api/likes')
+            const info = await getLikesInfo(post.id, currentUserUid.value)
+            post.isLiked = info.isLiked
+          } catch (error) {
+            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+          }
+        })
+      )
+    }
+  } catch (error) {
+    console.error('載入貼文失敗：', error)
+  }
+})
 
 const scrollContainer = ref(null)
 
@@ -253,15 +326,15 @@ const getPostData = (post) => ({
               <button
                 class="flex items-center space-x-1 transition mr-6 group"
                 :class="
-                  userStore.isFavorite(getPostData(post)) ? 'text-red-500' : 'hover:text-red-500'
+                  post.isLiked ? 'text-red-500' : 'hover:text-red-500'
                 "
-                @click.stop="userStore.toggleFavorite(getPostData(post))"
+                @click.stop="handlePostLike(post)"
               >
                 <HeartIcon
                   class="w-4 h-4 transition-transform group-active:scale-125"
-                  :class="{ 'fill-current': userStore.isFavorite(getPostData(post)) }"
+                  :class="{ 'fill-current': post.isLiked }"
                 />
-                <span>{{ post.likes + (userStore.isFavorite(getPostData(post)) ? 1 : 0) }}</span>
+                <span>{{ post.likes || 0 }}</span>
               </button>
 
               <button

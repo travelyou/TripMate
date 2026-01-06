@@ -38,3 +38,12 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# 環境變數
+.env
+.env.local
+.env.production
+.env.development
+
+# 後端環境變數
+backend/.env

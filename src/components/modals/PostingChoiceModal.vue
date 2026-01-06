@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
@@ -26,6 +26,11 @@ const postData = ref({
 })
 
 const tagSearch = ref('')
+
+// --- 圖片相關狀態 ---
+const fileInputRef = ref(null)
+const imageFiles = ref([]) // 存儲選中的圖片文件
+const imagePreviews = ref([]) // 存儲預覽 URL
 
 // --- 模擬資料 ---
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
@@ -55,6 +60,56 @@ const removeTag = (index) => {
   postData.value.tags.splice(index, 1)
 }
 
+// --- 圖片處理函數 ---
+// 選擇圖片
+const handleImageSelect = (event) => {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+
+  // 限制最多 5 張圖片
+  const remainingSlots = 5 - imageFiles.value.length
+  const filesToAdd = files.slice(0, remainingSlots)
+
+  filesToAdd.forEach((file) => {
+    // 驗證文件類型
+    if (!file.type.startsWith('image/')) {
+      alert(`${file.name} 不是有效的圖片文件`)
+      return
+    }
+
+    // 驗證文件大小（限制 5MB）
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`${file.name} 檔案太大，請選擇小於 5MB 的圖片`)
+      return
+    }
+
+    imageFiles.value.push(file)
+
+    // 創建預覽 URL
+    const previewUrl = URL.createObjectURL(file)
+    imagePreviews.value.push(previewUrl)
+  })
+
+  // 清空 input
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+// 移除圖片
+const removeImage = (index) => {
+  // 釋放預覽 URL 的記憶體
+  URL.revokeObjectURL(imagePreviews.value[index])
+
+  imageFiles.value.splice(index, 1)
+  imagePreviews.value.splice(index, 1)
+}
+
+// 觸發文件選擇
+const triggerFileSelect = () => {
+  fileInputRef.value?.click()
+}
+
 const nextStep = () => {
   if (currentStep.value === 'edit') currentStep.value = 'tags'
   else if (currentStep.value === 'tags') currentStep.value = 'preview'
@@ -67,10 +122,36 @@ const prevStep = () => {
 }
 
 const handleFinalSubmit = () => {
-  console.log('最終發布資料:', postData.value)
-  emit('submit-post', postData.value)
+  console.log('🔵 最終發布資料:', postData.value)
+  
+  // 基本驗證
+  if (!postData.value.title || !postData.value.title.trim()) {
+    alert('請輸入標題')
+    return
+  }
+  
+  if (!postData.value.content || !postData.value.content.trim()) {
+    alert('請輸入內容')
+    return
+  }
+  
+  if (!postData.value.board) {
+    alert('請選擇看板')
+    return
+  }
+  
+  console.log('✅ 驗證通過，提交發文...')
+  emit('submit-post', {
+    ...postData.value,
+    imageFiles: imageFiles.value, // 傳遞圖片文件
+  })
   emit('close')
 }
+
+// 清理預覽 URL（組件卸載時）
+onUnmounted(() => {
+  imagePreviews.value.forEach(url => URL.revokeObjectURL(url))
+})
 
 const filteredTags = computed(() => {
   if (!tagSearch.value) return suggestedTags
@@ -158,12 +239,50 @@ const filteredTags = computed(() => {
             placeholder="請輸入你的內文..."
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
           ></textarea>
+
+          <!-- 圖片預覽區 -->
+          <div v-if="imagePreviews.length > 0" class="mt-4 space-y-2">
+            <div class="flex flex-wrap gap-2">
+              <div
+                v-for="(url, index) in imagePreviews"
+                :key="index"
+                class="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-300"
+              >
+                <img
+                  :src="url"
+                  alt="預覽圖片"
+                  class="w-full h-full object-cover"
+                />
+                <button
+                  class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  @click="removeImage(index)"
+                >
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
+          </div>
         </div>
 
         <div class="p-3 border-t-2 border-gray-200 bg-gray-50">
           <div class="flex items-center justify-between mb-3 px-2">
              <div class="flex gap-4 text-gray-500">
-               <button class="hover:text-orange-500 transition-colors"><ImageIcon class="w-6 h-6" /></button>
+               <button
+                 type="button"
+                 class="hover:text-orange-500 transition-colors"
+                 @click="triggerFileSelect"
+               >
+                 <ImageIcon class="w-6 h-6" />
+               </button>
+               <input
+                 ref="fileInputRef"
+                 type="file"
+                 accept="image/*"
+                 multiple
+                 class="hidden"
+                 @change="handleImageSelect"
+               />
                <button class="hover:text-orange-500 transition-colors"><FileVideo class="w-6 h-6" /></button>
                <button class="hover:text-orange-500 transition-colors"><Smile class="w-6 h-6" /></button>
                <button class="hover:text-orange-500 transition-colors"><BarChart2 class="w-6 h-6" /></button>
@@ -264,6 +383,19 @@ const filteredTags = computed(() => {
 
               <h2 class="text-xl font-bold mb-3">{{ postData.title || '(無標題)' }}</h2>
               <p class="text-gray-700 whitespace-pre-wrap mb-4">{{ postData.content || '(無內容)' }}</p>
+
+              <!-- 預覽圖片 -->
+              <div v-if="imagePreviews.length > 0" class="mb-4">
+                <div class="flex flex-wrap gap-2">
+                  <img
+                    v-for="(url, index) in imagePreviews"
+                    :key="index"
+                    :src="url"
+                    alt="預覽圖片"
+                    class="w-24 h-24 rounded-lg object-cover border-2 border-gray-300"
+                  />
+                </div>
+              </div>
 
               <div class="flex flex-wrap gap-2">
                  <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold">#{{ tag }}</span>
