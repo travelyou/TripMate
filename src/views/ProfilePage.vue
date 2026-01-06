@@ -89,25 +89,25 @@ const openDetail = (post, focusComment = false) => {
 }
 
 const handleSaveProfile = (formData) => {
-  const { wishlist, ...profileData } = formData
+  const { wishlist, hiddenStamps, ...profileData } = formData
 
   // Update Profile
   userStore.updateProfile(profileData)
 
   // Update Wishlist
-  // Since store doesn't have a setWishlist, we manually sync it
-  // Ideally, store should provide an action for this.
-  // For now, let's assuming we can mutate userStore.wishlist or add a method.
-  // Since userStore.wishlist is a ref, we can update it directly if we modify the store or just do:
   userStore.wishlist = wishlist
+
+  // Update Hidden Stamps
+  userStore.hiddenStamps = hiddenStamps
 
   isEditingProfile.value = false
 }
 
-const handleAddPlace = ({ type, name, date }) => {
+const handleAddPlace = ({ type, name, date, icon }) => {
   const newPlaceObj = {
     name: name,
     date: date || new Date().toISOString().slice(0, 7).replace('-', '.'),
+    icon: icon // Add icon support
   }
   userStore.addVisitedPlace(newPlaceObj, type)
 }
@@ -203,6 +203,8 @@ onMounted(() => {
           <TabReviews
             v-if="activeTab === 'reviews'"
             :reviews="activeTabsData.reviews"
+            :user="user"
+            @open-post="openDetail({ id: $event, title: 'Mock Post', content: 'Loading...' })"
           />
         </div>
       </div>
@@ -213,6 +215,7 @@ onMounted(() => {
       :is-open="isEditingProfile"
       :user="user"
       :wishlist="userStore.wishlist"
+      :hidden-stamps="userStore.hiddenStamps"
       @close="isEditingProfile = false"
       @save="handleSaveProfile"
     />

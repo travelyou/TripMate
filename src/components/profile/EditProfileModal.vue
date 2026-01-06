@@ -14,6 +14,10 @@ const props = defineProps({
   wishlist: {
     type: Array,
     required: true
+  },
+  hiddenStamps: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -23,12 +27,13 @@ const editForm = reactive({})
 
 // Init form when modal opens or user changes
 watch(
-  () => [props.isOpen, props.user, props.wishlist],
-  ([isOpen, newUser, newWishlist]) => {
+  () => [props.isOpen, props.user, props.wishlist, props.hiddenStamps],
+  ([isOpen, newUser, newWishlist, newHiddenStamps]) => {
     if (isOpen && newUser) {
       Object.assign(editForm, JSON.parse(JSON.stringify(newUser)))
       // Merge wishlist into form for editing
       editForm.wishlist = [...(newWishlist || [])]
+      editForm.hiddenStamps = [...(newHiddenStamps || [])]
     }
   },
   { immediate: true }
@@ -63,6 +68,13 @@ function addTag(e) {
 
 function removeTag(idx) {
   editForm.tags.splice(idx, 1)
+}
+
+function restoreStamp(key) {
+  const idx = editForm.hiddenStamps.indexOf(key)
+  if (idx > -1) {
+    editForm.hiddenStamps.splice(idx, 1)
+  }
 }
 </script>
 
@@ -172,6 +184,32 @@ function removeTag(idx) {
               :disabled="editForm.wishlist?.length >= 5"
               @keyup.enter="addWishlist"
             />
+          </div>
+        </div>
+
+        <!-- Hidden Footprints Management -->
+        <div v-if="editForm.hiddenStamps && editForm.hiddenStamps.length > 0">
+          <label class="block text-sm font-medium text-gray-700 mb-2">隱藏的足跡</label>
+          <div class="bg-gray-50 rounded-xl p-4 space-y-2">
+            <div
+              v-for="stampKey in editForm.hiddenStamps"
+              :key="stampKey"
+              class="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-100"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🙈</span>
+                <div class="text-sm">
+                  <div class="font-bold text-gray-800">{{ stampKey.split('-')[1] }}</div>
+                  <div class="text-xs text-gray-500">{{ stampKey.split('-')[2] }}</div>
+                </div>
+              </div>
+              <button
+                class="text-xs bg-white border border-gray-200 hover:bg-gray-50 hover:text-indigo-600 px-3 py-1.5 rounded-full transition"
+                @click="restoreStamp(stampKey)"
+              >
+                還原顯示
+              </button>
+            </div>
           </div>
         </div>
       </div>

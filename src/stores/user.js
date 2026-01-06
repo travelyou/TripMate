@@ -1,7 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { auth } from '@/firebase/config'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
@@ -21,23 +19,56 @@ export const useUserStore = defineStore('user', () => {
     tripsHosted: 5,
     tags: ['攝影', '背包客', '美食', '自由行'],
     reviews: [
+      // 他人對我的評價 (Received)
       {
         id: 1,
         author: '小美',
-        avatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M',
-        rating: 5,
+        target: 'Jovi',
+        avatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M', // Author's avatar
+        sentiment: 'super_like',
+        tripTitle: '週末宜蘭溫泉放鬆之旅',
+        tripId: 101,
         content: '主揪超讚！行程安排得很順暢，人也很隨和～',
         date: '2024/11/20',
       },
       {
         id: 2,
         author: 'Tom',
+        target: 'Jovi',
         avatar: 'https://placehold.co/100x100/87CEEB/ffffff?text=T',
-        rating: 4,
+        sentiment: 'like',
+        tripTitle: '京都賞楓攝影團',
+        tripId: 102,
         content: '很棒的旅伴，下次有機會再一起出遊！',
         date: '2024/10/15',
       },
+      // 我對他人的評價 (Given)
+      {
+        id: 11,
+        author: 'Jovi',
+        target: '小美',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi', // My avatar
+        targetAvatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M', // Target's avatar
+        sentiment: 'super_like',
+        tripTitle: '週末宜蘭溫泉放鬆之旅',
+        tripId: 101,
+        content: '小美是很棒的旅伴，很準時也很會照顧人！',
+        date: '2024/11/21',
+      },
+      {
+        id: 12,
+        author: 'Jovi',
+        target: 'David',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
+        targetAvatar: 'https://placehold.co/100x100/98FB98/ffffff?text=D',
+        sentiment: 'like',
+        tripTitle: '台東衝浪新手營',
+        tripId: 103,
+        content: '雖然是新手但學習態度很好，一起衝浪很開心。',
+        date: '2023/05/12',
+      }
     ],
+    //假好友資料，後續可刪
     friends: [
       { id: 101, name: 'Alice', nickname: 'Ali', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice' },
       { id: 102, name: 'Bob', nickname: 'Bobby', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob' },
@@ -111,6 +142,25 @@ export const useUserStore = defineStore('user', () => {
     }
   ])
 
+  // 隱藏的足跡 (Hidden Stamps)
+  // format: "type-location-date"
+  const hiddenStamps = ref([])
+
+  const hideStamp = (key) => {
+    if (!hiddenStamps.value.includes(key)) {
+       hiddenStamps.value.push(key)
+    }
+  }
+
+  const restoreStamp = (key) => {
+    const idx = hiddenStamps.value.indexOf(key)
+    if (idx > -1) {
+      hiddenStamps.value.splice(idx, 1)
+    }
+  }
+
+
+
   // ----------------------------------------------------------------
   // 護照資料聚合邏輯 (Passport Aggregation)
   // 將所有零散的足跡資料 (手動輸入、主揪、參加) 整合為單一列表
@@ -118,44 +168,58 @@ export const useUserStore = defineStore('user', () => {
   const passportEntries = computed(() => {
     const entries = []
 
+    // Helper to generate key
+    const getKey = (type, location, date) => `${type}-${location}-${date}`
+
     // 1. 處理手動輸入的國內足跡
     // Future: 增加經緯度資料以在地圖上顯示
     if (visitedPlaces.value.domestic) {
       visitedPlaces.value.domestic.forEach((place, index) => {
-        entries.push({
-          type: 'domestic', // 類型：國內
-          location: place.name,
-          date: place.date, // 格式: YYYY.MM
-          source: 'manual', // 來源：手動
-          originalIndex: index // 保存原始索引以便刪除
-        })
+        const key = getKey('domestic', place.name, place.date)
+        if (!hiddenStamps.value.includes(key)) {
+            entries.push({
+              type: 'domestic', // 類型：國內
+              location: place.name,
+              date: place.date, // 格式: YYYY.MM
+              source: 'manual', // 來源：手動
+              originalIndex: index, // 保存原始索引以便刪除
+              icon: place.icon // Support custom icon
+            })
+        }
       })
     }
 
     // 2. 處理手動輸入的國外足跡
     if (visitedPlaces.value.international) {
       visitedPlaces.value.international.forEach((place, index) => {
-        entries.push({
-          type: 'international', // 類型：國外
-          location: place.name,
-          date: place.date,
-          source: 'manual',
-          originalIndex: index
-        })
+        const key = getKey('international', place.name, place.date)
+         if (!hiddenStamps.value.includes(key)) {
+            entries.push({
+              type: 'international', // 類型：國外
+              location: place.name,
+              date: place.date,
+              source: 'manual',
+              originalIndex: index,
+              icon: place.icon
+            })
+         }
       })
     }
 
     // 3. 整合參加過的行程 (Participated)
     // Future: 只有狀態為 'completed' 的行程才加入護照
     participatedTrips.value.forEach((trip, index) => {
-      entries.push({
-        type: 'participated', // 類型：參加
-        location: trip.location.split(',')[0], // 簡化地點顯示
-        date: trip.date.slice(0, 7).replace('-', '.'), // 統一日期格式 YYYY.MM
-        title: trip.title, // 額外保存標題供 tooltip 使用
-        source: 'system', // 來源：系統
-        originalIndex: index
-      })
+      const key = getKey('participated', trip.location.split(',')[0], trip.date.slice(0, 7).replace('-', '.'))
+      if (!hiddenStamps.value.includes(key)) {
+          entries.push({
+            type: 'participated', // 類型：參加
+            location: trip.location.split(',')[0], // 簡化地點顯示
+            date: trip.date.slice(0, 7).replace('-', '.'), // 統一日期格式 YYYY.MM
+            title: trip.title, // 額外保存標題供 tooltip 使用
+            source: 'system', // 來源：系統
+            originalIndex: index
+          })
+      }
     })
 
     // 4. 整合主揪過的行程 (Hosted)
@@ -168,14 +232,17 @@ export const useUserStore = defineStore('user', () => {
       { title: '東京櫻花團', location: '東京', date: '2024-03' },
     ]
     mockHosted.forEach((trip, index) => {
-      entries.push({
-        type: 'hosted', // 類型：主揪
-        location: trip.location,
-        date: trip.date.replace('-', '.'),
-        title: trip.title,
-        source: 'system',
-        originalIndex: index
-      })
+      const key = getKey('hosted', trip.location, trip.date.replace('-', '.'))
+       if (!hiddenStamps.value.includes(key)) {
+          entries.push({
+            type: 'hosted', // 類型：主揪
+            location: trip.location,
+            date: trip.date.replace('-', '.'),
+            title: trip.title,
+            source: 'system',
+            originalIndex: index
+          })
+      }
     })
 
     // 依日期排序 (新的在後，或在前，護照通常是按時間蓋)
@@ -249,14 +316,17 @@ export const useUserStore = defineStore('user', () => {
     return all
   })
 
+  // Profile Management
   const updateProfile = (newData) => {
     currentUser.value = { ...currentUser.value, ...newData }
   }
 
   const addVisitedPlace = (place, type = 'domestic') => {
     if (type === 'domestic') {
+      if (!visitedPlaces.value.domestic) visitedPlaces.value.domestic = []
       visitedPlaces.value.domestic.push(place)
     } else {
+      if (!visitedPlaces.value.international) visitedPlaces.value.international = []
       visitedPlaces.value.international.push(place)
     }
   }
@@ -272,24 +342,22 @@ export const useUserStore = defineStore('user', () => {
 
   const isWishlisted = (id) => wishlist.value.includes(id)
 
+  // Auth (Mock)
   const isLoggedIn = ref(false)
   const authReady = ref(false)
 
-  onAuthStateChanged(auth, (user) => {
-    isLoggedIn.value = user ? true : false
-    if (!authReady.value) {
-      authReady.value = true
-    }
-  })
+  // Mock onAuthStateChanged
+  // In real app, use firebase/auth
+  setTimeout(() => {
+     isLoggedIn.value = true
+     authReady.value = true
+  }, 500)
 
-  const login = () => {}
+  const login = () => { isLoggedIn.value = true }
 
   const logout = async () => {
-    try {
-      await signOut(auth)
-    } catch (error) {
-      console.error('登出失敗：', error)
-    }
+    isLoggedIn.value = false
+    console.log('Logged out')
   }
 
   const userProfile = computed(() => currentUser.value)
@@ -320,6 +388,9 @@ export const useUserStore = defineStore('user', () => {
     login,
     logout,
     participatedTrips, // Export for debug/usage
-    passportEntries // Export aggregated passport data
+    passportEntries, // Export aggregated passport data
+    hiddenStamps,
+    hideStamp,
+    restoreStamp
   }
 })

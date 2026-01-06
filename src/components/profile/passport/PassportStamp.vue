@@ -52,6 +52,9 @@ const colorClasses = computed(() => {
 // 根據類型決定戳章內的裝飾圖示
 // Future: 可以改用真實的 SVG 圖示或允許使用者上傳圖片
 const icon = computed(() => {
+  // If custom icon is provided, use it
+  if (props.entry.icon) return props.entry.icon
+
   switch (props.entry.type) {
     case 'domestic':
       return '🇹🇼'
