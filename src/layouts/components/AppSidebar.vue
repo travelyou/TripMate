@@ -101,10 +101,10 @@ const handleMobileNavClick = (item) => {
 </script>
 
 <template>
-  <aside class="w-full min-h-full hidden lg:flex flex-col aside-nav p-4">
+  <aside class="w-full min-h-full hidden lg:flex flex-col p-4 bg-[#f5e6d3]">
     <div class="flex justify-between mb-4 pb-4 border-b-4 border-amber-300 pl-4">
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center pixel-button group transition-transform active:translate-y-1"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center group transition-transform active:translate-y-1 group-hover:border-4 group-hover:border-amber-700 group-hover:shadow-md group-hover:bg-pink-100 active:shadow-none"
         @click="goToFavorites"
       >
         <HeartIcon class="w-8 h-8 text-red-600 group-hover:text-red-700 transition fill-red-600" />
@@ -112,7 +112,7 @@ const handleMobileNavClick = (item) => {
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square pixel-button flex flex-col items-center justify-center group transition-transform active:translate-y-1"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center group transition-transform active:translate-y-1 group-hover:border-4 group-hover:border-amber-700 group-hover:shadow-md group-hover:bg-pink-100 active:shadow-none"
         @click="goToCollections"
       >
         <BookmarkIcon
@@ -127,32 +127,34 @@ const handleMobileNavClick = (item) => {
         v-for="item in menuItems"
         :key="item.name"
         :to="{ name: item.name }"
-        class="nav-item flex items-center p-3 rounded-xl cursor-pointer"
-        active-class="active"
+        :class="[
+          'flex items-center p-3 rounded-xl cursor-pointer transition-all duration-200 border-2 border-transparent',
+          route.name === item.name
+            ? 'bg-[#fff5e6] border-4 border-[#d4a574] shadow-sm'
+            : 'hover:bg-[#fff8ee] hover:translate-x-1 hover:border-[#d4a574] hover:shadow-sm',
+        ]"
       >
         <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
-        <span
-          :class="['font-bold', item.textColor]"
-          style="text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8)"
-        >
+        <span :class="['font-bold', item.textColor]">
           {{ item.label }}
         </span>
       </RouterLink>
 
-      <div class="my-2 border-t-3 border-amber-300"></div>
+      <div class="my-2 border-t border-amber-300"></div>
 
       <RouterLink
         v-for="item in bottomMenuItems"
         :key="item.name"
         :to="{ name: item.name, params: item.params }"
-        class="nav-item flex items-center p-3 rounded-xl cursor-pointer hover:opacity-70"
-        active-class="active"
+        :class="[
+          'flex items-center p-3 rounded-xl cursor-pointer transition-all duration-200 border-2 border-transparent',
+          route.name === item.name
+            ? 'bg-[#fff5e6] border-4 border-[#d4a574] shadow-sm'
+            : 'hover:bg-[#fff8ee] hover:translate-x-1 hover:border-[#d4a574] hover:shadow-sm hover:opacity-70',
+        ]"
       >
         <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
-        <span
-          :class="['font-bold', item.textColor]"
-          style="text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8)"
-        >
+        <span :class="['font-bold', item.textColor]">
           {{ item.label }}
         </span>
       </RouterLink>
@@ -160,13 +162,17 @@ const handleMobileNavClick = (item) => {
   </aside>
 
   <nav
-    class="fixed bottom-0 left-0 right-0 h-16 bg-[#fcf9f2] z-50 flex justify-between items-center px-1 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"
+    class="fixed bottom-0 left-0 right-0 h-16 bg-[#fcf9f2] z-50 flex justify-between items-center px-1 lg:hidden shadow-md"
   >
     <button
       v-for="item in mobileNavItems"
       :key="item.name"
       class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:bg-orange-50 transition active:scale-95 px-0.5"
-      :class="{ 'mobile-active': route.name === item.name && item.name !== 'menu' }"
+      :class="
+        route.name === item.name && item.name !== 'menu'
+          ? 'bg-[#fff5e6] border-t-4 border-t-orange-500 -mt-1'
+          : ''
+      "
       @click="handleMobileNavClick(item)"
     >
       <component
@@ -179,7 +185,7 @@ const handleMobileNavClick = (item) => {
         "
       />
       <span
-        class="text-[10px] font-bold transition-colors whitespace-nowrap scale-90 origin-center"
+        class="text-xs font-bold transition-colors whitespace-nowrap scale-95 origin-center"
         :class="
           route.name === item.name && item.name !== 'menu' ? 'text-orange-600' : 'text-gray-500'
         "
@@ -189,42 +195,3 @@ const handleMobileNavClick = (item) => {
     </button>
   </nav>
 </template>
-
-<style scoped>
-/* 保持原本的樣式 */
-.aside-nav {
-  font-family: 'Press Start 2P', monospace;
-  background-color: #f5e6d3;
-}
-
-.pixel-button:hover {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    3px 3px 0px 0px rgba(139, 111, 71, 0.3),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.4);
-  background-color: pink;
-}
-.pixel-button:active {
-  box-shadow: none;
-}
-.nav-item {
-  transition: all 0.2s;
-  border: 2px solid transparent;
-}
-.nav-item:hover {
-  background-color: #fff8ee;
-  transform: translateX(3px);
-  border: 2px solid #d4a574;
-  box-shadow: 2px 2px 0px 0px rgba(139, 111, 71, 0.2);
-}
-.nav-item.active {
-  background-color: #fff5e6;
-  border: 3px solid #d4a574;
-  box-shadow: 3px 3px 0px 0px rgba(139, 111, 71, 0.2);
-}
-.mobile-active {
-  background-color: #fff5e6;
-  border-top: 4px solid #f97316;
-  margin-top: -4px;
-}
-</style>

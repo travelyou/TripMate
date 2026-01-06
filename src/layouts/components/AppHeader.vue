@@ -13,7 +13,7 @@
             v-model="headerSearchQuery"
             type="text"
             placeholder="搜尋文章、行程..."
-            class="w-full h-[45px] pixel-input bg-white text-base rounded-full pl-5 pr-12 outline-none transition focus:ring-2 focus:ring-orange-300"
+            class="w-full h-[45px] bg-white text-base rounded-full pl-5 pr-12 outline-none transition-all duration-200 border-2 border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-300"
             @keyup.enter="handleDesktopSearch"
           />
           <button
@@ -55,7 +55,14 @@
             <UserIcon v-else class="w-6 h-6 text-gray-400" />
           </button>
 
-          <Transition name="fade">
+          <Transition
+            enter-active-class="transition-opacity transform duration-200"
+            enter-from-class="opacity-0 -translate-y-2"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition-opacity transform duration-200"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-2"
+          >
             <div
               v-if="isMenuOpen"
               class="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 pixel-dropdown"
@@ -200,27 +207,3 @@ const handleLogout = () => {
   }
 }
 </script>
-
-<style scoped>
-.pixel-input {
-  border: 2px solid #e5e7eb;
-  transition: all 0.2s;
-}
-.pixel-input:focus {
-  border-color: #f97316;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-</style>
