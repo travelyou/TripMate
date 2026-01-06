@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 import { Camera, Tag, Settings } from 'lucide-vue-next'
 
 defineProps({
@@ -21,83 +22,181 @@ defineProps({
   }
 })
 
-defineEmits(['edit-profile'])
+const emit = defineEmits(['edit-profile', 'update-avatar'])
+
+const fileInputMobile = ref(null)
+const fileInputDesktop = ref(null)
+
+const handleFileChange = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    emit('update-avatar', file)
+  }
+}
 </script>
 
 <template>
   <div
-    class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 mb-8 text-white relative overflow-hidden shadow-xl"
+    class="bg-white rounded-3xl p-5 md:p-8 mb-4 md:mb-8 text-gray-800 relative overflow-hidden shadow-sm border border-gray-100"
   >
-    <div class="absolute inset-0 bg-black/10"></div>
-    <div class="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-    <div
-      class="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-900/20 rounded-full blur-3xl"
-    ></div>
+    <!-- Background Decor (Optional or subtle) -->
+    <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/50"></div>
 
-    <div class="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6">
-      <!-- Avatar -->
-      <div class="relative group">
-        <img
-          class="w-32 h-32 rounded-full border-4 border-white/30 shadow-2xl object-cover bg-white"
-          :src="user.avatar"
-          alt="Avatar"
-        />
-        <button
-          class="absolute bottom-2 right-2 p-2 bg-indigo-600 rounded-full border border-white/50 hover:bg-indigo-700 transition shadow-lg group-hover:scale-110"
-        >
-          <Camera class="w-4 h-4 text-white" />
-        </button>
+    <div class="relative z-10">
+      <!-- Mobile Layout Wrapper (Hidden on Desktop) -->
+      <div class="md:hidden flex flex-col gap-4">
+        <!-- Top Row: Avatar + Info + Stats -->
+        <div class="flex items-center gap-4">
+          <!-- Avatar -->
+          <div class="relative group shrink-0">
+            <img
+              class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-gray-100"
+              :src="user.avatar"
+              alt="Avatar"
+            />
+            <input
+              ref="fileInputMobile"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleFileChange"
+            />
+            <button
+              class="absolute bottom-0 right-0 p-1.5 bg-indigo-600 rounded-full border border-white hover:bg-indigo-700 transition shadow-lg cursor-pointer"
+              @click="$refs.fileInputMobile.click()"
+            >
+              <Camera class="w-3 h-3 text-white" />
+            </button>
+          </div>
+
+          <!-- Right Info Area -->
+          <div class="flex-1 min-w-0 flex flex-col justify-center h-20">
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-baseline gap-2 truncate">
+                <h1 class="text-xl font-bold tracking-tight truncate text-gray-900">{{ user.name }}</h1>
+                <span v-if="user.nickname" class="text-xs text-gray-500 truncate">@{{ user.nickname }}</span>
+              </div>
+              <button
+                v-if="isCurrentUser"
+                class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition"
+                @click="$emit('edit-profile')"
+              >
+                <Settings class="w-4 h-4" />
+              </button>
+            </div>
+
+            <!-- Compact Stats (Label Top, Number Bottom) -->
+            <!-- Compact Stats (Label Top, Number Bottom) -->
+             <div class="flex gap-4 self-start">
+               <div class="text-center">
+                 <div class="text-[10px] text-gray-500">主揪</div>
+                 <div class="font-bold text-gray-800 leading-tight">{{ stats.hosted }}</div>
+               </div>
+               <div class="w-px bg-gray-200 h-6 self-center"></div>
+               <div class="text-center">
+                 <div class="text-[10px] text-gray-500">貼文</div>
+                 <div class="font-bold text-gray-800 leading-tight">{{ stats.posts }}</div>
+               </div>
+               <div class="w-px bg-gray-200 h-6 self-center"></div>
+               <div class="text-center">
+                 <div class="text-[10px] text-gray-500">好評</div>
+                 <div class="font-bold text-gray-800 leading-tight">{{ stats.reviews }}</div>
+               </div>
+             </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Bio + Tags -->
+        <div class="text-sm">
+           <p class="text-gray-600 mb-2 font-light leading-relaxed line-clamp-2">
+            {{ user.bio || '這傢伙很懶，什麼都沒留下...' }}
+          </p>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="tag in user.tags"
+              :key="tag"
+              class="px-2 py-0.5 bg-indigo-50 rounded-md text-[10px] font-medium text-indigo-600 border border-indigo-100 flex items-center"
+            >
+              <Tag class="w-2.5 h-2.5 mr-1" /> {{ tag }}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <!-- User Info -->
-      <div class="flex-1 text-center md:text-left">
-        <div class="flex items-center justify-center md:justify-start gap-3 mb-2">
-          <h1 class="text-3xl font-bold tracking-tight">{{ user.name }}</h1>
-          <span
-            v-if="user.nickname"
-            class="px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm"
-            >@{{ user.nickname }}</span
-          >
-
-          <!-- Settings Button (Only visible to owner) -->
+      <!-- Desktop Layout Wrapper (Hidden on Mobile) -->
+      <div class="hidden md:flex items-end gap-6">
+        <!-- Avatar -->
+        <div class="relative group">
+          <img
+            class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-gray-100"
+            :src="user.avatar"
+            alt="Avatar"
+          />
+          <input
+            ref="fileInputDesktop"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleFileChange"
+          />
           <button
-            v-if="isCurrentUser"
-            class="p-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition backdrop-blur-sm"
-            title="帳號設定"
-            @click="$emit('edit-profile')"
+            class="absolute bottom-2 right-2 p-2 bg-indigo-600 rounded-full border-2 border-white hover:bg-indigo-700 transition shadow-lg group-hover:scale-110 cursor-pointer"
+            @click="$refs.fileInputDesktop.click()"
           >
-            <Settings class="w-5 h-5" />
+            <Camera class="w-4 h-4 text-white" />
           </button>
         </div>
-        <p class="text-indigo-100 mb-4 max-w-xl text-lg font-light leading-relaxed">
-          {{ user.bio || '這傢伙很懶，什麼都沒留下...' }}
-        </p>
-        <div class="flex flex-wrap justify-center md:justify-start gap-2">
-          <span
-            v-for="tag in user.tags"
-            :key="tag"
-            class="px-3 py-1 bg-indigo-800/40 rounded-lg text-xs font-medium text-indigo-100 border border-indigo-400/30 flex items-center"
-          >
-            <Tag class="w-3 h-3 mr-1" /> {{ tag }}
-          </span>
-        </div>
-      </div>
 
-      <!-- Quick Stats -->
-      <div
-        class="flex gap-4 md:gap-8 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10"
-      >
-        <div class="text-center">
-          <div class="text-2xl font-bold">{{ stats.hosted }}</div>
-          <div class="text-xs text-indigo-200">主揪</div>
+        <!-- User Info -->
+        <div class="flex-1 text-left">
+          <div class="flex items-center justify-start gap-3 mb-2">
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ user.name }}</h1>
+            <span
+              v-if="user.nickname"
+              class="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium text-gray-600"
+              >@{{ user.nickname }}</span
+            >
+
+            <!-- Settings Button -->
+            <button
+              v-if="isCurrentUser"
+              class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition"
+              title="帳號設定"
+              @click="$emit('edit-profile')"
+            >
+              <Settings class="w-5 h-5" />
+            </button>
+          </div>
+          <p class="text-gray-600 mb-4 max-w-xl text-lg font-light leading-relaxed">
+            {{ user.bio || '這傢伙很懶，什麼都沒留下...' }}
+          </p>
+          <div class="flex flex-wrap justify-start gap-2">
+            <span
+              v-for="tag in user.tags"
+              :key="tag"
+              class="px-3 py-1 bg-indigo-50 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-100 flex items-center"
+            >
+              <Tag class="w-3 h-3 mr-1" /> {{ tag }}
+            </span>
+          </div>
         </div>
-        <div class="text-center">
-          <div class="text-2xl font-bold">{{ stats.posts }}</div>
-          <div class="text-xs text-indigo-200">貼文</div>
-        </div>
-        <div class="text-center">
-          <div class="text-2xl font-bold">{{ stats.reviews }}</div>
-          <div class="text-xs text-indigo-200">好評</div>
+
+        <!-- Quick Stats -->
+        <div
+          class="flex gap-8 bg-gray-50/50 rounded-2xl p-6 border border-gray-100"
+        >
+          <div class="text-center">
+            <div class="text-sm text-gray-500 mb-1">主揪</div>
+            <div class="text-3xl font-bold text-gray-900 leading-none">{{ stats.hosted }}</div>
+          </div>
+          <div class="text-center">
+             <div class="text-sm text-gray-500 mb-1">貼文</div>
+             <div class="text-3xl font-bold text-gray-900 leading-none">{{ stats.posts }}</div>
+          </div>
+          <div class="text-center">
+             <div class="text-sm text-gray-500 mb-1">好評</div>
+             <div class="text-3xl font-bold text-gray-900 leading-none">{{ stats.reviews }}</div>
+          </div>
         </div>
       </div>
     </div>

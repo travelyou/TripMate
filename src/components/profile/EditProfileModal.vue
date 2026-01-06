@@ -10,6 +10,10 @@ const props = defineProps({
   user: {
     type: Object,
     required: true
+  },
+  wishlist: {
+    type: Array,
+    required: true
   }
 })
 
@@ -19,10 +23,12 @@ const editForm = reactive({})
 
 // Init form when modal opens or user changes
 watch(
-  () => [props.isOpen, props.user],
-  ([isOpen, newUser]) => {
+  () => [props.isOpen, props.user, props.wishlist],
+  ([isOpen, newUser, newWishlist]) => {
     if (isOpen && newUser) {
       Object.assign(editForm, JSON.parse(JSON.stringify(newUser)))
+      // Merge wishlist into form for editing
+      editForm.wishlist = [...(newWishlist || [])]
     }
   },
   { immediate: true }
@@ -42,6 +48,20 @@ function addWishlist(e) {
 
 function removeWishlist(idx) {
   editForm.wishlist.splice(idx, 1)
+}
+
+function addTag(e) {
+  const val = e.target.value.trim()
+  if (val) {
+    if (!editForm.tags) editForm.tags = []
+    if (editForm.tags.length >= 5) return
+    editForm.tags.push(val)
+    e.target.value = ''
+  }
+}
+
+function removeTag(idx) {
+  editForm.tags.splice(idx, 1)
 }
 </script>
 
@@ -91,6 +111,36 @@ function removeWishlist(idx) {
               rows="3"
               class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
             ></textarea>
+          </div>
+
+          <!-- Tags Management -->
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">興趣標籤</label>
+            <div class="flex flex-wrap gap-2 mb-3">
+              <span
+                v-for="(tag, idx) in editForm.tags"
+                :key="idx"
+                class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full flex items-center border border-indigo-100"
+              >
+                #{{ tag }}
+                <button class="ml-1 hover:text-red-500" @click="removeTag(idx)">
+                  <X class="w-3 h-3" />
+                </button>
+              </span>
+            </div>
+            <div class="flex gap-2">
+               <input
+                :placeholder="editForm.tags?.length >= 5 ? '已達標籤上限 (5/5)' : '輸入標籤按 Enter 新增 (例如：登山、攝影)'"
+                :class="[
+                  'flex-1 px-4 py-2 border rounded-xl outline-none transition',
+                  editForm.tags?.length >= 5
+                    ? 'border-red-500 text-red-500 placeholder-red-500 bg-red-50 cursor-not-allowed'
+                    : 'border-gray-200 focus:ring-2 focus:ring-indigo-500'
+                ]"
+                :disabled="editForm.tags?.length >= 5"
+                @keyup.enter="addTag"
+              />
+            </div>
           </div>
         </div>
 

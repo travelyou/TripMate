@@ -25,10 +25,10 @@ const isCurrentUser = true // In real app, check if route param ID matches curre
 // Tab State
 const activeTab = ref('hosted_trips')
 const tabs = [
-  { k: 'hosted_trips', l: '主揪的旅行' },
-  { k: 'visited_places', l: '去過的地方' },
-  { k: 'posts', l: '貼文' },
-  { k: 'reviews', l: '好評' },
+  { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
+  { k: 'visited_places', l: '去過的地方', s: '足跡' },
+  { k: 'posts', l: '貼文', s: '貼文' },
+  { k: 'reviews', l: '好評', s: '好評' },
 ]
 
 // Modal State
@@ -76,8 +76,19 @@ const openDetail = (post, focusComment = false) => {
   isDetailModalOpen.value = true
 }
 
-const handleSaveProfile = (updatedProfile) => {
-  userStore.updateProfile(updatedProfile)
+const handleSaveProfile = (formData) => {
+  const { wishlist, ...profileData } = formData
+
+  // Update Profile
+  userStore.updateProfile(profileData)
+
+  // Update Wishlist
+  // Since store doesn't have a setWishlist, we manually sync it
+  // Ideally, store should provide an action for this.
+  // For now, let's assuming we can mutate userStore.wishlist or add a method.
+  // Since userStore.wishlist is a ref, we can update it directly if we modify the store or just do:
+  userStore.wishlist = wishlist
+
   isEditingProfile.value = false
 }
 
@@ -94,6 +105,17 @@ const handleRemovePlace = ({ type, index }) => {
   places.splice(index, 1)
 }
 
+const handleUpdateAvatar = (file) => {
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    // Update store directly for immediate feedback
+    // In a real app, you would upload to server first
+    userStore.updateProfile({ avatar: e.target.result })
+  }
+  reader.readAsDataURL(file)
+}
+
 // Ensure store consistency
 onMounted(() => {
   // If needed, fetch data here
@@ -101,32 +123,44 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 animate-fade-in">
     <!-- Header -->
     <ProfileHeader
       :user="user"
       :is-current-user="isCurrentUser"
       :stats="stats"
       @edit-profile="isEditingProfile = true"
+      @update-avatar="handleUpdateAvatar"
     />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Left Column: Tabs & Content -->
-      <div class="lg:col-span-2 space-y-6">
+      <!-- Right Column: Sidebar (First on Mobile, Right on Desktop) -->
+      <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
+        <ProfileSidebar
+          :user="user"
+          :wishlist="userStore.wishlist"
+        />
+      </div>
+
+      <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
+      <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
         <!-- Tab Navigation -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 flex space-x-1">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 md:p-2 flex space-x-1">
           <button
             v-for="tab in tabs"
             :key="tab.k"
             :class="[
-              'flex-1 py-3 text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2',
+              'flex-1 py-2 md:py-3 text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2',
               activeTab === tab.k
                 ? 'bg-indigo-50 text-indigo-600 shadow-sm'
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700',
             ]"
             @click="activeTab = tab.k"
           >
-            {{ tab.l }}
+            <!-- Mobile Label -->
+            <span class="md:hidden">{{ tab.s }}</span>
+            <!-- Desktop Label -->
+            <span class="hidden md:inline">{{ tab.l }}</span>
           </button>
         </div>
 
@@ -159,20 +193,13 @@ onMounted(() => {
           />
         </div>
       </div>
-
-      <!-- Right Column: Sidebar -->
-      <div class="space-y-6">
-        <ProfileSidebar
-          :user="user"
-          :wishlist="userStore.wishlist"
-        />
-      </div>
     </div>
 
     <!-- Modals -->
     <EditProfileModal
       :is-open="isEditingProfile"
       :user="user"
+      :wishlist="userStore.wishlist"
       @close="isEditingProfile = false"
       @save="handleSaveProfile"
     />
