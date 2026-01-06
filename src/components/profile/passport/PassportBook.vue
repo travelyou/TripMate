@@ -129,17 +129,17 @@ const prevPage = () => {
        <!-- 分頁控制 -->
       <div v-if="totalPages > 1" class="flex justify-center items-center gap-4 text-gray-400">
         <button
-          @click="prevPage"
           :disabled="currentPage === 1"
           class="p-2 hover:bg-black/5 rounded-full disabled:opacity-30 transition"
+          @click="prevPage"
         >
           <ChevronLeft class="w-5 h-5" />
         </button>
         <span class="text-xs font-mono tracking-widest">{{ currentPage }} / {{ totalPages }}</span>
         <button
-          @click="nextPage"
           :disabled="currentPage === totalPages"
           class="p-2 hover:bg-black/5 rounded-full disabled:opacity-30 transition"
+          @click="nextPage"
         >
           <ChevronRight class="w-5 h-5" />
         </button>

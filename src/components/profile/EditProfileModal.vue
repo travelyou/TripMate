@@ -41,6 +41,7 @@ function save() {
 function addWishlist(e) {
   if (e.target.value.trim()) {
     if (!editForm.wishlist) editForm.wishlist = []
+    if (editForm.wishlist.length >= 5) return
     editForm.wishlist.push(e.target.value.trim())
     e.target.value = ''
   }
@@ -161,8 +162,14 @@ function removeTag(idx) {
           </div>
           <div class="flex gap-2">
             <input
-              placeholder="輸入願望按 Enter 新增"
-              class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              :placeholder="editForm.wishlist?.length >= 5 ? '已達願望上限 (5/5)' : '輸入願望按 Enter 新增'"
+              :class="[
+                'flex-1 px-4 py-2 border rounded-xl outline-none transition',
+                editForm.wishlist?.length >= 5
+                  ? 'border-red-500 text-red-500 placeholder-red-500 bg-red-50 cursor-not-allowed'
+                  : 'border-gray-200 focus:ring-2 focus:ring-indigo-500'
+              ]"
+              :disabled="editForm.wishlist?.length >= 5"
               @keyup.enter="addWishlist"
             />
           </div>

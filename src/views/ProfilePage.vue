@@ -8,6 +8,7 @@ import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 // Import New Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
 import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
+import FriendListModal from '@/components/profile/FriendListModal.vue'
 import EditProfileModal from '@/components/profile/EditProfileModal.vue'
 import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
 import TabVisitedPlaces from '@/components/profile/tabs/TabVisitedPlaces.vue'
@@ -25,8 +26,8 @@ const isCurrentUser = true // In real app, check if route param ID matches curre
 // Tab State
 const activeTab = ref('hosted_trips')
 const tabs = [
-  { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
   { k: 'visited_places', l: '去過的地方', s: '足跡' },
+  { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
   { k: 'posts', l: '貼文', s: '貼文' },
   { k: 'reviews', l: '好評', s: '好評' },
 ]
@@ -36,6 +37,7 @@ const isDetailModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
+const isFriendModalOpen = ref(false)
 
 // Data Preparation
 const activeTabsData = computed(() => {
@@ -66,10 +68,20 @@ const activeTabsData = computed(() => {
 const stats = computed(() => ({
   hosted: activeTabsData.value.hostedTrips.length,
   posts: activeTabsData.value.posts.length,
-  reviews: activeTabsData.value.reviews.length
+  reviews: activeTabsData.value.reviews.length,
+  friends: user.value.friends ? user.value.friends.length : 0
 }))
 
 // Methods
+const handleOpenFriends = () => {
+  isFriendModalOpen.value = true
+}
+
+const handleChat = (friend) => {
+  console.log('Chat with:', friend.name)
+  // Future: 導向聊天頁面
+}
+
 const openDetail = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
@@ -131,6 +143,7 @@ onMounted(() => {
       :stats="stats"
       @edit-profile="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
+      @open-friends="handleOpenFriends"
     />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -166,18 +179,18 @@ onMounted(() => {
 
         <!-- Tab Content Container -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[400px] p-6">
-          <TabHostedTrips
-            v-if="activeTab === 'hosted_trips'"
-            :trips="activeTabsData.hostedTrips"
-            @open-detail="openDetail($event, false)"
-          />
-
           <TabVisitedPlaces
             v-if="activeTab === 'visited_places'"
             :visited-places="userStore.visitedPlaces"
             :is-current-user="isCurrentUser"
             @add-place="handleAddPlace"
             @remove-place="handleRemovePlace"
+          />
+
+          <TabHostedTrips
+            v-if="activeTab === 'hosted_trips'"
+            :trips="activeTabsData.hostedTrips"
+            @open-detail="openDetail($event, false)"
           />
 
           <TabPosts
@@ -202,6 +215,13 @@ onMounted(() => {
       :wishlist="userStore.wishlist"
       @close="isEditingProfile = false"
       @save="handleSaveProfile"
+    />
+
+    <FriendListModal
+      :is-open="isFriendModalOpen"
+      :friends="userStore.currentUser.friends"
+      @close="isFriendModalOpen = false"
+      @chat="handleChat"
     />
 
     <PostDetailModal

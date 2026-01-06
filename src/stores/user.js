@@ -38,6 +38,13 @@ export const useUserStore = defineStore('user', () => {
         date: '2024/10/15',
       },
     ],
+    friends: [
+      { id: 101, name: 'Alice', nickname: 'Ali', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice' },
+      { id: 102, name: 'Bob', nickname: 'Bobby', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob' },
+      { id: 103, name: 'Charlie', nickname: 'Char', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie' },
+      { id: 104, name: 'David', nickname: 'Dave', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David' },
+      { id: 105, name: 'Eve', nickname: 'Evie', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Eve' },
+    ]
   })
 
   // 拜訪過的地點

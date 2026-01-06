@@ -17,12 +17,13 @@ defineProps({
     default: () => ({
       hosted: 0,
       posts: 0,
-      reviews: 0
+      reviews: 0,
+      friends: 0
     })
   }
 })
 
-const emit = defineEmits(['edit-profile', 'update-avatar'])
+const emit = defineEmits(['edit-profile', 'update-avatar', 'open-friends'])
 
 const fileInputMobile = ref(null)
 const fileInputDesktop = ref(null)
@@ -88,6 +89,11 @@ const handleFileChange = (event) => {
             <!-- Compact Stats (Label Top, Number Bottom) -->
             <!-- Compact Stats (Label Top, Number Bottom) -->
              <div class="flex gap-4 self-start">
+               <button class="text-center group" @click="$emit('open-friends')">
+                 <div class="text-[10px] text-gray-500 group-hover:text-indigo-600 transition">好友</div>
+                 <div class="font-bold text-gray-800 leading-tight group-hover:text-indigo-600 transition">{{ stats.friends }}</div>
+               </button>
+               <div class="w-px bg-gray-200 h-6 self-center"></div>
                <div class="text-center">
                  <div class="text-[10px] text-gray-500">主揪</div>
                  <div class="font-bold text-gray-800 leading-tight">{{ stats.hosted }}</div>
@@ -185,6 +191,10 @@ const handleFileChange = (event) => {
         <div
           class="flex gap-8 bg-gray-50/50 rounded-2xl p-6 border border-gray-100"
         >
+          <button class="text-center group hover:scale-105 transition" @click="$emit('open-friends')">
+            <div class="text-sm text-gray-500 mb-1 group-hover:text-indigo-600 transition">好友</div>
+            <div class="text-3xl font-bold text-gray-900 leading-none group-hover:text-indigo-600 transition">{{ stats.friends }}</div>
+          </button>
           <div class="text-center">
             <div class="text-sm text-gray-500 mb-1">主揪</div>
             <div class="text-3xl font-bold text-gray-900 leading-none">{{ stats.hosted }}</div>
