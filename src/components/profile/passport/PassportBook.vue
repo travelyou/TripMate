@@ -5,6 +5,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 // 引入剛剛建立的戳章組件
 import PassportStamp from './PassportStamp.vue'
 
+// 取得當前年份
+const currentYear = new Date().getFullYear()
+
 // 定義接收的資料
 // entries: 護照內的所有戳章資料陣列
 // Future: 可以加入 'cover' 屬性，支援顯示護照封面模式
@@ -164,7 +167,7 @@ const prevPage = () => {
 
       <!-- 頁角 -->
       <div class="text-center">
-        <span class="text-[10px] text-gray-300 font-mono">TRIPMATE PASSPORT • 2024</span>
+        <span class="text-[10px] text-gray-300 font-mono">TRIPMATE PASSPORT • {{ currentYear }}</span>
       </div>
     </div>
 
