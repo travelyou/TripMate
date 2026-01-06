@@ -12,7 +12,7 @@ defineProps({
   },
   stats: {
     type: Object,
-    required: true,
+    required: false,
     default: () => ({
       hosted: 0,
       posts: 0,

@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, watch } from 'vue'
-import { X, Plus } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
 
 const props = defineProps({
   isOpen: {

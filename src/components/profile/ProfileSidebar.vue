@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 
-const props = defineProps({
+defineProps({
   user: {
     type: Object,
     required: true

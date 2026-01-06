@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { X, Plus } from 'lucide-vue-next'
 
-const props = defineProps({
+defineProps({
   visitedPlaces: {
     type: Object,
     required: true
