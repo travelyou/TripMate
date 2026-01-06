@@ -62,7 +62,6 @@ export const useUserStore = defineStore('user', () => {
   const wishlist = ref(['冰島極光', '紐西蘭健行', '瑞士滑雪', '土耳其熱氣球'])
   const likedPosts = ref([])
 
-
   const favorites = ref([])
   const toggleFavorite = (item) => {
     const itemType = item.type || 'discussion'
@@ -78,7 +77,6 @@ export const useUserStore = defineStore('user', () => {
     return favorites.value.some((i) => i.id === item.id && i.type === itemType)
   }
 
-
   const collectionCategories = ref([
     { id: 'default', name: '未分類項目', items: [] },
     { id: 'domestic', name: '國內旅遊', items: [] },
@@ -88,12 +86,10 @@ export const useUserStore = defineStore('user', () => {
   const isCollectionModalOpen = ref(false)
   const pendingCollectionItem = ref(null)
 
-
   const openCollectionModal = (item) => {
     pendingCollectionItem.value = { ...item, type: item.type || 'discussion' }
     isCollectionModalOpen.value = true
   }
-
 
   const saveToCategory = (categoryId, item = null) => {
     const targetItem = item || pendingCollectionItem.value
@@ -112,7 +108,6 @@ export const useUserStore = defineStore('user', () => {
     pendingCollectionItem.value = null
   }
 
-
   const createCategoryAndSave = (name) => {
     const newId = 'cat_' + Date.now()
     collectionCategories.value.push({
@@ -122,7 +117,6 @@ export const useUserStore = defineStore('user', () => {
     })
     saveToCategory(newId)
   }
-
 
   const removeFromCollection = (item, categoryId = null) => {
     const itemType = item.type || 'discussion'
@@ -140,14 +134,12 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-
   const isCollected = (item) => {
     const itemType = item.type || 'discussion'
     return collectionCategories.value.some((cat) =>
       cat.items.some((i) => i.id === item.id && i.type === itemType),
     )
   }
-
 
   const collections = computed(() => {
     const all = []

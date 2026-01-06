@@ -10,7 +10,7 @@ import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
-import ChatWindow from '@/components/chat/ChatWindow.vue'
+import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
 import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
@@ -29,6 +29,7 @@ const route = useRoute()
 const router = useRouter()
 const isSearchPage = computed(() => route.name === 'search')
 const hideLayout = computed(() => route.meta.hideLayout === true)
+const hideSidebar = computed(() => route.meta.hideSidebar === true)
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
@@ -193,7 +194,7 @@ const handleSubmitPost = async (postData) => {
       class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5"
     >
       <div
-        v-if="!isSearchPage"
+        v-if="!isSearchPage && !hideSidebar"
         class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
       >
         <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
@@ -295,7 +296,7 @@ const handleSubmitPost = async (postData) => {
       @submit-post="handleSubmitPost"
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
-    <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+ <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 

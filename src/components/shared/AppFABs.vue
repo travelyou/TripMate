@@ -26,7 +26,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
       @click="$emit('quick-action')"
       class="p-3 md:p-4 bg-amber-400 text-white pixel-button hover:bg-amber-500 flex items-center justify-center transition-transform hover:-translate-y-1"
       style="border-radius: 4px; width: 56px; height: 56px"
-      title="快速行動"
+      title="抽卡找旅伴"
     >
       <ZapIcon class="w-6 h-6 md:w-7 md:h-7" />
     </button>

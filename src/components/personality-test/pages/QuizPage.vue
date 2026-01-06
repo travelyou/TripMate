@@ -1,53 +1,43 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import ProgressBar from '@/components/personality-test/components/ProgressBar.vue'
 import QuestionCard from '@/components/personality-test/components/QuestionCard.vue'
+import { usePersonalityStore } from '@/stores/personality'
 
-// 接收傳入的問題
-const props = defineProps({
-  questions: { type: Array, required: true },
-})
-const emit = defineEmits(['finish'])
+const store = usePersonalityStore()
 
-// 狀態：目前題目索引、答案、目前題目、是否最後一題
-const currentIndex = ref(0)
-const answers = ref([]) // 之後可換成 store.answers
-const currentQuestion = computed(() => props.questions[currentIndex.value])
-const isLast = computed(() => currentIndex.value >= props.questions.length - 1)
+// 計算屬性：從 store 取得測驗相關狀態
+const total = computed(() => store.questions.length) // 總題數
+const current = computed(() => store.currentIndex + 1) // 當前題號（從 1 開始顯示）
+const currentQuestion = computed(() => store.currentQuestion) // 當前題目物件
+const selected = computed(() => store.answers?.[store.currentIndex]) // 當前題目已選擇的答案
+const isLast = computed(() => store.isLast) // 是否為最後一題
 
-// 選擇答案
+// 選擇答案：將答案儲存到 store.answers 陣列中對應的索引位置
 const onSelect = (value) => {
-  answers.value[currentIndex.value] = value
+  store.selectAnswer(value)
 }
 
-// 回到上一題
-const prev = () => {
-  if (currentIndex.value > 0) currentIndex.value -= 1
-}
-
-// 到下一題 or 完成測驗
+// 下一題或完成測驗：
+// - 如果未選擇答案，直接返回（按鈕已被禁用，此為雙重保護）
+// - 如果是最後一題，調用 finishTest() 計算結果並切換到結果頁
+// - 否則，移動到下一題
 const nextOrFinish = () => {
-  if (answers.value[currentIndex.value] == null) return
-
-  if (isLast.value) emit('finish', { answers: answers.value })
-  else currentIndex.value += 1
+  if (selected.value == null) return
+  if (isLast.value) store.finishTest()
+  else store.next()
 }
-
-// 內容：
-// - 進度條(import)
-// - 問題+選項(import)
-// - 按鈕
 </script>
 
 <template>
   <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-    <ProgressBar :current="currentIndex + 1" :total="questions.length" />
+    <ProgressBar :current="current" :total="total" />
 
     <div class="mt-6">
       <QuestionCard
         :question="currentQuestion?.question"
         :options="currentQuestion?.options || []"
-        :selected="answers[currentIndex]"
+        :selected="selected"
         @select="onSelect"
       />
     </div>
@@ -55,15 +45,15 @@ const nextOrFinish = () => {
     <div class="mt-6 flex items-center justify-between">
       <button
         class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-40"
-        :disabled="currentIndex === 0"
-        @click="prev"
+        :disabled="store.currentIndex === 0"
+        @click="store.prev"
       >
         上一題
       </button>
 
       <button
         class="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
-        :disabled="answers[currentIndex] == null"
+        :disabled="selected == null"
         @click="nextOrFinish"
       >
         {{ isLast ? '完成測驗' : '下一題' }}
