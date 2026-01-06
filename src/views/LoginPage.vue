@@ -103,6 +103,9 @@
                 }}</span>
               </div>
             </div>
+            <div v-if="loginErrors.general" class="text-red-500 text-sm text-center">
+              {{ loginErrors.general }}
+            </div>
             <button
               type="submit"
               class="formSubmit block mx-auto text-center px-5 py-2.5 sm:px-6 sm:py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold text-sm sm:text-base w-full sm:w-auto"
@@ -223,6 +226,9 @@
               </div>
             </div>
 
+            <div v-if="registerErrors.general" class="text-red-500 text-sm text-center">
+              {{ registerErrors.general }}
+            </div>
             <button
               type="submit"
               class="formSubmit block mx-auto text-center px-5 py-2.5 sm:px-6 sm:py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors font-bold text-sm sm:text-base w-full sm:w-auto"
@@ -244,7 +250,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -266,27 +272,89 @@ const registerForm = ref({
   confirmPassword: '',
 })
 
+//登入錯誤訊息通知
+const loginErrors = ref({
+  email: '',
+  password: '',
+  general: '',
+})
+
 //登入：送出資料
 const userStore = useUserStore()
 const router = useRouter()
 const handleLogin = async () => {
+  console.log('🔵 登入函數被觸發', { email: loginForm.value.email, password: loginForm.value.password ? '***' : '' })
+  
   //送出後出錯則欄位清空
   loginErrors.value = {
     email: '',
     password: '',
     general: '',
   }
+
+  // 基本驗證
+  if (!loginForm.value.email) {
+    loginErrors.value.email = '請輸入電子信箱'
+    console.log('❌ 驗證失敗：電子信箱為空')
+    return
+  }
+
+  if (!loginForm.value.password) {
+    loginErrors.value.password = '請輸入密碼'
+    console.log('❌ 驗證失敗：密碼為空')
+    return
+  }
+
   try {
+    console.log('⏳ 正在嘗試登入...')
     const userCredential = await signInWithEmailAndPassword(
       auth,
       loginForm.value.email,
       loginForm.value.password,
     )
-    console.log('登入成功：', userCredential.user)
+    console.log('✅ 登入成功：', userCredential.user)
+    
+    // 從 Firestore 獲取用戶資料
+    try {
+      const userDocRef = doc(db, 'users', userCredential.user.uid)
+      const userDoc = await getDoc(userDocRef)
+      
+      if (userDoc.exists()) {
+        // 更新 user store
+        const userData = userDoc.data()
+        userStore.setUserProfile({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          ...userData,
+        })
+      } else {
+        // 如果 Firestore 中沒有用戶資料，創建一個
+        const defaultUserData = {
+          realName: '',
+          nickname: userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
+          email: userCredential.user.email,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
+          bio: '',
+          spiritAnimal: '',
+          createdAt: new Date(),
+        }
+        await setDoc(userDocRef, defaultUserData)
+        userStore.setUserProfile({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          ...defaultUserData,
+        })
+      }
+    } catch (error) {
+      console.error('獲取用戶資料失敗：', error)
+      // 即使獲取失敗也允許登入
+    }
+    
     userStore.login()
+    console.log('🚀 正在跳轉到首頁...')
     router.push('/')
   } catch (error) {
-    console.error('登入失敗：', error.message)
+    console.error('❌ 登入失敗：', error.code, error.message)
 
     //各種錯誤訊息顯示
     //general 是假如網路連線、firebase、帳號被停用、其他未預期錯誤
@@ -299,12 +367,6 @@ const handleLogin = async () => {
     }
   }
 }
-//登入錯誤訊息通知
-const loginErrors = ref({
-  email: '',
-  password: '',
-  general: '',
-})
 
 //註冊：送出資料
 const handleRegister = async () => {
@@ -380,11 +442,22 @@ const handleRegister = async () => {
     )
 
     // 儲存使用者額外資料到 Firestore
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
+    const userData = {
       realName: registerForm.value.realName,
       nickname: registerForm.value.nickname,
       email: registerForm.value.email,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
+      bio: '',
+      spiritAnimal: '',
       createdAt: new Date(),
+    }
+    await setDoc(doc(db, 'users', userCredential.user.uid), userData)
+
+    // 更新 user store
+    userStore.setUserProfile({
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      ...userData,
     })
 
     console.log('註冊成功：', userCredential.user)

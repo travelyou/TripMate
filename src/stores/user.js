@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { auth, db } from '@/firebase/config'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
@@ -345,13 +348,86 @@ export const useUserStore = defineStore('user', () => {
   // Auth (Mock)
   const isLoggedIn = ref(false)
   const authReady = ref(false)
+  const firebaseUser = ref(null) // Firebase Auth 用戶物件
 
-  // Mock onAuthStateChanged
-  // In real app, use firebase/auth
-  setTimeout(() => {
-     isLoggedIn.value = true
-     authReady.value = true
-  }, 500)
+  // 從 Firestore 設置用戶資料
+  const setUserProfile = (profileData) => {
+    if (profileData) {
+      const createdAt = profileData.createdAt?.toDate ? profileData.createdAt.toDate() : (profileData.createdAt ? new Date(profileData.createdAt) : new Date())
+      currentUser.value = {
+        id: profileData.uid,
+        uid: profileData.uid,
+        name: profileData.realName || profileData.nickname || '用戶',
+        nickname: profileData.nickname || profileData.email?.split('@')[0] || '用戶',
+        email: profileData.email,
+        avatar: profileData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`,
+        bgImage: currentUser.value.bgImage || 'https://picsum.photos/1200/400?random=1',
+        bio: profileData.bio || currentUser.value.bio,
+        joinDate: createdAt.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' }),
+        location: currentUser.value.location,
+        website: currentUser.value.website,
+        spiritAnimal: profileData.spiritAnimal || currentUser.value.spiritAnimal,
+        followers: currentUser.value.followers,
+        following: currentUser.value.following,
+        tripsHosted: currentUser.value.tripsHosted,
+        tags: currentUser.value.tags,
+        reviews: currentUser.value.reviews,
+      }
+    }
+  }
+
+  // 從 Firestore 載入用戶資料
+  const loadUserProfile = async (uid) => {
+    try {
+      const userDocRef = doc(db, 'users', uid)
+      const userDoc = await getDoc(userDocRef)
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        setUserProfile({
+          uid: uid,
+          email: firebaseUser.value?.email || '',
+          ...userData,
+        })
+      }
+    } catch (error) {
+      console.error('載入用戶資料失敗：', error)
+    }
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    firebaseUser.value = user
+    isLoggedIn.value = user ? true : false
+
+    if (user) {
+      // 登入時載入用戶資料
+      await loadUserProfile(user.uid)
+    } else {
+      // 登出時重置用戶資料
+      currentUser.value = {
+        id: 1,
+        name: 'Jovi',
+        nickname: 'Jovi',
+        email: 'jovi@example.com',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
+        bgImage: 'https://picsum.photos/1200/400?random=1',
+        bio: '熱愛攝影與獨自旅行的背包客。喜歡在巷弄間尋找驚喜。目前正在計畫環遊世界中！',
+        joinDate: '2023年5月',
+        location: '台北, 台灣',
+        website: 'https://jovitravels.com',
+        spiritAnimal: '🦉 觀察家',
+        followers: 1250,
+        following: 340,
+        tripsHosted: 5,
+        tags: ['攝影', '背包客', '美食', '自由行'],
+        reviews: currentUser.value.reviews || [],
+      }
+    }
+
+    if (!authReady.value) {
+      authReady.value = true
+    }
+  })
 
   const login = () => { isLoggedIn.value = true }
 
@@ -365,6 +441,7 @@ export const useUserStore = defineStore('user', () => {
   return {
     currentUser,
     userProfile,
+    firebaseUser,
     visitedPlaces,
     wishlist,
     likedPosts,

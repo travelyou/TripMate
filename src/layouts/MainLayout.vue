@@ -1,14 +1,16 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useDiscussionsStore } from '@/stores/discussions'
+import { auth } from '@/firebase/config'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
-import ChatWindow from '@/components/chat/ChatWindow.vue'
+import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
 import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
 import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
@@ -22,9 +24,10 @@ import {
 } from 'lucide-vue-next'
 
 const userStore = useUserStore()
+const discussionsStore = useDiscussionsStore()
 const route = useRoute()
+const router = useRouter()
 const isSearchPage = computed(() => route.name === 'search')
-
 const hideLayout = computed(() => route.meta.hideLayout === true)
 const hideSidebar = computed(() => route.meta.hideSidebar === true)
 
@@ -79,6 +82,98 @@ const handleToggleAiChat = () => {
   isAiChatOpen.value = !isAiChatOpen.value
   isPrivateChatOpen.value = false
   isMobileActionMenuOpen.value = false
+}
+
+// 處理發文提交
+const handleSubmitPost = async (postData) => {
+  try {
+    console.log('MainLayout 收到發文請求:', postData)
+
+    // 檢查用戶是否已登入
+    const firebaseUser = auth.currentUser
+    const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
+
+    if (!uid) {
+      alert('請先登入後才能發布貼文')
+      console.error('發布貼文失敗：用戶未登入')
+      // 導向登入頁面
+      router.push('/login')
+      return
+    }
+
+    console.log('⏳ 準備發布貼文，用戶 UID：', uid)
+
+    // 如果有圖片，先上傳圖片到 Supabase Storage
+    let imageUrls = []
+    if (postData.imageFiles && postData.imageFiles.length > 0) {
+      try {
+        const { uploadMultipleImages } = await import('@/api/storage')
+        console.log('開始上傳圖片...')
+        imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
+        console.log('圖片上傳成功:', imageUrls)
+      } catch (error) {
+        console.error('圖片上傳失敗：', error)
+        // 詢問用戶是否要繼續發布（不帶圖片）
+        const shouldContinue = confirm(
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
+        )
+        if (!shouldContinue) {
+          return
+        }
+      }
+    }
+
+    // 準備提交的資料
+    const submitData = {
+      author_uid: uid,
+      board: postData.board || 'general',
+      title: postData.title,
+      content: postData.content,
+      tags: postData.tags || [],
+      image_urls: imageUrls,
+    }
+
+    console.log('提交貼文資料：', {
+      author_uid: submitData.author_uid,
+      board: submitData.board,
+      title: submitData.title?.substring(0, 50),
+      contentLength: submitData.content?.length,
+      tagsCount: submitData.tags?.length,
+      imageUrlsCount: submitData.image_urls?.length,
+    })
+
+    // 調用 API 創建貼文
+    console.log('調用 addPost API...')
+    const newPost = await discussionsStore.addPost(submitData)
+
+    console.log('貼文發布成功：', newPost)
+
+    // 關閉模態框
+    isPostingModalOpen.value = false
+
+    // 如果在討論頁面，重新載入貼文列表
+    if (route.name === 'discussion') {
+      await discussionsStore.loadDiscussions()
+    } else {
+      // 如果不在討論頁面，導向討論頁面
+      router.push('/discussion')
+      // 等待路由切換後再載入
+      setTimeout(async () => {
+        await discussionsStore.loadDiscussions()
+      }, 300)
+    }
+
+    // 顯示成功訊息
+    alert('貼文發布成功！')
+  } catch (error) {
+    console.error('發布貼文失敗：', error)
+    console.error('錯誤詳情：', {
+      message: error.message,
+      stack: error.stack,
+      firebaseUser: auth.currentUser?.uid,
+    })
+    alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
+  }
 }
 </script>
 
@@ -198,9 +293,10 @@ const handleToggleAiChat = () => {
       @close="isPostingModalOpen = false"
       @select-discussion="handleSelectDiscussion"
       @select-find-traveler="handleSelectFindTraveler"
+      @submit-post="handleSubmitPost"
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
-    <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+ <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 
