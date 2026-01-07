@@ -195,9 +195,11 @@ const handleSubmitPost = async (postData) => {
       v-if="!hideLayout"
       class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 md:pt-18 min-h-screen items-start"
       :class="
-        showRightAd
-          ? 'lg:[grid-template-columns:2fr_5fr_2fr] xl:[grid-template-columns:2fr_5fr_2fr]'
-          : 'lg:[grid-template-columns:2fr_7fr] xl:[grid-template-columns:2fr_7fr]'
+        isSearchPage && showRightAd
+          ? 'lg:[grid-template-columns:7fr_2fr] xl:[grid-template-columns:7fr_2fr]'
+          : showRightAd
+            ? 'lg:[grid-template-columns:2fr_5fr_2fr] xl:[grid-template-columns:2fr_5fr_2fr]'
+            : 'lg:[grid-template-columns:2fr_7fr] xl:[grid-template-columns:2fr_7fr]'
       "
     >
       <div
@@ -208,8 +210,9 @@ const handleSubmitPost = async (postData) => {
       </div>
 
       <main
-        class="flex-1 min-w-0 transition-all duration-300"
-        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 p-4']"
+        class="min-w-0 transition-all duration-300"
+        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 ']"
+
       >
         <RouterView />
       </main>

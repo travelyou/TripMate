@@ -180,12 +180,12 @@ const getPostData = (post) => ({
 </script>
 
 <template>
-  <div class="overflow-x-hidden">
+  <div class="overflow-x-hidden p-4">
     <div class="w-full min-w-0">
-      <div class="mb-10 relative group">
+      <div class="mb-10 relative group bg-white ring-2 ring-gray-200 p-4 rounded-2xl shadow-lg">
         <div class="mb-4 mt-4">
           <h2
-            class="inline-flex items-center text-xl font-bold text-amber-900 bg-orange-100 px-5 py-2 rounded-xl border-4 border-orange-200 shadow-[4px_4px_0px_0px_rgba(251,146,60,0.5)]"
+            class="inline-flex items-center text-xl font-bold text-secondary px-5 py-2 rounded-xl"
           >
             旅伴推薦
           </h2>
@@ -248,7 +248,7 @@ const getPostData = (post) => ({
                   {{ item.title }}
                 </h3>
                 <button
-                  class="text-[10px] bg-white text-gray-900 border-2 border-gray-900 px-3 py-1 rounded-full font-extrabold hover:bg-gray-100 shadow-lg transition"
+                  class="text-[10px] bg-white text-secondary px-3 py-1 rounded-full font-extrabold hover:bg-gray-100 shadow-lg transition"
                 >
                   探索行程
                 </button>
@@ -261,7 +261,7 @@ const getPostData = (post) => ({
       <div>
         <div class="mb-6">
           <h2
-            class="inline-flex items-center text-xl font-bold text-amber-900 bg-orange-100 px-5 py-2 rounded-xl border-4 border-orange-200 shadow-[4px_4px_0px_0px_rgba(251,146,60,0.5)]"
+            class="inline-flex items-center text-xl font-bold text-secondary px-5 py-2 rounded-xl"
           >
             最新動態
           </h2>

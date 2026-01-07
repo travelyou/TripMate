@@ -3,10 +3,12 @@
     class="fixed top-0 left-0 right-0 z-50 h-16 md:h-18 bg-primary shadow-sm border-b border-gray-200"
   >
     <div
-      class="max-w-[1500px] mx-auto w-full h-full grid grid-cols-[2fr,5fr,2fr] items-center gap-4 px-4"
+      class="max-w-[1500px] mx-auto w-full h-full grid grid-cols-[1fr,1fr] lg:grid-cols-[2fr,5fr,2fr] items-center gap-4 px-4"
     >
-      <div class="cursor-pointer shrink-0" @click="router.push('/')">
-        <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain mx-auto" />
+      <div class="cursor-pointer flex" @click="router.push('/')">
+        <div class="shrink-0">
+          <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain" />
+        </div>
       </div>
 
       <div class="hidden lg:block max-w-xl w-full">
@@ -43,7 +45,7 @@
           <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-gray-600" />
         </router-link>
 
-        <div class="relative ml-1" ref="menuRef">
+        <div ref="menuRef" class="relative ml-1">
           <button
             class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 hover:border-orange-400 transition overflow-hidden bg-gray-100 shadow-sm"
             @click="toggleMenu"
@@ -67,10 +69,10 @@
           >
             <div
               v-if="isMenuOpen"
-              class="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+              class="absolute right-0 top-full mt-4 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
             >
-              <div class="p-3 border-b border-gray-100 bg-orange-50/50">
-                <p class="text-xs font-bold text-gray-500">
+              <div class="p-3 border border-gray-100">
+                <p class="text-xs font-bold text-secondary">
                   {{
                     userStore.isLoggedIn ? `Hi, ${userStore.userProfile.name}` : '歡迎來到 TripMate'
                   }}
@@ -78,25 +80,25 @@
               </div>
               <div class="p-1 space-y-1">
                 <button
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 rounded-lg flex items-center transition font-medium"
+                  class="w-full text-left px-3 py-2 text-sm text-secondary hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
                   @click="handleProfileClick"
                 >
                   <UserIcon class="w-4 h-4 mr-3" />我的帳號
                 </button>
                 <button
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg flex items-center transition font-medium lg:hidden"
+                  class="w-full text-left px-3 py-2 text-sm text-secondary hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium lg:hidden"
                   @click="goToFavorites"
                 >
                   <HeartIcon class="w-4 h-4 mr-3" />我的最愛
                 </button>
                 <button
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 rounded-lg flex items-center transition font-medium lg:hidden"
+                  class="w-full text-left px-3 py-2 text-sm text-secondary hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium lg:hidden"
                   @click="goToCollections"
                 >
                   <BookmarkIcon class="w-4 h-4 mr-3" />我的收藏
                 </button>
                 <button
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 rounded-lg flex items-center transition font-medium"
+                  class="w-full text-left px-3 py-2 text-sm text-secondary hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
                   @click="goToAbout"
                 >
                   <InfoIcon class="w-4 h-4 mr-3" />關於我們
@@ -104,7 +106,7 @@
                 <div class="h-px bg-gray-100 my-1"></div>
                 <button
                   v-if="userStore.isLoggedIn"
-                  class="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg flex items-center transition font-bold"
+                  class="w-full text-left px-3 py-2 text-sm text-accent-600 hover:bg-accent-200 rounded-lg flex items-center transition font-bold"
                   @click="handleLogout"
                 >
                   <LogOutIcon class="w-4 h-4 mr-3" />登出

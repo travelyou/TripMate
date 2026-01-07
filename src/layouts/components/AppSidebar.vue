@@ -21,29 +21,29 @@ const menuItems = [
     name: 'home',
     label: '為你推薦',
     icon: HomeIcon,
-    iconColor: 'text-amber-800',
-    textColor: 'text-amber-900',
+    iconColor: 'text-orange-600',
+    textColor: 'text-secondary',
   },
   {
     name: 'discussion',
     label: '討論區',
     icon: ForumIcon,
     iconColor: 'text-indigo-600',
-    textColor: 'text-amber-900',
+    textColor: 'text-secondary',
   },
   {
     name: 'find_traveler',
     label: '找旅伴',
     icon: UsersIcon,
     iconColor: 'text-green-600',
-    textColor: 'text-amber-900',
+    textColor: 'text-secondary',
   },
   {
     name: 'featured_itinerary',
     label: '精選行程',
     icon: MapIcon,
     iconColor: 'text-orange-600',
-    textColor: 'text-amber-900',
+    textColor: 'text-secondary',
   },
 ]
 
@@ -53,14 +53,14 @@ const bottomMenuItems = [
     label: '我的行程',
     icon: CalendarIcon,
     iconColor: 'text-blue-600',
-    textColor: 'text-amber-900',
+    textColor: 'text-secondary',
   },
   {
     name: 'profile',
     label: '個人檔案',
     icon: UserIcon,
     iconColor: 'text-gray-700',
-    textColor: 'text-amber-900',
+    textColor: 'text-secondary',
   },
 
   {
@@ -69,7 +69,7 @@ const bottomMenuItems = [
     label: '廠商檔案',
     icon: UserIcon,
     iconColor: 'text-gray-700',
-    textColor: 'text-amber-900',
+    textColor: 'text-secondary',
   },
 ]
 
@@ -106,31 +106,31 @@ const handleMobileNavClick = (item) => {
   >
     <div class="flex justify-between my-4 pb-4 gap-4">
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-accent rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToFavorites"
       >
-        <HeartIcon class="w-8 h-8 text-white transition fill-white" />
+        <HeartIcon class="w-8 h-8 text-accent-500 transition fill-white" />
         <span class="text-sm font-bold mt-1 text-secondary">愛心</span>
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-gold rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToCollections"
       >
-        <BookmarkIcon class="w-8 h-8 text-white transition fill-white" />
+        <BookmarkIcon class="w-8 h-8 text-gold-500 transition fill-white" />
         <span class="text-sm font-bold mt-1 text-secondary">收藏</span>
       </div>
     </div>
 
     <nav>
-      <div class="bg-white p-4 rounded-xl shadow-sm overflow-hidden">
+      <div class="bg-white p-4 rounded-xl shadow-md ring-1 ring-slate-200 overflow-hidden">
         <RouterLink
           v-for="item in menuItems"
           :key="item.name"
           :to="{ name: item.name }"
           :class="[
-            'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            route.name === item.name ? 'bg-sand' : 'hover:bg-[#fff8ee]',
+            'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
+            route.name === item.name ? 'bg-primary-hover shadow-md' : 'hover:shadow-md',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
@@ -146,8 +146,8 @@ const handleMobileNavClick = (item) => {
           :key="item.name"
           :to="{ name: item.name, params: item.params }"
           :class="[
-            'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            route.name === item.name ? 'bg-[#fff5e6]' : 'hover:bg-[#fff8ee]',
+            'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
+            route.name === item.name ? 'bg-neutral-100 shadow-md' : 'hover:shadow-md',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
