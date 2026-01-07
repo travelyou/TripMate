@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
+// ❌ 已移除 import { auth } from '@/firebase/config'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -39,22 +40,23 @@ const isSwipeModalOpen = ref(false)
 
 // 背景圖片陣列
 const backgroundImages = [
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1474487548417-781a5a858726?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1483347752454-e668de6d9e1d?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=60&w=1280&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop', // 海灘
+  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=60&w=1280&auto=format&fit=crop', // 森林
+  'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=60&w=1280&auto=format&fit=crop', // 城市
+  'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=60&w=1280&auto=format&fit=crop', // 星空
+  'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=60&w=1280&auto=format&fit=crop', // 雪山
+  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=60&w=1280&auto=format&fit=crop', // 公路
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=1280&auto=format&fit=crop', // 湖泊
+  'https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=60&w=1280&auto=format&fit=crop', // 粉色天空
+  'https://images.unsplash.com/photo-1474487548417-781a5a858726?q=60&w=1280&auto=format&fit=crop', // 火車
+  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=60&w=1280&auto=format&fit=crop', // 露營
+  'https://images.unsplash.com/photo-1483347752454-e668de6d9e1d?q=60&w=1280&auto=format&fit=crop', // 極光
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=60&w=1280&auto=format&fit=crop', // 小屋
+  'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop', // 熱氣球
 ]
 
+// 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
 
 const handleOpenPosting = () => {
@@ -87,26 +89,33 @@ const handleSubmitPost = async (postData) => {
   try {
     console.log('MainLayout 收到發文請求:', postData)
 
-    // ✅ 修改：檢查用戶是否已登入 (改用 Pinia Store)
+    // ✅ 修改：改用 userStore 判斷登入，完全移除 auth.currentUser
     const uid = userStore.currentUser?.id
     const isLoggedIn = userStore.isLoggedIn
 
     if (!isLoggedIn || !uid) {
       alert('請先登入後才能發布貼文')
+      console.error('發布貼文失敗：用戶未登入')
       router.push('/login')
       return
     }
 
     console.log('⏳ 準備發布貼文，用戶 UID：', uid)
 
+    // 如果有圖片，先上傳圖片到 Supabase Storage
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
       try {
         const { uploadMultipleImages } = await import('@/api/storage')
+        console.log('開始上傳圖片...')
         imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
+        console.log('圖片上傳成功:', imageUrls)
       } catch (error) {
         console.error('圖片上傳失敗：', error)
-        if (!confirm('圖片上傳失敗，是否要繼續發布貼文（不帶圖片）？')) {
+        const shouldContinue = confirm(
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？',
+        )
+        if (!shouldContinue) {
           return
         }
       }
@@ -121,7 +130,11 @@ const handleSubmitPost = async (postData) => {
       image_urls: imageUrls,
     }
 
+    console.log('調用 addPost API...')
     const newPost = await discussionsStore.addPost(submitData)
+
+    console.log('貼文發布成功：', newPost)
+
     isPostingModalOpen.value = false
 
     if (route.name === 'discussion') {
