@@ -586,13 +586,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.custom-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* scrollbar rules moved to src/assets/main.css */
 
 /* 已移除 .pixel-modal（已用 Tailwind 類別替代） */
 </style>

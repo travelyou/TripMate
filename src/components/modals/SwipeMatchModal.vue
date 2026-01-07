@@ -503,11 +503,5 @@ const finishSwipe = (direction) => {
   transform: translateY(100%);
 }
 
-.detail-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.detail-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 3px;
-}
+/* scrollbar rules moved to src/assets/main.css */
 </style>
