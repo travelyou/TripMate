@@ -382,9 +382,3 @@ const getPostData = (post) => ({
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
-
-<style scoped>
-/* scrollbar rules moved to src/assets/main.css */
-
-/* 已移除 .pixel-card（已用 Tailwind 實作） */
-</style>
