@@ -133,7 +133,21 @@ const removeTag = (index) => {
 }
 
 const nextStep = () => {
-  if (currentStep.value === 'edit') currentStep.value = 'tags'
+  if (currentStep.value === 'edit') {
+   if (!postData.value.board || postData.value.board.trim() === ''){
+    alert('還沒選擇發文看板呢寶')
+    return
+   }
+   if (!postData.value.title || postData.value.title.trim() === ''){
+    alert('寶你的標題呢')
+    return
+   }
+   if (!postData.value.content || postData.value.content.trim() === ''){
+    alert('請加上文章描述')
+    return
+   }
+   currentStep.value = 'tags'
+  }
   else if (currentStep.value === 'tags') currentStep.value = 'preview'
 }
 
