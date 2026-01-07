@@ -17,7 +17,6 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.89.0",
     "dompurify": "^3.3.1",
-    "firebase": "^12.7.0",
     "lucide-vue-next": "^0.560.0",
     "marked": "^17.0.1",
     "pinia": "^3.0.4",

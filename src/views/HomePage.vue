@@ -20,10 +20,8 @@ const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
 const userStore = useUserStore()
 
-// ✅ 修改：改從 Store 取得目前使用者 ID
 const currentUserUid = computed(() => userStore.currentUser?.id)
 
-// ✅ 修改：監聽 UserStore 的變化來更新按讚狀態
 watch(currentUserUid, async (newUid, oldUid) => {
   if (newUid && newUid !== oldUid) {
     // 用戶切換或登入，重新載入按讚狀態
@@ -35,7 +33,7 @@ watch(currentUserUid, async (newUid, oldUid) => {
           post.isLiked = info.isLiked
           post.likes = info.likesCount || post.likes
         } catch (error) {
-          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+          // 忽略錯誤
         }
       }),
     )
@@ -60,7 +58,6 @@ const handlePostLike = async (post) => {
     post.likes = result.likesCount
   } catch (error) {
     console.error('按讚操作失敗：', error)
-    alert('按讚操作失敗，請稍後再試')
   }
 }
 
@@ -68,6 +65,7 @@ const handlePostLike = async (post) => {
 onMounted(async () => {
   try {
     await discussionsStore.loadDiscussions()
+
     // 載入每個貼文的按讚狀態
     if (currentUserUid.value) {
       await Promise.all(
@@ -77,7 +75,7 @@ onMounted(async () => {
             const info = await getLikesInfo(post.id, currentUserUid.value)
             post.isLiked = info.isLiked
           } catch (error) {
-            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+            // 忽略錯誤
           }
         }),
       )
@@ -88,7 +86,6 @@ onMounted(async () => {
 })
 
 const scrollContainer = ref(null)
-
 const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
@@ -128,7 +125,6 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// 根據標籤文字自動產生固定顏色
 const getTagColor = (tagText) => {
   const colors = [
     'bg-red-500 border-red-400',
@@ -146,19 +142,15 @@ const getTagColor = (tagText) => {
     'bg-pink-500 border-pink-400',
     'bg-rose-500 border-rose-400',
   ]
-
   if (!tagText) return colors[0]
-
   let hash = 0
   for (let i = 0; i < tagText.length; i++) {
     hash = tagText.charCodeAt(i) + ((hash << 5) - hash)
   }
-
   const index = Math.abs(hash) % colors.length
   return colors[index]
 }
 
-// 3. Helper
 const getPostData = (post) => ({
   id: post.id,
   type: 'discussion',
@@ -192,7 +184,6 @@ const getPostData = (post) => ({
         >
           <ChevronLeftIcon class="w-6 h-6" />
         </button>
-
         <button
           class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 border-2 border-amber-900 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
           @click="scroll('right')"
@@ -215,7 +206,6 @@ const getPostData = (post) => ({
               class="absolute inset-0 w-full h-full object-contain transition duration-700 group-hover/card:scale-110 opacity-90"
             />
             <div class="absolute inset-0 bg-black/50 group-hover/card:bg-black/60 transition"></div>
-
             <div class="relative z-10 h-full flex flex-col justify-between">
               <div class="flex justify-between items-start">
                 <span
@@ -223,18 +213,14 @@ const getPostData = (post) => ({
                     getTagColor(item.tag),
                     'text-white border-2 border-white/50 px-2 py-0.5 text-[10px] font-bold rounded -rotate-2 shadow-sm',
                   ]"
+                  >{{ item.tag }}</span
                 >
-                  {{ item.tag }}
-                </span>
-
                 <div
                   class="flex items-center bg-red-500 text-white border-2 border-white px-2 py-0.5 text-[10px] font-bold rounded rotate-2 shadow-sm"
                 >
-                  <UsersIcon class="w-3 h-3 mr-1" />
-                  {{ item.people }}
+                  <UsersIcon class="w-3 h-3 mr-1" />{{ item.people }}
                 </div>
               </div>
-
               <div class="mt-auto text-center">
                 <h3
                   class="font-bold text-sm text-white leading-snug mb-2 line-clamp-2"
@@ -262,6 +248,13 @@ const getPostData = (post) => ({
           </h2>
         </div>
 
+        <div
+          v-if="discussionsStore.discussions.length === 0"
+          class="text-center py-10 text-gray-500 bg-white/50 rounded-xl border-2 border-dashed border-gray-300"
+        >
+          目前還沒有貼文，快來當第一個發文的人吧！
+        </div>
+
         <div class="space-y-6">
           <div
             v-for="post in discussionsStore.discussions"
@@ -278,32 +271,30 @@ const getPostData = (post) => ({
                   <span class="font-bold text-gray-800">{{ post.author }}</span>
                   <span
                     class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
+                    >{{ post.spiritAnimal }}</span
                   >
-                    {{ post.spiritAnimal }}
-                  </span>
                 </div>
                 <div class="text-xs text-gray-400">{{ post.time }} • 討論區</div>
               </div>
             </div>
-
             <h3
               class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600"
               @click="openPostDetailModal(post, false)"
             >
               {{ post.title }}
             </h3>
-
             <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
               {{ post.content }}
             </p>
-
-            <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100">
+            <div
+              v-if="post.image"
+              class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100"
+            >
               <img
                 :src="post.image"
                 class="w-full h-full object-cover hover:scale-105 transition duration-500"
               />
             </div>
-
             <div
               v-if="post.tags && post.tags.length"
               class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3"
@@ -312,11 +303,9 @@ const getPostData = (post) => ({
                 v-for="tag in post.tags"
                 :key="tag"
                 class="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1 rounded-full cursor-pointer hover:bg-amber-200 transition"
+                >#{{ tag }}</span
               >
-                #{{ tag }}
-              </span>
             </div>
-
             <div class="flex items-center text-gray-400 text-sm pt-1">
               <button
                 class="flex items-center space-x-1 transition mr-6 group"
@@ -329,14 +318,12 @@ const getPostData = (post) => ({
                 />
                 <span>{{ post.likes || 0 }}</span>
               </button>
-
               <button
                 class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
                 @click="openPostDetailModal(post, true)"
               >
                 <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
               </button>
-
               <button
                 class="flex items-center space-x-1 transition mr-6 group"
                 :class="
@@ -355,7 +342,6 @@ const getPostData = (post) => ({
                   :class="{ 'fill-current': userStore.isCollected(getPostData(post)) }"
                 />
               </button>
-
               <button
                 class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
                 @click="openShareModal(post.id)"

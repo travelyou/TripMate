@@ -19,8 +19,6 @@ TripMate/
 └─ src/
    ├─ main.js                  (應用啟動程式)
    ├─ App.vue                  (根 Vue 元件)
-   ├─ firebase/
-   │  └─ config.js             (Firebase 初始化與設定)
    ├─ assets/
    │  ├─ main.css              (主要樣式)
    │  ├─ base.css              (基礎樣式)

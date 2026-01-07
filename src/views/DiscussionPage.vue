@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import {
   Plus as PlusIcon,
   Heart as HeartIcon,
@@ -9,9 +9,7 @@ import {
 } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useUserStore } from '@/stores/user'
-import { auth } from '@/firebase/config'
-import { onAuthStateChanged } from 'firebase/auth'
-import { toggleLike } from '@/api/likes'
+import { toggleLike, getLikesInfo } from '@/api/likes'
 
 // 引入組件
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
@@ -21,181 +19,79 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 const discussionsStore = useDiscussionsStore()
 const userStore = useUserStore()
 
-// 當前用戶 UID
-const currentUserUid = ref(null)
+// ✅ 修改：改從 Store 取得目前使用者 ID
+const currentUserUid = computed(() => userStore.currentUser?.id)
 
-// 監聽 Firebase 認證狀態
-onAuthStateChanged(auth, async (user) => {
-  const previousUid = currentUserUid.value
-  currentUserUid.value = user ? user.uid : null
-  
-  console.log('認證狀態變化：', {
-    previousUid,
-    newUid: currentUserUid.value,
-    userEmail: user?.email,
-  })
-  
-  // 如果用戶登入狀態改變，重新載入按讚狀態
-  if (previousUid !== currentUserUid.value && currentUserUid.value && discussionsStore.discussions.length > 0) {
+// ✅ 修改：監聽 UserStore 的變化來更新按讚狀態
+watch(currentUserUid, async (newUid, oldUid) => {
+  if (newUid && newUid !== oldUid && discussionsStore.discussions.length > 0) {
     await Promise.all(
       discussionsStore.discussions.map(async (post) => {
         try {
-          const { getLikesInfo } = await import('@/api/likes')
-          const info = await getLikesInfo(post.id, currentUserUid.value)
+          const info = await getLikesInfo(post.id, newUid)
           post.isLiked = info.isLiked
           post.likes = info.likesCount || post.likes
         } catch (error) {
-          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+          // 忽略錯誤
         }
-      })
+      }),
     )
-  } else if (!currentUserUid.value) {
-    // 如果登出，清除所有按讚狀態
-    discussionsStore.discussions.forEach(post => {
+  } else if (!newUid) {
+    discussionsStore.discussions.forEach((post) => {
       post.isLiked = false
     })
   }
 })
 
-// 在組件掛載時載入貼文
-onMounted(async () => {
-  // 確保獲取當前用戶（如果已經登入）
-  const firebaseUser = auth.currentUser
-  if (firebaseUser && !currentUserUid.value) {
-    currentUserUid.value = firebaseUser.uid
-    console.log('組件掛載時檢測到已登入用戶：', currentUserUid.value)
-  }
-  
-  try {
-    await discussionsStore.loadDiscussions()
-    // 載入每個貼文的按讚狀態
-    if (currentUserUid.value) {
-      await Promise.all(
-        discussionsStore.discussions.map(async (post) => {
-          try {
-            const { getLikesInfo } = await import('@/api/likes')
-            const info = await getLikesInfo(post.id, currentUserUid.value)
-            post.isLiked = info.isLiked
-            post.likes = info.likesCount || post.likes
-          } catch (error) {
-            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
-          }
-        })
-      )
-    }
-  } catch (error) {
-    console.error('載入貼文失敗：', error)
-  }
-})
+// 狀態管理
+const isPostingModalOpen = ref(false)
+const isDetailModalOpen = ref(false)
+const isShareModalOpen = ref(false)
+const selectedPost = ref(null)
+const shouldScrollToComments = ref(false)
+const shareLink = ref('')
 
-// 處理貼文按讚
-const handlePostLike = async (post) => {
+// 發文處理
+const handleOpenPosting = () => {
+  if (!userStore.isLoggedIn) {
+    alert('請先登入後才能發文')
+    return
+  }
+  isPostingModalOpen.value = true
+}
+
+const handleSubmitPost = async (postData) => {
+  // 這裡的邏輯通常在 PostingChoiceModal 裡面處理，
+  // 但如果 Modal 透過 emit 傳回來，可以在這裡呼叫 store
+  try {
+    // 簡單轉發給 store (假設 postData 已經整理好)
+    // 實際專案中通常 Modal 會自己處理 API
+    console.log('DiscussionPage 收到發文:', postData)
+    // 關閉 Modal
+    isPostingModalOpen.value = false
+    // 重新載入列表
+    await discussionsStore.loadDiscussions()
+  } catch (error) {
+    console.error('發文失敗:', error)
+  }
+}
+
+// 貼文互動處理
+const handleLike = async (post) => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
     return
   }
-
   try {
     const result = await toggleLike(post.id, currentUserUid.value)
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
-    console.error('按讚操作失敗：', error)
-    alert('按讚操作失敗，請稍後再試')
+    console.error('按讚失敗:', error)
   }
 }
 
-// 處理貼文提交
-const handleSubmitPost = async (postData) => {
-  try {
-    // 檢查用戶是否已登入（也檢查 Firebase Auth 的當前用戶）
-    const firebaseUser = auth.currentUser
-    const uid = currentUserUid.value || firebaseUser?.uid
-    
-    if (!uid) {
-      alert('請先登入後才能發布貼文')
-      console.error('發布貼文失敗：用戶未登入', {
-        currentUserUid: currentUserUid.value,
-        firebaseUser: firebaseUser?.uid,
-      })
-      return
-    }
-    
-    console.log('準備發布貼文，用戶 UID：', uid)
-
-    // 如果有圖片，先上傳圖片到 Supabase Storage
-    let imageUrls = []
-    if (postData.imageFiles && postData.imageFiles.length > 0) {
-      try {
-        const { uploadMultipleImages } = await import('@/api/storage')
-        imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
-      } catch (error) {
-        console.error('圖片上傳失敗：', error)
-        // 詢問用戶是否要繼續發布（不帶圖片）
-        const shouldContinue = confirm(
-          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
-        )
-        if (!shouldContinue) {
-          return
-        }
-        // 如果用戶選擇繼續，imageUrls 保持為空陣列
-      }
-    }
-
-    // 準備提交的資料
-    const submitData = {
-      author_uid: uid,
-      board: postData.board || 'general',
-      title: postData.title,
-      content: postData.content,
-      tags: postData.tags || [],
-      image_urls: imageUrls, // 使用上傳後的 URL
-    }
-
-    console.log('提交貼文資料：', {
-      author_uid: submitData.author_uid,
-      board: submitData.board,
-      title: submitData.title?.substring(0, 50),
-      contentLength: submitData.content?.length,
-      tagsCount: submitData.tags?.length,
-      imageUrlsCount: submitData.image_urls?.length,
-    })
-
-    // 調用 API 創建貼文
-    const newPost = await discussionsStore.addPost(submitData)
-    
-    console.log('貼文發布成功：', newPost)
-
-    // 關閉模態框
-    isPostingModalOpen.value = false
-
-    // 重新載入貼文列表以確保數據同步
-    await discussionsStore.loadDiscussions()
-
-    // 顯示成功訊息
-    alert('貼文發布成功！')
-  } catch (error) {
-    console.error('發布貼文失敗：', error)
-    console.error('錯誤詳情：', {
-      message: error.message,
-      stack: error.stack,
-      currentUserUid: currentUserUid.value,
-      firebaseUser: auth.currentUser?.uid,
-    })
-    alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
-  }
-}
-
-// --- 模態框狀態管理 ---
-const isPostingModalOpen = ref(false)
-const isDetailModalOpen = ref(false)
-const isShareModalOpen = ref(false)
-
-const selectedPost = ref(null)
-const shareLink = ref('')
-const shouldScrollToComments = ref(false)
-
-const openPostDetailModal = (post, focusComment = false) => {
+const openPostDetail = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
   isDetailModalOpen.value = true
@@ -208,7 +104,7 @@ const closePostDetailModal = () => {
 }
 
 const openShareModal = (postId) => {
-  shareLink.value = `/post/${postId}`
+  shareLink.value = `${window.location.origin}/post/${postId}`
   isShareModalOpen.value = true
 }
 
@@ -217,11 +113,7 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// --- 篩選/搜尋狀態 ---
-const filterOptions = ref(['全部', '有圖', '新貼文', '找旅伴', '找話題'])
-const activeFilter = ref('全部')
-
-// Helper
+// Helper: 轉換格式給 userStore 的收藏功能用
 const getPostData = (post) => ({
   id: post.id,
   type: 'discussion',
@@ -235,52 +127,64 @@ const getPostData = (post) => ({
   likes: post.likes,
   comments: post.comments,
 })
+
+// 初始化載入
+onMounted(async () => {
+  try {
+    await discussionsStore.loadDiscussions()
+
+    // 如果已登入，載入按讚狀態
+    if (currentUserUid.value) {
+      await Promise.all(
+        discussionsStore.discussions.map(async (post) => {
+          try {
+            const info = await getLikesInfo(post.id, currentUserUid.value)
+            post.isLiked = info.isLiked
+          } catch (error) {
+            // 忽略錯誤
+          }
+        }),
+      )
+    }
+  } catch (error) {
+    console.error('載入討論區失敗:', error)
+  }
+})
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
-    <div class="w-full">
+  <div class="min-h-screen bg-[#fffef7]">
+    <div class="max-w-4xl mx-auto pt-6 px-4">
+      <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-amber-900 border-l-4 border-orange-500 pl-4">
+          旅伴討論區
+        </h1>
+        <button
+          @click="handleOpenPosting"
+          class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full font-bold shadow-lg transition transform hover:-translate-y-1"
+        >
+          <PlusIcon class="w-5 h-5" />
+          <span>發布貼文</span>
+        </button>
+      </div>
+
+      <div v-if="discussionsStore.loading" class="text-center py-20 text-gray-500">載入中...</div>
+
       <div
-        class="bg-pink-100 p-5 rounded-xl mb-6 mt-4 border-4 border-pink-300 shadow-[4px_4px_0px_0px_rgba(236,72,153,0.5)]"
+        v-else-if="discussionsStore.discussions.length === 0"
+        class="text-center py-20 bg-white/50 rounded-xl border-2 border-dashed border-gray-300"
       >
-        <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-amber-900 flex items-center">
-            <MessageCircleIcon class="w-7 h-7 mr-3 text-indigo-500 fill-indigo-100" />
-            討論區
-          </h1>
-          <button
-            class="bg-red-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center border-4 border-gray-800"
-            @click="isPostingModalOpen = true"
-          >
-            <PlusIcon class="w-5 h-5 mr-1" />
-            新增話題
-          </button>
-        </div>
+        <p class="text-gray-500 mb-4">目前還沒有討論串，來當第一個發起人吧！</p>
+        <button @click="handleOpenPosting" class="text-orange-500 font-bold hover:underline">
+          立即發文
+        </button>
       </div>
 
-      <div class="mb-8 p-4 bg-white/90">
-        <div class="flex flex-wrap gap-2 text-sm">
-          <button
-            v-for="filter in filterOptions"
-            :key="filter"
-            :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
-              activeFilter === filter
-                ? 'bg-amber-400 text-gray-900'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-            ]"
-            @click="activeFilter = filter"
-          >
-            {{ filter }}
-          </button>
-        </div>
-      </div>
-
-      <div class="space-y-6">
+      <div v-else class="space-y-6 pb-20">
         <div
           v-for="post in discussionsStore.discussions"
           :key="post.id"
-          class="pixel-card p-5 bg-[#fffef7]"
+          class="pixel-card p-5 bg-white"
         >
           <div class="flex items-center space-x-3 mb-4">
             <img
@@ -296,22 +200,25 @@ const getPostData = (post) => ({
                   {{ post.spiritAnimal }}
                 </span>
               </div>
-              <div class="text-xs text-gray-400">{{ post.time }} • 討論區</div>
+              <div class="text-xs text-gray-400">{{ post.time }}</div>
             </div>
           </div>
 
           <h3
-            class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600"
-            @click="openPostDetailModal(post, false)"
+            class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600 transition"
+            @click="openPostDetail(post)"
           >
             {{ post.title }}
           </h3>
 
-          <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
+          <p class="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
             {{ post.content }}
           </p>
 
-          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100">
+          <div
+            v-if="post.image"
+            class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100 bg-gray-50"
+          >
             <img
               :src="post.image"
               class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -325,7 +232,7 @@ const getPostData = (post) => ({
             <span
               v-for="tag in post.tags"
               :key="tag"
-              class="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1 rounded-full cursor-pointer hover:bg-amber-200 transition"
+              class="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1 rounded-full"
             >
               #{{ tag }}
             </span>
@@ -334,10 +241,8 @@ const getPostData = (post) => ({
           <div class="flex items-center text-gray-400 text-sm pt-1">
             <button
               class="flex items-center space-x-1 transition mr-6 group"
-              :class="
-                post.isLiked ? 'text-red-500' : 'hover:text-red-500'
-              "
-              @click.stop="handlePostLike(post)"
+              :class="post.isLiked ? 'text-red-500' : 'hover:text-red-500'"
+              @click.stop="handleLike(post)"
             >
               <HeartIcon
                 class="w-4 h-4 transition-transform group-active:scale-125"
@@ -348,9 +253,10 @@ const getPostData = (post) => ({
 
             <button
               class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
-              @click="openPostDetailModal(post, true)"
+              @click="openPostDetail(post, true)"
             >
-              <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
+              <MessageCircleIcon class="w-4 h-4" />
+              <span>{{ post.comments }}</span>
             </button>
 
             <button

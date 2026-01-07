@@ -2,9 +2,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { fetchPosts, fetchPostById, createPost, updatePost, deletePost } from '@/api/posts'
-// ❌ 移除 Firebase 相關引用
-// import { db } from '@/firebase/config'
-// import { doc, getDoc } from 'firebase/firestore'
 
 // --- 輔助數據：旅遊人格 ---
 const travelPersonalities = [
@@ -86,53 +83,14 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // 暫時停用：從 Firestore 獲取用戶資訊
   const getUserInfoFromFirestore = async (uid) => {
-    // ⚠️ 暫時移除 Firebase 邏輯，避免報錯
-    // 之後這裡要改成 Supabase 查詢
     return null
-
-    /* 原本的 Firebase 邏輯：
-      if (!uid) return null
-      try {
-        const userDocRef = doc(db, 'users', uid)
-        const userDoc = await getDoc(userDocRef)
-        if (userDoc.exists()) {
-          return userDoc.data()
-        }
-      } catch (error) {
-        console.error(`獲取用戶 ${uid} 資訊失敗：`, error)
-      }
-      return null
-      */
   }
 
   // 批量獲取用戶資訊並更新貼文
   const enrichPostsWithUserInfo = async (posts) => {
     // 暫時直接回傳原始貼文，不進行豐富化
     return posts
-
-    /* 原本邏輯：
-      const uniqueUids = [...new Set(posts.map(p => p.author_uid).filter(Boolean))]
-      const userInfoMap = {}
-      await Promise.all(
-        uniqueUids.map(async (uid) => {
-          const userInfo = await getUserInfoFromFirestore(uid)
-          if (userInfo) {
-            userInfoMap[uid] = userInfo
-          }
-        })
-      )
-      return posts.map(post => {
-        const userInfo = userInfoMap[post.author_uid]
-        if (userInfo) {
-          post.author_nickname = userInfo.nickname
-          post.author_avatar = userInfo.avatar
-          post.author_spirit_animal = userInfo.spiritAnimal
-        }
-        return post
-      })
-      */
   }
 
   // 獲取所有貼文

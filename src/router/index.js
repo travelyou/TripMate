@@ -48,7 +48,6 @@ const router = createRouter({
       name: 'profile',
       component: () => import('@/views/ProfilePage.vue'),
       meta: {
-        hideAd: true,
         requiresAuth: true,
       },
     },
@@ -58,18 +57,9 @@ const router = createRouter({
       component: () => import('@/views/VendorProfilePage.vue'),
     },
     {
-      path: '/collections',
-      name: 'collections',
-      component: () => import('@/views/CollectionsPage.vue'),
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/LoginPage.vue'),
-      meta: {
-        hideAd: true,
-        hideLayout: true,
-      },
+      path: '/cart',
+      name: 'ShoppingCart',
+      component: () => import('@/views/ShoppingCartPage.vue'),
     },
     {
       path: '/search',
@@ -77,23 +67,28 @@ const router = createRouter({
       component: () => import('@/views/SearchPage.vue'),
     },
     {
-      path: '/cart',
-      name: 'cart',
-      component: () => import('@/views/ShoppingCartPage.vue'),
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginPage.vue'),
       meta: {
+        hideLayout: true,
+        hideSidebar: true,
         hideAd: true,
-        requiresAuth: true,
       },
     },
     {
       path: '/checkout',
-      name: 'checkout',
+      component: () => import('@/views/CheckoutLayout.vue'),
       meta: {
         hideAd: true,
+        hideSidebar: true,
         requiresAuth: true,
       },
-      component: () => import('@/views/CheckoutLayout.vue'),
       children: [
+        {
+          path: '',
+          redirect: '/checkout/step1',
+        },
         {
           path: 'step1',
           name: 'CheckoutStep1',
@@ -133,20 +128,30 @@ const router = createRouter({
   ],
 })
 
+// ----------------------------------------------------------------
+// 路由守衛 (Router Guard) - 增加防卡死機制
+// ----------------------------------------------------------------
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
 
+  // 如果 Auth 還沒準備好，等待它 (但最多只等 2 秒)
   if (!userStore.authReady) {
-    await new Promise((resolve) => {
-      if (userStore.authReady) {
-        resolve()
-        return
-      }
+    console.log('⏳ 等待 Supabase 驗證狀態...')
 
+    await new Promise((resolve) => {
+      // 設定一個計時器，2秒後強制結束等待
+      const timer = setTimeout(() => {
+        console.warn('⚠️ 驗證超時！強制放行顯示頁面。')
+        userStore.authReady = true // 強制設為已準備好
+        resolve()
+      }, 2000)
+
+      // 同時監聽 authReady 的變化
       const unwatch = watch(
         () => userStore.authReady,
         (ready) => {
           if (ready) {
+            clearTimeout(timer) // 清除計時器
             unwatch()
             resolve()
           }
@@ -156,21 +161,20 @@ router.beforeEach(async (to, from, next) => {
     })
   }
 
+  // 1. 如果已登入，還想去登入頁 -> 踢回首頁
   if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
     return
   }
 
-  if (to.meta.requiresAuth) {
-    if (userStore.isLoggedIn) {
-      next()
-    } else {
-      next('/login')
-      alert('請先登入後才可使用')
-    }
-  } else {
-    next()
+  // 2. 如果要去需要權限的頁面 (requiresAuth)，但沒登入 -> 踢去登入頁
+  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    next('/login')
+    return
   }
+
+  // 3. 其他情況 -> 放行
+  next()
 })
 
 export default router

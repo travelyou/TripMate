@@ -19,12 +19,10 @@ const userStore = useUserStore()
 const router = useRouter()
 const discussionsStore = useDiscussionsStore()
 
-// ✅ 修改：改從 Store 取得目前使用者 ID
 const currentUserUid = computed(() => userStore.currentUser?.id)
 const isLiked = ref(false)
 const likesCount = ref(0)
 
-// ✅ 修改：監聽 currentUserUid 變化來載入按讚狀態
 watch(currentUserUid, async (newUid, oldUid) => {
   if (props.post?.id && newUid !== oldUid) {
     if (newUid) {
@@ -53,14 +51,10 @@ const isReplyingTo = ref(null)
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const isShareModalOpen = ref(false)
-
-// 本地留言列表（用於即時更新）
 const localComments = ref([])
 
-// 3. 智慧判斷內容類型 (因為 Modal 是共用的)
 const itemData = computed(() => {
   const p = props.post
-  // 簡單的判斷邏輯：
   let type = 'discussion'
   if (p.type) {
     type = p.type
@@ -72,14 +66,12 @@ const itemData = computed(() => {
 
   return {
     ...p,
-    type, // 強制覆寫正確的 type
+    type,
     id: p.id,
   }
 })
 
-// 統一取得留言陣列
 const normalizedComments = computed(() => {
-  // 優先使用本地留言列表（如果有更新的話）
   if (localComments.value.length > 0) {
     return localComments.value
   }
@@ -87,7 +79,6 @@ const normalizedComments = computed(() => {
   return props.post.commentsData || props.post.comments || []
 })
 
-// 計算留言總數 (含回覆)
 const totalCommentCount = computed(() => {
   const comments = normalizedComments.value
   if (!comments.length) return 0
@@ -101,7 +92,6 @@ const totalCommentCount = computed(() => {
   return total
 })
 
-// 處理留言按讚 (這部分僅影響當下顯示)
 const toggleCommentLike = (item) => {
   if (typeof item.likes !== 'number') item.likes = 0
   if (item.isLiked) {
@@ -125,7 +115,6 @@ const cancelReply = () => {
   newComment.value = ''
 }
 
-// 載入按讚資訊
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
 
@@ -138,7 +127,6 @@ const loadLikesInfo = async () => {
   }
 }
 
-// 處理貼文按讚
 const handlePostLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -146,34 +134,23 @@ const handlePostLike = async () => {
   }
 
   if (!props.post?.id) {
-    console.error('貼文 ID 不存在')
     alert('貼文 ID 不存在')
     return
   }
 
   try {
-    console.log('開始按讚操作，貼文 ID：', props.post.id, '用戶 UID：', currentUserUid.value)
     const result = await toggleLike(props.post.id, currentUserUid.value)
-    console.log('按讚操作成功，結果：', result)
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
     console.error('按讚操作失敗：', error)
-    console.error('錯誤詳情：', {
-      message: error.message,
-      stack: error.stack,
-      postId: props.post?.id,
-      userId: currentUserUid.value,
-    })
     alert(`按讚操作失敗：${error.message || '請稍後再試'}`)
   }
 }
 
-// 發送留言
 const submitComment = async () => {
   if (!newComment.value.trim()) return
 
-  // 檢查用戶是否已登入
   if (!currentUserUid.value) {
     alert('請先登入後才能留言')
     return
@@ -182,7 +159,6 @@ const submitComment = async () => {
   const content = newComment.value.trim()
   const isReply = isReplyingTo.value !== null
 
-  // 如果是回覆，暫時不支持（需要後端支持 parent_comment_id）
   if (isReply) {
     alert('回覆功能暫時不支持，請直接留言')
     cancelReply()
@@ -190,18 +166,13 @@ const submitComment = async () => {
   }
 
   try {
-    // 調用 API 創建留言
-    const newCommentData = await createComment(props.post.id, {
+    await createComment(props.post.id, {
       author_uid: currentUserUid.value,
       content: content,
     })
 
-    console.log('留言創建成功：', newCommentData)
-
-    // 重新載入貼文詳情以獲取最新留言（只載入一次）
     const updatedPost = await discussionsStore.loadPostById(props.post.id)
 
-    // 更新本地留言列表
     if (
       updatedPost &&
       Array.isArray(updatedPost.commentsData) &&
@@ -214,15 +185,15 @@ const submitComment = async () => {
       updatedPost.comments.length > 0
     ) {
       localComments.value = updatedPost.comments
+    } else {
+      localComments.value = []
     }
 
-    // 通過 emit 通知父組件更新
     emit('post-updated', updatedPost)
 
     newComment.value = ''
     isReplyingTo.value = null
 
-    // 滾動到留言區
     await nextTick()
     if (commentsSectionRef.value) {
       commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -233,50 +204,35 @@ const submitComment = async () => {
   }
 }
 
-// 載入貼文詳情（包含最新留言和按讚狀態）
 const loadPostDetail = async () => {
   if (!props.post?.id) return
 
   try {
-    console.log('載入貼文詳情，ID：', props.post.id)
-
-    // 重新載入貼文詳情以獲取最新留言
     const updatedPost = await discussionsStore.loadPostById(props.post.id)
 
-    console.log('載入的貼文詳情：', updatedPost)
-    console.log('留言數據：', updatedPost?.commentsData)
-
-    // 更新本地留言列表
     if (
       updatedPost &&
       Array.isArray(updatedPost.commentsData) &&
       updatedPost.commentsData.length > 0
     ) {
       localComments.value = updatedPost.commentsData
-      console.log('已更新本地留言列表，數量：', localComments.value.length)
     } else if (
       updatedPost &&
       Array.isArray(updatedPost.comments) &&
       updatedPost.comments.length > 0
     ) {
       localComments.value = updatedPost.comments
-      console.log('已更新本地留言列表（從 comments），數量：', localComments.value.length)
     } else {
-      // 如果沒有留言，清空列表
       localComments.value = []
-      console.log('沒有留言數據')
     }
 
-    // 更新按讚數
     if (updatedPost && typeof updatedPost.likes === 'number') {
       likesCount.value = updatedPost.likes
     }
 
-    // 如果有用戶登入，載入按讚狀態（優先載入，確保狀態正確）
     if (currentUserUid.value) {
       await loadLikesInfo()
     } else {
-      // 如果沒有登入，重置按讚狀態
       isLiked.value = false
     }
   } catch (error) {
@@ -284,17 +240,13 @@ const loadPostDetail = async () => {
   }
 }
 
-// 監聽 post.id 變化，當打開 modal 時重新載入
 watch(
   () => props.post?.id,
   async (newId, oldId) => {
     if (newId && newId !== oldId) {
-      // 重置狀態
       isLiked.value = false
       likesCount.value = props.post?.likes || 0
       localComments.value = []
-
-      // 載入貼文詳情和按讚狀態
       await loadPostDetail()
     }
   },
@@ -302,10 +254,8 @@ watch(
 )
 
 onMounted(async () => {
-  // 初始化時載入貼文詳情和按讚狀態
   if (props.post) {
     likesCount.value = props.post.likes || 0
-    // 如果有用戶登入，立即載入按讚狀態
     if (currentUserUid.value) {
       await loadLikesInfo()
     }
