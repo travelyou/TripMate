@@ -38,6 +38,7 @@ const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 
+/*
 // 背景圖片陣列
 const backgroundImages = [
   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
@@ -56,8 +57,10 @@ const backgroundImages = [
   'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop', // 熱氣球
 ]
 
+
 // 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
+*/
 
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
@@ -181,11 +184,8 @@ const handleSubmitPost = async (postData) => {
   <div
     class="min-h-screen relative transition-all duration-1000"
     :class="
-      hideLayout
-        ? 'bg-[#fffef7]'
-        : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'
+      hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] bg-cover bg-center md:bg-fixed bg-no-repeat'
     "
-    :style="{ backgroundImage: `url('${currentBgImage}')` }"
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 

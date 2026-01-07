@@ -29,7 +29,7 @@ const checkItemInCategory = (categoryId) => {
     @click.self="userStore.isCollectionModalOpen = false"
   >
     <div
-      class="bg-[#fffef7] w-full max-w-sm rounded-2xl pixel-modal overflow-hidden flex flex-col max-h-[80vh]"
+      class="bg-[#fffef7] w-full max-w-sm rounded-2xl border-4 border-amber-700 shadow-[8px_8px_0px_0px_rgba(139,111,71,0.3)] overflow-hidden flex flex-col max-h-[80vh]"
     >
       <div class="p-4 border-b-2 border-gray-100 flex justify-between items-center bg-white">
         <h3 class="font-bold text-gray-800 text-lg">加入收藏</h3>
@@ -94,9 +94,4 @@ const checkItemInCategory = (categoryId) => {
   </div>
 </template>
 
-<style scoped>
-.pixel-modal {
-  border: 4px solid #8b6f47;
-  box-shadow: 8px 8px 0px 0px rgba(139, 111, 71, 0.3);
-}
-</style>
+<!-- 已移除 .pixel-modal（已用 Tailwind 類別替代） -->

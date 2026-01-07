@@ -30,7 +30,10 @@ const itemData = computed(() => ({
 </script>
 
 <template>
-  <div class="pixel-card p-5 bg-[#fffef7] cursor-pointer" @click="$emit('click', post)">
+  <div
+    class="p-5 bg-[#fffef7] cursor-pointer border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+    @click="$emit('click', post)"
+  >
     <div class="flex items-center space-x-3 mb-4">
       <img
         :src="post.avatar"
@@ -128,10 +131,5 @@ const itemData = computed(() => ({
 </template>
 
 <style scoped>
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
+/* pixel-card replaced by Tailwind classes in template */
 </style>

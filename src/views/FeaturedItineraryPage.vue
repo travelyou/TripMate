@@ -57,7 +57,7 @@ const closeShareModal = () => {
   <div class="p-4 md:p-0 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-orange-500 text-white font-black text-2xl p-4 mb-6 pixel-card-header shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] flex items-center"
+        class="bg-orange-500 text-white font-black text-2xl p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] flex items-center"
       >
         <div class="flex items-center space-x-3">
           <MapIcon class="w-6 h-6 fill-white" />
@@ -65,7 +65,9 @@ const closeShareModal = () => {
         </div>
       </div>
 
-      <div class="pixel-card p-4 bg-white mb-6 space-y-4">
+      <div
+        class="p-4 bg-white mb-6 space-y-4 border-4 border-orange-300 shadow-[4px_4px_0px_0px_rgba(234,88,12,0.5)]"
+      >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"

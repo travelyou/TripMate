@@ -15,7 +15,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
   >
     <button
       @click="$emit('open-posting')"
-      class="p-3 md:p-4 bg-pink-400 text-white pixel-button hover:bg-pink-500 flex items-center justify-center transition-transform hover:-translate-y-1"
+      class="p-3 md:p-4 bg-pink-400 text-white hover:bg-pink-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
       style="border-radius: 4px; width: 56px; height: 56px"
       title="發布新貼文"
     >
@@ -24,7 +24,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 
     <button
       @click="$emit('quick-action')"
-      class="p-3 md:p-4 bg-amber-400 text-white pixel-button hover:bg-amber-500 flex items-center justify-center transition-transform hover:-translate-y-1"
+      class="p-3 md:p-4 bg-amber-400 text-white hover:bg-amber-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
       style="border-radius: 4px; width: 56px; height: 56px"
       title="抽卡找旅伴"
     >
@@ -33,7 +33,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 
     <button
       @click="$emit('toggle-private-chat')"
-      class="p-3 md:p-4 bg-green-400 text-white pixel-button hover:bg-green-500 flex items-center justify-center transition-transform hover:-translate-y-1"
+      class="p-3 md:p-4 bg-green-400 text-white hover:bg-green-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
       style="border-radius: 4px; width: 56px; height: 56px"
       title="私人訊息"
     >
@@ -42,7 +42,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 
     <button
       @click="$emit('toggle-ai-chat')"
-      class="p-3 md:p-4 bg-orange-400 text-white pixel-button hover:bg-orange-500 flex items-center justify-center transition-transform hover:-translate-y-1"
+      class="p-3 md:p-4 bg-orange-400 text-white hover:bg-orange-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
       style="border-radius: 4px; width: 56px; height: 56px"
       title="TripMate 助手"
     >
@@ -52,14 +52,5 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 </template>
 
 <style scoped>
-.pixel-button {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    3px 3px 0px 0px rgba(139, 111, 71, 0.3),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.4);
-}
-.pixel-button:active {
-  transform: translate(2px, 2px);
-  box-shadow: none;
-}
+/* pixel-button replaced by Tailwind-like classes in template */
 </style>
