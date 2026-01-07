@@ -128,7 +128,7 @@ const getTagColor = (type) => {
       </div>
 
       <div
-        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 pixel-card relative overflow-hidden"
+        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
       >
         <div class="flex items-center mb-6 pb-4 border-b-2 border-gray-100">
           <div class="bg-indigo-100 p-2 rounded-lg border-2 border-indigo-200 mr-4">
@@ -188,7 +188,9 @@ const getTagColor = (type) => {
         </button>
       </div>
 
-      <div class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 pixel-card">
+      <div
+        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+      >
         <div class="flex items-center mb-6">
           <div class="bg-amber-100 p-2 rounded-lg border-2 border-amber-200 mr-3">
             <FolderIcon class="w-5 h-5 text-amber-600" />
@@ -237,11 +239,4 @@ const getTagColor = (type) => {
   </div>
 </template>
 
-<style scoped>
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-</style>
+<!-- 已移除 .pixel-card（已用 Tailwind 實作） -->

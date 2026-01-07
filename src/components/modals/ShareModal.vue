@@ -72,7 +72,9 @@ const copyLink = () => {
 
 <template>
   <div class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col pixel-modal p-6">
+    <div
+      class="bg-white rounded-xl w-full max-w-md flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] p-6"
+    >
       <header class="flex justify-between items-center pb-4 border-b border-gray-200 mb-4">
         <h3 class="text-xl font-bold text-gray-800">分享至社群平台</h3>
         <button @click="emit('close')" class="text-gray-500 hover:text-gray-800 transition">
@@ -107,9 +109,4 @@ const copyLink = () => {
   </div>
 </template>
 
-<style scoped>
-.pixel-modal {
-  border: 4px solid #8b6f47;
-  box-shadow: 10px 10px 0px 0px rgba(139, 111, 71, 0.5);
-}
-</style>
+<!-- 已移除 .pixel-modal（已用 Tailwind 類別替代） -->

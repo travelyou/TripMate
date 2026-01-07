@@ -17,7 +17,6 @@ const messages = ref([
   { id: 2, text: '您可以在這裡與其他用戶進行私人對話。', isUser: false },
 ])
 
-
 // 發送訊息的功能
 const sendMessage = () => {
   const text = messageInput.value.trim()
@@ -29,7 +28,6 @@ const sendMessage = () => {
     text: text,
     isUser: true,
   })
-
 
   // 清空輸入框
   messageInput.value = ''
@@ -67,7 +65,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] bg-white pixel-border-thick z-50 flex flex-col animate-slide-up"
+    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.3)] z-50 flex flex-col animate-slide-up"
   >
     <div
       class="bg-green-300 text-amber-900 p-4 flex items-center justify-between border-b-4 border-green-400"
@@ -139,12 +137,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 像素風格邊框 */
-.pixel-border-thick {
-  border: 4px solid #8b6f47;
-  box-shadow: 4px 4px 0px 0px rgba(139, 111, 71, 0.3);
-}
-
 /* 上滑動畫 */
 @keyframes slideUp {
   from {

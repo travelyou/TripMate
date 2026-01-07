@@ -32,7 +32,7 @@ onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
 
   // 如果用戶狀態改變，重新載入按讚狀態
-  if (props.post?.id && (previousUid !== currentUserUid.value)) {
+  if (props.post?.id && previousUid !== currentUserUid.value) {
     if (currentUserUid.value) {
       await loadLikesInfo()
     } else {
@@ -172,7 +172,7 @@ const handlePostLike = async () => {
       message: error.message,
       stack: error.stack,
       postId: props.post?.id,
-      userId: currentUserUid.value
+      userId: currentUserUid.value,
     })
     alert(`按讚操作失敗：${error.message || '請稍後再試'}`)
   }
@@ -211,9 +211,17 @@ const submitComment = async () => {
     const updatedPost = await discussionsStore.loadPostById(props.post.id)
 
     // 更新本地留言列表
-    if (updatedPost && Array.isArray(updatedPost.commentsData) && updatedPost.commentsData.length > 0) {
+    if (
+      updatedPost &&
+      Array.isArray(updatedPost.commentsData) &&
+      updatedPost.commentsData.length > 0
+    ) {
       localComments.value = updatedPost.commentsData
-    } else if (updatedPost && Array.isArray(updatedPost.comments) && updatedPost.comments.length > 0) {
+    } else if (
+      updatedPost &&
+      Array.isArray(updatedPost.comments) &&
+      updatedPost.comments.length > 0
+    ) {
       localComments.value = updatedPost.comments
     }
 
@@ -248,10 +256,18 @@ const loadPostDetail = async () => {
     console.log('留言數據：', updatedPost?.commentsData)
 
     // 更新本地留言列表
-    if (updatedPost && Array.isArray(updatedPost.commentsData) && updatedPost.commentsData.length > 0) {
+    if (
+      updatedPost &&
+      Array.isArray(updatedPost.commentsData) &&
+      updatedPost.commentsData.length > 0
+    ) {
       localComments.value = updatedPost.commentsData
       console.log('已更新本地留言列表，數量：', localComments.value.length)
-    } else if (updatedPost && Array.isArray(updatedPost.comments) && updatedPost.comments.length > 0) {
+    } else if (
+      updatedPost &&
+      Array.isArray(updatedPost.comments) &&
+      updatedPost.comments.length > 0
+    ) {
       localComments.value = updatedPost.comments
       console.log('已更新本地留言列表（從 comments），數量：', localComments.value.length)
     } else {
@@ -278,17 +294,21 @@ const loadPostDetail = async () => {
 }
 
 // 監聽 post.id 變化，當打開 modal 時重新載入
-watch(() => props.post?.id, async (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    // 重置狀態
-    isLiked.value = false
-    likesCount.value = props.post?.likes || 0
-    localComments.value = []
+watch(
+  () => props.post?.id,
+  async (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      // 重置狀態
+      isLiked.value = false
+      likesCount.value = props.post?.likes || 0
+      localComments.value = []
 
-    // 載入貼文詳情和按讚狀態
-    await loadPostDetail()
-  }
-}, { immediate: true })
+      // 載入貼文詳情和按讚狀態
+      await loadPostDetail()
+    }
+  },
+  { immediate: true },
+)
 
 // 監聽用戶登入狀態變化
 watch(currentUserUid, async (newUid, oldUid) => {
@@ -332,7 +352,7 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col pixel-modal"
+      class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)]"
     >
       <header
         class="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-xl"
@@ -548,12 +568,16 @@ onMounted(async () => {
             <SendIcon class="w-5 h-5" />
           </button>
         </div>
-        <div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200">
+        <div
+          v-else
+          class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200"
+        >
           <p class="text-gray-600 mb-1">登入後才能回覆</p>
           <button
             class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
             @click="router.push('/login')"
-          >登入
+          >
+            登入
           </button>
         </div>
       </footer>
@@ -562,10 +586,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.pixel-modal {
-  border: 4px solid #8b6f47;
-  box-shadow: 10px 10px 0px 0px rgba(139, 111, 71, 0.5);
-}
 .custom-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -573,4 +593,6 @@ onMounted(async () => {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* 已移除 .pixel-modal（已用 Tailwind 類別替代） */
 </style>

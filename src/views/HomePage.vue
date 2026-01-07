@@ -29,7 +29,7 @@ const currentUserUid = ref(null)
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
-  
+
   // 如果用戶登入狀態改變，重新載入按讚狀態
   if (previousUid !== currentUserUid.value && currentUserUid.value) {
     await Promise.all(
@@ -42,11 +42,11 @@ onAuthStateChanged(auth, async (user) => {
         } catch (error) {
           console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
         }
-      })
+      }),
     )
   } else if (!currentUserUid.value) {
     // 如果登出，清除所有按讚狀態
-    discussionsStore.discussions.forEach(post => {
+    discussionsStore.discussions.forEach((post) => {
       post.isLiked = false
     })
   }
@@ -84,7 +84,7 @@ onMounted(async () => {
           } catch (error) {
             console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
           }
-        })
+        }),
       )
     }
   } catch (error) {
@@ -271,7 +271,7 @@ const getPostData = (post) => ({
           <div
             v-for="post in discussionsStore.discussions"
             :key="post.id"
-            class="pixel-card p-5 bg-[#fffef7]"
+            class="p-5 bg-[#fffef7] border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
           >
             <div class="flex items-center space-x-3 mb-4">
               <img
@@ -325,9 +325,7 @@ const getPostData = (post) => ({
             <div class="flex items-center text-gray-400 text-sm pt-1">
               <button
                 class="flex items-center space-x-1 transition mr-6 group"
-                :class="
-                  post.isLiked ? 'text-red-500' : 'hover:text-red-500'
-                "
+                :class="post.isLiked ? 'text-red-500' : 'hover:text-red-500'"
                 @click.stop="handlePostLike(post)"
               >
                 <HeartIcon
@@ -394,10 +392,5 @@ const getPostData = (post) => ({
   scrollbar-width: none;
 }
 
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
+/* 已移除 .pixel-card（已用 Tailwind 實作） */
 </style>

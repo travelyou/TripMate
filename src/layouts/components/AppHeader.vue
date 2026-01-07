@@ -65,7 +65,7 @@
           >
             <div
               v-if="isMenuOpen"
-              class="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 pixel-dropdown"
+              class="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
             >
               <div class="p-3 border-b border-gray-100 bg-orange-50/50">
                 <p class="text-xs font-bold text-gray-500">
