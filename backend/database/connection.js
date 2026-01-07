@@ -1,6 +1,9 @@
 const { Pool } = require('pg');
-// 確保環境變數已加載（如果 server.js 還沒加載的話）
 require('dotenv').config();
+const dns = require('dns');
+
+// 強制使用 IPv4
+dns.setDefaultResultOrder('ipv4first');
 
 // 延遲檢查環境變數（不在模組加載時檢查）
 function checkEnvVars() {
@@ -23,12 +26,12 @@ function createPool() {
   }
 
   // 調試：顯示連接配置（隱藏密碼）
-  console.log('資料庫連接配置：');
-  console.log('DB_HOST:', process.env.DB_HOST);
-  console.log('DB_PORT:', process.env.DB_PORT);
-  console.log('DB_NAME:', process.env.DB_NAME);
-  console.log('DB_USER:', process.env.DB_USER);
-  console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+  console.log('📋 資料庫連接配置：');
+  console.log('  DB_HOST:', process.env.DB_HOST);
+  console.log('  DB_PORT:', process.env.DB_PORT);
+  console.log('  DB_NAME:', process.env.DB_NAME);
+  console.log('  DB_USER:', process.env.DB_USER);
+  console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
 
   // 檢查 DB_HOST 是否包含不應該有的內容
   if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
@@ -47,8 +50,11 @@ function createPool() {
     password: process.env.DB_PASSWORD,
     connectionTimeoutMillis: 20000,
     idleTimeoutMillis: 30000,
+    // 強制使用 IPv4
+    family: 4, // 4 = IPv4, 6 = IPv6
   };
 
+  // 如果使用 Connection Pooling，調整用戶名
   if (useConnectionPooling && process.env.DB_PORT === '6543') {
     const projectRef = process.env.DB_HOST?.replace('db.', '').replace('.supabase.co', '');
     if (projectRef && !process.env.DB_USER?.includes('.')) {
@@ -70,6 +76,9 @@ function createPool() {
       console.error('1. DB_HOST 是否正確：', process.env.DB_HOST);
       console.error('2. 網路連接是否正常');
       console.error('3. 是否可以訪問 Supabase');
+    } else if (err.code === 'ENETUNREACH') {
+      console.error('網路不可達，可能是 IPv6 連接問題');
+      console.error('已強制使用 IPv4，請確認網路配置正確');
     }
   });
 
