@@ -11,7 +11,6 @@
 
 /* 隱藏滾動條的工具類別 */
 .no-scrollbar::-webkit-scrollbar,
-.custom-scrollbar::-webkit-scrollbar,
 .custom-scroll::-webkit-scrollbar {
   display: none;
 }

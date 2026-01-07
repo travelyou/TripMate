@@ -10,6 +10,6 @@ export default {
 
       colors: {},
     },
-    plugins: [],
   },
+  plugins: [],
 }

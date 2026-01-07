@@ -172,7 +172,7 @@ const filteredTags = computed(() => {
 
         <div class="space-y-4">
           <button
-            class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 border-4 border-black transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="startPosting()"
           >
             <MessageSquareIcon class="w-6 h-6 text-orange-700 mr-4" />
@@ -183,7 +183,7 @@ const filteredTags = computed(() => {
           </button>
 
           <button
-            class="w-full flex items-center p-4 bg-green-300 hover:bg-green-400 border-4 border-black transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="w-full flex items-center p-4 bg-green-300 hover:bg-green-400 transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="startPosting('找旅伴')"
           >
             <UsersIcon class="w-6 h-6 text-green-700 mr-4" />
@@ -195,7 +195,7 @@ const filteredTags = computed(() => {
         </div>
 
         <button
-          class="mt-6 w-full py-2 text-sm text-gray-600 bg-gray-200 border-4 border-black font-bold border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+          class="mt-6 w-full py-2 text-sm text-gray-600 bg-gray-200 font-bold border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
           @click="$emit('close')"
         >
           取消
@@ -299,12 +299,12 @@ const filteredTags = computed(() => {
 
           <div class="flex gap-3">
             <button
-              class="flex-1 py-2 text-sm font-bold text-gray-500 bg-white border-4 border-gray-300 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+              class="flex-1 py-2 text-sm font-bold text-gray-500 bg-white border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             >
               存入草稿
             </button>
             <button
-              class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-black border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+              class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
               @click="nextStep"
             >
               下一步
@@ -386,7 +386,7 @@ const filteredTags = computed(() => {
 
         <div class="p-4 border-t-2 border-gray-200 flex justify-end bg-gray-50 gap-3">
           <button
-            class="w-full py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-black border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="w-full py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="nextStep"
           >
             預覽文章
@@ -445,13 +445,13 @@ const filteredTags = computed(() => {
 
         <div class="p-4 border-t-2 border-gray-200 bg-white flex gap-3">
           <button
-            class="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-200 border-4 border-black border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-200 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="prevStep"
           >
             返回修改
           </button>
           <button
-            class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-black border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="handleFinalSubmit"
           >
             確認發布
