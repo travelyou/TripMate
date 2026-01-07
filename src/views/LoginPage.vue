@@ -11,46 +11,52 @@
         class="h-8 sm:h-10 md:h-12 w-auto object-contain"
       />
     </button>
-    <div class="flex flex-none lg:flex-[2] items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0">
+    <div
+      class="flex flex-none lg:flex-[2] items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0"
+    >
       <img
         src="@/assets/pic/loginPage-removebg.png"
         alt="loginPage"
-        class="w-[240px] sm:w-[420px] md:w-[560px] lg:w-[900px] xl:w-[1000px] max-w-full object-contain transform -translate-y-0 sm:-translate-y-10 lg:-translate-y-20 max-h-[40vh] sm:max-h-[50vh] lg:max-h-full"
+        class="w-60 sm:w-[420px] md:w-[560px] lg:w-[900px] xl:w-[1000px] max-w-full object-contain transform -translate-y-0 sm:-translate-y-10 lg:-translate-y-20 max-h-[40vh] sm:max-h-[50vh] lg:max-h-full"
       />
     </div>
 
-    <div class="flex flex-none lg:flex-[3] items-center justify-center sm:p-0 md:p-0 lg:p-0 order-2 lg:order-none min-h-0 lg:-mt-2 sm:mt-0 lg:pt-8">
+    <div
+      class="flex flex-none lg:flex-[3] items-center justify-center sm:p-0 md:p-0 lg:p-0 order-2 lg:order-none min-h-0 lg:-mt-2 sm:mt-0 lg:pt-8"
+    >
       <div class="w-full max-w-lg flex flex-col items-center justify-center px-4 sm:px-0">
-        <div class="w-full flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
-                <span
-          :class="[
-            'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
-            activeTab === 'login' ? 'text-orange-600' : 'text-gray-400',
-          ]"
-          @click="activeTab = 'login'"
-        >
-          登入
-        </span>
-        <button
-          type="button"
-          class="relative inline-flex h-7 w-14 sm:h-8 sm:w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shrink-0"
-          :class="activeTab === 'login' ? 'bg-orange-600' : 'bg-gray-300'"
-          @click="activeTab = activeTab === 'login' ? 'register' : 'login'"
+        <div
+          class="w-full flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6"
         >
           <span
-            class="inline-block h-5 w-5 sm:h-6 sm:w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300"
-            :class="activeTab === 'login' ? 'translate-x-1' : 'translate-x-8 sm:translate-x-9'"
-          ></span>
-        </button>
-        <span
-          :class="[
-            'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
-            activeTab === 'register' ? 'text-orange-600' : 'text-gray-400',
-          ]"
-          @click="activeTab = 'register'"
-        >
-          註冊
-        </span>
+            :class="[
+              'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
+              activeTab === 'login' ? 'text-orange-600' : 'text-gray-400',
+            ]"
+            @click="activeTab = 'login'"
+          >
+            登入
+          </span>
+          <button
+            type="button"
+            class="relative inline-flex h-7 w-14 sm:h-8 sm:w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shrink-0"
+            :class="activeTab === 'login' ? 'bg-orange-600' : 'bg-gray-300'"
+            @click="activeTab = activeTab === 'login' ? 'register' : 'login'"
+          >
+            <span
+              class="inline-block h-5 w-5 sm:h-6 sm:w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300"
+              :class="activeTab === 'login' ? 'translate-x-1' : 'translate-x-8 sm:translate-x-9'"
+            ></span>
+          </button>
+          <span
+            :class="[
+              'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
+              activeTab === 'register' ? 'text-orange-600' : 'text-gray-400',
+            ]"
+            @click="activeTab = 'register'"
+          >
+            註冊
+          </span>
         </div>
 
         <div class="form-wrapper w-full flex items-center justify-center px-2 sm:px-0">
@@ -85,7 +91,9 @@
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base">
                   密碼
-                  <span class="text-xs text-gray-500 font-normal block sm:inline">(6位以上英、數字，必須包含大小寫)</span>
+                  <span class="text-xs text-gray-500 font-normal block sm:inline"
+                    >(6位以上英、數字，必須包含大小寫)</span
+                  >
                 </label>
                 <input
                   id="password"
@@ -188,7 +196,9 @@
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base">
                   密碼
-                  <span class="text-xs text-gray-500 font-normal block sm:inline">(6位以上英、數字，必須包含大小寫)</span>
+                  <span class="text-xs text-gray-500 font-normal block sm:inline"
+                    >(6位以上英、數字，必須包含大小寫)</span
+                  >
                 </label>
                 <input
                   id="password"
@@ -283,8 +293,11 @@ const loginErrors = ref({
 const userStore = useUserStore()
 const router = useRouter()
 const handleLogin = async () => {
-  console.log('🔵 登入函數被觸發', { email: loginForm.value.email, password: loginForm.value.password ? '***' : '' })
-  
+  console.log('🔵 登入函數被觸發', {
+    email: loginForm.value.email,
+    password: loginForm.value.password ? '***' : '',
+  })
+
   //送出後出錯則欄位清空
   loginErrors.value = {
     email: '',
@@ -313,12 +326,12 @@ const handleLogin = async () => {
       loginForm.value.password,
     )
     console.log('✅ 登入成功：', userCredential.user)
-    
+
     // 從 Firestore 獲取用戶資料
     try {
       const userDocRef = doc(db, 'users', userCredential.user.uid)
       const userDoc = await getDoc(userDocRef)
-      
+
       if (userDoc.exists()) {
         // 更新 user store
         const userData = userDoc.data()
@@ -331,7 +344,8 @@ const handleLogin = async () => {
         // 如果 Firestore 中沒有用戶資料，創建一個
         const defaultUserData = {
           realName: '',
-          nickname: userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
+          nickname:
+            userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
           email: userCredential.user.email,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
           bio: '',
@@ -349,7 +363,7 @@ const handleLogin = async () => {
       console.error('獲取用戶資料失敗：', error)
       // 即使獲取失敗也允許登入
     }
-    
+
     userStore.login()
     console.log('🚀 正在跳轉到首頁...')
     router.push('/')

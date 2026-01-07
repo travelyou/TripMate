@@ -489,6 +489,3 @@ const featuredItineraries = [
     </div>
   </div>
 </template>
-
-<!-- scrollbar rules moved to src/assets/main.css -->
-</style>

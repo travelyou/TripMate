@@ -218,15 +218,12 @@ watch(
 </script>
 
 <template>
-  <div class="hidden lg:block w-[300px] shrink-0 space-y-6 self-start mt-10">
-    <div
-      v-if="selectedLargeAd"
-      class="p-4 bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
-    >
+  <div class="hidden lg:block shrink-0 space-y-6 self-start mt-10">
+    <div v-if="selectedLargeAd" class="p-4 bg-white shadow-md rounded-xl">
       <h3 class="font-bold text-gray-800 mb-3 text-center">贊助廣告</h3>
       <div
         :class="[selectedLargeAd.bgColor, selectedLargeAd.borderColor]"
-        class="h-[500px] rounded-xl flex flex-col items-center justify-center text-sm border-2 border-dashed hover:opacity-80 cursor-pointer transition relative overflow-hidden"
+        class="h-[500px] rounded-xl flex flex-col items-center justify-center text-sm hover:opacity-80 cursor-pointer transition relative overflow-hidden"
       >
         <img
           v-if="selectedLargeAd.image"
@@ -242,26 +239,20 @@ watch(
         </div>
       </div>
     </div>
-    <div
-      v-else
-      class="p-4 bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
-    >
+    <div v-else class="p-4 bg-white shadow-md rounded-xl">
       <h3 class="font-bold text-gray-800 mb-3 text-center">贊助廣告</h3>
       <div
-        class="h-[500px] bg-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-300"
+        class="h-[500px] bg-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 text-sm"
       >
         <p class="mb-2 font-bold">載入中...</p>
       </div>
     </div>
 
-    <div
-      v-if="selectedSquareAd"
-      class="p-4 bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
-    >
+    <div v-if="selectedSquareAd" class="p-4 bg-white shadow-md rounded-xl">
       <h3 class="font-bold text-gray-800 mb-3 text-center">合作夥伴</h3>
       <div
         :class="[selectedSquareAd.bgColor, selectedSquareAd.borderColor]"
-        class="h-[300px] rounded-xl flex flex-col items-center justify-center text-sm border-2 border-dashed hover:opacity-80 cursor-pointer transition relative overflow-hidden"
+        class="h-72 rounded-xl flex flex-col items-center justify-center text-sm hover:opacity-80 cursor-pointer transition relative overflow-hidden"
       >
         <img
           v-if="selectedSquareAd.image"
@@ -277,13 +268,10 @@ watch(
         </div>
       </div>
     </div>
-    <div
-      v-else
-      class="p-4 bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
-    >
+    <div v-else class="p-4 bg-white shadow-md rounded-xl">
       <h3 class="font-bold text-gray-800 mb-3 text-center">合作夥伴</h3>
       <div
-        class="h-[300px] bg-indigo-50 rounded-xl flex flex-col items-center justify-center text-indigo-300 text-sm border-2 border-dashed border-indigo-200"
+        class="h-72 bg-indigo-50 rounded-xl flex flex-col items-center justify-center text-indigo-300 text-sm"
       >
         <p class="mb-2 font-bold">載入中...</p>
       </div>

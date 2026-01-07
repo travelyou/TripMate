@@ -13,7 +13,7 @@
             v-model="headerSearchQuery"
             type="text"
             placeholder="搜尋文章、行程..."
-            class="w-full h-[45px] bg-white text-base rounded-full pl-5 pr-12 outline-none transition-all duration-200 border-2 border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-300"
+            class="w-full h-11 bg-white text-base rounded-full pl-5 pr-12 outline-none transition-all duration-200 border-2 border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-300"
             @keyup.enter="handleDesktopSearch"
           />
           <button

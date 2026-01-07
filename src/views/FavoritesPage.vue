@@ -71,7 +71,7 @@ const handleCardClick = (item) => {
         v-for="tab in tabs"
         :key="tab.id"
         @click="activeTab = tab.id"
-        class="flex-1 min-w-[100px] py-3 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2"
+        class="flex-1 min-w-24 py-3 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2"
         :class="
           activeTab === tab.id
             ? 'bg-pink-50 text-pink-600 shadow-sm ring-2 ring-pink-100'

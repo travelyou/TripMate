@@ -212,7 +212,7 @@ const getPostData = (post) => ({
           <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
-            class="flex-shrink-0 w-[32%] min-w-[220px] h-48 rounded-[1.5rem] p-4 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
+            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-[1.5rem] p-4 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
             @click="openPostDetailModal(item, false)"
           >
             <img
