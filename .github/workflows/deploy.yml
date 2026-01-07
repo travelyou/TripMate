@@ -11,6 +11,12 @@ on:
       - dev
   workflow_dispatch:
 
+# 添加权限配置
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
@@ -18,6 +24,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # 添加 token 权限
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -38,7 +47,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_SUPABASE_URL=${{ secrets.VITE_API_BASE_URL }}
+          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
           VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}
@@ -60,6 +69,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Create backend config directory
         run: mkdir -p public-config
@@ -73,7 +84,8 @@ jobs:
             "DB_PORT": "${{ secrets.DB_PORT }}",
             "DB_NAME": "${{ secrets.DB_NAME }}",
             "DB_USER": "${{ secrets.DB_USER }}",
-            "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}"
+            "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}",
+            "USE_POOLING": "${{ secrets.USE_POOLING }}"
           }
           EOF
       
