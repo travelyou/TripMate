@@ -3,9 +3,7 @@ import PostDetailModal from '@/components/modals/PostDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
-import { useUserStore } from '@/stores/user' // 1. 引入 UserStore
-import { auth } from '@/firebase/config'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useUserStore } from '@/stores/user'
 import { toggleLike } from '@/api/likes'
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -14,39 +12,36 @@ import {
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
   Users as UsersIcon,
-  Bookmark as BookmarkIcon, // 引入 Bookmark
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
 const userStore = useUserStore()
 
-// 當前用戶 UID
-const currentUserUid = ref(null)
+// ✅ 修改：改從 Store 取得目前使用者 ID
+const currentUserUid = computed(() => userStore.currentUser?.id)
 
-// 監聽 Firebase 認證狀態
-onAuthStateChanged(auth, async (user) => {
-  const previousUid = currentUserUid.value
-  currentUserUid.value = user ? user.uid : null
-  
-  // 如果用戶登入狀態改變，重新載入按讚狀態
-  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+// ✅ 修改：監聽 UserStore 的變化來更新按讚狀態
+watch(currentUserUid, async (newUid, oldUid) => {
+  if (newUid && newUid !== oldUid) {
+    // 用戶切換或登入，重新載入按讚狀態
     await Promise.all(
       discussionsStore.discussions.map(async (post) => {
         try {
           const { getLikesInfo } = await import('@/api/likes')
-          const info = await getLikesInfo(post.id, currentUserUid.value)
+          const info = await getLikesInfo(post.id, newUid)
           post.isLiked = info.isLiked
           post.likes = info.likesCount || post.likes
         } catch (error) {
           console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
         }
-      })
+      }),
     )
-  } else if (!currentUserUid.value) {
-    // 如果登出，清除所有按讚狀態
-    discussionsStore.discussions.forEach(post => {
+  } else if (!newUid) {
+    // 登出，清除按讚狀態
+    discussionsStore.discussions.forEach((post) => {
       post.isLiked = false
     })
   }
@@ -84,7 +79,7 @@ onMounted(async () => {
           } catch (error) {
             console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
           }
-        })
+        }),
       )
     }
   } catch (error) {
@@ -325,9 +320,7 @@ const getPostData = (post) => ({
             <div class="flex items-center text-gray-400 text-sm pt-1">
               <button
                 class="flex items-center space-x-1 transition mr-6 group"
-                :class="
-                  post.isLiked ? 'text-red-500' : 'hover:text-red-500'
-                "
+                :class="post.isLiked ? 'text-red-500' : 'hover:text-red-500'"
                 @click.stop="handlePostLike(post)"
               >
                 <HeartIcon

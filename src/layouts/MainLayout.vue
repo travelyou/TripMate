@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
-import { auth } from '@/firebase/config'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -89,11 +88,11 @@ const handleSubmitPost = async (postData) => {
   try {
     console.log('MainLayout 收到發文請求:', postData)
 
-    // 檢查用戶是否已登入
-    const firebaseUser = auth.currentUser
-    const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
+    // ✅ 修改：檢查用戶是否已登入 (改用 Pinia Store)
+    const uid = userStore.currentUser?.id
+    const isLoggedIn = userStore.isLoggedIn
 
-    if (!uid) {
+    if (!isLoggedIn || !uid) {
       alert('請先登入後才能發布貼文')
       console.error('發布貼文失敗：用戶未登入')
       // 導向登入頁面
@@ -115,7 +114,7 @@ const handleSubmitPost = async (postData) => {
         console.error('圖片上傳失敗：', error)
         // 詢問用戶是否要繼續發布（不帶圖片）
         const shouldContinue = confirm(
-          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？',
         )
         if (!shouldContinue) {
           return
@@ -170,7 +169,7 @@ const handleSubmitPost = async (postData) => {
     console.error('錯誤詳情：', {
       message: error.message,
       stack: error.stack,
-      firebaseUser: auth.currentUser?.uid,
+      currentUser: userStore.currentUser?.id,
     })
     alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
   }
@@ -296,7 +295,7 @@ const handleSubmitPost = async (postData) => {
       @submit-post="handleSubmitPost"
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
- <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+    <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 
