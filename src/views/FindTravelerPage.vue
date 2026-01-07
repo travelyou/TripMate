@@ -34,7 +34,7 @@ const activeFilter = ref('全部')
   <div class="p-4 md:p-0 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-green-100 p-5 rounded-xl mb-6 mt-4 border-4 border-green-300 shadow-[4px_4px_0px_0px_rgba(34,197,94,0.5)]"
+        class="bg-green-300 p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)]"
       >
         <div class="flex justify-between items-center">
           <h1 class="text-2xl font-black text-amber-900 flex items-center">
@@ -52,7 +52,7 @@ const activeFilter = ref('全部')
       </div>
 
       <div
-        class="mb-8 p-4 bg-white/90 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+        class="mb-8 p-4 bg-white/90 rounded-xl shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
       >
         <div class="flex flex-wrap gap-2 text-sm">
           <button

@@ -1,19 +1,21 @@
 <template>
   <header
-    class="fixed top-0 left-0 right-0 z-50 h-16 md:h-18 bg-[#fcf9f2] shadow-sm border-b border-gray-200"
+    class="fixed top-0 left-0 right-0 z-50 h-16 md:h-18 bg-primary shadow-sm border-b border-gray-200"
   >
-    <div class="max-w-[1500px] mx-auto w-full h-full flex items-center justify-between px-4">
-      <div class="cursor-pointer flex items-center shrink-0" @click="router.push('/')">
-        <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain" />
+    <div
+      class="max-w-[1500px] mx-auto w-full h-full grid grid-cols-[2fr,5fr,2fr] items-center gap-4 px-4"
+    >
+      <div class="cursor-pointer shrink-0" @click="router.push('/')">
+        <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain mx-auto" />
       </div>
 
-      <div class="hidden lg:flex max-w-xl flex-1 mx-8 justify-center">
+      <div class="hidden lg:block max-w-xl w-full">
         <div class="relative w-full max-w-[400px]">
           <input
             v-model="headerSearchQuery"
             type="text"
             placeholder="搜尋文章、行程..."
-            class="w-full h-11 bg-white text-base rounded-full pl-5 pr-12 outline-none transition-all duration-200 border-2 border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-300"
+            class="w-full h-11 bg-white text-base rounded-full pl-5 pr-12 outline-none transition-all duration-200 focus:ring-2 focus:ring-stone-300 shadow-sm"
             @keyup.enter="handleDesktopSearch"
           />
           <button
@@ -25,7 +27,7 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-1 md:gap-3 ml-auto">
+      <div class="flex gap-1 md:gap-3 justify-end">
         <button
           class="p-2 hover:bg-gray-200 rounded-full transition lg:hidden text-gray-700"
           @click="goToSearchPage"

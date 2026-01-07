@@ -262,7 +262,7 @@ const getPostData = (post) => ({
         </div>
       </div>
 
-      <div class="mb-8 p-4 bg-white/90">
+      <div class="mb-8 p-4 ">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
@@ -271,7 +271,7 @@ const getPostData = (post) => ({
               'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
               activeFilter === filter
                 ? 'bg-amber-400 text-gray-900'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                : 'bg-white text-gray-600 hover:bg-gray-200',
             ]"
             @click="activeFilter = filter"
           >
