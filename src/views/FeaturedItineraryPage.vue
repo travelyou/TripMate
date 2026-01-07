@@ -54,19 +54,19 @@ const closeShareModal = () => {
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
+  <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-orange-500 text-white font-black text-2xl p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] flex items-center"
+        class="bg-primary text-white font-black rounded-xl text-2xl p-4 mb-6 shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)] flex items-center"
       >
         <div class="flex items-center space-x-3">
-          <MapIcon class="w-6 h-6 fill-white" />
-          <span>精選行程</span>
+          <MapIcon class="w-6 h-6 " />
+          <span class="text-secondary">精選行程</span>
         </div>
       </div>
 
       <div
-        class="p-4 bg-white mb-6 space-y-4 border-4 border-orange-300 shadow-[4px_4px_0px_0px_rgba(234,88,12,0.5)]"
+        class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)] rounded-xl"
       >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
@@ -75,7 +75,7 @@ const closeShareModal = () => {
             :class="[
               'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
               activeFilter === filter
-                ? 'bg-orange-400 text-gray-900'
+                ? 'bg-primary text-gray-900'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
             ]"
             @click="activeFilter = filter"

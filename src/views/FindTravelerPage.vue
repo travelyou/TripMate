@@ -31,18 +31,18 @@ const activeFilter = ref('全部')
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
+  <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-green-300 p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)]"
+        class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)]"
       >
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-amber-900 flex items-center">
+          <h1 class="text-2xl font-black text-secondary flex items-center">
             <UsersIcon class="w-7 h-7 mr-3 text-red-500 fill-red-100" />
             找旅伴
           </h1>
           <button
-            class="bg-green-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center border-4 border-gray-800"
+            class="bg-secondary text-white px-5 py-2 rounded-lg font-bold hover:bg-green-600 transition flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -52,7 +52,7 @@ const activeFilter = ref('全部')
       </div>
 
       <div
-        class="mb-8 p-4 bg-white/90 rounded-xl shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+        class="mb-8 p-4 bg-white/90 rounded-xl shadow-md border-2 border-gray-300"
       >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
@@ -61,7 +61,7 @@ const activeFilter = ref('全部')
             :class="[
               'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
               activeFilter === filter
-                ? 'bg-red-400 text-gray-900'
+                ? 'bg-primary text-gray-900'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
             ]"
             @click="activeFilter = filter"

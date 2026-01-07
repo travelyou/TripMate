@@ -11,10 +11,9 @@ export default {
       colors: {
         primary: {
           DEFAULT: '#9bd75bff',
-          dark: '#80b117ff',
-          light: '#bde586ff',
+          dark: '#52bc20ff',
+          light: '#d6f5abff',
           hover: '#f0f6eaff',
-          fog: '#e2e5db',
         },
         secondary: {
           DEFAULT: '#103538',
