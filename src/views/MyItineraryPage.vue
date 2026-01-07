@@ -116,19 +116,19 @@ const getTagColor = (type) => {
 </script>
 
 <template>
-  <div class="p-4 md:p-0">
+  <div class="p-4">
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
       <div
-        class="lg:col-start-1 lg:row-start-1 bg-indigo-500 text-white font-black text-2xl p-4 border-none shadow-[4px_4px_0px_0px_rgba(79,70,229,1)] flex items-center rounded-none"
+        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-4 rounded-xl shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)] flex items-center rounded-none"
       >
         <div class="flex items-center space-x-3">
-          <BriefcaseIcon class="w-6 h-6 text-white fill-indigo-300" />
+          <BriefcaseIcon class="w-6 h-6 text-secondary" />
           <span>我的行程</span>
         </div>
       </div>
 
       <div
-        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
       >
         <div class="flex items-center mb-6 pb-4 border-b-2 border-gray-100">
           <div class="bg-indigo-100 p-2 rounded-lg border-2 border-indigo-200 mr-4">
@@ -184,7 +184,7 @@ const getTagColor = (type) => {
         </div>
 
         <button
-          class="w-full mt-8 bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(79,70,229,0.4)] active:translate-y-1 active:shadow-none border-2 border-indigo-800"
+          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(80,150,80,0.8)] active:translate-y-1 active:shadow-none  "
           @click="openAddItineraryModal"
         >
           <PlusIcon class="w-5 h-5 mr-2" />
@@ -193,7 +193,7 @@ const getTagColor = (type) => {
       </div>
 
       <div
-        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-primary shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
       >
         <div class="flex items-center mb-6">
           <div class="bg-amber-100 p-2 rounded-lg border-2 border-amber-200 mr-3">

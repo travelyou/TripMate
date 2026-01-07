@@ -242,18 +242,18 @@ const getPostData = (post) => ({
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
+  <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-pink-100 p-5 rounded-xl mb-6 mt-4 border-4 border-pink-300 shadow-[4px_4px_0px_0px_rgba(236,72,153,0.5)]"
+        class="mb-6 mt-4"
       >
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-amber-900 flex items-center">
-            <MessageCircleIcon class="w-7 h-7 mr-3 text-indigo-500 fill-indigo-100" />
+          <h1 class="text-2xl font-black text-secondary flex items-center">
+            <MessageCircleIcon class="w-7 h-7 mr-3 text-indigo-500 fill-white" />
             討論區
           </h1>
           <button
-            class="bg-red-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center border-4 border-gray-800"
+            class="bg-secondary-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-md flex items-center "
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -270,7 +270,7 @@ const getPostData = (post) => ({
             :class="[
               'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
               activeFilter === filter
-                ? 'bg-amber-400 text-gray-900'
+                ? 'bg-primary text-gray-900'
                 : 'bg-white text-gray-600 hover:bg-gray-200',
             ]"
             @click="activeFilter = filter"
@@ -284,7 +284,7 @@ const getPostData = (post) => ({
         <div
           v-for="post in discussionsStore.discussions"
           :key="post.id"
-          class="p-5 bg-[#fffef7] border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+          class="p-5 bg-white ring-1 ring-gray-200 shadow-md rounded-2xl hover:shadow-lg transition cursor-pointer"
         >
           <div class="flex items-center space-x-3 mb-4">
             <img
