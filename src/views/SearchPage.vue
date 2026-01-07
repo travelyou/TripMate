@@ -497,13 +497,6 @@ const closePostDetailModal = () => {
 </script>
 
 <style scoped>
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
 .animate-bounce-slow {
   animation: bounce 2s infinite;
 }

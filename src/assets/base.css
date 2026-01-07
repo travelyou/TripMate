@@ -37,22 +37,7 @@
 }
 
 :root {
-  /* 定義一個變數方便管理 */
-  --font-pixel: 'Press Start 2P', monospace;
-}
 
-body {
-  /* ✅ 關鍵：套用到整個網站 */
-  font-family: var(--font-pixel);
-
-  /* 建議設定：像素字通常比較小，建議預設 16px 比較好讀 */
-  font-size: 16px;
-
-  /* 建議設定：稍微增加字距，會更像遊戲介面 */
-  letter-spacing: 1px;
-
-  /* 讓文字渲染更銳利一點，更有像素感 */
-  -webkit-font-smoothing: none;
 }
 
 @media (prefers-color-scheme: dark) {

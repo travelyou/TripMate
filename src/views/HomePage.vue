@@ -384,13 +384,7 @@ const getPostData = (post) => ({
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.custom-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* scrollbar rules moved to src/assets/main.css */
 
 /* 已移除 .pixel-card（已用 Tailwind 實作） */
 </style>

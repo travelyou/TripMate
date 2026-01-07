@@ -128,7 +128,7 @@ const handleDelete = () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-[#fffef7] w-full max-w-6xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] overflow-hidden relative"
+      class="bg-[#fffef7] w-full max-w-6xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] overflow-hidden relative itinerary-detail"
     >
       <div class="p-4 border-b-2 border-gray-200 flex justify-between items-start bg-white z-10">
         <div class="flex-1">
