@@ -186,14 +186,14 @@ const handleSubmitPost = async (postData) => {
   <div
     class="min-h-screen relative transition-all duration-1000"
     :class="
-      hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] bg-cover bg-center md:bg-fixed bg-no-repeat'
+      hideLayout ? 'bg-[#fffef7]' : 'bg-neutral-50 bg-cover bg-center md:bg-fixed bg-no-repeat'
     "
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
     <div
       v-if="!hideLayout"
-      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 md:pt-18 min-h-screen items-start gap-5"
+      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 md:pt-18 min-h-screen items-start"
       :class="
         showRightAd
           ? 'lg:[grid-template-columns:2fr_5fr_2fr] xl:[grid-template-columns:2fr_5fr_2fr]'
@@ -209,7 +209,7 @@ const handleSubmitPost = async (postData) => {
 
       <main
         class="flex-1 min-w-0 transition-all duration-300"
-        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 p-4 md:p-0']"
+        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 p-4']"
       >
         <RouterView />
       </main>

@@ -52,7 +52,7 @@ const getStatusClasses = (status) => {
 <template>
   <div @click="$emit('open-detail', traveler)">
     <div
-      class="p-5 bg-[#fffef7] transition relative cursor-pointer border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+      class="p-5 bg-[#fffef7] transition relative cursor-pointer shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
     >
       <div
         :class="getStatusClasses(traveler.status)"

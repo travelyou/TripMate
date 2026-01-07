@@ -106,21 +106,19 @@ const handleMobileNavClick = (item) => {
   >
     <div class="flex justify-between my-4 pb-4 gap-4">
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center bg-white rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-accent rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToFavorites"
       >
-        <HeartIcon class="w-8 h-8 text-red-600 hover:text-red-700 transition fill-red-600" />
-        <span class="text-xs font-bold mt-1 text-black">愛心</span>
+        <HeartIcon class="w-8 h-8 text-white transition fill-white" />
+        <span class="text-sm font-bold mt-1 text-secondary">愛心</span>
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center bg-white rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-gold rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToCollections"
       >
-        <BookmarkIcon
-          class="w-8 h-8 text-amber-700 hover:text-amber-800 transition fill-amber-700"
-        />
-        <span class="text-xs font-bold mt-1 text-black">收藏</span>
+        <BookmarkIcon class="w-8 h-8 text-white transition fill-white" />
+        <span class="text-sm font-bold mt-1 text-secondary">收藏</span>
       </div>
     </div>
 
@@ -132,7 +130,7 @@ const handleMobileNavClick = (item) => {
           :to="{ name: item.name }"
           :class="[
             'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            route.name === item.name ? 'bg-[#fff5e6]' : 'hover:bg-[#fff8ee]',
+            route.name === item.name ? 'bg-sand' : 'hover:bg-[#fff8ee]',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />

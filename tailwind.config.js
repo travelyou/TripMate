@@ -8,7 +8,13 @@ export default {
         另一個好看一點的字體: ['Momo Trust Sans', 'sans-serif'],
       },
 
-      colors: {},
+      colors: {
+        primary: '#a1c14b',
+        secondary: '#103538',
+        accent: '#f3826bff',
+        sand: '#fff3e7ff',
+        gold: '#f3c85bff',
+      },
     },
   },
   plugins: [],
