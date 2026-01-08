@@ -40,7 +40,7 @@ async function createPool() {
 
   const useConnectionPooling = process.env.USE_POOLING === 'true';
 
-  let dbHost = process.env.DB_HOST;
+  const dbHost = process.env.DB_HOST;
 
   // 一律只用 IPv4：若 DB_HOST 包含 ':'，很可能不是 IPv4 位址/主機名格式
   if (typeof dbHost === 'string' && dbHost.includes(':')) {
@@ -49,23 +49,23 @@ async function createPool() {
 
   // 注意：dns.lookup 在某些 Windows/網路環境會偏向走系統解析，可能拿不到 A 記錄；
   // 這裡優先用 dns.resolve4 直接查 A 記錄，較穩定可控。
-  // 一律只查 IPv4 (A 記錄)
+  // 一律只允許 IPv4：必須存在 A 記錄；但連線仍使用「原始 hostname」以保留 TLS SNI（Neon 需要）
   try {
-    const addrs4 = await dnsResolve4(process.env.DB_HOST);
+    const addrs4 = await dnsResolve4(dbHost);
     if (!addrs4?.length) throw new Error('查無 IPv4 A 記錄');
-    dbHost = addrs4[0];
-    console.log(`DNS 解析成功，使用 IPv4 地址: ${dbHost}`);
-  } catch {
-    // 最後手段：強制 dns.lookup 走 IPv4（仍可能失敗，屆時保留原始主機名讓 pg 自行處理）
+    console.log(`DNS A 記錄可用（IPv4）：${addrs4[0]}`);
+  } catch (e) {
+    // 有些環境 dns.resolve4 可能受限，改用 dns.lookup 強制 IPv4 再確認一次
     try {
-      const lookedUp = await dnsLookup(process.env.DB_HOST, { family: 4 });
-      dbHost = lookedUp.address;
-      console.log(`DNS lookup 成功，使用 IPv4 地址: ${dbHost}`);
+      const lookedUp = await dnsLookup(dbHost, { family: 4 });
+      console.log(`DNS lookup 可用（IPv4）：${lookedUp.address}`);
     } catch (e2) {
-      console.warn('DNS 解析失敗（僅 IPv4 模式），使用原始主機名:', e2.message);
+      const msg = e?.message || e2?.message || '未知 DNS 錯誤';
+      throw new Error(`僅 IPv4 模式下 DNS 解析失敗：${msg}（請確認 DB_HOST 有 IPv4 A 記錄）`);
     }
   }
   const poolConfig = {
+    // 保留 hostname，避免 SSL SNI 因為使用 IP 而失效（Neon 會回 Endpoint ID is not specified）
     host: dbHost,
     port: parseInt(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME,
@@ -83,7 +83,7 @@ async function createPool() {
   const dbSslRaw = (process.env.DB_SSL ?? 'true').toString().toLowerCase();
   const useSsl = dbSslRaw !== 'false' && dbSslRaw !== '0' && dbSslRaw !== 'no';
   if (useSsl) {
-    poolConfig.ssl = { rejectUnauthorized: false };
+    poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
   }
 
   if (useConnectionPooling && process.env.DB_PORT === '6543') {
