@@ -108,10 +108,10 @@ const handleDeleteItinerary = (id) => {
 }
 
 const getTagColor = (type) => {
-  if (type === 'discussion') return 'bg-pink-500 text-white border-pink-600'
-  if (type === 'traveler') return 'bg-green-500 text-white border-green-600'
-  if (type === 'my_itinerary' || type === 'itinerary') return 'bg-indigo-500 text-white border-indigo-600'
-  return 'bg-gray-500 text-white'
+  if (type === 'discussion') return 'bg-primary-600 text-white border-primary-700'
+  if (type === 'traveler') return 'bg-primary-500 text-white border-primary-600'
+  if (type === 'my_itinerary' || type === 'itinerary') return 'bg-primary-700 text-white border-primary-800'
+  return 'bg-secondary-500 text-white'
 }
 </script>
 
@@ -119,24 +119,24 @@ const getTagColor = (type) => {
   <div class="p-4">
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
       <div
-        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-4 rounded-xl shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)] flex items-center rounded-none"
+        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-4 rounded-xl shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] flex items-center rounded-none"
       >
         <div class="flex items-center space-x-3">
-          <BriefcaseIcon class="w-6 h-6 text-secondary" />
+          <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
           <span>我的行程</span>
         </div>
       </div>
 
       <div
-        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
       >
-        <div class="flex items-center mb-6 pb-4 border-b-2 border-gray-100">
-          <div class="bg-indigo-100 p-2 rounded-lg border-2 border-indigo-200 mr-4">
-            <CalendarIcon class="w-6 h-6 text-indigo-600" />
+        <div class="flex items-center mb-6 pb-4 border-b-2 border-secondary-100">
+          <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-4">
+            <CalendarIcon class="w-6 h-6 text-primary-600" />
           </div>
           <div>
-            <h3 class="text-xl font-bold text-gray-800">行程列表</h3>
-            <p class="text-sm text-gray-500">查看並管理你的旅遊行程</p>
+            <h3 class="text-xl font-bold text-secondary-800">行程列表</h3>
+            <p class="text-sm text-secondary-500">查看並管理你的旅遊行程</p>
           </div>
         </div>
 
@@ -144,22 +144,22 @@ const getTagColor = (type) => {
           <div
             v-for="item in myItineraries"
             :key="item.id"
-            class="border-2 border-gray-200 rounded-lg p-4 hover:border-indigo-400 hover:bg-indigo-50 transition cursor-pointer group"
+            class="border-2 border-secondary-200 rounded-lg p-4 hover:border-primary-400 hover:bg-primary-50 transition cursor-pointer group"
             @click="openItineraryDetail(item)"
           >
             <div class="flex justify-between items-center">
               <div>
-                <h4 class="font-bold text-lg text-gray-800 group-hover:text-indigo-700 mb-1">
+                <h4 class="font-bold text-lg text-secondary-800 group-hover:text-primary-700 mb-1">
                   {{ item.title }}
                 </h4>
-                <div class="flex items-center text-sm text-gray-500">
-                  <span class="bg-gray-100 px-2 py-0.5 rounded text-xs mr-2 border border-gray-300"
+                <div class="flex items-center text-sm text-secondary-500">
+                  <span class="bg-secondary-100 px-2 py-0.5 rounded text-xs mr-2 border border-secondary-300"
                     >日期</span
                   >
                   {{ item.startDate || '未定' }} - {{ item.endDate || '未定' }}
                 </div>
               </div>
-              <div class="text-gray-300 group-hover:text-indigo-400">
+              <div class="text-secondary-300 group-hover:text-primary-400">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   class="h-6 w-6"
@@ -184,7 +184,7 @@ const getTagColor = (type) => {
         </div>
 
         <button
-          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(80,150,80,0.8)] active:translate-y-1 active:shadow-none  "
+          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] active:translate-y-1 active:shadow-none  "
           @click="openAddItineraryModal"
         >
           <PlusIcon class="w-5 h-5 mr-2" />
@@ -193,15 +193,15 @@ const getTagColor = (type) => {
       </div>
 
       <div
-        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-primary shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-primary shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
       >
         <div class="flex items-center mb-6">
-          <div class="bg-amber-100 p-2 rounded-lg border-2 border-amber-200 mr-3">
-            <FolderIcon class="w-5 h-5 text-amber-600" />
+          <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-3">
+            <FolderIcon class="w-5 h-5 text-primary-600" />
           </div>
           <div>
-            <h3 class="text-lg font-bold text-gray-800">草稿夾</h3>
-            <p class="text-xs text-gray-500">查看你儲存的貼文草稿</p>
+            <h3 class="text-lg font-bold text-secondary-800">草稿夾</h3>
+            <p class="text-xs text-secondary-500">查看你儲存的貼文草稿</p>
           </div>
         </div>
 
@@ -209,7 +209,7 @@ const getTagColor = (type) => {
           <div
             v-for="draft in drafts"
             :key="draft.id"
-            class="border border-gray-200 rounded-lg p-3 hover:shadow-md transition bg-gray-50 cursor-pointer"
+            class="border border-secondary-200 rounded-lg p-3 hover:shadow-md transition bg-secondary-50 cursor-pointer"
             @click="openDraft(draft)"
           >
             <div class="flex justify-between items-center mb-2">
@@ -221,12 +221,12 @@ const getTagColor = (type) => {
               >
                 {{ draft.typeLabel }}
               </span>
-              <span class="text-[10px] text-gray-400"
+              <span class="text-[10px] text-secondary-400"
                 >儲存於: {{ draft.saveTime ? draft.saveTime.split(' ')[0] : '剛剛' }}</span
               >
             </div>
-            <h4 class="font-bold text-sm text-gray-800 mb-1 line-clamp-1">{{ draft.title }}</h4>
-            <p class="text-xs text-gray-500 line-clamp-2">{{ draft.content }}</p>
+            <h4 class="font-bold text-sm text-secondary-800 mb-1 line-clamp-1">{{ draft.title }}</h4>
+            <p class="text-xs text-secondary-500 line-clamp-2">{{ draft.content }}</p>
           </div>
         </div>
       </div>

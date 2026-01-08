@@ -34,15 +34,15 @@ const activeFilter = ref('全部')
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(80,150,80,0.8)]"
+        class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]"
       >
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-secondary flex items-center">
-            <UsersIcon class="w-7 h-7 mr-3 text-red-500 fill-red-100" />
+          <h1 class="text-2xl font-black text-secondary-50 flex items-center">
+            <UsersIcon class="w-7 h-7 mr-3 text-primary-100 fill-primary-200" />
             找旅伴
           </h1>
           <button
-            class="bg-secondary text-white px-5 py-2 rounded-lg font-bold hover:bg-green-600 transition flex items-center"
+            class="bg-secondary-700 text-white px-5 py-2 rounded-lg font-bold hover:bg-secondary-800 transition flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -52,17 +52,17 @@ const activeFilter = ref('全部')
       </div>
 
       <div
-        class="mb-8 p-4 bg-white/90 rounded-xl shadow-md border-2 border-gray-300"
+        class="mb-8 p-4 bg-white/90 rounded-xl shadow-md border-2 border-secondary-200"
       >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-[2px_2px_0px_0px_rgba(7,52,76,1)]',
               activeFilter === filter
-                ? 'bg-primary text-gray-900'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                ? 'bg-primary text-secondary-50'
+                : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200',
             ]"
             @click="activeFilter = filter"
           >

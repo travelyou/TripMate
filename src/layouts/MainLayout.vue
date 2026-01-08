@@ -186,20 +186,20 @@ const handleSubmitPost = async (postData) => {
   <div
     class="min-h-screen relative transition-all duration-1000"
     :class="
-      hideLayout ? 'bg-[#fffef7]' : 'bg-neutral-50 bg-cover bg-center md:bg-fixed bg-no-repeat'
+      hideLayout ? 'bg-secondary-50' : 'bg-secondary-50 bg-cover bg-center md:bg-fixed bg-no-repeat'
     "
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
     <div
       v-if="!hideLayout"
-      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 md:pt-18 min-h-screen items-start"
+      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 min-h-screen items-start gap-2"
       :class="
         isSearchPage && showRightAd
-          ? 'lg:[grid-template-columns:7fr_2fr] xl:[grid-template-columns:7fr_2fr]'
+          ? 'lg:[grid-template-columns:4fr_1fr] xl:[grid-template-columns:4fr_1fr]'
           : showRightAd
-            ? 'lg:[grid-template-columns:2fr_5fr_2fr] xl:[grid-template-columns:2fr_5fr_2fr]'
-            : 'lg:[grid-template-columns:2fr_7fr] xl:[grid-template-columns:2fr_7fr]'
+            ? 'lg:[grid-template-columns:1fr_3fr_1fr] '
+            : 'lg:[grid-template-columns:1fr_4fr]'
       "
     >
       <div
@@ -212,7 +212,6 @@ const handleSubmitPost = async (postData) => {
       <main
         class="min-w-0 transition-all duration-300"
         :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 ']"
-
       >
         <RouterView />
       </main>
@@ -259,14 +258,14 @@ const handleSubmitPost = async (postData) => {
           class="absolute inset-0 bg-black/50 backdrop-blur-sm"
           @click="isMobileActionMenuOpen = false"
         ></div>
-        <div class="relative w-full bg-[#fffef7] rounded-t-3xl p-6 pb-24 shadow-2xl">
-          <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-2">
-            <h3 class="text-xl font-bold text-amber-900">快速功能</h3>
+        <div class="relative w-full bg-secondary-50 rounded-t-3xl p-6 pb-24 shadow-2xl">
+          <div class="flex justify-between items-center mb-6 border-b-2 border-secondary-100 pb-2">
+            <h3 class="text-xl font-bold text-primary-700">快速功能</h3>
             <button
-              class="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+              class="p-2 bg-secondary-100 rounded-full hover:bg-secondary-200"
               @click="isMobileActionMenuOpen = false"
             >
-              <XIcon class="w-5 h-5 text-gray-600" />
+              <XIcon class="w-5 h-5 text-secondary-600" />
             </button>
           </div>
           <div class="grid grid-cols-4 gap-4">
@@ -282,7 +281,7 @@ const handleSubmitPost = async (postData) => {
               <div
                 class="w-14 h-14 bg-yellow-400 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
-                <SparklesIcon class="w-8 h-8 text-amber-900" />
+                <SparklesIcon class="w-8 h-8 text-primary-700" />
               </div>
               <span class="text-xs font-bold text-gray-700">抽卡</span>
             </button>

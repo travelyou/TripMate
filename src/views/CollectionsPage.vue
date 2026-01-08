@@ -80,19 +80,19 @@ const handleCardClick = (item) => {
 
 // 統一橘色系樣式
 const getTabStyle = (isActive) => {
-  let baseStyle = 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-  let activeStyle = 'bg-orange-50 text-orange-600 shadow-sm ring-2 ring-orange-200'
+  let baseStyle = 'text-secondary-500 hover:bg-secondary-100 hover:text-secondary-700'
+  let activeStyle = 'bg-primary-50 text-primary-600 shadow-sm ring-2 ring-primary-200'
   return isActive ? activeStyle : baseStyle
 }
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto w-full mt-[20px]">
+  <div class="max-w-5xl mx-auto w-full mt-6 px-4">
     <div
-      class="relative bg-gradient-to-r from-amber-500 to-orange-400 rounded-3xl p-8 mb-8 text-white shadow-lg overflow-hidden"
+      class="relative bg-gradient-to-r from-primary-700 to-primary-500 rounded-3xl p-8 mb-8 text-white shadow-lg overflow-hidden"
     >
       <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/20 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-0 left-0 w-60 h-60 bg-amber-900/20 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-0 left-0 w-60 h-60 bg-primary-900/20 rounded-full blur-3xl"></div>
 
       <div class="relative z-10 flex items-center gap-6">
         <div
@@ -102,7 +102,7 @@ const getTabStyle = (isActive) => {
         </div>
         <div>
           <h1 class="text-3xl font-black mb-2 tracking-wide">我的收藏</h1>
-          <p class="text-amber-100 font-medium">建立專屬分類，規劃你的夢想旅程！</p>
+          <p class="text-secondary-100 font-medium">建立專屬分類，規劃你的夢想旅程！</p>
         </div>
 
         <div
@@ -110,14 +110,14 @@ const getTabStyle = (isActive) => {
         >
           <div class="text-center">
             <div class="text-2xl font-bold">{{ userStore.collections.length }}</div>
-            <div class="text-xs text-amber-100">口袋名單</div>
+            <div class="text-xs text-secondary-100">口袋名單</div>
           </div>
         </div>
       </div>
     </div>
 
     <div
-      class="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 mb-6 flex overflow-x-auto custom-scroll items-center gap-2"
+      class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-2 mb-6 flex overflow-x-auto custom-scroll items-center gap-2"
     >
       <button
         v-for="tab in tabs"
@@ -134,16 +134,16 @@ const getTabStyle = (isActive) => {
         {{ tab.label }}
         <span
           class="ml-1 text-xs px-1.5 py-0.5 rounded-full"
-          :class="activeCategoryId === tab.id ? 'bg-white/40' : 'bg-gray-200 text-gray-500'"
+          :class="activeCategoryId === tab.id ? 'bg-white/40' : 'bg-secondary-200 text-secondary-500'"
         >
           {{ tab.count }}
         </span>
       </button>
 
-      <div class="w-px h-8 bg-gray-200 mx-1 flex-shrink-0"></div>
+      <div class="w-px h-8 bg-secondary-200 mx-1 flex-shrink-0"></div>
 
       <button
-        class="flex-shrink-0 px-4 py-2.5 text-sm font-bold text-indigo-500 hover:bg-indigo-50 rounded-xl transition flex items-center gap-1"
+        class="flex-shrink-0 px-4 py-2.5 text-sm font-bold text-primary-600 hover:bg-primary-50 rounded-xl transition flex items-center gap-1"
         @click="createNewCategory"
       >
         <Plus class="w-4 h-4" />
@@ -154,17 +154,17 @@ const getTabStyle = (isActive) => {
     <div class="space-y-6 min-h-[400px]">
       <div class="flex justify-between items-end px-1">
         <div
-          class="bg-white/90 backdrop-blur-sm px-5 py-2 rounded-2xl shadow-sm border border-gray-100 flex items-center"
+          class="bg-white/90 backdrop-blur-sm px-5 py-2 rounded-2xl shadow-sm border border-secondary-100 flex items-center"
         >
-          <h2 class="text-xl font-black text-gray-800 flex items-center">
-            <FolderOpen class="w-6 h-6 mr-2 text-amber-500 fill-amber-100" />
+          <h2 class="text-xl font-black text-secondary-800 flex items-center">
+            <FolderOpen class="w-6 h-6 mr-2 text-primary-500 fill-primary-100" />
             {{ currentCategoryName }}
           </h2>
         </div>
 
         <button
           v-if="!['all', 'default', 'domestic', 'international'].includes(activeCategoryId)"
-          class="text-red-500 hover:text-red-600 text-sm flex items-center font-bold bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 hover:bg-red-50 transition"
+          class="text-red-500 hover:text-red-600 text-sm flex items-center font-bold bg-white px-4 py-2 rounded-full shadow-sm border border-secondary-100 hover:bg-red-50 transition"
           @click="deleteCurrentCategory"
         >
           <Trash2 class="w-4 h-4 mr-1" /> 刪除此分類
@@ -173,9 +173,9 @@ const getTabStyle = (isActive) => {
 
       <div
         v-if="filteredItems.length === 0"
-        class="text-center py-20 text-gray-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-gray-300 shadow-sm"
+        class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
       >
-        <Bookmark class="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
         <p class="font-bold text-lg">這裡目前是空的</p>
         <p class="text-sm">快去逛逛，把喜歡的內容加進來吧！</p>
       </div>
@@ -183,7 +183,7 @@ const getTabStyle = (isActive) => {
       <TransitionGroup name="list">
         <div v-for="item in filteredItems" :key="item.id" class="relative group">
           <button
-            class="absolute top-4 right-4 z-20 p-2 bg-white/90 hover:bg-red-500 hover:text-white text-gray-400 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition duration-200 border border-gray-100"
+            class="absolute top-4 right-4 z-20 p-2 bg-white/90 hover:bg-red-500 hover:text-white text-secondary-400 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition duration-200 border border-secondary-100"
             title="移除收藏"
             @click.stop="removeItem(item)"
           >
