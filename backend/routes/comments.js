@@ -1,6 +1,35 @@
+/* eslint-env node */
+/* global require, module */
 const express = require('express');
 const router = express.Router();
 const pool = require('../database/connection');
+
+// GET /api/posts/:postId/comments - 獲取指定貼文的留言
+router.get('/posts/:postId/comments', async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // 檢查貼文是否存在
+    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+    if (postCheck.rows.length === 0) {
+      return res.status(404).json({ error: '貼文不存在' });
+    }
+
+    const commentsResult = await pool.query(
+      'SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC',
+      [postId]
+    );
+
+    res.json({
+      postId,
+      comments: commentsResult.rows,
+      count: commentsResult.rows.length,
+    });
+  } catch (error) {
+    console.error('獲取留言失敗：', error);
+    res.status(500).json({ error: '獲取留言失敗', details: error.message });
+  }
+});
 
 // POST /api/posts/:postId/comments - 創建留言
 router.post('/posts/:postId/comments', async (req, res) => {

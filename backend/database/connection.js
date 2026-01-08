@@ -78,6 +78,19 @@ async function createPool() {
   // 強制 pg 只用 IPv4
   poolConfig.family = 4;
 
+  // Neon 相容性：若執行環境因任何原因拿不到 TLS SNI，Neon 會要求帶 endpoint id
+  // Neon 文件建議：?options=endpoint%3D<endpoint-id>
+  // 在 node-postgres 可用 poolConfig.options = `endpoint=<endpoint-id>`
+  // Neon 錯誤訊息定義：endpoint id = 網域名稱的第一段（原樣，不做裁切）
+  if (!poolConfig.options && typeof dbHost === 'string' && dbHost.endsWith('.neon.tech')) {
+    const firstLabel = dbHost.split('.')[0] || '';
+    const endpointId = firstLabel;
+    if (endpointId) {
+      poolConfig.options = `endpoint=${endpointId}`;
+      console.log(`Neon: 已自動注入 endpoint options（endpoint=${endpointId}）以確保相容性`);
+    }
+  }
+
   // Supabase 通常需要 SSL。若你的環境不需要，可在 .env 設定 DB_SSL=false 關閉。
   // （pg 的 ssl=true 需用物件形式，否則會因憑證驗證失敗）
   const dbSslRaw = (process.env.DB_SSL ?? 'true').toString().toLowerCase();
