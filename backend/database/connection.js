@@ -6,6 +6,8 @@ const dns = require('dns');
 const { promisify } = require('util');
 
 const dnsLookup = promisify(dns.lookup);
+const dnsResolve4 = promisify(dns.resolve4);
+const dnsResolve6 = promisify(dns.resolve6);
 
 dns.setDefaultResultOrder('ipv4first');
 
@@ -21,7 +23,7 @@ function checkEnvVars() {
   return true;
 }
 
-async function createPool() {
+async function createPool(options = {}) {
   if (!checkEnvVars()) {
     throw new Error('缺少必要的環境變數');
   }
@@ -41,21 +43,50 @@ async function createPool() {
 
   let dbHost = process.env.DB_HOST;
   let resolvedFamily = null;
-  try {
-    // 先試 IPv4
-    const address4 = await dnsLookup(process.env.DB_HOST, { family: 4 });
-    dbHost = address4.address;
-    resolvedFamily = 4;
-    console.log(`DNS 解析成功，使用 IPv4 地址: ${dbHost}`);
-  } catch (e4) {
-    console.warn('IPv4 DNS 解析失敗，嘗試 IPv6：', e4.message);
+
+  const forcedFamilyFromEnv = parseInt(process.env.DB_FAMILY, 10);
+  const forcedFamily = Number.isInteger(options.forceFamily) ? options.forceFamily : forcedFamilyFromEnv;
+  const tryIPv4First = forcedFamily !== 6; // 預設優先 IPv4（避免 IPv6 ENETUNREACH）
+
+  // 注意：dns.lookup 在某些 Windows/網路環境會偏向走系統解析，可能拿不到 A 記錄；
+  // 這裡改用 dns.resolve4/resolve6 直接查 DNS 記錄，較穩定可控。
+  const resolveToIp = async (family) => {
+    if (family === 4) {
+      const addrs4 = await dnsResolve4(process.env.DB_HOST);
+      if (!addrs4?.length) throw new Error('查無 IPv4 A 記錄');
+      return { ip: addrs4[0], family: 4 };
+    }
+    if (family === 6) {
+      const addrs6 = await dnsResolve6(process.env.DB_HOST);
+      if (!addrs6?.length) throw new Error('查無 IPv6 AAAA 記錄');
+      return { ip: addrs6[0], family: 6 };
+    }
+    throw new Error('不支援的 family');
+  };
+
+  // 若有強制 family，就只嘗試該族；否則 IPv4 -> IPv6 fallback
+  const familiesToTry = forcedFamily === 4 ? [4] : forcedFamily === 6 ? [6] : (tryIPv4First ? [4, 6] : [6, 4]);
+  for (const fam of familiesToTry) {
     try {
-      const address6 = await dnsLookup(process.env.DB_HOST, { family: 6 });
-      dbHost = address6.address;
-      resolvedFamily = 6;
-      console.log(`DNS 解析成功，使用 IPv6 地址: ${dbHost}`);
-    } catch (e6) {
-      console.warn('DNS 解析失敗，使用原始主機名:', e6.message);
+      const resolved = await resolveToIp(fam);
+      dbHost = resolved.ip;
+      resolvedFamily = resolved.family;
+      console.log(`DNS 解析成功，使用 IPv${resolvedFamily} 地址: ${dbHost}`);
+      break;
+    } catch (e) {
+      console.warn(`IPv${fam} DNS 解析失敗：`, e.message);
+    }
+  }
+
+  if (!resolvedFamily) {
+    // 最後手段：不改 host，交給系統 resolver（但可能會選到 IPv6）
+    try {
+      const lookedUp = await dnsLookup(process.env.DB_HOST);
+      dbHost = lookedUp.address;
+      resolvedFamily = lookedUp.family;
+      console.log(`DNS lookup 成功，使用 IPv${resolvedFamily} 地址: ${dbHost}`);
+    } catch (e) {
+      console.warn('DNS 解析失敗，使用原始主機名:', e.message);
     }
   }
   const poolConfig = {
@@ -110,9 +141,26 @@ async function initializePool() {
 
   initPromise = (async () => {
     try {
-      const pool = await createPool();
-      // 強制建立連線並驗證（避免啟動後第一個 query 才爆）
-      await pool.query('SELECT 1');
+      let pool = await createPool();
+      try {
+        // 強制建立連線並驗證（避免啟動後第一個 query 才爆）
+        await pool.query('SELECT 1');
+      } catch (err) {
+        // 常見：Windows/部分網路環境 IPv6 可解析但不可達，會噴 ENETUNREACH
+        if (err?.code === 'ENETUNREACH' && !process.env.DB_FAMILY) {
+          console.warn('偵測到 IPv6 網路不可達（ENETUNREACH），自動改用 IPv4 重試一次。你也可在 .env 設定 DB_FAMILY=4 來固定使用 IPv4。');
+          try {
+            await pool.end().catch(() => undefined);
+          } catch {
+            // ignore
+          }
+          pool = await createPool({ forceFamily: 4 });
+          await pool.query('SELECT 1');
+        } else {
+          throw err;
+        }
+      }
+
       poolInstance = pool;
       console.log('資料庫連接池已初始化（且已驗證可查詢）');
       return pool;
