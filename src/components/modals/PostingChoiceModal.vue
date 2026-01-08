@@ -31,6 +31,24 @@ const postData = ref({
   tags: []   // 標籤
 })
 
+const errors = ref({
+  board: '',
+  title: '',
+  content: '',
+})
+
+// const clearError = (field) => {
+//   errors.value[field] = ''
+// }
+
+const clearAllErrors = () =>{
+  errors.value = {
+    board: '',
+    title: '',
+    content: ''
+  }
+}
+
 const itineraryStore = useMyItineraryStore()
 
 const tagSearch = ref('')
@@ -38,6 +56,7 @@ const tagSearch = ref('')
 const showItineraryModal = ref(false)
 
 const attachedItinerary = ref(null)
+
 
 // 🟢 1. 行程規劃彈窗 -> 按下「儲存」 (變成正式行程)
 const handleItinerarySave = (itineraryData) => {
@@ -134,16 +153,24 @@ const removeTag = (index) => {
 
 const nextStep = () => {
   if (currentStep.value === 'edit') {
+    clearAllErrors()
+    const validationErrors = []
    if (!postData.value.board || postData.value.board.trim() === ''){
-    alert('還沒選擇發文看板呢寶')
-    return
+    errors.value.board = '還沒選擇發文看板呢寶'
+    validationErrors.push('board')
    }
    if (!postData.value.title || postData.value.title.trim() === ''){
-    alert('寶你的標題呢')
-    return
+    errors.value.title = '寶你的標題呢'
+    validationErrors.push('title')
    }
    if (!postData.value.content || postData.value.content.trim() === ''){
-    alert('請加上文章描述')
+    errors.value.content = '請加上文章描述'
+    validationErrors.push('content')
+   }
+
+   if(validationErrors.lebgh > 0){
+    const errorSummary = `記得喔!:${validationErrors.join( '、')}`
+    alert(errorSummary)
     return
    }
    currentStep.value = 'tags'
