@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global require, process, module */
 const { Pool } = require('pg');
 require('dotenv').config();
 const dns = require('dns');
@@ -5,7 +7,7 @@ const { promisify } = require('util');
 
 const dnsLookup = promisify(dns.lookup);
 
-dns.setDefaultResultOrder('ipv6first');
+dns.setDefaultResultOrder('ipv4first');
 
 function checkEnvVars() {
   const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
@@ -38,17 +40,24 @@ async function createPool() {
   const useConnectionPooling = process.env.USE_POOLING === 'true';
 
   let dbHost = process.env.DB_HOST;
-  let useIPv6 = false;
+  let resolvedFamily = null;
   try {
-    const options = { family: 6 };
-    const address = await dnsLookup(process.env.DB_HOST, options);
-    dbHost = address.address;
-    useIPv6 = true;
-    console.log(`DNS 解析成功，使用 IPv6 地址: ${dbHost}`);
-  } catch (error) {
-    console.warn('DNS 解析失敗，使用原始主機名:', error.message);
+    // 先試 IPv4
+    const address4 = await dnsLookup(process.env.DB_HOST, { family: 4 });
+    dbHost = address4.address;
+    resolvedFamily = 4;
+    console.log(`DNS 解析成功，使用 IPv4 地址: ${dbHost}`);
+  } catch (e4) {
+    console.warn('IPv4 DNS 解析失敗，嘗試 IPv6：', e4.message);
+    try {
+      const address6 = await dnsLookup(process.env.DB_HOST, { family: 6 });
+      dbHost = address6.address;
+      resolvedFamily = 6;
+      console.log(`DNS 解析成功，使用 IPv6 地址: ${dbHost}`);
+    } catch (e6) {
+      console.warn('DNS 解析失敗，使用原始主機名:', e6.message);
+    }
   }
-
   const poolConfig = {
     host: dbHost,
     port: parseInt(process.env.DB_PORT) || 5432,
@@ -59,8 +68,8 @@ async function createPool() {
     idleTimeoutMillis: 30000,
   };
 
-  if (useIPv6) {
-    poolConfig.family = 6;
+  if (resolvedFamily) {
+    poolConfig.family = resolvedFamily;
   }
 
   if (useConnectionPooling && process.env.DB_PORT === '6543') {
@@ -99,25 +108,23 @@ async function initializePool() {
     return initPromise;
   }
 
-  initPromise = createPool()
-    .then(pool => {
+  initPromise = (async () => {
+    try {
+      const pool = await createPool();
+      // 強制建立連線並驗證（避免啟動後第一個 query 才爆）
+      await pool.query('SELECT 1');
       poolInstance = pool;
-      console.log('資料庫連接池已初始化');
+      console.log('資料庫連接池已初始化（且已驗證可查詢）');
       return pool;
-    })
-    .catch(error => {
+    } catch (error) {
       initError = error;
       console.error('資料庫連接池初始化失敗：', error.message);
       throw error;
-    });
+    }
+  })();
 
   return initPromise;
 }
-
-initializePool().catch((err) => {
-  console.error('初始化資料庫失敗，結束程序：', err);
-  process.exit(1);
-});
 
 module.exports = new Proxy({}, {
   get(target, prop) {
