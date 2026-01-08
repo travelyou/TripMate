@@ -41,6 +41,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:3000/api' }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
         run: npm run build
   
   backend:
@@ -84,52 +85,53 @@ jobs:
           fi
           echo "資料庫環境變數已設置"
   
-  create-env-files:
+  deploy-env-to-zeabur:
     runs-on: ubuntu-latest
-    name: Create Environment Files for Zeabur
+    name: Deploy Environment Variables to Zeabur
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-    permissions:
-      contents: write
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Create frontend .env file
+      - name: Set environment variables to Zeabur
+        env:
+          ZEABUR_TOKEN: ${{ secrets.ZEABUR_API_TOKEN }}
+          FRONTEND_SERVICE_ID: ${{ secrets.ZEABUR_FRONTEND_SERVICE_ID }}
+          BACKEND_SERVICE_ID: ${{ secrets.ZEABUR_BACKEND_SERVICE_ID }}
         run: |
-          cat > .env << 'EOF'
-          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL || 'http://localhost:3000/api' }}
-          VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}
-          EOF
-      
-      - name: Create backend .env file
-        run: |
-          mkdir -p backend
-          cat > backend/.env << 'EOF'
-          DB_HOST=${{ secrets.DB_HOST }}
-          DB_PORT=${{ secrets.DB_PORT }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          USE_POOLING=${{ secrets.USE_POOLING || 'false' }}
-          PORT=${{ secrets.BACKEND_PORT || '3000' }}
-          EOF
-      
-      - name: Commit and push .env files
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -f .env backend/.env
-          git diff --staged --quiet || git commit -m "chore: update environment variables for Zeabur deployment [skip ci]"
-          git push
+          set_env_var() {
+            local service_id=$1
+            local key=$2
+            local value=$3
+            curl -X POST https://api.zeabur.com/graphql \
+              -H "Authorization: Bearer $ZEABUR_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation(\$serviceId: String!, \$key: String!, \$value: String!) { updateServiceEnvironmentVariable(input: { serviceId: \$serviceId, key: \$key, value: \$value }) { id } }\",
+                \"variables\": {
+                  \"serviceId\": \"$service_id\",
+                  \"key\": \"$key\",
+                  \"value\": \"$value\"
+                }
+              }"
+          }
+          
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_API_KEY" "${{ secrets.VITE_FIREBASE_API_KEY }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_AUTH_DOMAIN" "${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_PROJECT_ID" "${{ secrets.VITE_FIREBASE_PROJECT_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_STORAGE_BUCKET" "${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_MESSAGING_SENDER_ID" "${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_APP_ID" "${{ secrets.VITE_FIREBASE_APP_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_MEASUREMENT_ID" "${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_SUPABASE_URL" "${{ secrets.VITE_SUPABASE_URL }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_SUPABASE_ANON_KEY" "${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_API_BASE_URL" "${{ secrets.VITE_API_BASE_URL }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_GEMINI_API_KEY" "${{ secrets.VITE_GEMINI_API_KEY }}"
+          
+          set_env_var "$BACKEND_SERVICE_ID" "DB_HOST" "${{ secrets.DB_HOST }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_PORT" "${{ secrets.DB_PORT }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_NAME" "${{ secrets.DB_NAME }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_USER" "${{ secrets.DB_USER }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_PASSWORD" "${{ secrets.DB_PASSWORD }}"
+          set_env_var "$BACKEND_SERVICE_ID" "USE_POOLING" "${{ secrets.USE_POOLING || 'false' }}"
+          set_env_var "$BACKEND_SERVICE_ID" "PORT" "${{ secrets.BACKEND_PORT || '3000' }}"
+          
+          echo "所有環境變數已經都設定在 Zeabur"
