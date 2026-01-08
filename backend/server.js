@@ -44,7 +44,7 @@ app.get('/api/test-db', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       error: '資料庫連接失敗',
-      details: error.message
+      details: error?.message || String(error)
     });
   }
 });
