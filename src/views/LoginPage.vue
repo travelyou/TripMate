@@ -510,8 +510,17 @@ const handleRegister = async () => {
     })
 
     console.log('註冊成功：', userCredential.user)
-    userStore.login()
-    router.push('/')
+    // Firebase 註冊成功會自動登入；若你希望回到「登入畫面」讓使用者手動登入，需先登出
+    await userStore.logout()
+
+    // 切回登入頁籤並帶入 email，提升體驗
+    activeTab.value = 'login'
+    loginForm.value.email = registerForm.value.email
+    loginForm.value.password = ''
+
+    // 清空註冊表單（避免重複提交）
+    registerForm.value.password = ''
+    registerForm.value.confirmPassword = ''
   } catch (error) {
     console.log('註冊失敗', error.message)
     // 不同狀況的註冊失敗
