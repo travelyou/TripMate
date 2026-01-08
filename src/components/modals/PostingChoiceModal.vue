@@ -37,9 +37,9 @@ const errors = ref({
   content: '',
 })
 
-// const clearError = (field) => {
-//   errors.value[field] = ''
-// }
+const clearError = (field) => {
+  errors.value[field] = ''
+}
 
 const clearAllErrors = () =>{
   errors.value = {
@@ -157,18 +157,18 @@ const nextStep = () => {
     const validationErrors = []
    if (!postData.value.board || postData.value.board.trim() === ''){
     errors.value.board = '還沒選擇發文看板呢寶'
-    validationErrors.push('board')
+    validationErrors.push('看板版')
    }
    if (!postData.value.title || postData.value.title.trim() === ''){
     errors.value.title = '寶你的標題呢'
-    validationErrors.push('title')
+    validationErrors.push('標標題')
    }
    if (!postData.value.content || postData.value.content.trim() === ''){
     errors.value.content = '請加上文章描述'
-    validationErrors.push('content')
+    validationErrors.push('還是得描述一下的')
    }
 
-   if(validationErrors.lebgh > 0){
+   if(validationErrors.length > 0){
     const errorSummary = `記得喔!:${validationErrors.join( '、')}`
     alert(errorSummary)
     return
@@ -260,10 +260,19 @@ const filteredTags = computed(() => {
             <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
             <span class="font-bold text-lg">發文設定</span>
           </div>
-          <select v-model="postData.board" class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500">
+          <select
+            v-model="postData.board"
+            class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500"
+            :class="errors.board ? 'border-red-500' : 'border-gray-400'"
+            @change="clearError('board')"
+            >
             <option value="" disabled selected>點此選擇發文看板 ▼</option>
             <option v-for="b in boards" :key="b" :value="b">{{ b }}</option>
           </select>
+          <!-- 加入錯誤訊息 -->
+          <span v-if="errors.board" class="text-red-500 text-xs font-bold ml-2">
+            {{ errors.board }}
+          </span>
         </div>
 
         <div class="p-4 flex-1 overflow-y-auto">
@@ -282,15 +291,28 @@ const filteredTags = computed(() => {
             type="text"
             placeholder="標題 (0/80)"
             class="w-full text-lg font-bold placeholder-gray-400 border-none focus:ring-0 p-0 mb-3 bg-transparent"
+            :class="errors.title ? 'border-b-2 border-red-500' : ''"
             maxlength="80"
+            @input="clearErrcor('title')"
           />
+
+          <!-- 加入錯誤訊息 -->
+          <p v-if="errors.title" class="text-red-500 text-xs font-bold mb-2">
+            {{ errors.title }}
+          </p>
 
           <textarea
             v-model="postData.content"
             placeholder="請輸入你的內文..."
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
-          ></textarea>
+            :class="errors.content ? 'border-b-2 border-red-500' : ''"
+            @input="clearError('content')"
+            ></textarea>
 
+            <!-- 在textarea下方加入錯誤訊息 -->
+          <p v-if="errors.content" class="text-red-500 text-xs font-bold mb-2">
+            {{ errors.content }}
+          </p>
         <div
             v-if="postData.board === '找旅伴' || attachedItinerary"
             class="mb-4"
