@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
     console.error('錯誤堆疊：', error.stack);
     res.status(500).json({
       error: '獲取貼文失敗',
-      details: error.message,
+      details: error?.message || String(error),
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
@@ -94,7 +94,7 @@ router.get('/:id', async (req, res) => {
     res.json(post);
   } catch (error) {
     console.error('獲取貼文詳情失敗：', error);
-    res.status(500).json({ error: '獲取貼文詳情失敗', details: error.message });
+    res.status(500).json({ error: '獲取貼文詳情失敗', details: error?.message || String(error) });
   }
 });
 
@@ -165,7 +165,7 @@ router.post('/', async (req, res) => {
     console.error('請求資料：', req.body);
     res.status(500).json({
       error: '創建貼文失敗',
-      details: error.message,
+      details: error?.message || String(error),
       code: error.code,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -207,7 +207,7 @@ router.put('/:id', async (req, res) => {
     res.json(updatedPost);
   } catch (error) {
     console.error('更新貼文失敗：', error);
-    res.status(500).json({ error: '更新貼文失敗', details: error.message });
+    res.status(500).json({ error: '更新貼文失敗', details: error?.message || String(error) });
   }
 });
 
@@ -228,7 +228,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: '貼文已刪除' });
   } catch (error) {
     console.error('刪除貼文失敗：', error);
-    res.status(500).json({ error: '刪除貼文失敗', details: error.message });
+    res.status(500).json({ error: '刪除貼文失敗', details: error?.message || String(error) });
   }
 });
 
