@@ -1,74 +1,146 @@
 const { Pool } = require('pg');
-// 確保環境變數已加載（如果 server.js 還沒加載的話）
 require('dotenv').config();
+const dns = require('dns');
+const { promisify } = require('util');
 
-// 檢查必要的環境變數
-const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+const dnsLookup = promisify(dns.lookup);
 
-if (missingEnvVars.length > 0) {
-  console.error('缺少環境變數：', missingEnvVars.join(', '));
-  console.error('請確認 backend/.env 文件存在且包含所有必要的配置。');
-  console.error('參考 backend/.env.example 文件來創建 .env 文件。');
-  process.exit(1);
-}
+dns.setDefaultResultOrder('ipv6first');
 
-// 調試：顯示連接配置（隱藏密碼）
-console.log('📋 資料庫連接配置：');
-console.log('  DB_HOST:', process.env.DB_HOST);
-console.log('  DB_PORT:', process.env.DB_PORT);
-console.log('  DB_NAME:', process.env.DB_NAME);
-console.log('  DB_USER:', process.env.DB_USER);
-console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+function checkEnvVars() {
+  const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+  const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
-// 檢查 DB_HOST 是否包含不應該有的內容
-if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
-  console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
-  console.error('DB_HOST 應該只包含主機名，例如：db.lxoghtipisvzsnprlxrb.supabase.co');
-  console.error('端口應該在 DB_PORT 中，路徑應該在 DB_NAME 中');
-}
-
-// 嘗試使用 Connection Pooling（如果直接連接失敗）
-// Supabase 使用 Connection Pooling（端口 6543）而不是直接連接（端口 5432）
-const useConnectionPooling = process.env.USE_POOLING === 'true' || false;
-
-const poolConfig = {
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  connectionTimeoutMillis: 20000,
-  idleTimeoutMillis: 30000,
-  // 讓 Node.js 自動選擇 IP 版本（IPv4 或 IPv6）
-  // 如果系統支持 IPv6，會自動使用 IPv6
-};
-
-// 如果使用 Connection Pooling，調整用戶名
-if (useConnectionPooling && process.env.DB_PORT === '6543') {
-  // Connection Pooling 的用戶名格式：postgres.[project-ref]
-  const projectRef = process.env.DB_HOST?.replace('db.', '').replace('.supabase.co', '');
-  if (projectRef && !process.env.DB_USER?.includes('.')) {
-    poolConfig.user = `postgres.${projectRef}`;
-    console.log('使用 Connection Pooling，用戶名已調整為：', poolConfig.user);
+  if (missingEnvVars.length > 0) {
+    console.error('缺少環境變數：', missingEnvVars.join(', '));
+    console.error('請確認 backend/.env 文件存在且包含所有必要的配置。');
+    return false;
   }
+  return true;
 }
 
-const pool = new Pool(poolConfig);
+async function createPool() {
+  if (!checkEnvVars()) {
+    throw new Error('缺少必要的環境變數');
+  }
 
-// 測試資料庫是否連接成功
-pool.on('connect', () => {
-  console.log('資料庫連接成功！');
+  console.log('資料庫連接配置：');
+  console.log('  DB_HOST:', process.env.DB_HOST);
+  console.log('  DB_PORT:', process.env.DB_PORT);
+  console.log('  DB_NAME:', process.env.DB_NAME);
+  console.log('  DB_USER:', process.env.DB_USER);
+  console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+
+  if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
+    console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
+  }
+
+  const useConnectionPooling = process.env.USE_POOLING === 'true';
+
+  let dbHost = process.env.DB_HOST;
+  let useIPv6 = false;
+  try {
+    const options = { family: 6 };
+    const address = await dnsLookup(process.env.DB_HOST, options);
+    dbHost = address.address;
+    useIPv6 = true;
+    console.log(`DNS 解析成功，使用 IPv6 地址: ${dbHost}`);
+  } catch (error) {
+    console.warn('DNS 解析失敗，使用原始主機名:', error.message);
+  }
+
+  const poolConfig = {
+    host: dbHost,
+    port: parseInt(process.env.DB_PORT) || 5432,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    connectionTimeoutMillis: 20000,
+    idleTimeoutMillis: 30000,
+  };
+
+  if (useIPv6) {
+    poolConfig.family = 6;
+  }
+
+  if (useConnectionPooling && process.env.DB_PORT === '6543') {
+    const projectRef = process.env.DB_HOST?.replace('db.', '').replace('.supabase.co', '');
+    if (projectRef && !process.env.DB_USER?.includes('.')) {
+      poolConfig.user = `postgres.${projectRef}`;
+      console.log('使用 Connection Pooling，用戶名已調整為：', poolConfig.user);
+    }
+  }
+
+  const pool = new Pool(poolConfig);
+
+  pool.on('connect', () => {
+    console.log('資料庫連接成功！');
+  });
+
+  pool.on('error', (err) => {
+    console.error('資料庫連接失敗：', err.message);
+    if (err.code === 'ENOTFOUND') {
+      console.error('無法解析資料庫主機名，請檢查 DB_HOST 是否正確');
+    } else if (err.code === 'ENETUNREACH') {
+      console.error('網路不可達，可能是 IPv6 連接問題');
+      console.error('請確認網路環境支援 IPv6 連接');
+    }
+  });
+
+  return pool;
+}
+
+let poolInstance = null;
+let initPromise = null;
+let initError = null;
+
+async function initializePool() {
+  if (initPromise) {
+    return initPromise;
+  }
+
+  initPromise = createPool()
+    .then(pool => {
+      poolInstance = pool;
+      console.log('資料庫連接池已初始化');
+      return pool;
+    })
+    .catch(error => {
+      initError = error;
+      console.error('資料庫連接池初始化失敗：', error.message);
+      throw error;
+    });
+
+  return initPromise;
+}
+
+initializePool().catch(() => {
 });
 
-pool.on('error', (err) => {
-  console.error('資料庫連接失敗：', err.message);
-  if (err.code === 'ENOTFOUND') {
-    console.error('無法解析資料庫主機名，請檢查：');
-    console.error('1. DB_HOST 是否正確：', process.env.DB_HOST);
-    console.error('2. 網路連接是否正常');
-    console.error('3. 是否可以訪問 Supabase');
+module.exports = new Proxy({}, {
+  get(target, prop) {
+    if (poolInstance) {
+      const value = poolInstance[prop];
+      return typeof value === 'function'
+        ? value.bind(poolInstance)
+        : value;
+    }
+
+    if (initError) {
+      throw new Error(`資料庫連接池初始化失敗：${initError.message}`);
+    }
+
+    const asyncMethods = ['query', 'connect', 'end'];
+    if (asyncMethods.includes(prop)) {
+      return async function(...args) {
+        await initializePool();
+        const method = poolInstance[prop];
+        return typeof method === 'function'
+          ? method.apply(poolInstance, args)
+          : method;
+      };
+    }
+
+    throw new Error('資料庫連接池尚未初始化，請稍後再試或檢查環境變數');
   }
 });
-
-module.exports = pool;
