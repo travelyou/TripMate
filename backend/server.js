@@ -11,6 +11,8 @@ const usersRouter = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// 一律只用 IPv4：明確綁定到 IPv4 host，避免在部分環境預設走非 IPv4 的監聽位址
+const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(cors());
 app.use(express.json());
@@ -59,6 +61,6 @@ app.use('/api', likesRouter);
 // 使用用戶路由
 app.use('/api/users', usersRouter);
 
-app.listen(PORT, () => {
-  console.log(`伺服器連接成功在 http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`);
 });
