@@ -58,7 +58,7 @@ const closeShareModal = () => {
     <div class="w-full">
       <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]">
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-secondary-50 flex items-center">
+          <h1 class="text-2xl font-black text-secondary-50 flex items-center py-1">
             <MapIcon class="w-6 h-6 mr-3 text-white" />
 
             精選行程

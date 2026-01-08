@@ -102,7 +102,7 @@ const handleMobileNavClick = (item) => {
 
 <template>
   <aside
-    class="w-full min-h-full bg-white border-r border-secondary-200 hidden lg:flex lg:min-w-40 flex-col p-2 overflow-hidden"
+    class="w-full min-h-full bg-white border-x border-secondary-100 hidden lg:flex lg:min-w-40 flex-col p-2 overflow-hidden"
   >
     <div class="flex justify-between my-4 p-2 gap-4">
       <div

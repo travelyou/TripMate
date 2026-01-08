@@ -52,7 +52,7 @@ const formatPrice = (price) => {
 
 <template>
   <div
-    class="bg-white overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border-2 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border-2 border-secondary-200 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
   >
     <div
       class="relative w-full h-48 md:h-52 overflow-hidden bg-secondary-100"
@@ -64,7 +64,10 @@ const formatPrice = (price) => {
         :alt="props.itinerary.title || '行程圖片'"
         class="w-full h-full object-cover"
       />
-      <div v-else class="w-full h-full bg-secondary-200 flex items-center justify-center text-secondary-400">
+      <div
+        v-else
+        class="w-full h-full bg-secondary-200 flex items-center justify-center text-secondary-400"
+      >
         無圖片
       </div>
 

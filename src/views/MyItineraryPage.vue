@@ -117,11 +117,11 @@ const getTagColor = (type) => {
 
 <template>
   <div class="p-4">
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start pt-4">
       <div
-        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-4 rounded-xl shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] flex items-center rounded-none"
+        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-5 rounded-xl shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] flex items-center rounded-none"
       >
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center gap-3 text-2xl font-bold text-secondary-50">
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
           <span>我的行程</span>
         </div>
@@ -153,7 +153,8 @@ const getTagColor = (type) => {
                   {{ item.title }}
                 </h4>
                 <div class="flex items-center text-sm text-secondary-500">
-                  <span class="bg-secondary-100 px-2 py-0.5 rounded text-xs mr-2 border border-secondary-300"
+                  <span
+                    class="bg-secondary-100 px-2 py-0.5 rounded text-xs mr-2 border border-secondary-300"
                     >日期</span
                   >
                   {{ item.startDate || '未定' }} - {{ item.endDate || '未定' }}
@@ -184,7 +185,7 @@ const getTagColor = (type) => {
         </div>
 
         <button
-          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] active:translate-y-1 active:shadow-none  "
+          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] active:translate-y-1 active:shadow-none"
           @click="openAddItineraryModal"
         >
           <PlusIcon class="w-5 h-5 mr-2" />
@@ -225,7 +226,9 @@ const getTagColor = (type) => {
                 >儲存於: {{ draft.saveTime ? draft.saveTime.split(' ')[0] : '剛剛' }}</span
               >
             </div>
-            <h4 class="font-bold text-sm text-secondary-800 mb-1 line-clamp-1">{{ draft.title }}</h4>
+            <h4 class="font-bold text-sm text-secondary-800 mb-1 line-clamp-1">
+              {{ draft.title }}
+            </h4>
             <p class="text-xs text-secondary-500 line-clamp-2">{{ draft.content }}</p>
           </div>
         </div>
@@ -242,5 +245,3 @@ const getTagColor = (type) => {
     />
   </div>
 </template>
-
-<!-- 已移除 .pixel-card（已用 Tailwind 實作） -->
