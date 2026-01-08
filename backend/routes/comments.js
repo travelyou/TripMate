@@ -8,16 +8,20 @@ const pool = require('../database/connection');
 router.get('/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
+    const postIdNum = Number(postId);
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' });
+    }
 
     // 檢查貼文是否存在
-    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postIdNum]);
     if (postCheck.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
 
     const commentsResult = await pool.query(
       'SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC',
-      [postId]
+      [postIdNum]
     );
 
     res.json({
@@ -27,7 +31,7 @@ router.get('/posts/:postId/comments', async (req, res) => {
     });
   } catch (error) {
     console.error('獲取留言失敗：', error);
-    res.status(500).json({ error: '獲取留言失敗', details: error.message });
+    res.status(500).json({ error: '獲取留言失敗', details: error?.message || String(error) });
   }
 });
 
@@ -35,6 +39,10 @@ router.get('/posts/:postId/comments', async (req, res) => {
 router.post('/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
+    const postIdNum = Number(postId);
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' });
+    }
     const { author_uid, content } = req.body;
 
     // 驗證必填欄位
@@ -46,7 +54,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
     }
 
     // 檢查貼文是否存在
-    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postIdNum]);
     if (postCheck.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
@@ -58,13 +66,13 @@ router.post('/posts/:postId/comments', async (req, res) => {
       RETURNING *
     `;
 
-    const result = await pool.query(insertCommentQuery, [postId, author_uid, content]);
+    const result = await pool.query(insertCommentQuery, [postIdNum, author_uid, content]);
     const newComment = result.rows[0];
 
     res.status(201).json(newComment);
   } catch (error) {
     console.error('創建留言失敗：', error);
-    res.status(500).json({ error: '創建留言失敗', details: error.message });
+    res.status(500).json({ error: '創建留言失敗', details: error?.message || String(error) });
   }
 });
 // PUT /api/comments/:id - 更新留言
@@ -101,7 +109,7 @@ router.put('/comments/:id', async (req, res) => {
     res.json(updatedComment);
   } catch (error) {
     console.error('更新留言失敗：', error);
-    res.status(500).json({ error: '更新留言失敗', details: error.message });
+    res.status(500).json({ error: '更新留言失敗', details: error?.message || String(error) });
   }
 });
 // DELETE /api/comments/:id - 刪除留言
@@ -121,7 +129,7 @@ router.delete('/comments/:id', async (req, res) => {
     res.json({ message: '留言已刪除' });
   } catch (error) {
     console.error('刪除留言失敗：', error);
-    res.status(500).json({ error: '刪除留言失敗', details: error.message });
+    res.status(500).json({ error: '刪除留言失敗', details: error?.message || String(error) });
   }
 });
 
