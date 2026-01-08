@@ -114,7 +114,9 @@ async function initializePool() {
   return initPromise;
 }
 
-initializePool().catch(() => {
+initializePool().catch((err) => {
+  console.error('初始化資料庫失敗，結束程序：', err);
+  process.exit(1);
 });
 
 module.exports = new Proxy({}, {
