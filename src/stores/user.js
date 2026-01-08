@@ -432,8 +432,14 @@ export const useUserStore = defineStore('user', () => {
   const login = () => { isLoggedIn.value = true }
 
   const logout = async () => {
-    isLoggedIn.value = false
-    console.log('Logged out')
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error('Firebase signOut 失敗：', error)
+    } finally {
+      isLoggedIn.value = false
+      console.log('Logged out')
+    }
   }
 
   const userProfile = computed(() => currentUser.value)
@@ -442,6 +448,8 @@ export const useUserStore = defineStore('user', () => {
     currentUser,
     userProfile,
     firebaseUser,
+    setUserProfile,
+    loadUserProfile,
     visitedPlaces,
     wishlist,
     likedPosts,
