@@ -26,6 +26,13 @@ const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(0)
 
+// 顯示用讚數：注意 0 也要顯示，不能用 `likesCount || ...` 這種會把 0 當成 false 的寫法
+const displayLikesCount = computed(() => {
+  return typeof likesCount.value === 'number'
+    ? likesCount.value
+    : (props.post?.likes ?? 0)
+})
+
 // 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
@@ -166,6 +173,17 @@ const handlePostLike = async () => {
     console.log('按讚操作成功，結果：', result)
     isLiked.value = result.liked
     likesCount.value = result.likesCount
+
+    // 同步回寫到 post，讓 modal 內其他顯示/父層列表保持一致
+    if (props.post) {
+      props.post.isLiked = result.liked
+      props.post.likes = result.likesCount
+    }
+    emit('post-updated', {
+      ...props.post,
+      isLiked: result.liked,
+      likes: result.likesCount,
+    })
   } catch (error) {
     console.error('按讚操作失敗：', error)
     console.error('錯誤詳情：', {
@@ -422,7 +440,7 @@ onMounted(async () => {
                   { 'fill-current': isLiked },
                 ]"
               />
-              <span>{{ likesCount || post.likes || 0 }}</span>
+              <span>{{ displayLikesCount }}</span>
             </button>
 
             <div class="flex items-center space-x-1 text-indigo-600 mr-6">
