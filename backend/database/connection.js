@@ -46,7 +46,9 @@ async function createPool(options = {}) {
 
   const forcedFamilyFromEnv = parseInt(process.env.DB_FAMILY, 10);
   const forcedFamily = Number.isInteger(options.forceFamily) ? options.forceFamily : forcedFamilyFromEnv;
-  const tryIPv4First = forcedFamily !== 6; // 預設優先 IPv4（避免 IPv6 ENETUNREACH）
+  // Supabase 的 db.<project>.supabase.co 在某些情況只有 AAAA(IPv6) 沒有 A(IPv4)；
+  // 因此預設優先 IPv6，避免先嘗試 IPv4 造成誤導性的 ENODATA 日誌。
+  const tryIPv6First = forcedFamily !== 4;
 
   // 注意：dns.lookup 在某些 Windows/網路環境會偏向走系統解析，可能拿不到 A 記錄；
   // 這裡改用 dns.resolve4/resolve6 直接查 DNS 記錄，較穩定可控。
@@ -64,8 +66,8 @@ async function createPool(options = {}) {
     throw new Error('不支援的 family');
   };
 
-  // 若有強制 family，就只嘗試該族；否則 IPv4 -> IPv6 fallback
-  const familiesToTry = forcedFamily === 4 ? [4] : forcedFamily === 6 ? [6] : (tryIPv4First ? [4, 6] : [6, 4]);
+  // 若有強制 family，就只嘗試該族；否則 IPv6 -> IPv4 fallback
+  const familiesToTry = forcedFamily === 4 ? [4] : forcedFamily === 6 ? [6] : (tryIPv6First ? [6, 4] : [4, 6]);
   for (const fam of familiesToTry) {
     try {
       const resolved = await resolveToIp(fam);
@@ -74,7 +76,12 @@ async function createPool(options = {}) {
       console.log(`DNS 解析成功，使用 IPv${resolvedFamily} 地址: ${dbHost}`);
       break;
     } catch (e) {
-      console.warn(`IPv${fam} DNS 解析失敗：`, e.message);
+      // 沒有 A/AAAA 記錄（ENODATA）在某些環境是預期狀況：例如只有 IPv6 的主機。
+      if (e?.code === 'ENODATA' || e?.code === 'ENOTFOUND') {
+        console.log(`IPv${fam} DNS 無可用記錄：`, e.message);
+      } else {
+        console.warn(`IPv${fam} DNS 解析失敗：`, e.message);
+      }
     }
   }
 
@@ -146,19 +153,18 @@ async function initializePool() {
         // 強制建立連線並驗證（避免啟動後第一個 query 才爆）
         await pool.query('SELECT 1');
       } catch (err) {
-        // 常見：Windows/部分網路環境 IPv6 可解析但不可達，會噴 ENETUNREACH
-        if (err?.code === 'ENETUNREACH' && !process.env.DB_FAMILY) {
-          console.warn('偵測到 IPv6 網路不可達（ENETUNREACH），自動改用 IPv4 重試一次。你也可在 .env 設定 DB_FAMILY=4 來固定使用 IPv4。');
-          try {
-            await pool.end().catch(() => undefined);
-          } catch {
-            // ignore
-          }
-          pool = await createPool({ forceFamily: 4 });
-          await pool.query('SELECT 1');
-        } else {
-          throw err;
+        // 你的 log 顯示 DB_HOST 沒有 A(IPv4) 記錄（ENODATA），因此這裡不做「自動改用 IPv4」重試。
+        // 若遇到 ENETUNREACH，多半是部署環境沒有 IPv6 出站能力（可解析 AAAA，但封包出不去）。
+        if (err?.code === 'ENETUNREACH') {
+          const wrapped = new Error(
+            '資料庫連線失敗（ENETUNREACH）：目前執行環境無法連到 IPv6 位址。' +
+            '由於此 DB_HOST 可能沒有 IPv4 A 記錄，無法改用 IPv4 連線。' +
+            '請改用支援 IPv6 出站的部署環境，或在 Supabase 改用/設定提供 IPv4 的連線端點（例如 Pooler）。'
+          );
+          wrapped.cause = err;
+          throw wrapped;
         }
+        throw err;
       }
 
       poolInstance = pool;
