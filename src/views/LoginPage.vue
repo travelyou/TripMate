@@ -292,6 +292,26 @@ const loginErrors = ref({
 //登入：送出資料
 const userStore = useUserStore()
 const router = useRouter()
+
+const applyUserProfileToStore = (profileData) => {
+  if (typeof userStore.setUserProfile === 'function') {
+    userStore.setUserProfile(profileData)
+    return
+  }
+  if (typeof userStore.updateProfile === 'function') {
+    userStore.updateProfile({
+      id: profileData?.uid,
+      uid: profileData?.uid,
+      email: profileData?.email,
+      nickname: profileData?.nickname,
+      name: profileData?.realName || profileData?.nickname,
+      avatar: profileData?.avatar,
+      bio: profileData?.bio,
+      spiritAnimal: profileData?.spiritAnimal,
+    })
+  }
+}
+
 const handleLogin = async () => {
   // 清理 email：避免零寬字元/全形符號導致 Firebase 判定 auth/invalid-email
   loginForm.value.email = (loginForm.value.email || '')
@@ -344,7 +364,7 @@ const handleLogin = async () => {
       if (userDoc.exists()) {
         // 更新 user store
         const userData = userDoc.data()
-        userStore.setUserProfile({
+        applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...userData,
@@ -362,7 +382,7 @@ const handleLogin = async () => {
           createdAt: new Date(),
         }
         await setDoc(userDocRef, defaultUserData)
-        userStore.setUserProfile({
+        applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...defaultUserData,
@@ -503,14 +523,13 @@ const handleRegister = async () => {
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
     // 更新 user store
-    userStore.setUserProfile({
+    applyUserProfileToStore({
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       ...userData,
     })
 
     console.log('註冊成功：', userCredential.user)
-    // Firebase 註冊成功會自動登入；若你希望回到「登入畫面」讓使用者手動登入，需先登出
     await userStore.logout()
 
     // 切回登入頁籤並帶入 email，提升體驗
