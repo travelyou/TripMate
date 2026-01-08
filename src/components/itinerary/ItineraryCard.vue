@@ -52,10 +52,10 @@ const formatPrice = (price) => {
 
 <template>
   <div
-    class="bg-white overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+    class="bg-white overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border-2 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
   >
     <div
-      class="relative w-full h-48 md:h-52 overflow-hidden bg-gray-100"
+      class="relative w-full h-48 md:h-52 overflow-hidden bg-secondary-100"
       @click="emit('open-detail', props.itinerary, false)"
     >
       <img
@@ -64,19 +64,19 @@ const formatPrice = (price) => {
         :alt="props.itinerary.title || '行程圖片'"
         class="w-full h-full object-cover"
       />
-      <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+      <div v-else class="w-full h-full bg-secondary-200 flex items-center justify-center text-secondary-400">
         無圖片
       </div>
 
       <div
         v-if="props.itinerary.isFeatured"
-        class="absolute top-2 right-2 bg-yellow-500 text-gray-900 font-black text-xs px-2 py-1 border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(55,65,81,0.5)]"
+        class="absolute top-2 right-2 bg-primary-100 text-primary-800 font-black text-xs px-2 py-1 border-2 border-primary-300 shadow-[2px_2px_0px_0px_rgba(7,52,76,0.35)]"
       >
         FEATURED
       </div>
 
       <div
-        class="absolute bottom-2 left-2 bg-indigo-600 text-white font-black text-sm px-3 py-1 rounded-full flex items-center shadow-lg"
+        class="absolute bottom-2 left-2 bg-primary-600 text-white font-black text-sm px-3 py-1 rounded-full flex items-center shadow-lg"
       >
         <DollarSignIcon class="w-4 h-4 mr-0.5" />
         <span>{{ formatPrice(props.itinerary.price) }}</span>
@@ -86,33 +86,33 @@ const formatPrice = (price) => {
     <div class="p-4 flex flex-col space-y-3">
       <div
         v-if="props.itinerary.agencyName"
-        class="text-xs font-bold text-orange-600 tracking-wider"
+        class="text-xs font-bold text-primary-600 tracking-wider"
       >
         由 {{ props.itinerary.agencyName }} 服務
       </div>
 
       <h3
-        class="text-lg font-black text-gray-900 line-clamp-2 hover:text-orange-500 transition"
+        class="text-lg font-black text-secondary-900 line-clamp-2 hover:text-primary-600 transition"
         @click="emit('open-detail', props.itinerary, false)"
       >
         {{ props.itinerary.title || '未命名行程' }}
       </h3>
 
-      <div class="flex items-center space-x-4 text-sm text-gray-600">
+      <div class="flex items-center space-x-4 text-sm text-secondary-600">
         <div class="flex items-center space-x-1">
-          <CalendarIcon class="w-4 h-4 text-green-500" />
+          <CalendarIcon class="w-4 h-4 text-primary-500" />
           <span>{{ props.itinerary.durationDays || 0 }} 天</span>
         </div>
         <div class="flex items-center space-x-1">
-          <MapPinIcon class="w-4 h-4 text-red-500" />
+          <MapPinIcon class="w-4 h-4 text-primary-600" />
           <span class="font-bold line-clamp-1">
             {{ props.itinerary.destinations?.join('...') || '地點未定' }}
           </span>
         </div>
       </div>
 
-      <div class="flex items-center justify-between border-t border-gray-100 pt-3">
-        <div class="flex items-center space-x-4 text-xs text-gray-500">
+      <div class="flex items-center justify-between border-t border-secondary-100 pt-3">
+        <div class="flex items-center space-x-4 text-xs text-secondary-500">
           <button
             class="flex items-center space-x-1 transition group"
             :class="userStore.isFavorite(itemData) ? 'text-red-500' : 'hover:text-red-500'"
@@ -129,7 +129,7 @@ const formatPrice = (price) => {
 
           <button
             class="flex items-center space-x-1 transition group"
-            :class="userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600'"
+            :class="userStore.isCollected(itemData) ? 'text-primary-500' : 'hover:text-primary-600'"
             @click.stop="
               userStore.isCollected(itemData)
                 ? userStore.removeFromCollection(itemData)
@@ -146,9 +146,9 @@ const formatPrice = (price) => {
           </button>
         </div>
 
-        <div class="flex items-center space-x-4 text-gray-500">
+        <div class="flex items-center space-x-4 text-secondary-500">
           <button
-            class="flex items-center space-x-1 hover:text-indigo-600 transition"
+            class="flex items-center space-x-1 hover:text-primary-600 transition"
             @click.stop="emit('open-detail', props.itinerary, true)"
           >
             <MessageCircleIcon class="w-4 h-4" />
@@ -156,7 +156,7 @@ const formatPrice = (price) => {
           </button>
 
           <button
-            class="flex items-center space-x-1 hover:text-gray-600 transition"
+            class="flex items-center space-x-1 hover:text-secondary-600 transition"
             @click.stop="emit('open-share', props.itinerary.id)"
           >
             <Repeat2Icon class="w-4 h-4" />

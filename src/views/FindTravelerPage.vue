@@ -33,16 +33,14 @@ const activeFilter = ref('全部')
 <template>
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
-      <div
-        class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]"
-      >
+      <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]">
         <div class="flex justify-between items-center">
           <h1 class="text-2xl font-black text-secondary-50 flex items-center">
-            <UsersIcon class="w-7 h-7 mr-3 text-primary-100 fill-primary-200" />
+            <UsersIcon class="w-6 h-6 mr-3 text-white" />
             找旅伴
           </h1>
           <button
-            class="bg-secondary-700 text-white px-5 py-2 rounded-lg font-bold hover:bg-secondary-800 transition flex items-center"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-secondary-800 transition flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -51,9 +49,7 @@ const activeFilter = ref('全部')
         </div>
       </div>
 
-      <div
-        class="mb-8 p-4 bg-white/90 rounded-xl shadow-md border-2 border-secondary-200"
-      >
+      <div class="mb-8 p-4 bg-white/90 rounded-xl shadow-md border-2 border-secondary-200">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
