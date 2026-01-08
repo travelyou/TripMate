@@ -87,7 +87,7 @@ jobs:
   create-env-files:
     runs-on: ubuntu-latest
     name: Create Environment Files for Zeabur
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     permissions:
       contents: write
     
