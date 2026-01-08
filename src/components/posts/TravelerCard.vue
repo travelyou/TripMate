@@ -38,13 +38,13 @@ const itemData = computed(() => ({
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
-      return 'bg-green-500 text-white'
+      return 'bg-primary-600 text-white'
     case '已額滿':
-      return 'bg-red-500 text-white '
+      return 'bg-primary-700 text-white'
     case '已出發':
-      return 'bg-gray-500 text-white'
+      return 'bg-secondary-500 text-white'
     default:
-      return 'bg-yellow-500 text-gray-900'
+      return 'bg-primary-100 text-primary-800'
   }
 }
 </script>

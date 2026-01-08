@@ -28,14 +28,14 @@ const menuItems = [
     name: 'discussion',
     label: '討論區',
     icon: ForumIcon,
-    iconColor: 'text-indigo-600',
+    iconColor: 'text-primary-600',
     textColor: 'text-secondary',
   },
   {
     name: 'find_traveler',
     label: '找旅伴',
     icon: UsersIcon,
-    iconColor: 'text-green-600',
+    iconColor: 'text-primary-600',
     textColor: 'text-secondary',
   },
   {
@@ -52,14 +52,14 @@ const bottomMenuItems = [
     name: 'my_itinerary',
     label: '我的行程',
     icon: CalendarIcon,
-    iconColor: 'text-blue-600',
+    iconColor: 'text-primary-600',
     textColor: 'text-secondary',
   },
   {
     name: 'profile',
     label: '個人檔案',
     icon: UserIcon,
-    iconColor: 'text-gray-700',
+    iconColor: 'text-primary-600',
     textColor: 'text-secondary',
   },
 
@@ -68,7 +68,7 @@ const bottomMenuItems = [
     params: { id: 'test' },
     label: '廠商檔案',
     icon: UserIcon,
-    iconColor: 'text-gray-700',
+    iconColor: 'text-primary-600',
     textColor: 'text-secondary',
   },
 ]
@@ -110,6 +110,7 @@ const handleMobileNavClick = (item) => {
         @click="goToFavorites"
       >
         <HeartIcon class="w-8 h-8 text-accent-500 transition fill-white" />
+        <span class="font-bold text-primary">愛心</span>
       </div>
 
       <div
@@ -117,6 +118,7 @@ const handleMobileNavClick = (item) => {
         @click="goToCollections"
       >
         <BookmarkIcon class="w-8 h-8 text-gold-500 transition fill-white" />
+        <span class="font-bold text-primary">收藏</span>
       </div>
     </div>
 
@@ -183,7 +185,9 @@ const handleMobileNavClick = (item) => {
       <span
         class="text-xs font-bold transition-colors whitespace-nowrap scale-95 origin-center"
         :class="
-          route.name === item.name && item.name !== 'menu' ? 'text-primary-600' : 'text-secondary-500'
+          route.name === item.name && item.name !== 'menu'
+            ? 'text-primary-600'
+            : 'text-secondary-500'
         "
       >
         {{ item.label }}

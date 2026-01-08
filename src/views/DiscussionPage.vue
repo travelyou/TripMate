@@ -245,15 +245,15 @@ const getPostData = (post) => ({
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="mb-6 mt-4"
+        class="mb-6 mt-4 bg-primary rounded-xl p-5 border border-secondary-100 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]"
       >
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-secondary flex items-center">
-            <MessageCircleIcon class="w-7 h-7 mr-3 text-indigo-500 fill-white" />
+          <h1 class="text-2xl font-black text-white flex items-center">
+            <MessageCircleIcon class="w-7 h-7 mr-3 text-white" />
             討論區
           </h1>
           <button
-            class="bg-secondary-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-md flex items-center "
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-primary-700 transition shadow-md flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -262,16 +262,16 @@ const getPostData = (post) => ({
         </div>
       </div>
 
-      <div class="mb-8 p-4 ">
+      <div class="mb-8 p-4 bg-white rounded-xl border border-secondary-100">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-[2px_2px_0px_0px_rgba(7,52,76,1)]',
               activeFilter === filter
-                ? 'bg-primary text-gray-900'
-                : 'bg-white text-gray-600 hover:bg-gray-200',
+                ? 'bg-primary text-secondary-50'
+                : 'bg-white text-secondary-600 hover:bg-secondary-100',
             ]"
             @click="activeFilter = filter"
           >
@@ -284,38 +284,38 @@ const getPostData = (post) => ({
         <div
           v-for="post in discussionsStore.discussions"
           :key="post.id"
-          class="p-5 bg-white ring-1 ring-gray-200 shadow-md rounded-2xl hover:shadow-lg transition cursor-pointer"
+          class="p-5 bg-white ring-1 ring-secondary-200 shadow-md rounded-2xl hover:shadow-lg transition cursor-pointer"
         >
           <div class="flex items-center space-x-3 mb-4">
             <img
               :src="post.avatar"
-              class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
             />
             <div>
               <div class="flex items-center space-x-2">
-                <span class="font-bold text-gray-800">{{ post.author }}</span>
+                <span class="font-bold text-secondary-800">{{ post.author }}</span>
                 <span
-                  class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
+                  class="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full"
                 >
                   {{ post.spiritAnimal }}
                 </span>
               </div>
-              <div class="text-xs text-gray-400">{{ post.time }} • 討論區</div>
+              <div class="text-xs text-secondary-400">{{ post.time }} • 討論區</div>
             </div>
           </div>
 
           <h3
-            class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600"
+            class="text-lg font-bold text-secondary-900 mb-2 cursor-pointer hover:text-primary-600"
             @click="openDiscussionDetailModal(post, false)"
           >
             {{ post.title }}
           </h3>
 
-          <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
+          <p class="text-secondary-600 text-sm mb-4 line-clamp-4 leading-relaxed">
             {{ post.content }}
           </p>
 
-          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100">
+          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100">
             <img
               :src="post.image"
               class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -324,18 +324,18 @@ const getPostData = (post) => ({
 
           <div
             v-if="post.tags && post.tags.length"
-            class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3"
+            class="flex flex-wrap gap-2 mb-4 border-b border-secondary-100 pb-3"
           >
             <span
               v-for="tag in post.tags"
               :key="tag"
-              class="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1 rounded-full cursor-pointer hover:bg-amber-200 transition"
+              class="text-xs font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full cursor-pointer hover:bg-primary-200 transition"
             >
               #{{ tag }}
             </span>
           </div>
 
-          <div class="flex items-center text-gray-400 text-sm pt-1">
+          <div class="flex items-center text-secondary-400 text-sm pt-1">
             <button
               class="flex items-center space-x-1 transition mr-6 group"
               :class="post.isLiked ? 'text-red-500' : 'hover:text-red-500'"
@@ -349,7 +349,7 @@ const getPostData = (post) => ({
             </button>
 
             <button
-              class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
+              class="flex items-center space-x-1 hover:text-primary-600 transition mr-6"
               @click="openDiscussionDetailModal(post, true)"
             >
               <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
@@ -359,8 +359,8 @@ const getPostData = (post) => ({
               class="flex items-center space-x-1 transition mr-6 group"
               :class="
                 userStore.isCollected(getPostData(post))
-                  ? 'text-yellow-500'
-                  : 'hover:text-yellow-600'
+                  ? 'text-primary-500'
+                  : 'hover:text-primary-600'
               "
               @click.stop="
                 userStore.isCollected(getPostData(post))
@@ -375,7 +375,7 @@ const getPostData = (post) => ({
             </button>
 
             <button
-              class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
+              class="ml-auto flex items-center space-x-1 hover:text-secondary-600 transition"
               @click="openShareModal(post.id)"
             >
               <Repeat2Icon class="w-4 h-4" />

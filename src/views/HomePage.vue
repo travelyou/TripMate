@@ -182,24 +182,24 @@ const getPostData = (post) => ({
 <template>
   <div class="overflow-x-hidden p-4">
     <div class="w-full min-w-0">
-      <div class="mb-10 relative group bg-white ring-2 ring-gray-200 p-4 rounded-2xl shadow-lg">
+      <div class="my-5 relative group bg-white ring-2 ring-gray-200 p-4 rounded-2xl shadow-lg">
         <div class="mb-4 mt-4">
           <h2
-            class="inline-flex items-center text-xl font-bold text-secondary px-5 py-2 rounded-xl"
+            class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl"
           >
             旅伴推薦
           </h2>
         </div>
 
         <button
-          class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 border-2 border-amber-900 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
           @click="scroll('left')"
         >
           <ChevronLeftIcon class="w-6 h-6" />
         </button>
 
         <button
-          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 border-2 border-amber-900 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110  flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
           @click="scroll('right')"
         >
           <ChevronRightIcon class="w-6 h-6" />
@@ -207,7 +207,7 @@ const getPostData = (post) => ({
 
         <div
           ref="scrollContainer"
-          class="flex overflow-x-auto space-x-4 p-4 bg-white rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
+          class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
         >
           <div
             v-for="item in travelersStore.recommendations"
@@ -259,9 +259,9 @@ const getPostData = (post) => ({
       </div>
 
       <div>
-        <div class="mb-6">
+        <div class="mb-6 bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]">
           <h2
-            class="inline-flex items-center text-xl font-bold text-secondary px-5 py-2 rounded-xl"
+            class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl"
           >
             最新動態
           </h2>

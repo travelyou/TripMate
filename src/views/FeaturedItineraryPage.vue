@@ -56,15 +56,15 @@ const closeShareModal = () => {
 <template>
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
-      <div
-        class="bg-primary text-white font-black rounded-xl text-2xl p-4 mb-6 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] flex items-center"
-      >
-        <div class="flex items-center space-x-3">
-          <MapIcon class="w-6 h-6 " />
-          <span class="text-secondary-50">精選行程</span>
+      <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-black text-secondary-50 flex items-center">
+            <MapIcon class="w-6 h-6 mr-3 text-white" />
+
+            精選行程
+          </h1>
         </div>
       </div>
-
       <div
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] rounded-xl"
       >

@@ -15,8 +15,8 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
   >
     <button
       @click="$emit('open-posting')"
-      class="p-3 md:p-4 bg-pink-400 text-white hover:bg-pink-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
-      style="border-radius: 4px; width: 56px; height: 56px"
+      class="p-3 md:p-4 bg-primary-600 text-white hover:bg-primary-700 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      style="width: 56px; height: 56px"
       title="發布新貼文"
     >
       <PlusIcon class="w-6 h-6 md:w-7 md:h-7" />
@@ -24,8 +24,8 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 
     <button
       @click="$emit('quick-action')"
-      class="p-3 md:p-4 bg-amber-400 text-white hover:bg-amber-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
-      style="border-radius: 4px; width: 56px; height: 56px"
+      class="p-3 md:p-4 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      style="width: 56px; height: 56px"
       title="抽卡找旅伴"
     >
       <ZapIcon class="w-6 h-6 md:w-7 md:h-7" />
@@ -33,8 +33,8 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 
     <button
       @click="$emit('toggle-private-chat')"
-      class="p-3 md:p-4 bg-green-400 text-white hover:bg-green-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
-      style="border-radius: 4px; width: 56px; height: 56px"
+      class="p-3 md:p-4 bg-secondary-600 text-white hover:bg-secondary-700 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      style="width: 56px; height: 56px"
       title="私人訊息"
     >
       <MessageSquareIcon class="w-6 h-6 md:w-7 md:h-7" />
@@ -42,8 +42,8 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
 
     <button
       @click="$emit('toggle-ai-chat')"
-      class="p-3 md:p-4 bg-orange-400 text-white hover:bg-orange-500 flex items-center justify-center transition-transform hover:-translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
-      style="border-radius: 4px; width: 56px; height: 56px"
+      class="p-3 md:p-4 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      style="width: 56px; height: 56px"
       title="TripMate 助手"
     >
       <BotIcon class="w-6 h-6 md:w-7 md:h-7" />
