@@ -182,8 +182,8 @@ const getPostData = (post) => ({
 <template>
   <div class="overflow-x-hidden p-4">
     <div class="w-full min-w-0">
-      <div class="my-5 relative group bg-white ring-2 ring-gray-200 p-4 rounded-2xl shadow-lg">
-        <div class="mb-4 mt-4">
+      <div class="my-5 relative group bg-white p-4 border-4 border-primary shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] rounded-xl">
+        <div >
           <h2
             class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl"
           >
@@ -212,14 +212,14 @@ const getPostData = (post) => ({
           <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
-            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-[1.5rem] p-4 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
+            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
             @click="openDiscussionDetailModal(item, false)"
           >
             <img
               :src="item.image"
-              class="absolute inset-0 w-full h-full object-contain transition duration-700 group-hover/card:scale-110 opacity-90"
+              class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover/card:scale-110 opacity-90"
             />
-            <div class="absolute inset-0 bg-black/50 group-hover/card:bg-black/60 transition"></div>
+            <div class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"></div>
 
             <div class="relative z-10 h-full flex flex-col justify-between">
               <div class="flex justify-between items-start">
