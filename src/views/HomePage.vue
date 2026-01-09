@@ -3,7 +3,7 @@ import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue
 import ShareModal from '@/components/modals/ShareModal.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
-import { useUserStore } from '@/stores/user' // 1. 引入 UserStore
+import { useUserStore } from '@/stores/user'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { toggleLike } from '@/api/likes'
@@ -14,7 +14,7 @@ import {
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
   Users as UsersIcon,
-  Bookmark as BookmarkIcon, // 引入 Bookmark
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 import { ref, onMounted } from 'vue'
 
@@ -182,11 +182,11 @@ const getPostData = (post) => ({
 <template>
   <div class="overflow-x-hidden p-4">
     <div class="w-full min-w-0">
-      <div class="my-5 relative group bg-white p-4 border-4 border-primary shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] rounded-xl">
-        <div >
-          <h2
-            class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl"
-          >
+      <div
+        class="my-5 relative group bg-white p-4 border-4 border-primary shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] rounded-xl"
+      >
+        <div>
+          <h2 class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl">
             旅伴推薦
           </h2>
         </div>
@@ -199,7 +199,7 @@ const getPostData = (post) => ({
         </button>
 
         <button
-          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110  flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
           @click="scroll('right')"
         >
           <ChevronRightIcon class="w-6 h-6" />
@@ -219,7 +219,9 @@ const getPostData = (post) => ({
               :src="item.image"
               class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover/card:scale-110 opacity-90"
             />
-            <div class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"></div>
+            <div
+              class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"
+            ></div>
 
             <div class="relative z-10 h-full flex flex-col justify-between">
               <div class="flex justify-between items-start">
@@ -259,10 +261,10 @@ const getPostData = (post) => ({
       </div>
 
       <div>
-        <div class="mb-6 bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]">
-          <h2
-            class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl"
-          >
+        <div
+          class="mb-6 bg-primary p-5 rounded-xl mb-6 mt-4 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]"
+        >
+          <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
             最新動態
           </h2>
         </div>
