@@ -6,6 +6,10 @@ const pool = require('../database/connection');
 router.post('/posts/:postId/likes', async (req, res) => {
   try {
     const { postId } = req.params;
+    const postIdNum = Number(postId);
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' });
+    }
     const { author_uid } = req.body;
 
     // 驗證必填欄位
@@ -17,7 +21,7 @@ router.post('/posts/:postId/likes', async (req, res) => {
     }
 
     // 檢查貼文是否存在
-    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postIdNum]);
     if (postCheck.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
@@ -74,20 +78,20 @@ router.post('/posts/:postId/likes', async (req, res) => {
     // 檢查是否已經按讚（使用動態欄位名稱）
     const existingLike = await pool.query(
       `SELECT id FROM post_likes WHERE post_id = $1 AND ${columnName} = $2`,
-      [postId, author_uid]
+      [postIdNum, author_uid]
     );
 
     if (existingLike.rows.length > 0) {
       // 如果已經按讚，則取消按讚（刪除）
       await pool.query(
         `DELETE FROM post_likes WHERE post_id = $1 AND ${columnName} = $2`,
-        [postId, author_uid]
+        [postIdNum, author_uid]
       );
 
       // 獲取更新後的按讚數
       const countResult = await pool.query(
         'SELECT COUNT(*) as count FROM post_likes WHERE post_id = $1',
-        [postId]
+        [postIdNum]
       );
 
       res.json({
@@ -99,13 +103,13 @@ router.post('/posts/:postId/likes', async (req, res) => {
       // 如果沒有按讚，則添加按讚
       await pool.query(
         `INSERT INTO post_likes (post_id, ${columnName}) VALUES ($1, $2)`,
-        [postId, author_uid]
+        [postIdNum, author_uid]
       );
 
       // 獲取更新後的按讚數
       const countResult = await pool.query(
         'SELECT COUNT(*) as count FROM post_likes WHERE post_id = $1',
-        [postId]
+        [postIdNum]
       );
 
       res.json({
@@ -119,7 +123,7 @@ router.post('/posts/:postId/likes', async (req, res) => {
     console.error('錯誤堆疊：', error.stack);
     res.status(500).json({ 
       error: '按讚操作失敗', 
-      details: error.message,
+      details: error?.message || String(error),
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
@@ -129,12 +133,16 @@ router.post('/posts/:postId/likes', async (req, res) => {
 router.get('/posts/:postId/likes', async (req, res) => {
   try {
     const { postId } = req.params;
+    const postIdNum = Number(postId);
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' });
+    }
     const { author_uid } = req.query; // 可選，用於檢查當前用戶是否已按讚
 
     // 獲取按讚總數
     const countResult = await pool.query(
       'SELECT COUNT(*) as count FROM post_likes WHERE post_id = $1',
-      [postId]
+      [postIdNum]
     );
 
     const likesCount = parseInt(countResult.rows[0].count);
@@ -161,7 +169,7 @@ router.get('/posts/:postId/likes', async (req, res) => {
       
       const likeCheck = await pool.query(
         `SELECT id FROM post_likes WHERE post_id = $1 AND ${columnName} = $2`,
-        [postId, author_uid]
+        [postIdNum, author_uid]
       );
       isLiked = likeCheck.rows.length > 0;
     }
@@ -172,7 +180,7 @@ router.get('/posts/:postId/likes', async (req, res) => {
     });
   } catch (error) {
     console.error('獲取按讚資訊失敗：', error);
-    res.status(500).json({ error: '獲取按讚資訊失敗', details: error.message });
+    res.status(500).json({ error: '獲取按讚資訊失敗', details: error?.message || String(error) });
   }
 });
 

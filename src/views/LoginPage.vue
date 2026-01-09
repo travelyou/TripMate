@@ -292,11 +292,38 @@ const loginErrors = ref({
 //登入：送出資料
 const userStore = useUserStore()
 const router = useRouter()
+
+const applyUserProfileToStore = (profileData) => {
+  if (typeof userStore.setUserProfile === 'function') {
+    userStore.setUserProfile(profileData)
+    return
+  }
+  if (typeof userStore.updateProfile === 'function') {
+    userStore.updateProfile({
+      id: profileData?.uid,
+      uid: profileData?.uid,
+      email: profileData?.email,
+      nickname: profileData?.nickname,
+      name: profileData?.realName || profileData?.nickname,
+      avatar: profileData?.avatar,
+      bio: profileData?.bio,
+      spiritAnimal: profileData?.spiritAnimal,
+    })
+  }
+}
+
 const handleLogin = async () => {
-  console.log('🔵 登入函數被觸發', {
-    email: loginForm.value.email,
-    password: loginForm.value.password ? '***' : '',
-  })
+  // 清理 email：避免零寬字元/全形符號導致 Firebase 判定 auth/invalid-email
+  loginForm.value.email = (loginForm.value.email || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/\uFF20/g, '@') // ＠
+    .replace(/[\uFF0E\u3002\uFF61]/g, '.') // ． 。 ｡
+
+  console.log('🔵 登入函數被觸發', { email: loginForm.value.email, password: loginForm.value.password ? '***' : '' })
 
   //送出後出錯則欄位清空
   loginErrors.value = {
@@ -327,15 +354,17 @@ const handleLogin = async () => {
     )
     console.log('✅ 登入成功：', userCredential.user)
 
+
     // 從 Firestore 獲取用戶資料
     try {
       const userDocRef = doc(db, 'users', userCredential.user.uid)
       const userDoc = await getDoc(userDocRef)
 
+
       if (userDoc.exists()) {
         // 更新 user store
         const userData = userDoc.data()
-        userStore.setUserProfile({
+        applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...userData,
@@ -353,7 +382,7 @@ const handleLogin = async () => {
           createdAt: new Date(),
         }
         await setDoc(userDocRef, defaultUserData)
-        userStore.setUserProfile({
+        applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...defaultUserData,
@@ -363,6 +392,7 @@ const handleLogin = async () => {
       console.error('獲取用戶資料失敗：', error)
       // 即使獲取失敗也允許登入
     }
+
 
     userStore.login()
     console.log('🚀 正在跳轉到首頁...')
@@ -385,6 +415,31 @@ const handleLogin = async () => {
 //註冊：送出資料
 const handleRegister = async () => {
   try {
+    registerErrors.value = {
+      realName: '',
+      nickname: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      general: '',
+    }
+
+    const sanitizeEmail = (raw) => {
+      return (raw || '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        // 移除常見「看不見」字元（零寬空白/零寬連字/Byte Order Mark）
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        // 移除所有空白字元（含中間的空白）
+        .replace(/\s+/g, '')
+        // 常見全形符號轉半形（避免 IME 輸入造成 Firebase 判定 invalid-email）
+        .replace(/\uFF20/g, '@') // ＠
+        .replace(/[\uFF0E\u3002\uFF61]/g, '.') // 「．」「。」「 ｡」
+    }
+
+    registerForm.value.email = sanitizeEmail(registerForm.value.email)
+
     // 1. 檢查必填欄位
     if (!registerForm.value.realName) {
       registerErrors.value.realName = '請填寫真實姓名'
@@ -468,15 +523,23 @@ const handleRegister = async () => {
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
     // 更新 user store
-    userStore.setUserProfile({
+    applyUserProfileToStore({
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       ...userData,
     })
 
     console.log('註冊成功：', userCredential.user)
-    userStore.login()
-    router.push('/')
+    await userStore.logout()
+
+    // 切回登入頁籤並帶入 email，提升體驗
+    activeTab.value = 'login'
+    loginForm.value.email = registerForm.value.email
+    loginForm.value.password = ''
+
+    // 清空註冊表單（避免重複提交）
+    registerForm.value.password = ''
+    registerForm.value.confirmPassword = ''
   } catch (error) {
     console.log('註冊失敗', error.message)
     // 不同狀況的註冊失敗
@@ -484,6 +547,8 @@ const handleRegister = async () => {
       registerErrors.value.email = '此電子信箱已被註冊使用'
     } else if (error.code === 'auth/weak-password') {
       registerErrors.value.password = '密碼強度不夠'
+    } else if (error.code === 'auth/invalid-email') {
+      registerErrors.value.email = '電子信箱格式錯誤（請確認沒有空白，並使用例如 name@example.com）'
     } else {
       registerErrors.value.general = '註冊失敗：' + error.message
     }
@@ -496,6 +561,14 @@ const handleForgotPassword = async () => {
       loginErrors.value.email = '請輸入註冊時的電子郵件'
       return
     }
+    loginForm.value.email = (loginForm.value.email || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, '')
+      .replace(/\uFF20/g, '@')
+      .replace(/[\uFF0E\u3002\uFF61]/g, '.')
     await sendPasswordResetEmail(auth, loginForm.value.email)
     alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {

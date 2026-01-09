@@ -205,10 +205,47 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
   }
 
+  // 新增草稿
+  const addDraft = (draftData) => {
+    const newDraft = {
+      id: Date.now(),
+      saveTime: new Date().toLocaleString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      ...draftData,
+    }
+    drafts.value.unshift(newDraft)
+  }
+
+  // 儲存行程（新增或更新）
+  const saveItinerary = (itineraryData) => {
+    if (!itineraryData.id) {
+      // 如果沒有 ID，生成一個新的
+      itineraryData.id = Date.now()
+    }
+
+    // 檢查是否已存在
+    const existingIndex = myItineraries.value.findIndex((i) => i.id === itineraryData.id)
+
+    if (existingIndex !== -1) {
+      // 更新現有行程
+      myItineraries.value[existingIndex] = itineraryData
+    } else {
+      // 新增行程
+      myItineraries.value.unshift(itineraryData)
+    }
+  }
+
   return {
     myItineraries,
     drafts,
     addItinerary,
     deleteItinerary,
+    addDraft,
+    saveItinerary,
   }
 })
