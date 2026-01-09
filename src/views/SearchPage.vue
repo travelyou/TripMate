@@ -213,7 +213,11 @@
       </div>
     </div>
 
-    <PostDetailModal v-if="isModalOpen" :post="selectedPost" @close="closePostDetailModal" />
+    <DiscussionDetailModal
+      v-if="isModalOpen"
+      :post="selectedPost"
+      @close="closeDiscussionDetailModal"
+    />
   </div>
 </template>
 
@@ -231,7 +235,7 @@ import {
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
 import { useItineraryStore } from '@/stores/itinerary'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -322,15 +326,11 @@ const allData = computed(() => {
   return results
 })
 
-// 🟢 Highlighting 輔助函式 (標示符合的關鍵字)
-// 這會把 "台北" 替換成 <span class="bg-yellow-200...">台北</span>
 const highlightText = (text) => {
   if (!text) return ''
   const query = searchQuery.value.trim()
   if (!query) return text
 
-  // 1. 建立比對清單 (包含完整字串 + Bigrams)
-  // 目的是讓 "台北美食" 可以 highlight "台北"
   const matchers = [query]
   if (query.length >= 2) {
     for (let i = 0; i < query.length - 1; i++) {
@@ -342,7 +342,6 @@ const highlightText = (text) => {
   matchers.sort((a, b) => b.length - a.length)
 
   // 3. 建立 Regex: (Query|Bigram1|Bigram2)
-  // 使用 escape 防止特殊符號讓 Regex 報錯
   const pattern = matchers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
   const regex = new RegExp(`(${pattern})`, 'gi')
 
@@ -490,7 +489,7 @@ const handleResultClick = (item) => {
   isModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
 }

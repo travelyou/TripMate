@@ -15,7 +15,7 @@ import { toggleLike } from '@/api/likes'
 
 // 引入組件
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 
 const discussionsStore = useDiscussionsStore()
@@ -199,13 +199,13 @@ const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 
-const openPostDetailModal = (post, focusComment = false) => {
+const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
   isDetailModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
@@ -306,7 +306,7 @@ const getPostData = (post) => ({
 
           <h3
             class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600"
-            @click="openPostDetailModal(post, false)"
+            @click="openDiscussionDetailModal(post, false)"
           >
             {{ post.title }}
           </h3>
@@ -350,7 +350,7 @@ const getPostData = (post) => ({
 
             <button
               class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
-              @click="openPostDetailModal(post, true)"
+              @click="openDiscussionDetailModal(post, true)"
             >
               <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
             </button>
@@ -391,11 +391,11 @@ const getPostData = (post) => ({
     @close="isPostingModalOpen = false"
     @submit-post="handleSubmitPost"
   />
-  <PostDetailModal
+  <DiscussionDetailModal
     v-if="isDetailModalOpen"
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
-    @close="closePostDetailModal"
+    @close="closeDiscussionDetailModal"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

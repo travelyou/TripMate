@@ -4,25 +4,25 @@ import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import { useTravelersStore } from '@/stores/travelers'
 import TravelerCard from '@/components/posts/TravelerCard.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 
 const travelersStore = useTravelersStore()
 
 const isPostingModalOpen = ref(false)
 
 const isDetailModalOpen = ref(false)
-const selectedPost = ref(null)
+const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
 
-const openPostDetailModal = (post, focusComment = false) => {
-  selectedPost.value = post
+const openTravelerDetail = (traveler, focusComment = false) => {
+  selectedTraveler.value = traveler
   shouldScrollToComments.value = focusComment
   isDetailModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeTravelerDetail = () => {
   isDetailModalOpen.value = false
-  selectedPost.value = null
+  selectedTraveler.value = null
   shouldScrollToComments.value = false
 }
 
@@ -72,11 +72,12 @@ const activeFilter = ref('全部')
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 🟢 更新點擊事件 -->
         <TravelerCard
           v-for="traveler in travelersStore.recommendations"
           :key="traveler.id"
           :traveler="traveler"
-          @click="openPostDetailModal(traveler, false)"
+          @click="openTravelerDetail(traveler, false)"
         />
       </div>
     </div>
@@ -84,10 +85,11 @@ const activeFilter = ref('全部')
 
   <PostingChoiceModal v-if="isPostingModalOpen" @close="isPostingModalOpen = false" />
 
-  <PostDetailModal
+  <!-- 🟢 使用新的 TravelerDetailModal -->
+  <TravelerDetailModal
     v-if="isDetailModalOpen"
-    :post="selectedPost"
+    :traveler="selectedTraveler"
     :scroll-to-comments="shouldScrollToComments"
-    @close="closePostDetailModal"
+    @close="closeTravelerDetail"
   />
 </template>

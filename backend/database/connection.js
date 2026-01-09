@@ -11,34 +11,37 @@ const dnsResolve4 = promisify(dns.resolve4);
 dns.setDefaultResultOrder('ipv4first');
 
 function checkEnvVars() {
-  const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-  const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']
+  const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName])
 
   if (missingEnvVars.length > 0) {
-    console.error('缺少環境變數：', missingEnvVars.join(', '));
-    console.error('請確認 backend/.env 文件存在且包含所有必要的配置。');
-    return false;
+    console.error('缺少環境變數：', missingEnvVars.join(', '))
+    console.error('請確認 backend/.env 文件存在且包含所有必要的配置。')
+    return false
   }
-  return true;
+  return true
 }
 
 async function createPool() {
   if (!checkEnvVars()) {
-    throw new Error('缺少必要的環境變數');
+    throw new Error('缺少必要的環境變數')
   }
 
-  console.log('資料庫連接配置：');
-  console.log('  DB_HOST:', process.env.DB_HOST);
-  console.log('  DB_PORT:', process.env.DB_PORT);
-  console.log('  DB_NAME:', process.env.DB_NAME);
-  console.log('  DB_USER:', process.env.DB_USER);
-  console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+  console.log('資料庫連接配置：')
+  console.log('  DB_HOST:', process.env.DB_HOST)
+  console.log('  DB_PORT:', process.env.DB_PORT)
+  console.log('  DB_NAME:', process.env.DB_NAME)
+  console.log('  DB_USER:', process.env.DB_USER)
+  console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置')
 
-  if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
-    console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
+  if (
+    process.env.DB_HOST &&
+    (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))
+  ) {
+    console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！')
   }
 
-  const useConnectionPooling = process.env.USE_POOLING === 'true';
+  const useConnectionPooling = process.env.USE_POOLING === 'true'
 
   const dbHost = process.env.DB_HOST;
 
@@ -73,7 +76,7 @@ async function createPool() {
     password: process.env.DB_PASSWORD,
     connectionTimeoutMillis: 20000,
     idleTimeoutMillis: 30000,
-  };
+  }
 
   // 強制 pg 只用 IPv4
   poolConfig.family = 4;
@@ -115,29 +118,29 @@ async function createPool() {
     }
   }
 
-  const pool = new Pool(poolConfig);
+  const pool = new Pool(poolConfig)
 
   pool.on('connect', () => {
-    console.log('資料庫連接成功！');
-  });
+    console.log('資料庫連接成功！')
+  })
 
   pool.on('error', (err) => {
-    console.error('資料庫連接失敗：', err.message);
+    console.error('資料庫連接失敗：', err.message)
     if (err.code === 'ENOTFOUND') {
       console.error('無法解析資料庫主機名，請檢查 DB_HOST 是否正確');
     }
-  });
+  })
 
-  return pool;
+  return pool
 }
 
-let poolInstance = null;
-let initPromise = null;
-let initError = null;
+let poolInstance = null
+let initPromise = null
+let initError = null
 
 async function initializePool() {
   if (initPromise) {
-    return initPromise;
+    return initPromise
   }
 
   initPromise = (async () => {
@@ -156,7 +159,15 @@ async function initializePool() {
     }
   })();
 
-  return initPromise;
+      return pool
+    })
+    .catch((error) => {
+      initError = error
+      console.error('資料庫連接池初始化失敗：', error.message)
+      throw error
+    })
+
+  return initPromise
 }
 
 module.exports = new Proxy({}, {
@@ -168,21 +179,20 @@ module.exports = new Proxy({}, {
         : value;
     }
 
-    if (initError) {
-      throw new Error(`資料庫連接池初始化失敗：${initError.message}`);
-    }
+      if (initError) {
+        throw new Error(`資料庫連接池初始化失敗：${initError.message}`)
+      }
 
-    const asyncMethods = ['query', 'connect', 'end'];
-    if (asyncMethods.includes(prop)) {
-      return async function(...args) {
-        await initializePool();
-        const method = poolInstance[prop];
-        return typeof method === 'function'
-          ? method.apply(poolInstance, args)
-          : method;
-      };
-    }
+      const asyncMethods = ['query', 'connect', 'end']
+      if (asyncMethods.includes(prop)) {
+        return async function (...args) {
+          await initializePool()
+          const method = poolInstance[prop]
+          return typeof method === 'function' ? method.apply(poolInstance, args) : method
+        }
+      }
 
-    throw new Error('資料庫連接池尚未初始化，請稍後再試或檢查環境變數');
-  }
-});
+      throw new Error('資料庫連接池尚未初始化，請稍後再試或檢查環境變數')
+    },
+  },
+)

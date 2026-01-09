@@ -1,5 +1,5 @@
 <script setup>
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
@@ -108,13 +108,13 @@ const scroll = (direction) => {
   }
 }
 
-const openPostDetailModal = (post, focusComment = false) => {
+const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
   isModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
@@ -213,7 +213,7 @@ const getPostData = (post) => ({
             v-for="item in travelersStore.recommendations"
             :key="item.id"
             class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-[1.5rem] p-4 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
-            @click="openPostDetailModal(item, false)"
+            @click="openDiscussionDetailModal(item, false)"
           >
             <img
               :src="item.image"
@@ -293,7 +293,7 @@ const getPostData = (post) => ({
 
             <h3
               class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600"
-              @click="openPostDetailModal(post, false)"
+              @click="openDiscussionDetailModal(post, false)"
             >
               {{ post.title }}
             </h3>
@@ -337,7 +337,7 @@ const getPostData = (post) => ({
 
               <button
                 class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
-                @click="openPostDetailModal(post, true)"
+                @click="openDiscussionDetailModal(post, true)"
               >
                 <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
               </button>
@@ -374,11 +374,11 @@ const getPostData = (post) => ({
     </div>
   </div>
 
-  <PostDetailModal
+  <DiscussionDetailModal
     v-if="isModalOpen"
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
-    @close="closePostDetailModal"
+    @close="closeDiscussionDetailModal"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

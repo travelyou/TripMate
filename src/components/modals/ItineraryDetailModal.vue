@@ -10,7 +10,7 @@ import {
   CheckSquare as CheckSquareIcon,
   Save as SaveIcon,
   Map as MapIcon,
-  FileText as FileTextIcon, // 🟢 新增：草稿圖示
+  FileText as FileTextIcon,
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -20,7 +20,6 @@ const props = defineProps({
   },
 })
 
-// 🟢 新增 'save-draft' 事件
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
 
 const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
@@ -114,7 +113,6 @@ const handleSave = () => {
   emit('save', localItinerary.value)
 }
 
-// 🟢 新增：處理暫存草稿
 const handleSaveDraft = () => {
   emit('save-draft', localItinerary.value)
 }

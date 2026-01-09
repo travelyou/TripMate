@@ -1,117 +1,140 @@
-TripMate/
-├─ .editorconfig               (.editorconfig — 編輯器與縮排設定)
-├─ .eslintignore               (.eslintignore — ESLint 忽略規則)
-├─ .gitattributes              (.gitattributes — Git 屬性設定)
-├─ .gitignore                  (.gitignore — Git 忽略檔案)
-├─ .prettierrc.json            (Prettier 格式化設定)
-├─ .vscode/
-│  └─ extensions.json          (VSCode 推薦擴充套件設定)
-├─ aaa.html                    (暫存或測試用 HTML)
-├─ index.html                  (應用入口 HTML)
-├─ eslint.config.js            (ESLint 設定檔)
-├─ postcss.config.js          (PostCSS 設定檔)
-├─ package.json                (npm 依賴與執行腳本)
-├─ package-lock.json           (npm 鎖定檔)
-├─ jsconfig.json               (JS/IDE 設定)
-├─ README.md                   (專案說明文件)
-├─ tailwind.config.js          (Tailwind CSS 設定)
-├─ vite.config.js              (Vite 打包/開發設定)
-└─ src/
-   ├─ main.js                  (應用啟動程式)
-   ├─ App.vue                  (根 Vue 元件)
-   ├─ firebase/
-   │  └─ config.js             (Firebase 初始化與設定)
-   ├─ assets/
-   │  ├─ main.css              (主要樣式)
-   │  ├─ base.css              (基礎樣式)
-   │  └─ pic/
-   │     ├─ PatStar.png        (範例/資源圖片)
-   │     ├─ loginPage-removebg.png (登入頁背景圖)
-   │     └─ loginPage (1).jpg  (登入頁圖片)
-   ├─ layouts/
-   │  └─ MainLayout.vue        (應用主要版面配置)
-   ├─ layouts/components/
-   │  ├─ AppHeader.vue         (頁首：Logo、搜尋、通知、使用者選單)
-   │  └─ AppSidebar.vue        (側邊/行動底部導覽元件)
-   ├─ router/
-   │  └─ index.js              (路由設定檔，定義各頁面路由)
-   ├─ stores/
-   │  ├─ counter.js           (計數器 state)
-   │  ├─ user.js              (使用者 state)
-   │  ├─ travelers.js         (旅伴資料 state)
-   │  ├─ personality.js       (性格測驗 state)
-   │  ├─ myItinerary.js       (我的行程 state)
-   │  ├─ modal.js             (Modal 顯示狀態管理)
-   │  ├─ itinerary.js         (行程相關 state)
-   │  ├─ featured.js          (精選資料 state)
-   │  ├─ discussions.js      (討論區 state)
-   │  └─ checkout.js         (結帳流程 state)
-   ├─ composables/
-   │  ├─ useChat.js           (聊天室邏輯與狀態)
-   │  ├─ useComments.js       (留言系統邏輯)
-   │  ├─ usePersonalityTest.js(性格測驗邏輯)
-   │  ├─ useItinerary.js      (行程相關邏輯)
-   │  ├─ useDragAndDrop.js    (拖放功能)
-   │  ├─ useProfilePhysics.js (使用者大頭照物理效果)
-   │  └─ usePosts.js          (貼文相關邏輯)
-   ├─ components/
-   │  ├─ PostModal.vue        (發文 Modal 元件)
-   │  ├─ shared/
-   │  │  └─ AppFABs.vue       (浮動操作按鈕群)
-   │  ├─ common/
-   │  │  └─ RightSidebarAd.vue(右側廣告區元件)
-   │  ├─ posts/
-   │  │  ├─ TravelerCard.vue  (旅伴資訊卡片)
-   │  │  └─ PostCard.vue      (貼文卡片元件)
-   │  ├─ itinerary/
-   │  │  └─ ItineraryCard.vue (行程卡片元件)
-   │  ├─ chat/
-   │  │  ├─ PrivateChatWindow.vue (私人聊天室視窗)
-   │  │  └─ ChatWindow.vue    (公開聊天室視窗)
-   │  ├─ modals/
-   │  │  ├─ ItineraryDetailModal.vue (行程詳情 Modal)
-   │  │  ├─ AddToCollectionModal.vue (加入收藏 Modal)
-   │  │  ├─ ShareModal.vue    (分享 Modal)
-   │  │  ├─ PostingChoiceModal.vue (發文選擇 Modal)
-   │  │  ├─ PostDetailModal.vue (貼文細節 Modal)
-   │  │  └─ SwipeMatchModal.vue (配對滑動 Modal)
-   │  ├─ checkout/
-   │  │  ├─ CheckoutProgress.vue (結帳進度條元件)
-   │  │  ├─ MainButton.vue    (結帳主要按鈕元件)
-   │  │  ├─ Step1Confirm.vue  (結帳步驟1：確認)
-   │  │  ├─ Step2Form.vue     (結帳步驟2：填寫表單)
-   │  │  ├─ Step3Review.vue   (結帳步驟3：檢查訂單)
-   │  │  ├─ Step4Payment.vue  (結帳步驟4：付款)
-   │  │  ├─ Step5Done.vue     (結帳步驟5：完成)
-   │  │  ├─ SubButton.vue     (次要按鈕元件)
-   │  │  └─ TourInfoBlock.vue (行程資訊區塊元件)
-   │  └─ personality-test/
-   │     ├─ pages/
-   │     │  ├─ StartPage.vue  (性格測驗 - 開始頁)
-   │     │  ├─ QuizPage.vue   (性格測驗 - 題目頁)
-   │     │  └─ ResultPage.vue (性格測驗 - 結果頁)
-   │     ├─ components/
-   │     │  ├─ ResultCard.vue (結果卡片元件)
-   │     │  ├─ QuestionCard.vue (題目卡片元件)
-   │     │  └─ ProgressBar.vue (進度條元件)
-   │     └─ services/
-   │        ├─ personalityTestApi.js (性格測驗 API 呼叫)
-   │        └─ personalityTestQuestions.js (測驗題庫)
-   └─ views/
-      ├─ HomePage.vue               (為你推薦 / 首頁)
-      ├─ HomeView.vue               (首頁組件/視圖)
-      ├─ DiscussionPage.vue         (討論區頁面)
-      ├─ FeaturedItineraryPage.vue  (精選行程頁面)
-      ├─ FindTravelerPage.vue       (找旅伴頁面)
-      ├─ FavoritesPage.vue          (我的最愛頁面)
-      ├─ CollectionsPage.vue        (我的收藏頁面)
-      ├─ PostDetailPage.vue         (貼文詳情頁面)
-      ├─ VendorProfilePage.vue      (商家/販售者頁面)
-      ├─ ShoppingCartPage.vue       (購物車頁面)
-      ├─ SearchPage.vue             (搜尋結果頁面)
-      ├─ ProfilePage.vue            (個人檔案頁面)
-      ├─ LoginPage.vue              (登入 / 註冊頁面)
-      ├─ MyItineraryPage.vue        (我的行程頁面)
-      ├─ CheckoutLayout.vue         (結帳多步驟頁面)
-      ├─ PersonalityTest.vue        (性格測驗入口頁)
-      └─ AboutView.vue              (關於我們頁面)
+Directory structure:
+└── travelyou-tripmate/
+    ├── README.md
+    ├── aaa.html
+    ├── eslint.config.js
+    ├── index.html
+    ├── jsconfig.json
+    ├── package.json
+    ├── postcss.config.js
+    ├── tailwind.config.js
+    ├── tree.txt
+    ├── vite.config.js
+    ├── .editorconfig
+    ├── .env.example
+    ├── .eslintignore
+    ├── .prettierrc.json
+    ├── backend/
+    │   ├── check-table-structure.js
+    │   ├── package.json
+    │   ├── server.js
+    │   ├── database/
+    │   │   └── connection.js
+    │   └── routes/
+    │       ├── comments.js
+    │       ├── likes.js
+    │       ├── posts.js
+    │       └── users.js
+    └── src/
+        ├── App.vue
+        ├── main.js
+        ├── api/
+        │   ├── comments.js
+        │   ├── config.js
+        │   ├── likes.js
+        │   ├── posts.js
+        │   ├── storage.js
+        │   └── users.js
+        ├── assets/
+        │   ├── base.css
+        │   └── main.css
+        ├── components/
+        │   ├── PostModal.vue
+        │   ├── chat/
+        │   │   ├── AIChatWindow.vue
+        │   │   └── PrivateChatWindow.vue
+        │   ├── checkout/
+        │   │   ├── CheckoutProgress.vue
+        │   │   ├── MainButton.vue
+        │   │   ├── Step1Confirm.vue
+        │   │   ├── Step2Form.vue
+        │   │   ├── Step3Review.vue
+        │   │   ├── Step4Payment.vue
+        │   │   ├── Step5Done.vue
+        │   │   ├── SubButton.vue
+        │   │   └── TourInfoBlock.vue
+        │   ├── common/
+        │   │   └── RightSidebarAd.vue
+        │   ├── itinerary/
+        │   │   └── ItineraryCard.vue
+        │   ├── modals/
+        │   │   ├── AddToCollectionModal.vue
+        │   │   ├── ItineraryDetailModal.vue
+        │   │   ├── DiscussionDetailModal.vue
+        │   │   ├── PostingChoiceModal.vue
+        │   │   ├── ShareModal.vue
+        │   │   └── SwipeMatchModal.vue
+        │   ├── personality-test/
+        │   │   ├── components/
+        │   │   │   ├── ProgressBar.vue
+        │   │   │   ├── QuestionCard.vue
+        │   │   │   └── ResultCard.vue
+        │   │   └── pages/
+        │   │       ├── QuizPage.vue
+        │   │       ├── ResultPage.vue
+        │   │       └── StartPage.vue
+        │   ├── posts/
+        │   │   ├── PostCard.vue
+        │   │   └── TravelerCard.vue
+        │   ├── profile/
+        │   │   ├── EditProfileModal.vue
+        │   │   ├── FriendListModal.vue
+        │   │   ├── ProfileHeader.vue
+        │   │   ├── ProfileSidebar.vue
+        │   │   ├── passport/
+        │   │   │   ├── PassportBook.vue
+        │   │   │   └── PassportStamp.vue
+        │   │   └── tabs/
+        │   │       ├── TabHostedTrips.vue
+        │   │       ├── TabPosts.vue
+        │   │       ├── TabReviews.vue
+        │   │       └── TabVisitedPlaces.vue
+        │   └── shared/
+        │       └── AppFABs.vue
+        ├── composables/
+        │   ├── useChat.js
+        │   ├── useComments.js
+        │   ├── useDragAndDrop.js
+        │   ├── useItinerary.js
+        │   ├── usePosts.js
+        │   └── useProfilePhysics.js
+        ├── config/
+        │   └── aiConfig.js
+        ├── firebase/
+        │   └── config.js
+        ├── layouts/
+        │   ├── MainLayout.vue
+        │   └── components/
+        │       ├── AppHeader.vue
+        │       └── AppSidebar.vue
+        ├── router/
+        │   └── index.js
+        ├── stores/
+        │   ├── checkout.js
+        │   ├── counter.js
+        │   ├── discussions.js
+        │   ├── featured.js
+        │   ├── itinerary.js
+        │   ├── modal.js
+        │   ├── myItinerary.js
+        │   ├── personality.js
+        │   ├── travelers.js
+        │   └── user.js
+        ├── supabase/
+        │   └── config.js
+        └── views/
+            ├── CheckoutLayout.vue
+            ├── CollectionsPage.vue
+            ├── DiscussionPage.vue
+            ├── FavoritesPage.vue
+            ├── FeaturedItineraryPage.vue
+            ├── FindTravelerPage.vue
+            ├── HomePage.vue
+            ├── LoginPage.vue
+            ├── MyItineraryPage.vue
+            ├── PersonalityTest.vue
+            ├── PostDetailPage.vue
+            ├── ProfilePage.vue
+            ├── SearchPage.vue
+            ├── ShoppingCartPage.vue
+            └── VendorProfilePage.vue
