@@ -40,7 +40,7 @@ const activeFilter = ref('全部')
             找旅伴
           </h1>
           <button
-            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-secondary-800 transition flex items-center"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />

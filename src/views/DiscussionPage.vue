@@ -253,7 +253,7 @@ const getPostData = (post) => ({
             討論區
           </h1>
           <button
-            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-primary-700 transition shadow-md flex items-center"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition shadow-md flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
