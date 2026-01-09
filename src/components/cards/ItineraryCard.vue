@@ -52,7 +52,7 @@ const formatPrice = (price) => {
 
 <template>
   <div
-    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border-2 border-secondary-200 shadow-primary"
+    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border border-secondary-200 shadow-md bg-white"
   >
     <div
       class="relative w-full h-48 md:h-52 overflow-hidden bg-secondary-100"
