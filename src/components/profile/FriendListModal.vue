@@ -46,18 +46,18 @@ defineEmits(['close', 'chat'])
 
         <div
           v-for="friend in friends"
-          :key="friend.id"
+          :key="friend.uid || friend.id"
           class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition group"
         >
           <div class="flex items-center gap-3">
             <img
-              :src="friend.avatar"
+              :src="friend.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid || friend.id}`"
               class="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100"
               alt="Avatar"
             />
             <div>
-              <div class="font-bold text-gray-800 text-sm">{{ friend.name }}</div>
-              <div class="text-xs text-gray-500">@{{ friend.nickname }}</div>
+              <div class="font-bold text-gray-800 text-sm">{{ friend.nickname || friend.name || friend.uid }}</div>
+              <div v-if="friend.uid" class="text-xs text-gray-500">UID: {{ friend.uid }}</div>
             </div>
           </div>
 

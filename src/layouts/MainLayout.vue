@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
+import { useChatUiStore } from '@/stores/chatUi'
 import { auth } from '@/firebase/config'
 
 import AppHeader from './components/AppHeader.vue'
@@ -25,6 +26,7 @@ import {
 
 const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
+const chatUiStore = useChatUiStore()
 const route = useRoute()
 const router = useRouter()
 const isSearchPage = computed(() => route.name === 'search')
@@ -35,7 +37,7 @@ const showRightAd = computed(() => !hideLayout.value && !route.meta.hideAd)
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
-const isPrivateChatOpen = ref(false)
+const isPrivateChatOpen = computed(() => chatUiStore.isPrivateChatOpen)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
@@ -79,7 +81,8 @@ const handleQuickAction = () => {
   isMobileActionMenuOpen.value = false
 }
 const handleTogglePrivateChat = () => {
-  isPrivateChatOpen.value = !isPrivateChatOpen.value
+  if (chatUiStore.isPrivateChatOpen) chatUiStore.close()
+  else chatUiStore.open()
   isAiChatOpen.value = false
   isMobileActionMenuOpen.value = false
 }
@@ -311,7 +314,11 @@ const handleSubmitPost = async (postData) => {
       @select-find-traveler="handleSelectFindTraveler"
       @submit-post="handleSubmitPost"
     />
-    <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
+    <PrivateChatWindow
+      v-if="isPrivateChatOpen"
+      :auto-open-uid="chatUiStore.autoOpenUid"
+      @close="chatUiStore.close()"
+    />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>

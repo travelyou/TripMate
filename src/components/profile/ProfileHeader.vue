@@ -23,7 +23,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['edit-profile', 'update-avatar', 'open-friends'])
+const emit = defineEmits(['edit-profile', 'update-avatar', 'open-friends', 'add-friend', 'chat'])
 
 const fileInputMobile = ref(null)
 const fileInputDesktop = ref(null)
@@ -77,6 +77,21 @@ const handleFileChange = (event) => {
                 <h1 class="text-xl font-bold tracking-tight truncate text-gray-900">{{ user.name }}</h1>
                 <span v-if="user.nickname" class="text-xs text-gray-500 truncate">@{{ user.nickname }}</span>
               </div>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="!isCurrentUser"
+                class="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition"
+                @click="$emit('add-friend')"
+              >
+                加好友
+              </button>
+              <button
+                v-if="!isCurrentUser"
+                class="px-3 py-1.5 text-xs font-bold bg-green-600 text-white rounded-full hover:bg-green-700 transition"
+                @click="$emit('chat')"
+              >
+                聊聊
+              </button>
               <button
                 v-if="isCurrentUser"
                 class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition"
@@ -84,6 +99,7 @@ const handleFileChange = (event) => {
               >
                 <Settings class="w-4 h-4" />
               </button>
+            </div>
             </div>
 
             <!-- Compact Stats (Label Top, Number Bottom) -->
@@ -163,15 +179,31 @@ const handleFileChange = (event) => {
               >@{{ user.nickname }}</span
             >
 
-            <!-- Settings Button -->
-            <button
-              v-if="isCurrentUser"
-              class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition"
-              title="帳號設定"
-              @click="$emit('edit-profile')"
-            >
-              <Settings class="w-5 h-5" />
-            </button>
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+              <button
+                v-if="!isCurrentUser"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-full font-bold hover:bg-indigo-700 transition"
+                @click="$emit('add-friend')"
+              >
+                加好友
+              </button>
+              <button
+                v-if="!isCurrentUser"
+                class="px-4 py-2 bg-green-600 text-white rounded-full font-bold hover:bg-green-700 transition"
+                @click="$emit('chat')"
+              >
+                聊聊
+              </button>
+              <button
+                v-if="isCurrentUser"
+                class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition"
+                title="帳號設定"
+                @click="$emit('edit-profile')"
+              >
+                <Settings class="w-5 h-5" />
+              </button>
+            </div>
           </div>
           <p class="text-gray-600 mb-4 max-w-xl text-lg font-light leading-relaxed">
             {{ user.bio || '這傢伙很懶，什麼都沒留下...' }}

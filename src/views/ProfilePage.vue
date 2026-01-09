@@ -1,9 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import { useRoute } from 'vue-router'
+import { getUserProfile } from '@/api/users'
+import { addFriend, getFriends } from '@/api/friends'
+import { useChatUiStore } from '@/stores/chatUi'
 
 // Import New Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -19,9 +23,15 @@ import TabReviews from '@/components/profile/tabs/TabReviews.vue'
 const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
 const itineraryStore = useItineraryStore()
+const chatUiStore = useChatUiStore()
+const route = useRoute()
 
-const user = computed(() => userStore.currentUser)
-const isCurrentUser = true // In real app, check if route param ID matches current user ID
+const currentUid = computed(() => userStore.firebaseUser?.uid || null)
+const viewingUid = computed(() => (route.params.uid ? String(route.params.uid) : null))
+
+const viewedUser = ref(null) // when viewing other user
+const user = computed(() => (viewingUid.value && viewingUid.value !== currentUid.value ? viewedUser.value : userStore.currentUser))
+const isCurrentUser = computed(() => !viewingUid.value || viewingUid.value === currentUid.value)
 
 // Tab State
 const activeTab = ref('hosted_trips')
@@ -38,6 +48,7 @@ const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
+const friends = ref([]) // [{uid,nickname,avatar}]
 
 // Data Preparation
 const activeTabsData = computed(() => {
@@ -75,11 +86,66 @@ const stats = computed(() => ({
 // Methods
 const handleOpenFriends = () => {
   isFriendModalOpen.value = true
+  loadFriends().catch(() => {})
 }
 
 const handleChat = (friend) => {
-  console.log('Chat with:', friend.name)
-  // Future: 導向聊天頁面
+  const otherUid = friend?.uid
+  if (!otherUid) return
+  chatUiStore.openWithUid(otherUid)
+}
+
+const handleAddFriend = async () => {
+  if (!currentUid.value) return alert('請先登入')
+  if (!viewingUid.value) return
+  try {
+    await addFriend(currentUid.value, viewingUid.value)
+    // 加好友後直接打開聊天室
+    chatUiStore.openWithUid(viewingUid.value)
+    alert('已加好友，已為你打開聊天室')
+  } catch (e) {
+    alert('加好友失敗：' + (e?.message || e))
+  }
+}
+
+const handleChatWithViewedUser = () => {
+  if (!viewingUid.value) return
+  chatUiStore.openWithUid(viewingUid.value)
+}
+
+async function loadFriends() {
+  if (!currentUid.value) return
+  const { friends: rows } = await getFriends(currentUid.value)
+  friends.value = rows || []
+}
+
+async function loadViewedUser(uid) {
+  viewedUser.value = null
+  const data = await getUserProfile(uid)
+  if (!data) {
+    viewedUser.value = {
+      uid,
+      name: uid,
+      nickname: uid,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`,
+      bio: '',
+      tags: [],
+      reviews: [],
+      friends: [],
+    }
+    return
+  }
+  viewedUser.value = {
+    uid: data.uid,
+    name: data.real_name || data.nickname || data.email?.split('@')?.[0] || data.uid,
+    nickname: data.nickname || data.email?.split('@')?.[0] || data.uid,
+    email: data.email,
+    avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.uid}`,
+    bio: data.bio || '',
+    tags: [],
+    reviews: [],
+    friends: [],
+  }
 }
 
 const openDetail = (post, focusComment = false) => {
@@ -131,8 +197,21 @@ const handleUpdateAvatar = (file) => {
 
 // Ensure store consistency
 onMounted(() => {
-  // If needed, fetch data here
+  if (viewingUid.value && viewingUid.value !== currentUid.value) {
+    loadViewedUser(viewingUid.value).catch((e) => console.warn('載入他人資料失敗：', e?.message || e))
+  }
 })
+
+watch(
+  () => viewingUid.value,
+  (uid) => {
+    if (uid && uid !== currentUid.value) {
+      loadViewedUser(uid).catch((e) => console.warn('載入他人資料失敗：', e?.message || e))
+    } else {
+      viewedUser.value = null
+    }
+  },
+)
 </script>
 
 <template>
@@ -145,6 +224,8 @@ onMounted(() => {
       @edit-profile="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
       @open-friends="handleOpenFriends"
+      @add-friend="handleAddFriend"
+      @chat="handleChatWithViewedUser"
     />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -222,7 +303,7 @@ onMounted(() => {
 
     <FriendListModal
       :is-open="isFriendModalOpen"
-      :friends="userStore.currentUser.friends"
+      :friends="friends"
       @close="isFriendModalOpen = false"
       @chat="handleChat"
     />

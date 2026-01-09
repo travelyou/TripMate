@@ -53,6 +53,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/profile/:uid',
+      name: 'profile_user',
+      component: () => import('@/views/ProfilePage.vue'),
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
+    },
+    {
       path: '/vendor/:id',
       name: 'VendorProfile',
       component: () => import('@/views/VendorProfilePage.vue'),

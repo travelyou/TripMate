@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { auth, db } from '@/firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
+import { createOrUpdateUser } from '@/api/users'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
@@ -402,6 +403,23 @@ export const useUserStore = defineStore('user', () => {
     if (user) {
       // 登入時載入用戶資料
       await loadUserProfile(user.uid)
+
+      // 同步到 Neon users 表（確保聊天室/好友能用 nickname 顯示）
+      try {
+        const u = currentUser.value
+        await createOrUpdateUser({
+          uid: user.uid,
+          email: user.email || u.email || '',
+          nickname: u.nickname || null,
+          real_name: u.name || null,
+          avatar: u.avatar || null,
+          bio: u.bio || null,
+          spirit_animal: u.spiritAnimal || null,
+        })
+      } catch (e) {
+        // 不阻塞登入流程，失敗只記錄
+        console.warn('同步使用者到 Neon 失敗：', e?.message || e)
+      }
     } else {
       // 登出時重置用戶資料
       currentUser.value = {

@@ -12,6 +12,7 @@ const likesRouter = require('./routes/likes');
 const usersRouter = require('./routes/users');
 const chatRouter = require('./routes/chat');
 const filesRouter = require('./routes/files');
+const friendsRouter = require('./routes/friends');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -76,6 +77,10 @@ app.use('/chat', chatRouter);
 // 檔案上傳/下載（存 Neon）
 app.use('/api/files', filesRouter);
 app.use('/files', filesRouter);
+
+// 好友關係（存 Neon）
+app.use('/api/friends', friendsRouter);
+app.use('/friends', friendsRouter);
 
 app.listen(PORT, HOST, () => {
   console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`);
