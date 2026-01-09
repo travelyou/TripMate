@@ -456,14 +456,14 @@ const finishSwipe = (direction) => {
               class="sticky bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-[#fffef7] via-[#fffef7] to-transparent flex justify-center gap-12 border-t border-gray-100/50 backdrop-blur-sm z-40"
             >
               <button
-                @click="handleButtonClick('left')"
                 class="action-btn-nope scale-110 shadow-md"
+                @click="handleButtonClick('left')"
               >
                 <XIcon class="w-8 h-8 pointer-events-none" />
               </button>
               <button
-                @click="handleButtonClick('right')"
                 class="action-btn-like scale-110 shadow-lg shadow-orange-200"
+                @click="handleButtonClick('right')"
               >
                 <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
               </button>

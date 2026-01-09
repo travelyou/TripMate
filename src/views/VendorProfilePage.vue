@@ -163,7 +163,7 @@ const featuredItineraries = [
   <div class="p-4 md:p-8 max-w-7xl mx-auto">
     <!-- 廠商封面與頭像區塊 -->
     <div
-      class="bg-white rounded-3xl overflow-hidden shadow-lg border-2 border-primary-100 mb-6 border-4 border-primary-600 shadow-primary"
+      class="bg-white rounded-3xl overflow-hidden mb-6 border-4 border-primary-600 shadow-primary"
     >
       <!-- 封面圖片 -->
       <div
@@ -244,7 +244,7 @@ const featuredItineraries = [
 
     <!-- 廠商 Banner 區塊 -->
     <div
-      class="mb-8 rounded-3xl overflow-hidden shadow-lg border-2 border-primary-100 h-40 md:h-64 relative border-4 border-primary-600 shadow-primary"
+      class="mb-8 rounded-3xl overflow-hidden h-40 md:h-64 relative border-4 border-primary-600 shadow-primary"
     >
       <img :src="vendor.bannerImage" class="w-full h-full object-cover" />
       <div
@@ -489,4 +489,5 @@ const featuredItineraries = [
     </div>
   </div>
 </template>
+
 
