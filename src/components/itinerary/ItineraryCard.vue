@@ -52,7 +52,7 @@ const formatPrice = (price) => {
 
 <template>
   <div
-    class="pixel-card bg-white overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150"
+    class="bg-white overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
   >
     <div
       class="relative w-full h-48 md:h-52 overflow-hidden bg-gray-100"
@@ -70,7 +70,7 @@ const formatPrice = (price) => {
 
       <div
         v-if="props.itinerary.isFeatured"
-        class="absolute top-2 right-2 bg-yellow-500 text-gray-900 font-black text-xs px-2 py-1 pixel-card-mini"
+        class="absolute top-2 right-2 bg-yellow-500 text-gray-900 font-black text-xs px-2 py-1 border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(55,65,81,0.5)]"
       >
         FEATURED
       </div>
@@ -168,15 +168,5 @@ const formatPrice = (price) => {
 </template>
 
 <style scoped>
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-
-.pixel-card-mini {
-  border: 2px solid #374151;
-  box-shadow: 2px 2px 0px 0px rgba(55, 65, 81, 0.5);
-}
+/* Replaced pixel-card and pixel-card-mini with Tailwind classes in template */
 </style>

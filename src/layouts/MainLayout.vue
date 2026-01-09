@@ -1,16 +1,19 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
-import { useUserStore } from '@/stores/user' // 確保引入 Store
+import { RouterView, useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { useDiscussionsStore } from '@/stores/discussions'
+import { auth } from '@/firebase/config'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
-import ChatWindow from '@/components/chat/ChatWindow.vue'
+import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
-import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue' // ✅ 關鍵：一定要引入這個元件！
+import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
+import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
 
 import {
   Plus as PlusIcon,
@@ -21,16 +24,23 @@ import {
 } from 'lucide-vue-next'
 
 const userStore = useUserStore()
+const discussionsStore = useDiscussionsStore()
 const route = useRoute()
+const router = useRouter()
 const isSearchPage = computed(() => route.name === 'search')
-const hideLayout=computed(()=>route.meta.hideLayout === true)
+const hideLayout = computed(() => route.meta.hideLayout === true)
+const hideSidebar = computed(() => route.meta.hideSidebar === true)
+
+const showRightAd = computed(() => !hideLayout.value && !route.meta.hideAd)
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
 const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
+const isSwipeModalOpen = ref(false)
 
+/*
 // 背景圖片陣列
 const backgroundImages = [
   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
@@ -49,8 +59,10 @@ const backgroundImages = [
   'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop', // 熱氣球
 ]
 
+
 // 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
+*/
 
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
@@ -63,7 +75,7 @@ const handleSelectFindTraveler = () => {
   isPostingModalOpen.value = false
 }
 const handleQuickAction = () => {
-  alert('抽卡功能開發中')
+  isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
 const handleTogglePrivateChat = () => {
@@ -76,23 +88,123 @@ const handleToggleAiChat = () => {
   isPrivateChatOpen.value = false
   isMobileActionMenuOpen.value = false
 }
+
+// 處理發文提交
+const handleSubmitPost = async (postData) => {
+  try {
+    console.log('MainLayout 收到發文請求:', postData)
+
+    // 檢查用戶是否已登入
+    const firebaseUser = auth.currentUser
+    const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
+
+    if (!uid) {
+      alert('請先登入後才能發布貼文')
+      console.error('發布貼文失敗：用戶未登入')
+      // 導向登入頁面
+      router.push('/login')
+      return
+    }
+
+    console.log('⏳ 準備發布貼文，用戶 UID：', uid)
+
+    // 如果有圖片，先上傳圖片到 Supabase Storage
+    let imageUrls = []
+    if (postData.imageFiles && postData.imageFiles.length > 0) {
+      try {
+        const { uploadMultipleImages } = await import('@/api/storage')
+        console.log('開始上傳圖片...')
+        imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
+        console.log('圖片上傳成功:', imageUrls)
+      } catch (error) {
+        console.error('圖片上傳失敗：', error)
+        // 詢問用戶是否要繼續發布（不帶圖片）
+        const shouldContinue = confirm(
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？',
+        )
+        if (!shouldContinue) {
+          return
+        }
+      }
+    }
+
+    // 準備提交的資料
+    const submitData = {
+      author_uid: uid,
+      board: postData.board || 'general',
+      title: postData.title,
+      content: postData.content,
+      tags: postData.tags || [],
+      image_urls: imageUrls,
+    }
+
+    console.log('提交貼文資料：', {
+      author_uid: submitData.author_uid,
+      board: submitData.board,
+      title: submitData.title?.substring(0, 50),
+      contentLength: submitData.content?.length,
+      tagsCount: submitData.tags?.length,
+      imageUrlsCount: submitData.image_urls?.length,
+    })
+
+    // 調用 API 創建貼文
+    console.log('調用 addPost API...')
+    const newPost = await discussionsStore.addPost(submitData)
+
+    console.log('貼文發布成功：', newPost)
+
+    // 關閉模態框
+    isPostingModalOpen.value = false
+
+    // 如果在討論頁面，重新載入貼文列表
+    if (route.name === 'discussion') {
+      await discussionsStore.loadDiscussions()
+    } else {
+      // 如果不在討論頁面，導向討論頁面
+      router.push('/discussion')
+      // 等待路由切換後再載入
+      setTimeout(async () => {
+        await discussionsStore.loadDiscussions()
+      }, 300)
+    }
+
+    // 顯示成功訊息
+    alert('貼文發布成功！')
+  } catch (error) {
+    console.error('發布貼文失敗：', error)
+    console.error('錯誤詳情：', {
+      message: error.message,
+      stack: error.stack,
+      firebaseUser: auth.currentUser?.uid,
+    })
+    alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
+  }
+}
 </script>
 
 <template>
   <div
-  class="min-h-screen relative transition-all duration-1000"
-  :class="hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'"
-  :style="{ backgroundImage: `url('${currentBgImage}')` }"
+    class="min-h-screen relative transition-all duration-1000"
+    :class="
+      hideLayout ? 'bg-[#fffef7]' : 'bg-[#f5e6d3] bg-cover bg-center md:bg-fixed bg-no-repeat'
+    "
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div v-if="!hideLayout" class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5">
+    <div
+      v-if="!hideLayout"
+      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 md:pt-18 min-h-screen items-start gap-5"
+      :class="
+        showRightAd
+          ? 'lg:[grid-template-columns:2fr_5fr_2fr] xl:[grid-template-columns:2fr_5fr_2fr]'
+          : 'lg:[grid-template-columns:2fr_7fr] xl:[grid-template-columns:2fr_7fr]'
+      "
+    >
       <div
-        v-if="!isSearchPage"
-        class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
+        v-if="!isSearchPage && !hideSidebar"
+        class="contents lg:block shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
       >
-
-        <AppSidebar  @open-mobile-actions="isMobileActionMenuOpen = true" />
+        <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
       </div>
 
       <main
@@ -102,19 +214,22 @@ const handleToggleAiChat = () => {
         <RouterView />
       </main>
 
-
       <div
-        v-if="!hideLayout && !route.meta.hideAd"
-        class="hidden lg:block w-[300px] shrink-0 mr-2"
+        v-if="showRightAd"
+        class="hidden lg:block shrink-0 mr-2"
         :class="{ 'mt-6': !isSearchPage }"
       >
         <RightSidebarAd />
       </div>
     </div>
 
-    <div v-else class="w-screen h-screen overflow-y-auto scrollable-container">
-  <RouterView />
-</div>
+    <div
+      v-else
+      class="w-screen h-screen overflow-y-auto overscroll-contain"
+      style="-webkit-overflow-scrolling: touch"
+    >
+      <RouterView />
+    </div>
 
     <div v-if="!hideLayout" class="hidden lg:block">
       <AppFABs
@@ -125,7 +240,14 @@ const handleToggleAiChat = () => {
       />
     </div>
 
-    <Transition name="slide-up">
+    <Transition
+      enter-active-class="transition-all duration-300 ease"
+      enter-from-class="opacity-0 translate-y-full"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-300 ease"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-full"
+    >
       <div
         v-if="isMobileActionMenuOpen"
         class="fixed inset-0 z-[60] flex items-end justify-center lg:hidden"
@@ -134,9 +256,7 @@ const handleToggleAiChat = () => {
           class="absolute inset-0 bg-black/50 backdrop-blur-sm"
           @click="isMobileActionMenuOpen = false"
         ></div>
-        <div
-          class="relative w-full bg-[#fffef7] rounded-t-3xl p-6 pb-24 shadow-2xl animate-slide-up"
-        >
+        <div class="relative w-full bg-[#fffef7] rounded-t-3xl p-6 pb-24 shadow-2xl">
           <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-2">
             <h3 class="text-xl font-bold text-amber-900">快速功能</h3>
             <button
@@ -149,7 +269,7 @@ const handleToggleAiChat = () => {
           <div class="grid grid-cols-4 gap-4">
             <button class="flex flex-col items-center gap-2 group" @click="handleOpenPosting">
               <div
-                class="w-14 h-14 bg-red-500 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-red-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <PlusIcon class="w-8 h-8 text-white" />
               </div>
@@ -157,7 +277,7 @@ const handleToggleAiChat = () => {
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleQuickAction">
               <div
-                class="w-14 h-14 bg-yellow-400 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-yellow-400 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <SparklesIcon class="w-8 h-8 text-amber-900" />
               </div>
@@ -165,7 +285,7 @@ const handleToggleAiChat = () => {
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleTogglePrivateChat">
               <div
-                class="w-14 h-14 bg-green-500 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-green-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <MessageCircleIcon class="w-8 h-8 text-white" />
               </div>
@@ -173,7 +293,7 @@ const handleToggleAiChat = () => {
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleToggleAiChat">
               <div
-                class="w-14 h-14 bg-indigo-500 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-indigo-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <BotIcon class="w-8 h-8 text-white" />
               </div>
@@ -189,29 +309,14 @@ const handleToggleAiChat = () => {
       @close="isPostingModalOpen = false"
       @select-discussion="handleSelectDiscussion"
       @select-find-traveler="handleSelectFindTraveler"
+      @submit-post="handleSubmitPost"
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
-    <ChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+    <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+    <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 
   <Transition name="fade">
     <AddToCollectionModal v-if="userStore.isCollectionModalOpen" />
   </Transition>
 </template>
-
-<style scoped>
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s ease;
-}
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(100%);
-}
-
-.scrollable-container {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-}
-</style>

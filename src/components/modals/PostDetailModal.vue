@@ -1,6 +1,5 @@
 <script setup>
-  //defineProps, defineEmits,<-Vue 3.3+ 版本中，defineProps 和 defineEmits 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -12,9 +11,36 @@ import {
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
+import { auth } from '@/firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
+import { createComment } from '@/api/comments'
+import { toggleLike, getLikesInfo } from '@/api/likes'
+import { useDiscussionsStore } from '@/stores/discussions'
 
 const userStore = useUserStore()
 const router = useRouter()
+const discussionsStore = useDiscussionsStore()
+
+// 當前用戶 UID
+const currentUserUid = ref(null)
+const isLiked = ref(false)
+const likesCount = ref(0)
+
+// 監聽 Firebase 認證狀態
+onAuthStateChanged(auth, async (user) => {
+  const previousUid = currentUserUid.value
+  currentUserUid.value = user ? user.uid : null
+
+  // 如果用戶狀態改變，重新載入按讚狀態
+  if (props.post?.id && previousUid !== currentUserUid.value) {
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+    } else {
+      // 如果登出，重置按讚狀態
+      isLiked.value = false
+    }
+  }
+})
 
 // 不需要引入特定的 Store，直接操作 props 即可通用
 
@@ -29,13 +55,16 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'post-updated'])
 
 const newComment = ref('')
 const isReplyingTo = ref(null)
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const isShareModalOpen = ref(false)
+
+// 本地留言列表（用於即時更新）
+const localComments = ref([])
 
 // 3. 智慧判斷內容類型 (因為 Modal 是共用的)
 const itemData = computed(() => {
@@ -59,6 +88,10 @@ const itemData = computed(() => {
 
 // 統一取得留言陣列
 const normalizedComments = computed(() => {
+  // 優先使用本地留言列表（如果有更新的話）
+  if (localComments.value.length > 0) {
+    return localComments.value
+  }
   if (!props.post) return []
   return props.post.commentsData || props.post.comments || []
 })
@@ -101,62 +134,214 @@ const cancelReply = () => {
   newComment.value = ''
 }
 
-// 模擬發送留言
-const submitComment = () => {
-  if (!newComment.value.trim()) return
+// 載入按讚資訊
+const loadLikesInfo = async () => {
+  if (!props.post?.id || !currentUserUid.value) return
 
-  const isReply = isReplyingTo.value !== null
-  const content = newComment.value
-
-  const newCommentObj = {
-    id: Date.now(),
-    author: '當前用戶',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user',
-    time: '剛剛',
-    content: content,
-    likes: 0,
-    isLiked: false,
-    replies: [],
+  try {
+    const info = await getLikesInfo(props.post.id, currentUserUid.value)
+    isLiked.value = info.isLiked
+    likesCount.value = info.likesCount
+  } catch (error) {
+    console.error('載入按讚資訊失敗：', error)
   }
-
-  const targetPost = props.post
-
-  if (isReply) {
-    const commentsList = targetPost.commentsData || targetPost.comments || []
-    const parentComment = commentsList.find((c) => c.id === isReplyingTo.value)
-
-    if (parentComment) {
-      if (!parentComment.replies) parentComment.replies = []
-      parentComment.replies.push(newCommentObj)
-    }
-  } else {
-    if (Array.isArray(targetPost.commentsData)) {
-      targetPost.commentsData.unshift(newCommentObj)
-    } else if (Array.isArray(targetPost.comments)) {
-      targetPost.comments.unshift(newCommentObj)
-    } else {
-      targetPost.comments = [newCommentObj]
-    }
-  }
-
-  if (typeof targetPost.comments === 'number') targetPost.comments++
-  if (typeof targetPost.commentsCount === 'number') targetPost.commentsCount++
-
-  newComment.value = ''
-  isReplyingTo.value = null
 }
 
-onMounted(() => {
-  if (props.scrollToComments) {
-    nextTick(() => {
-      if (commentsSectionRef.value) {
-        commentsSectionRef.value.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        })
-        if (commentInputRef.value) commentInputRef.value.focus()
-      }
+// 處理貼文按讚
+const handlePostLike = async () => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+
+  if (!props.post?.id) {
+    console.error('貼文 ID 不存在')
+    alert('貼文 ID 不存在')
+    return
+  }
+
+  try {
+    console.log('開始按讚操作，貼文 ID：', props.post.id, '用戶 UID：', currentUserUid.value)
+    const result = await toggleLike(props.post.id, currentUserUid.value)
+    console.log('按讚操作成功，結果：', result)
+    isLiked.value = result.liked
+    likesCount.value = result.likesCount
+  } catch (error) {
+    console.error('按讚操作失敗：', error)
+    console.error('錯誤詳情：', {
+      message: error.message,
+      stack: error.stack,
+      postId: props.post?.id,
+      userId: currentUserUid.value,
     })
+    alert(`按讚操作失敗：${error.message || '請稍後再試'}`)
+  }
+}
+
+// 發送留言
+const submitComment = async () => {
+  if (!newComment.value.trim()) return
+
+  // 檢查用戶是否已登入
+  if (!currentUserUid.value) {
+    alert('請先登入後才能留言')
+    return
+  }
+
+  const content = newComment.value.trim()
+  const isReply = isReplyingTo.value !== null
+
+  // 如果是回覆，暫時不支持（需要後端支持 parent_comment_id）
+  if (isReply) {
+    alert('回覆功能暫時不支持，請直接留言')
+    cancelReply()
+    return
+  }
+
+  try {
+    // 調用 API 創建留言
+    const newCommentData = await createComment(props.post.id, {
+      author_uid: currentUserUid.value,
+      content: content,
+    })
+
+    console.log('留言創建成功：', newCommentData)
+
+    // 重新載入貼文詳情以獲取最新留言（只載入一次）
+    const updatedPost = await discussionsStore.loadPostById(props.post.id)
+
+    // 更新本地留言列表
+    if (
+      updatedPost &&
+      Array.isArray(updatedPost.commentsData) &&
+      updatedPost.commentsData.length > 0
+    ) {
+      localComments.value = updatedPost.commentsData
+    } else if (
+      updatedPost &&
+      Array.isArray(updatedPost.comments) &&
+      updatedPost.comments.length > 0
+    ) {
+      localComments.value = updatedPost.comments
+    }
+
+    // 通過 emit 通知父組件更新
+    emit('post-updated', updatedPost)
+
+    newComment.value = ''
+    isReplyingTo.value = null
+
+    // 滾動到留言區
+    await nextTick()
+    if (commentsSectionRef.value) {
+      commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  } catch (error) {
+    console.error('發布留言失敗：', error)
+    alert(`發布留言失敗：${error.message || '請稍後再試'}`)
+  }
+}
+
+// 載入貼文詳情（包含最新留言和按讚狀態）
+const loadPostDetail = async () => {
+  if (!props.post?.id) return
+
+  try {
+    console.log('載入貼文詳情，ID：', props.post.id)
+
+    // 重新載入貼文詳情以獲取最新留言
+    const updatedPost = await discussionsStore.loadPostById(props.post.id)
+
+    console.log('載入的貼文詳情：', updatedPost)
+    console.log('留言數據：', updatedPost?.commentsData)
+
+    // 更新本地留言列表
+    if (
+      updatedPost &&
+      Array.isArray(updatedPost.commentsData) &&
+      updatedPost.commentsData.length > 0
+    ) {
+      localComments.value = updatedPost.commentsData
+      console.log('已更新本地留言列表，數量：', localComments.value.length)
+    } else if (
+      updatedPost &&
+      Array.isArray(updatedPost.comments) &&
+      updatedPost.comments.length > 0
+    ) {
+      localComments.value = updatedPost.comments
+      console.log('已更新本地留言列表（從 comments），數量：', localComments.value.length)
+    } else {
+      // 如果沒有留言，清空列表
+      localComments.value = []
+      console.log('沒有留言數據')
+    }
+
+    // 更新按讚數
+    if (updatedPost && typeof updatedPost.likes === 'number') {
+      likesCount.value = updatedPost.likes
+    }
+
+    // 如果有用戶登入，載入按讚狀態（優先載入，確保狀態正確）
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+    } else {
+      // 如果沒有登入，重置按讚狀態
+      isLiked.value = false
+    }
+  } catch (error) {
+    console.error('載入貼文詳情失敗：', error)
+  }
+}
+
+// 監聽 post.id 變化，當打開 modal 時重新載入
+watch(
+  () => props.post?.id,
+  async (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      // 重置狀態
+      isLiked.value = false
+      likesCount.value = props.post?.likes || 0
+      localComments.value = []
+
+      // 載入貼文詳情和按讚狀態
+      await loadPostDetail()
+    }
+  },
+  { immediate: true },
+)
+
+// 監聽用戶登入狀態變化
+watch(currentUserUid, async (newUid, oldUid) => {
+  if (props.post?.id && newUid !== oldUid) {
+    if (newUid) {
+      await loadLikesInfo()
+    } else {
+      isLiked.value = false
+    }
+  }
+})
+
+onMounted(async () => {
+  // 初始化時載入貼文詳情和按讚狀態
+  if (props.post) {
+    likesCount.value = props.post.likes || 0
+    // 如果有用戶登入，立即載入按讚狀態
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+    }
+  }
+
+  await loadPostDetail()
+
+  if (props.scrollToComments) {
+    await nextTick()
+    if (commentsSectionRef.value) {
+      commentsSectionRef.value.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+      if (commentInputRef.value) commentInputRef.value.focus()
+    }
   }
 })
 </script>
@@ -167,7 +352,7 @@ onMounted(() => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col pixel-modal"
+      class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)]"
     >
       <header
         class="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-xl"
@@ -227,19 +412,17 @@ onMounted(() => {
             <button
               :class="[
                 'flex items-center space-x-1 transition mr-6 group',
-                userStore.isFavorite(itemData) ? 'text-red-500' : 'hover:text-red-500',
+                isLiked ? 'text-red-500' : 'hover:text-red-500',
               ]"
-              @click="userStore.toggleFavorite(itemData)"
+              @click="handlePostLike"
             >
               <HeartIcon
                 :class="[
                   'w-4 h-4 transition-transform group-active:scale-125',
-                  { 'fill-current': userStore.isFavorite(itemData) },
+                  { 'fill-current': isLiked },
                 ]"
               />
-              <span>{{
-                (post.likes || post.totalSaves || 0) + (userStore.isFavorite(itemData) ? 1 : 0)
-              }}</span>
+              <span>{{ likesCount || post.likes || 0 }}</span>
             </button>
 
             <div class="flex items-center space-x-1 text-indigo-600 mr-6">
@@ -385,12 +568,16 @@ onMounted(() => {
             <SendIcon class="w-5 h-5" />
           </button>
         </div>
-        <div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200">
+        <div
+          v-else
+          class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200"
+        >
           <p class="text-gray-600 mb-1">登入後才能回覆</p>
           <button
             class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
             @click="router.push('/login')"
-          >登入
+          >
+            登入
           </button>
         </div>
       </footer>
@@ -399,15 +586,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.pixel-modal {
-  border: 4px solid #8b6f47;
-  box-shadow: 10px 10px 0px 0px rgba(139, 111, 71, 0.5);
-}
-.custom-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.custom-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* scrollbar rules moved to src/assets/main.css */
+
+/* 已移除 .pixel-modal（已用 Tailwind 類別替代） */
 </style>

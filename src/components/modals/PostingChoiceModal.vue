@@ -1,8 +1,8 @@
 <script setup>
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import ItineraryDetailModal from './ItineraryDetailModal.vue'
-import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router' // 🔥 補上這一行
+import { ref, computed, onUnmounted } from 'vue'
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
@@ -28,7 +28,7 @@ const postData = ref({
   board: '', // 看板
   title: '', // 標題
   content: '', // 內文
-  tags: []   // 標籤
+  tags: [], // 標籤
 })
 
 const errors = ref({
@@ -118,6 +118,10 @@ const getBlankItinerary = () => ({
   ],
   packingList: []
 })
+// --- 圖片相關狀態 ---
+const fileInputRef = ref(null)
+const imageFiles = ref([]) // 存儲選中的圖片文件
+const imagePreviews = ref([]) // 存儲預覽 URL
 
 // --- 模擬資料 ---
 const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
@@ -149,6 +153,56 @@ const addTag = (tagText) => {
 
 const removeTag = (index) => {
   postData.value.tags.splice(index, 1)
+}
+
+// --- 圖片處理函數 ---
+// 選擇圖片
+const handleImageSelect = (event) => {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+
+  // 限制最多 5 張圖片
+  const remainingSlots = 5 - imageFiles.value.length
+  const filesToAdd = files.slice(0, remainingSlots)
+
+  filesToAdd.forEach((file) => {
+    // 驗證文件類型
+    if (!file.type.startsWith('image/')) {
+      alert(`${file.name} 不是有效的圖片文件`)
+      return
+    }
+
+    // 驗證文件大小（限制 5MB）
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`${file.name} 檔案太大，請選擇小於 5MB 的圖片`)
+      return
+    }
+
+    imageFiles.value.push(file)
+
+    // 創建預覽 URL
+    const previewUrl = URL.createObjectURL(file)
+    imagePreviews.value.push(previewUrl)
+  })
+
+  // 清空 input
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+// 移除圖片
+const removeImage = (index) => {
+  // 釋放預覽 URL 的記憶體
+  URL.revokeObjectURL(imagePreviews.value[index])
+
+  imageFiles.value.splice(index, 1)
+  imagePreviews.value.splice(index, 1)
+}
+
+// 觸發文件選擇
+const triggerFileSelect = () => {
+  fileInputRef.value?.click()
 }
 
 const nextStep = () => {
@@ -185,14 +239,40 @@ const prevStep = () => {
 }
 
 const handleFinalSubmit = () => {
-  console.log('最終發布資料:', postData.value)
-  emit('submit-post', postData.value)
+  console.log('🔵 最終發布資料:', postData.value)
+
+  // 基本驗證
+  if (!postData.value.title || !postData.value.title.trim()) {
+    alert('請輸入標題')
+    return
+  }
+
+  if (!postData.value.content || !postData.value.content.trim()) {
+    alert('請輸入內容')
+    return
+  }
+
+  if (!postData.value.board) {
+    alert('請選擇看板')
+    return
+  }
+
+  console.log('✅ 驗證通過，提交發文...')
+  emit('submit-post', {
+    ...postData.value,
+    imageFiles: imageFiles.value, // 傳遞圖片文件
+  })
   emit('close')
 }
 
+// 清理預覽 URL（組件卸載時）
+onUnmounted(() => {
+  imagePreviews.value.forEach((url) => URL.revokeObjectURL(url))
+})
+
 const filteredTags = computed(() => {
   if (!tagSearch.value) return suggestedTags
-  return suggestedTags.filter(t => t.includes(tagSearch.value))
+  return suggestedTags.filter((t) => t.includes(tagSearch.value))
 })
 
 
@@ -204,16 +284,15 @@ const filteredTags = computed(() => {
     class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
     @click.self="$emit('close')"
   >
-    <div class="pixel-card w-full max-w-md bg-[#fffef7] relative animate-pop-in flex flex-col max-h-[90vh]">
-
+    <div
+      class="w-full max-w-md bg-[#fffef7] relative animate-pop-in flex flex-col max-h-[90vh] border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+    >
       <div v-if="currentStep === 'menu'" class="p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-6 text-shadow">
-          你想發布什麼？
-        </h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-6 text-shadow">你想發布什麼？</h3>
 
         <div class="space-y-4">
           <button
-            class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
+            class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="startPosting()"
           >
             <MessageSquareIcon class="w-6 h-6 text-orange-700 mr-4" />
@@ -224,7 +303,7 @@ const filteredTags = computed(() => {
           </button>
 
           <button
-            class="w-full flex items-center p-4 bg-green-300 hover:bg-green-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
+            class="w-full flex items-center p-4 bg-green-300 hover:bg-green-400 transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
             @click="startPosting('找旅伴')"
           >
             <UsersIcon class="w-6 h-6 text-green-700 mr-4" />
@@ -247,7 +326,7 @@ const filteredTags = computed(() => {
         </div>
 
         <button
-          class="mt-6 w-full py-2 text-sm text-gray-600 pixel-button bg-gray-200 border-4 border-black font-bold"
+          class="mt-6 w-full py-2 text-sm text-gray-600 bg-gray-200 font-bold border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
           @click="$emit('close')"
         >
           取消
@@ -257,7 +336,9 @@ const filteredTags = computed(() => {
       <div v-else-if="currentStep === 'edit'" class="flex flex-col h-full">
         <div class="p-4 border-b-2 border-gray-200 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
+            <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep">
+              <ArrowLeft class="w-5 h-5" />
+            </button>
             <span class="font-bold text-lg">發文設定</span>
           </div>
           <select
@@ -277,13 +358,15 @@ const filteredTags = computed(() => {
 
         <div class="p-4 flex-1 overflow-y-auto">
           <div class="flex items-center gap-3 mb-4">
-             <div class="w-10 h-10 rounded-full bg-gray-300 border-2 border-black flex items-center justify-center overflow-hidden">
-               <UsersIcon class="w-6 h-6 text-gray-600" />
-             </div>
-             <div>
-               <p class="font-bold text-sm">Yuan</p>
-               <p class="text-xs text-gray-500">2025年12月16日</p>
-             </div>
+            <div
+              class="w-10 h-10 rounded-full bg-gray-300 border-2 border-black flex items-center justify-center overflow-hidden"
+            >
+              <UsersIcon class="w-6 h-6 text-gray-600" />
+            </div>
+            <div>
+              <p class="font-bold text-sm">Yuan</p>
+              <p class="text-xs text-gray-500">2025年12月16日</p>
+            </div>
           </div>
 
           <input
@@ -331,17 +414,57 @@ const filteredTags = computed(() => {
               <MapPin class="w-4 h-4" />
               ＋ 加入行程規劃
             </button>
+          ></textarea>
+
+          <!-- 圖片預覽區 -->
+          <div v-if="imagePreviews.length > 0" class="mt-4 space-y-2">
+            <div class="flex flex-wrap gap-2">
+              <div
+                v-for="(url, index) in imagePreviews"
+                :key="index"
+                class="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-300"
+              >
+                <img :src="url" alt="預覽圖片" class="w-full h-full object-cover" />
+                <button
+                  class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  @click="removeImage(index)"
+                >
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
           </div>
         </div>
 
         <div class="p-3 border-t-2 border-gray-200 bg-gray-50">
           <div class="flex items-center justify-between mb-3 px-2">
-             <div class="flex gap-4 text-gray-500">
-               <button class="hover:text-orange-500 transition-colors"><ImageIcon class="w-6 h-6" /></button>
-               <button class="hover:text-orange-500 transition-colors"><FileVideo class="w-6 h-6" /></button>
-               <button class="hover:text-orange-500 transition-colors"><Smile class="w-6 h-6" /></button>
-               <button class="hover:text-orange-500 transition-colors"><BarChart2 class="w-6 h-6" /></button>
-             </div>
+            <div class="flex gap-4 text-gray-500">
+              <button
+                type="button"
+                class="hover:text-orange-500 transition-colors"
+                @click="triggerFileSelect"
+              >
+                <ImageIcon class="w-6 h-6" />
+              </button>
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                multiple
+                class="hidden"
+                @change="handleImageSelect"
+              />
+              <button class="hover:text-orange-500 transition-colors">
+                <FileVideo class="w-6 h-6" />
+              </button>
+              <button class="hover:text-orange-500 transition-colors">
+                <Smile class="w-6 h-6" />
+              </button>
+              <button class="hover:text-orange-500 transition-colors">
+                <BarChart2 class="w-6 h-6" />
+              </button>
+            </div>
           </div>
 
           <div class="flex gap-3">
@@ -357,7 +480,9 @@ const filteredTags = computed(() => {
 
       <div v-else-if="currentStep === 'tags'" class="flex flex-col h-full">
         <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
+          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep">
+            <ArrowLeft class="w-5 h-5" />
+          </button>
           <span class="font-bold text-lg">新增標籤</span>
         </div>
 
@@ -375,9 +500,15 @@ const filteredTags = computed(() => {
           <div v-if="postData.tags.length > 0" class="mb-6">
             <h4 class="text-xs font-bold text-gray-500 mb-2">已選標籤：</h4>
             <div class="flex flex-wrap gap-2">
-              <span v-for="(tag, index) in postData.tags" :key="index" class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-bold border border-orange-300 flex items-center gap-1">
+              <span
+                v-for="(tag, index) in postData.tags"
+                :key="index"
+                class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-bold border border-orange-300 flex items-center gap-1"
+              >
                 #{{ tag }}
-                <button class="hover:text-red-500" @click="removeTag(index)"><X class="w-3 h-3"/></button>
+                <button class="hover:text-red-500" @click="removeTag(index)">
+                  <X class="w-3 h-3" />
+                </button>
               </span>
             </div>
           </div>
@@ -404,7 +535,9 @@ const filteredTags = computed(() => {
                 class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 transition-colors border-b border-gray-100"
                 @click="addTag(tag)"
               >
-                <div class="w-10 h-10 rounded-full bg-gray-200 border-2 border-black flex items-center justify-center font-bold text-gray-600">
+                <div
+                  class="w-10 h-10 rounded-full bg-gray-200 border-2 border-black flex items-center justify-center font-bold text-gray-600"
+                >
                   #
                 </div>
                 <div>
@@ -417,44 +550,79 @@ const filteredTags = computed(() => {
         </div>
 
         <div class="p-4 border-t-2 border-gray-200 flex justify-end bg-gray-50 gap-3">
-           <button class="w-full py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="nextStep">預覽文章</button>
+          <button
+            class="w-full py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            @click="nextStep"
+          >
+            預覽文章
+          </button>
         </div>
       </div>
 
       <div v-else-if="currentStep === 'preview'" class="flex flex-col h-full">
-         <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep"><ArrowLeft class="w-5 h-5"/></button>
+        <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
+          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep">
+            <ArrowLeft class="w-5 h-5" />
+          </button>
           <span class="font-bold text-lg">預覽文章</span>
         </div>
 
         <div class="p-6 flex-1 overflow-y-auto bg-gray-50">
-           <div class="bg-white p-5 border-2 border-gray-200 rounded-lg shadow-sm">
-              <div class="flex justify-between items-start mb-4">
-                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gray-300 border border-gray-400"></div>
-                    <div>
-                      <p class="font-bold text-sm">Yuan</p>
-                      <p class="text-xs text-gray-500">剛剛</p>
-                    </div>
-                 </div>
-                 <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">{{ postData.board || '未分類' }}</span>
+          <div class="bg-white p-5 border-2 border-gray-200 rounded-lg shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gray-300 border border-gray-400"></div>
+                <div>
+                  <p class="font-bold text-sm">Yuan</p>
+                  <p class="text-xs text-gray-500">剛剛</p>
+                </div>
               </div>
+              <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">{{
+                postData.board || '未分類'
+              }}</span>
+            </div>
 
-              <h2 class="text-xl font-bold mb-3">{{ postData.title || '(無標題)' }}</h2>
-              <p class="text-gray-700 whitespace-pre-wrap mb-4">{{ postData.content || '(無內容)' }}</p>
+            <h2 class="text-xl font-bold mb-3">{{ postData.title || '(無標題)' }}</h2>
+            <p class="text-gray-700 whitespace-pre-wrap mb-4">
+              {{ postData.content || '(無內容)' }}
+            </p>
 
+            <!-- 預覽圖片 -->
+            <div v-if="imagePreviews.length > 0" class="mb-4">
               <div class="flex flex-wrap gap-2">
-                 <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold">#{{ tag }}</span>
+                <img
+                  v-for="(url, index) in imagePreviews"
+                  :key="index"
+                  :src="url"
+                  alt="預覽圖片"
+                  class="w-24 h-24 rounded-lg object-cover border-2 border-gray-300"
+                />
               </div>
-           </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold"
+                >#{{ tag }}</span
+              >
+            </div>
+          </div>
         </div>
 
         <div class="p-4 border-t-2 border-gray-200 bg-white flex gap-3">
-           <button class="flex-1 py-2 text-sm font-bold text-gray-600 pixel-button bg-gray-200 border-4 border-black" @click="prevStep">返回修改</button>
-           <button class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="handleFinalSubmit">確認發布</button>
+          <button
+            class="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-200 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            @click="prevStep"
+          >
+            返回修改
+          </button>
+          <button
+            class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            @click="handleFinalSubmit"
+          >
+            確認發布
+          </button>
         </div>
       </div>
-
     </div>
 
 <ItineraryDetailModal
@@ -470,8 +638,14 @@ const filteredTags = computed(() => {
 
 <style scoped>
 @keyframes popIn {
-  0% { transform: scale(0.9); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 .animate-pop-in {
   animation: popIn 0.15s ease-out forwards;
@@ -481,16 +655,5 @@ const filteredTags = computed(() => {
   text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
 }
 
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow: 4px 4px 0px 0px rgba(139, 111, 71, 0.2), inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-
-.pixel-button {
-  box-shadow: 3px 3px 0px 0px rgba(139, 111, 71, 0.3), inset -1px -1px 0px 0px rgba(255, 255, 255, 0.4);
-}
-.pixel-button:active {
-  box-shadow: none;
-  transform: translateY(4px);
-}
+/* pixel-card and pixel-button replaced by Tailwind-like classes in template */
 </style>

@@ -21,7 +21,7 @@ const userStore = useUserStore()
 
 const itemData = computed(() => ({
   id: props.traveler.id,
-  type: 'traveler', 
+  type: 'traveler',
   title: props.traveler.title,
   content: props.traveler.content,
   image: props.traveler.image,
@@ -50,7 +50,9 @@ const getStatusClasses = (status) => {
 </script>
 
 <template>
-  <div class="pixel-card-traveler p-5 bg-[#fffef7] transition relative cursor-pointer">
+  <div
+    class="p-5 bg-[#fffef7] transition relative cursor-pointer border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+  >
     <div
       :class="getStatusClasses(traveler.status)"
       class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-lg border-b-4 border-l-4 z-10"
@@ -180,13 +182,5 @@ const getStatusClasses = (status) => {
 </template>
 
 <style scoped>
-.pixel-card-traveler {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-.grid > .pixel-card-traveler:hover {
-  transform: translateX(3px) translateY(3px);
-}
+/* pixel-card-traveler replaced by Tailwind classes in template */
 </style>

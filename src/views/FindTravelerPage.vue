@@ -51,7 +51,9 @@ const activeFilter = ref('全部')
         </div>
       </div>
 
-      <div class="mb-8 p-4 pixel-card bg-white/90">
+      <div
+        class="mb-8 p-4 bg-white/90 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+      >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"

@@ -224,38 +224,5 @@ const getTabStyle = (isActive) => {
   transform: translateY(20px);
 }
 
-.custom-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.custom-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-@media (min-width: 768px) {
-  .custom-scroll {
-    scrollbar-width: auto;
-    -ms-overflow-style: auto;
-  }
-
-  .custom-scroll::-webkit-scrollbar {
-    display: block;
-    height: 6px;
-  }
-
-  .custom-scroll::-webkit-scrollbar-track {
-    background: #f3f4f6;
-    border-radius: 10px;
-    margin: 0 10px;
-  }
-
-  .custom-scroll::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 10px;
-  }
-
-  .custom-scroll::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-  }
-}
+/* scrollbar rules moved to src/assets/main.css */
 </style>

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { watch } from 'vue' 
+import { watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import HomePage from '@/views/HomePage.vue'
 
@@ -36,7 +36,7 @@ const router = createRouter({
       },
     },
     {
-      path: '/favorites', 
+      path: '/favorites',
       name: 'favorites',
       component: () => import('@/views/FavoritesPage.vue'),
       meta: {
@@ -56,6 +56,9 @@ const router = createRouter({
       path: '/vendor/:id',
       name: 'VendorProfile',
       component: () => import('@/views/VendorProfilePage.vue'),
+      meta: {
+        hideAd: true,
+      },
     },
     {
       path: '/collections',
@@ -127,6 +130,7 @@ const router = createRouter({
       component: () => import('@/views/PersonalityTest.vue'),
       meta: {
         hideAd: true,
+        hideSidebar: true,
       },
     },
   ],
