@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
 import {
@@ -119,7 +119,7 @@ const getTagColor = (type) => {
   <div class="p-4">
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start pt-4">
       <div
-        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-5 rounded-xl shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] flex items-center rounded-none"
+        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-5 rounded-xl shadow-primary-tall flex items-center rounded-none"
       >
         <div class="flex items-center gap-3 text-2xl font-bold text-secondary-50">
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
@@ -128,7 +128,7 @@ const getTagColor = (type) => {
       </div>
 
       <div
-        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall"
       >
         <div class="flex items-center mb-6 pb-4 border-b-2 border-secondary-100">
           <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-4">
@@ -185,7 +185,7 @@ const getTagColor = (type) => {
         </div>
 
         <button
-          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] active:translate-y-1 active:shadow-none"
+          class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center shadow-primary-strong active:translate-y-1 active:shadow-none"
           @click="openAddItineraryModal"
         >
           <PlusIcon class="w-5 h-5 mr-2" />
@@ -194,7 +194,7 @@ const getTagColor = (type) => {
       </div>
 
       <div
-        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-primary shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-primary shadow-primary-tall"
       >
         <div class="flex items-center mb-6">
           <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-3">
@@ -245,3 +245,4 @@ const getTagColor = (type) => {
     />
   </div>
 </template>
+

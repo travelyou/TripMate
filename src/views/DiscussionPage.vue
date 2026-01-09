@@ -245,7 +245,7 @@ const getPostData = (post) => ({
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="mb-6 mt-4 bg-primary rounded-xl p-5 border border-secondary-100 shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)]"
+        class="mb-6 mt-4 bg-primary rounded-xl p-5 border border-secondary-100 shadow-primary-tall"
       >
         <div class="flex justify-between items-center">
           <h1 class="text-2xl font-black text-white flex items-center">
@@ -262,13 +262,13 @@ const getPostData = (post) => ({
         </div>
       </div>
 
-      <div class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-[4px_8px_0px_0px_rgba(7,52,76,0.25)] rounded-xl">
+      <div class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-[2px_2px_0px_0px_rgba(7,52,76,1)]',
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
               activeFilter === filter
                 ? 'bg-primary text-secondary-50'
                 : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
@@ -401,3 +401,4 @@ const getPostData = (post) => ({
 </template>
 
 <!-- 已移除 .pixel-card（已用 Tailwind 實作） -->
+

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import {
   Bot as BotIcon,
   MessageSquare as MessageSquareIcon,
@@ -14,7 +14,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     class="fixed bottom-4 right-4 md:bottom-8 md:right-8 flex flex-col space-y-2 md:space-y-3 z-50"
   >
     <button
-      class="p-3 md:p-4 w-14 h-14 bg-primary-600 text-white hover:bg-primary-700 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      class="p-3 md:p-4 w-14 h-14 bg-primary-600 text-white hover:bg-primary-700 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl"
       title="發布新貼文"
       @click="$emit('open-posting')"
     >
@@ -22,7 +22,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     </button>
 
     <button
-      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl"
       title="抽卡找旅伴"
       @click="$emit('quick-action')"
     >
@@ -30,7 +30,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     </button>
 
     <button
-      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl"
       title="私人訊息"
       @click="$emit('toggle-private-chat')"
     >
@@ -38,7 +38,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     </button>
 
     <button
-      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-[3px_3px_0px_0px_rgba(7,52,76,0.3)] rounded-xl"
+      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl"
       title="TripMate 助手"
       @click="$emit('toggle-ai-chat')"
     >
@@ -46,3 +46,4 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     </button>
   </div>
 </template>
+

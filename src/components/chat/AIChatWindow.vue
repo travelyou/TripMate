@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
@@ -102,7 +102,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
+    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] border-4 border-primary-600 shadow-primary-strong z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
   >
     <div class="bg-primary text-secondary-50 p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
@@ -230,3 +230,4 @@ onMounted(() => {
   color: #07344c;
 }
 </style>
+

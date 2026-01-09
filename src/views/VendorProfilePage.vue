@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import {
   Star as StarIcon,
   Heart as HeartIcon,
@@ -163,7 +163,7 @@ const featuredItineraries = [
   <div class="p-4 md:p-8 max-w-7xl mx-auto">
     <!-- 廠商封面與頭像區塊 -->
     <div
-      class="bg-white rounded-3xl overflow-hidden shadow-lg border-2 border-primary-100 mb-6 border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+      class="bg-white rounded-3xl overflow-hidden shadow-lg border-2 border-primary-100 mb-6 border-4 border-primary-600 shadow-primary"
     >
       <!-- 封面圖片 -->
       <div
@@ -244,7 +244,7 @@ const featuredItineraries = [
 
     <!-- 廠商 Banner 區塊 -->
     <div
-      class="mb-8 rounded-3xl overflow-hidden shadow-lg border-2 border-primary-100 h-40 md:h-64 relative border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+      class="mb-8 rounded-3xl overflow-hidden shadow-lg border-2 border-primary-100 h-40 md:h-64 relative border-4 border-primary-600 shadow-primary"
     >
       <img :src="vendor.bannerImage" class="w-full h-full object-cover" />
       <div
@@ -260,7 +260,7 @@ const featuredItineraries = [
     <div class="mb-8">
       <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <h2
-          class="inline-flex items-center text-2xl font-black text-primary-700 bg-secondary-50 px-6 py-3 rounded-2xl border-4 border-primary-200 shadow-[6px_6px_0px_0px_rgba(7,52,76,0.25)]"
+          class="inline-flex items-center text-2xl font-black text-primary-700 bg-secondary-50 px-6 py-3 rounded-2xl border-4 border-primary-200 shadow-primary-xl"
         >
           <MapIcon class="w-6 h-6 mr-2" />
           精選行程
@@ -292,7 +292,7 @@ const featuredItineraries = [
           <div
             v-for="itinerary in featuredItineraries.slice(0, 6)"
             :key="itinerary.id"
-            class="bg-white overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer h-full flex flex-col border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+            class="bg-white overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer h-full flex flex-col border-4 border-primary-600 shadow-primary"
           >
             <!-- 行程圖片 -->
             <div class="relative h-52 overflow-hidden shrink-0">
@@ -382,7 +382,7 @@ const featuredItineraries = [
               class="snap-center w-[calc(50%-8px)] shrink-0 first:ml-0"
             >
               <div
-                class="bg-white overflow-hidden h-full flex flex-col border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+                class="bg-white overflow-hidden h-full flex flex-col border-4 border-primary-600 shadow-primary"
               >
                 <div class="relative h-40 overflow-hidden">
                   <img :src="itinerary.image" class="w-full h-full object-cover" />
@@ -432,7 +432,7 @@ const featuredItineraries = [
     <div class="mb-8">
       <div class="mb-6">
         <h2
-          class="inline-flex items-center text-xl font-bold text-primary-700 bg-primary-50 px-5 py-2 rounded-xl border-4 border-primary-200 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)]"
+          class="inline-flex items-center text-xl font-bold text-primary-700 bg-primary-50 px-5 py-2 rounded-xl border-4 border-primary-200 shadow-primary-strong"
         >
           <FileTextIcon class="w-5 h-5 mr-2" />
           廠商貼文
@@ -443,7 +443,7 @@ const featuredItineraries = [
         <div
           v-for="post in vendorPosts"
           :key="post.id"
-          class="p-5 bg-secondary-50 hover:shadow-lg transition-shadow cursor-pointer border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+          class="p-5 bg-secondary-50 hover:shadow-lg transition-shadow cursor-pointer border-4 border-primary-600 shadow-primary"
         >
           <h3 class="text-lg font-bold text-secondary-900 mb-2">
             {{ post.title }}
@@ -489,3 +489,4 @@ const featuredItineraries = [
     </div>
   </div>
 </template>
+

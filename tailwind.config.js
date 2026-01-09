@@ -1,8 +1,18 @@
-/** @type {import('tailwindcss').Config} */
+﻿/** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      boxShadow: {
+        primary: '4px 4px 0 0 rgba(7,52,76,0.2)',
+        'primary-strong': '4px 4px 0 0 rgba(7,52,76,0.25)',
+        'primary-tall': '4px 8px 0 0 rgba(7,52,76,0.25)',
+        'primary-xl': '6px 6px 0 0 rgba(7,52,76,0.25)',
+        'primary-sm': '2px 2px 0 0 rgba(7,52,76,0.35)',
+        'primary-solid': '2px 2px 0 0 rgba(7,52,76,1)',
+        'primary-fab': '3px 3px 0 0 rgba(7,52,76,0.3)',
+        'primary-2xl': '10px 10px 0 0 rgba(7,52,76,0.35)',
+      },
       fontFamily: {
         好看一點的字體: ['Shippori Antique', 'sans-serif'],
         另一個好看一點的字體: ['Momo Trust Sans', 'sans-serif'],
@@ -66,3 +76,4 @@ export default {
   },
   plugins: [],
 }
+
