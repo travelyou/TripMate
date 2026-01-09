@@ -262,7 +262,7 @@ const getPostData = (post) => ({
 
       <div>
         <div
-          class="mb-6 bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall"
+          class="mb-6 bg-primary p-5 rounded-xl mt-4 shadow-primary-tall"
         >
           <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
             最新動態
