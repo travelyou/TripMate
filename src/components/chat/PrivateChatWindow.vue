@@ -65,17 +65,17 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.3)] z-50 flex flex-col animate-slide-up"
+    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] bg-white border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
   >
     <div
-      class="bg-green-300 text-amber-900 p-4 flex items-center justify-between border-b-4 border-green-400"
+      class="bg-primary text-secondary-50 p-4 flex items-center justify-between border-b-4 border-primary-700"
     >
       <div class="flex items-center space-x-3">
         <div>
           <h3 class="font-bold text-lg">私人聊天</h3>
         </div>
       </div>
-      <button @click="$emit('close')" class="p-1 hover:bg-green-400 rounded-full transition">
+      <button @click="$emit('close')" class="p-1 hover:bg-primary-600 rounded-full transition">
         <XIcon class="w-6 h-6" />
       </button>
     </div>
@@ -92,7 +92,7 @@ onUnmounted(() => {
       >
         <div
           v-if="!msg.isUser"
-          class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 border-2 border-green-600"
+          class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700"
         >
           <UserIcon class="w-5 h-5 text-white" />
         </div>
@@ -101,8 +101,8 @@ onUnmounted(() => {
           class="p-3 shadow-sm max-w-[80%] text-sm font-medium"
           :class="[
             msg.isUser
-              ? 'bg-green-500 text-white rounded-2xl rounded-tr-sm border-2 border-green-600'
-              : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border-2 border-gray-200',
+              ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm border-2 border-primary-700'
+              : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border-2 border-secondary-100',
           ]"
         >
           {{ msg.text }}
@@ -123,11 +123,11 @@ onUnmounted(() => {
           v-model="messageInput"
           type="text"
           placeholder="輸入訊息..."
-          class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-full focus:border-green-500 focus:outline-none text-sm bg-gray-50"
+          class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-gray-50"
         />
         <button
           type="submit"
-          class="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition border-2 border-green-700 shadow-sm active:translate-y-0.5"
+          class="p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border-2 border-primary-700 shadow-sm active:translate-y-0.5"
         >
           <SendIcon class="w-5 h-5" />
         </button>
