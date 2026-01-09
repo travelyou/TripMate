@@ -213,7 +213,11 @@
       </div>
     </div>
 
-    <PostDetailModal v-if="isModalOpen" :post="selectedPost" @close="closePostDetailModal" />
+    <DiscussionDetailModal
+      v-if="isModalOpen"
+      :post="selectedPost"
+      @close="closeDiscussionDetailModal"
+    />
   </div>
 </template>
 
@@ -231,7 +235,7 @@ import {
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
 import { useItineraryStore } from '@/stores/itinerary'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -490,7 +494,7 @@ const handleResultClick = (item) => {
   isModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
 }

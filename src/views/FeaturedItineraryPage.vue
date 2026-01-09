@@ -5,7 +5,7 @@ import { useItineraryStore } from '@/stores/featured'
 
 import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 
 const itinerariesStore = useItineraryStore()
 
@@ -29,13 +29,13 @@ const filterOptions = ref([
 const activeFilter = ref('全部')
 
 // 處理開啟詳情彈窗
-const openPostDetailModal = (post, focusComment = false) => {
+const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
   isDetailModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
@@ -90,18 +90,18 @@ const closeShareModal = () => {
           v-for="itinerary in itinerariesStore.itineraries"
           :key="itinerary.id"
           :itinerary="itinerary"
-          @open-detail="openPostDetailModal"
+          @open-detail="openDiscussionDetailModal"
           @open-share="openShareModal"
         />
       </div>
     </div>
   </div>
 
-  <PostDetailModal
+  <DiscussionDetailModal
     v-if="isDetailModalOpen"
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
-    @close="closePostDetailModal"
+    @close="closeDiscussionDetailModal"
   />
 
   <ShareModal v-if="isShareModalOpen" :share-link="shareLink" @close="closeShareModal" />

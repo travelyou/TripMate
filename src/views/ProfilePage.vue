@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 
 // Import New Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -60,7 +60,7 @@ const activeTabsData = computed(() => {
       commentsData: [],
     })),
     posts: discussionsStore.discussions.filter((p) => p.author === user.value.name),
-    reviews: user.value.reviews || []
+    reviews: user.value.reviews || [],
   }
 })
 
@@ -69,7 +69,7 @@ const stats = computed(() => ({
   hosted: activeTabsData.value.hostedTrips.length,
   posts: activeTabsData.value.posts.length,
   reviews: activeTabsData.value.reviews.length,
-  friends: user.value.friends ? user.value.friends.length : 0
+  friends: user.value.friends ? user.value.friends.length : 0,
 }))
 
 // Methods
@@ -107,13 +107,14 @@ const handleAddPlace = ({ type, name, date, icon }) => {
   const newPlaceObj = {
     name: name,
     date: date || new Date().toISOString().slice(0, 7).replace('-', '.'),
-    icon: icon // Add icon support
+    icon: icon, // Add icon support
   }
   userStore.addVisitedPlace(newPlaceObj, type)
 }
 
 const handleRemovePlace = ({ type, index }) => {
-  const places = type === 'domestic' ? userStore.visitedPlaces.domestic : userStore.visitedPlaces.international
+  const places =
+    type === 'domestic' ? userStore.visitedPlaces.domestic : userStore.visitedPlaces.international
   places.splice(index, 1)
 }
 
@@ -149,16 +150,15 @@ onMounted(() => {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Right Column: Sidebar (First on Mobile, Right on Desktop) -->
       <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
-        <ProfileSidebar
-          :user="user"
-          :wishlist="userStore.wishlist"
-        />
+        <ProfileSidebar :user="user" :wishlist="userStore.wishlist" />
       </div>
 
       <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
       <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
         <!-- Tab Navigation -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 md:p-2 flex space-x-1">
+        <div
+          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 md:p-2 flex space-x-1"
+        >
           <button
             v-for="tab in tabs"
             :key="tab.k"
@@ -227,7 +227,7 @@ onMounted(() => {
       @chat="handleChat"
     />
 
-    <PostDetailModal
+    <DiscussionDetailModal
       v-if="isDetailModalOpen"
       :post="selectedPost"
       :scroll-to-comments="shouldScrollToComments"
@@ -241,7 +241,13 @@ onMounted(() => {
   animation: fadeIn 0.5s ease-out;
 }
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

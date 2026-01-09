@@ -4,11 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 整合原本分散在各組件內部的滾動條樣式
-   涉及檔案：VendorProfilePage.vue, HomePage.vue, SearchPage.vue,
-   FavoritesPage.vue, CollectionsPage.vue, PostDetailModal.vue,
-   SwipeMatchModal.vue, ItineraryDetailModal.vue */
-
 /* 隱藏滾動條的工具類別 */
 .no-scrollbar::-webkit-scrollbar,
 .custom-scroll::-webkit-scrollbar {

@@ -60,7 +60,7 @@ Directory structure:
         │   ├── modals/
         │   │   ├── AddToCollectionModal.vue
         │   │   ├── ItineraryDetailModal.vue
-        │   │   ├── PostDetailModal.vue
+        │   │   ├── DiscussionDetailModal.vue
         │   │   ├── PostingChoiceModal.vue
         │   │   ├── ShareModal.vue
         │   │   └── SwipeMatchModal.vue
