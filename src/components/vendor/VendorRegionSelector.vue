@@ -1,5 +1,6 @@
 <script setup>
 import { defineEmits, ref } from 'vue';
+import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from 'lucide-vue-next';
 
 defineProps({
   regions: {
@@ -18,7 +19,7 @@ const selectRegion = (region) => {
   emit('select-region', region);
 };
 
-// Drag to Scroll Logic
+// Scroll Logic
 const scrollContainer = ref(null);
 const isDragging = ref(false);
 const startX = ref(0);
@@ -42,7 +43,16 @@ const doDrag = (e) => {
   scrollContainer.value.scrollLeft = scrollLeft.value - walk;
 };
 
-// Map regions to image URLs
+const scroll = (direction) => {
+  if (!scrollContainer.value) return;
+  const scrollAmount = 300; // Scroll width of one card + gap approx
+  scrollContainer.value.scrollBy({
+    left: direction === 'left' ? -scrollAmount : scrollAmount,
+    behavior: 'smooth'
+  });
+};
+
+// Map regions to image URLs //mock data
 const regionImages = {
   '日本': 'https://images.unsplash.com/photo-1528164344795-46b7f0801a61?q=80&w=800&auto=format&fit=crop',
   '韓國': 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=800&auto=format&fit=crop',
@@ -59,10 +69,26 @@ const getRegionImage = (region) => {
 </script>
 
 <template>
-  <div class="mb-10">
+  <div class="mb-10 relative group/container">
+    <!-- Left Button -->
+    <button
+      class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-30 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-amber-50 text-amber-800 transition-all duration-300 opacity-0 group-hover/container:opacity-100 group-hover/container:translate-x-2 hidden md:flex border border-gray-100"
+      @click="scroll('left')"
+    >
+      <ChevronLeftIcon class="w-6 h-6" />
+    </button>
+
+    <!-- Right Button -->
+    <button
+      class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-30 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-amber-50 text-amber-800 transition-all duration-300 opacity-0 group-hover/container:opacity-100 group-hover/container:-translate-x-2 hidden md:flex border border-gray-100"
+      @click="scroll('right')"
+    >
+      <ChevronRightIcon class="w-6 h-6" />
+    </button>
+
     <div
       ref="scrollContainer"
-      class="flex overflow-x-auto gap-4 py-4 px-1 custom-scrollbar snap-x cursor-grab active:cursor-grabbing"
+      class="flex overflow-x-auto gap-4 py-6 px-1 custom-scrollbar snap-x cursor-grab active:cursor-grabbing scroll-smooth"
       @mousedown="startDrag"
       @mouseleave="stopDrag"
       @mouseup="stopDrag"
@@ -121,18 +147,21 @@ const getRegionImage = (region) => {
 </template>
 
 <style scoped>
+/* Refined Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  height: 6px;
+  height: 8px; /* Slightly taller for better usability on desktop if needed */
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f8fafc;
   border-radius: 10px;
+  margin: 0 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #e2e8f0;
   border-radius: 10px;
+  border: 2px solid #f8fafc; /* Create "padding" around thumb */
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #cbd5e1;
 }
 </style>

@@ -101,8 +101,8 @@ const close = () => {
       <!-- Footer -->
       <div class="p-4 border-t border-gray-100 bg-white flex justify-end">
         <button
-          @click="close"
           class="px-6 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+          @click="close"
         >
           關閉
         </button>

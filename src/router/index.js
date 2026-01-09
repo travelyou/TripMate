@@ -53,7 +53,7 @@ const router = createRouter({
       },
     },
     {
-      path: '/vendor/:id',
+      path: '/vendor',
       name: 'VendorProfile',
       component: () => import('@/views/VendorProfilePage.vue'),
       meta: {
