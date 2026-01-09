@@ -326,15 +326,11 @@ const allData = computed(() => {
   return results
 })
 
-// 🟢 Highlighting 輔助函式 (標示符合的關鍵字)
-// 這會把 "台北" 替換成 <span class="bg-yellow-200...">台北</span>
 const highlightText = (text) => {
   if (!text) return ''
   const query = searchQuery.value.trim()
   if (!query) return text
 
-  // 1. 建立比對清單 (包含完整字串 + Bigrams)
-  // 目的是讓 "台北美食" 可以 highlight "台北"
   const matchers = [query]
   if (query.length >= 2) {
     for (let i = 0; i < query.length - 1; i++) {
@@ -346,7 +342,6 @@ const highlightText = (text) => {
   matchers.sort((a, b) => b.length - a.length)
 
   // 3. 建立 Regex: (Query|Bigram1|Bigram2)
-  // 使用 escape 防止特殊符號讓 Regex 報錯
   const pattern = matchers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
   const regex = new RegExp(`(${pattern})`, 'gi')
 

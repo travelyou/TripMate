@@ -51,13 +51,11 @@ const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const localComments = ref([])
 
-// 行程相關（如果 traveler 有行程數據）
+// 行程相關（
 const itineraryData = computed(() => {
-  // 如果 traveler 有 itinerary 屬性，使用它；否則生成示例數據
   if (props.traveler.itinerary) {
     return props.traveler.itinerary
   }
-  // 示例行程數據
   return {
     days: [
       {
@@ -333,7 +331,6 @@ onMounted(async () => {
 
         <!-- 內容區 -->
         <div class="p-6">
-          <!-- 標題與作者資訊 -->
           <div class="mb-6">
             <h1 class="text-3xl font-black text-gray-900 mb-4">
               {{ traveler.title }}
@@ -493,7 +490,6 @@ onMounted(async () => {
 
           <!-- 行程內容區 -->
           <div v-if="activeTab === 'itinerary'" class="space-y-6">
-            <!-- 天數選擇 -->
             <div class="flex overflow-x-auto space-x-2 pb-2">
               <button
                 v-for="(day, index) in itineraryData.days"

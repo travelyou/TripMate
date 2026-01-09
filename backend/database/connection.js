@@ -78,7 +78,6 @@ async function createPool() {
 
   pool.on('connect', () => {
     console.log('資料庫連接成功！')
-    console.log('123')
   })
 
   pool.on('error', (err) => {
@@ -107,7 +106,7 @@ async function initializePool() {
     .then((pool) => {
       poolInstance = pool
       console.log('資料庫連接池已初始化')
-      console.log('456')
+
       return pool
     })
     .catch((error) => {

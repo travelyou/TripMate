@@ -4,17 +4,16 @@ import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import { useTravelersStore } from '@/stores/travelers'
 import TravelerCard from '@/components/posts/TravelerCard.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
-import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue' // 🟢 改用新的 Modal
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 
 const travelersStore = useTravelersStore()
 
 const isPostingModalOpen = ref(false)
 
 const isDetailModalOpen = ref(false)
-const selectedTraveler = ref(null) // 🟢 改名更清楚
+const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
 
-// 🟢 更新函數名稱和邏輯
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler
   shouldScrollToComments.value = focusComment
