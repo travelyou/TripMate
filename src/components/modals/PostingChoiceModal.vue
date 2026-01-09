@@ -41,11 +41,11 @@ const clearError = (field) => {
   errors.value[field] = ''
 }
 
-const clearAllErrors = () =>{
+const clearAllErrors = () => {
   errors.value = {
     board: '',
     title: '',
-    content: ''
+    content: '',
   }
 }
 
@@ -78,7 +78,7 @@ const handleItineraryDraftSave = (itineraryData) => {
     typeLabel: '規劃行程',
     title: itineraryData.title || '(未命名行程)',
     content: `日期: ${itineraryData.startDate || '?'} ~ ${itineraryData.endDate || '?'}`,
-    rawItinerary: itineraryData
+    rawItinerary: itineraryData,
   })
 
   alert('✨ 行程已存入草稿夾！')
@@ -99,7 +99,7 @@ const handleSaveDraft = () => {
     typeLabel: postData.value.board || '討論區',
     title: postData.value.title || '(無標題)',
     content: postData.value.content || '(無內容)',
-    tags: postData.value.tags
+    tags: postData.value.tags,
   })
 
   alert('✨ 文章已存入草稿夾！')
@@ -114,9 +114,9 @@ const getBlankItinerary = () => ({
   startDate: '',
   endDate: '',
   days: [
-    { day: 1, date: '', activities: [] } // 🟢 貼心設計：預設給他第一天，不然使用者會不知道怎麼開始
+    { day: 1, date: '', activities: [] }, // 🟢 貼心設計：預設給他第一天，不然使用者會不知道怎麼開始
   ],
-  packingList: []
+  packingList: [],
 })
 // --- 圖片相關狀態 ---
 const fileInputRef = ref(null)
@@ -209,33 +209,38 @@ const nextStep = () => {
   if (currentStep.value === 'edit') {
     clearAllErrors()
     const validationErrors = []
-   if (!postData.value.board || postData.value.board.trim() === ''){
-    errors.value.board = '還沒選擇發文看板呢寶'
-    validationErrors.push('看板版')
-   }
-   if (!postData.value.title || postData.value.title.trim() === ''){
-    errors.value.title = '寶你的標題呢'
-    validationErrors.push('標標題')
-   }
-   if (!postData.value.content || postData.value.content.trim() === ''){
-    errors.value.content = '請加上文章描述'
-    validationErrors.push('還是得描述一下的')
-   }
+    if (!postData.value.board || postData.value.board.trim() === '') {
+      errors.value.board = '還沒選擇發文看板呢寶'
+      validationErrors.push('看板版')
+    }
+    if (!postData.value.title || postData.value.title.trim() === '') {
+      errors.value.title = '寶你的標題呢'
+      validationErrors.push('標標題')
+    }
+    if (!postData.value.content || postData.value.content.trim() === '') {
+      errors.value.content = '請加上文章描述'
+      validationErrors.push('還是得描述一下的')
+    }
 
-   if(validationErrors.length > 0){
-    const errorSummary = `記得喔!:${validationErrors.join( '、')}`
-    alert(errorSummary)
-    return
-   }
-   currentStep.value = 'tags'
+    if (validationErrors.length > 0) {
+      const errorSummary = `記得喔!:${validationErrors.join('、')}`
+      alert(errorSummary)
+      return
+    }
+    currentStep.value = 'tags'
+  } else if (currentStep.value === 'tags') {
+    currentStep.value = 'preview'
   }
-  else if (currentStep.value === 'tags') currentStep.value = 'preview'
 }
 
 const prevStep = () => {
-  if (currentStep.value === 'preview') currentStep.value = 'tags'
-  else if (currentStep.value === 'tags') currentStep.value = 'edit'
-  else if (currentStep.value === 'edit') currentStep.value = 'menu'
+  if (currentStep.value === 'preview') {
+    currentStep.value = 'tags'
+  } else if (currentStep.value === 'tags') {
+    currentStep.value = 'edit'
+  } else if (currentStep.value === 'edit') {
+    currentStep.value = 'menu'
+  }
 }
 
 const handleFinalSubmit = () => {
@@ -274,9 +279,6 @@ const filteredTags = computed(() => {
   if (!tagSearch.value) return suggestedTags
   return suggestedTags.filter((t) => t.includes(tagSearch.value))
 })
-
-
-
 </script>
 
 <template>
@@ -346,8 +348,8 @@ const filteredTags = computed(() => {
             class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500"
             :class="errors.board ? 'border-red-500' : 'border-gray-400'"
             @change="clearError('board')"
-            >
-            <option value="" disabled selected>點此選擇發文看板 ▼</option>
+          >
+            <option value="" disabled>點此選擇發文看板 ▼</option>
             <option v-for="b in boards" :key="b" :value="b">{{ b }}</option>
           </select>
           <!-- 加入錯誤訊息 -->
@@ -390,31 +392,29 @@ const filteredTags = computed(() => {
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
             :class="errors.content ? 'border-b-2 border-red-500' : ''"
             @input="clearError('content')"
-            ></textarea>
+          ></textarea>
 
-            <!-- 在textarea下方加入錯誤訊息 -->
+          <!-- 在 textarea 下方加入錯誤訊息 -->
           <p v-if="errors.content" class="text-red-500 text-xs font-bold mb-2">
             {{ errors.content }}
           </p>
-        <div
-            v-if="postData.board === '找旅伴' || attachedItinerary"
-            class="mb-4"
-          >
+          <div v-if="postData.board === '找旅伴' || attachedItinerary" class="mb-4">
             <div
               v-if="attachedItinerary"
               class="w-full p-3 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-center justify-between"
             >
-              </div>
+              <div class="text-sm font-bold text-blue-800">已加入行程規劃</div>
+            </div>
 
             <button
               v-else
               class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
-             @click="showItineraryModal = true"
+              @click="showItineraryModal = true"
             >
               <MapPin class="w-4 h-4" />
               ＋ 加入行程規劃
             </button>
-          ></textarea>
+          </div>
 
           <!-- 圖片預覽區 -->
           <div v-if="imagePreviews.length > 0" class="mt-4 space-y-2">
@@ -468,12 +468,18 @@ const filteredTags = computed(() => {
           </div>
 
           <div class="flex gap-3">
-             <button
-                class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300"
-                @click="handleSaveDraft">
-                  存入草稿
-             </button>
-             <button class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black" @click="nextStep">下一步</button>
+            <button
+              class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300"
+              @click="handleSaveDraft"
+            >
+              存入草稿
+            </button>
+            <button
+              class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black"
+              @click="nextStep"
+            >
+              下一步
+            </button>
           </div>
         </div>
       </div>
@@ -601,9 +607,9 @@ const filteredTags = computed(() => {
             </div>
 
             <div class="flex flex-wrap gap-2">
-              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold"
-                >#{{ tag }}</span
-              >
+              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold">
+                #{{ tag }}
+              </span>
             </div>
           </div>
         </div>
@@ -625,7 +631,7 @@ const filteredTags = computed(() => {
       </div>
     </div>
 
-<ItineraryDetailModal
+    <ItineraryDetailModal
       v-if="showItineraryModal"
       :itinerary="getBlankItinerary()"
       @close="showItineraryModal = false"
@@ -634,7 +640,7 @@ const filteredTags = computed(() => {
     />
 
   </div>
-  </template>
+</template>
 
 <style scoped>
 @keyframes popIn {
