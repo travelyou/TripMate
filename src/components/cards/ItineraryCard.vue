@@ -118,7 +118,7 @@ const formatPrice = (price) => {
         <div class="flex items-center space-x-4 text-xs text-secondary-500">
           <button
             class="flex items-center space-x-1 transition group"
-            :class="userStore.isFavorite(itemData) ? 'text-red-500' : 'hover:text-red-500'"
+            :class="userStore.isFavorite(itemData) ? 'text-accent-600' : 'hover:text-accent-600'"
             @click.stop="userStore.toggleFavorite(itemData)"
           >
             <HeartIcon

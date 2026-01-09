@@ -109,7 +109,7 @@ onMounted(() => {
         <BotIcon class="w-6 h-6" />
         <div>
           <h3 class="font-bold text-lg">TripMate 助手</h3>
-          <p class="text-xs text-orange-800 font-bold opacity-80">AI 智能行程顧問</p>
+          <p class="text-xs text-white font-bold opacity-80">AI 智能行程顧問</p>
         </div>
       </div>
       <button class="p-1 hover:bg-primary-600 rounded-full transition" @click="$emit('close')">

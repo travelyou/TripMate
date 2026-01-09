@@ -273,7 +273,7 @@ const getPostData = (post) => ({
           <div
             v-for="post in discussionsStore.discussions"
             :key="post.id"
-            class="p-5 bg-white ring-2 ring-gray-200 shadow-md rounded-2xl hover:shadow-xl transition cursor-pointer"
+            class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl hover:shadow-xl transition cursor-pointer"
           >
             <div class="flex items-center space-x-3 mb-4">
               <img
