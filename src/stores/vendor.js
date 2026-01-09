@@ -19,9 +19,9 @@ export const useVendorStore = defineStore('vendor', () => {
     regionTags: ['日本', '韓國', '東南亞', '歐洲', '美洲'],
     rating: 4.8,
     reviewCount: 328,
-    postsCount: 45,
-    itineraryCount: 28,
-    followersCount: 1520,
+    // postsCount: 45,
+    // itineraryCount: 28,
+    // followersCount: 1520,
     description:
       '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。',
     isVerified: true,
@@ -36,9 +36,10 @@ export const useVendorStore = defineStore('vendor', () => {
         '每年11月中旬到12月初，是京都賞楓的黃金時期。清水寺、嵐山、東福寺都是絕佳的賞楓景點，建議避開週末人潮...',
       image: 'https://picsum.photos/600/400?random=kyoto',
       likes: 245,
+      collects: 120,
       comments: 38,
-      time: '3 天前',
-      tags: ['日本', '賞楓', '京都'],
+      time: '2025-11-15', // Changed to ISO date for easier sorting
+      tags: ['日本', '賞楓', '京都', '東北亞'],
     },
     {
       id: 2,
@@ -47,9 +48,10 @@ export const useVendorStore = defineStore('vendor', () => {
         '除了烏布和庫塔，峇里島還有許多鮮為人知的絕美景點。今天要跟大家分享我們最近發掘的幾個私房景點，包括隱藏版瀑布和秘境海灘...',
       image: 'https://picsum.photos/600/400?random=bali',
       likes: 189,
+      collects: 85,
       comments: 25,
-      time: '5 天前',
-      tags: ['峇里島', '印尼', '秘境'],
+      time: '2025-11-10',
+      tags: ['峇里島', '印尼', '秘境', '東南亞'],
     },
     {
       id: 3,
@@ -58,9 +60,10 @@ export const useVendorStore = defineStore('vendor', () => {
         '想要拍出震撼的極光照片嗎？相機設置、拍攝地點、時機選擇都是關鍵。這篇文章分享我們多年來累積的極光攝影經驗...',
       image: 'https://picsum.photos/600/400?random=aurora',
       likes: 412,
+      collects: 340,
       comments: 56,
-      time: '1 週前',
-      tags: ['冰島', '極光', '攝影'],
+      time: '2025-10-28',
+      tags: ['冰島', '極光', '攝影', '歐洲', '北歐'],
     },
   ]
 
@@ -187,8 +190,8 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     error.value = null
     try {
-      // 模擬 API 延遲
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // 模擬 API 延遲 (加快速度 500ms -> 100ms)
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // 在真實情境中，這裡會根據 id 發送 API 請求
       // 現在我們回傳模擬數據，並根據 id 稍微改變內容 (如果需要)
@@ -205,14 +208,14 @@ export const useVendorStore = defineStore('vendor', () => {
 
   const fetchVendorPosts = async (id) => {
     // 模擬 API 請求
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await new Promise((resolve) => setTimeout(resolve, 100))
     console.log(`Fetching posts for vendor: ${id}`)
     vendorPosts.value = mockPosts
   }
 
   const fetchVendorItineraries = async (id, filter = {}) => {
     // 模擬 API 請求
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await new Promise((resolve) => setTimeout(resolve, 100))
     console.log(`Fetching itineraries for vendor: ${id}`)
 
     let result = [...mockItineraries]
@@ -226,7 +229,7 @@ export const useVendorStore = defineStore('vendor', () => {
   }
 
   const fetchVendorReviews = async (id) => {
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await new Promise(resolve => setTimeout(resolve, 100))
     console.log(`Fetching reviews for vendor: ${id}`)
     vendorReviews.value = mockReviews
   }
