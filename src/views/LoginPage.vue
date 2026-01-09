@@ -435,7 +435,7 @@ const handleRegister = async () => {
         .replace(/\s+/g, '')
         // 常見全形符號轉半形（避免 IME 輸入造成 Firebase 判定 invalid-email）
         .replace(/\uFF20/g, '@') // ＠
-        .replace(/[\uFF0E\u3002\uFF61]/g, '.') // ． 。 ｡
+        .replace(/[\uFF0E\u3002\uFF61]/g, '.') // 「．」「。」「 ｡」
     }
 
     registerForm.value.email = sanitizeEmail(registerForm.value.email)
