@@ -109,7 +109,7 @@ const handleMobileNavClick = (item) => {
         class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToFavorites"
       >
-        <HeartIcon class="w-8 h-8 text-accent-500 transition fill-white" />
+        <HeartIcon class="w-8 h-8 text-primary transition fill-primary" />
         <span class="font-bold text-primary">愛心</span>
       </div>
 
@@ -117,7 +117,7 @@ const handleMobileNavClick = (item) => {
         class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToCollections"
       >
-        <BookmarkIcon class="w-8 h-8 text-gold-500 transition fill-white" />
+        <BookmarkIcon class="w-8 h-8 text-primary transition fill-primary" />
         <span class="font-bold text-primary">收藏</span>
       </div>
     </div>
