@@ -1,12 +1,12 @@
-<script setup>
+﻿<script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user' // 1. 引入 Store
 import { Heart, MessageCircle, Users, Map } from 'lucide-vue-next'
 
 // 引入你的卡片元件
-import PostCard from '@/components/posts/PostCard.vue'
-import TravelerCard from '@/components/posts/TravelerCard.vue'
-import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
+import PostCard from '@/components/cards/DiscussionCard.vue'
+import TravelerCard from '@/components/cards/TravelerCard.vue'
+import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 
 // 2. 初始化 Store
 const userStore = useUserStore()

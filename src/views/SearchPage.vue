@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="min-h-screen bg-secondary-50 flex flex-col pb-24 lg:pb-0">
     <div class="sticky top-0 z-30 bg-secondary-100 shadow-sm border-b border-secondary-200 p-4">
       <div class="w-full">

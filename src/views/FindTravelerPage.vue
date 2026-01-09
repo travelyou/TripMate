@@ -1,8 +1,8 @@
-<script setup>
+﻿<script setup>
 import { ref } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import { useTravelersStore } from '@/stores/travelers'
-import TravelerCard from '@/components/posts/TravelerCard.vue'
+import TravelerCard from '@/components/cards/TravelerCard.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 

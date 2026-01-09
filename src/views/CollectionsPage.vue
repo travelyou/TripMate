@@ -1,12 +1,12 @@
-<script setup>
+﻿<script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { Bookmark, FolderOpen, Plus, Trash2 } from 'lucide-vue-next'
 
 // 引入卡片元件
-import PostCard from '@/components/posts/PostCard.vue'
-import TravelerCard from '@/components/posts/TravelerCard.vue'
-import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
+import PostCard from '@/components/cards/DiscussionCard.vue'
+import TravelerCard from '@/components/cards/TravelerCard.vue'
+import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 
 const userStore = useUserStore()
 
