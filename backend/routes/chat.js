@@ -1,9 +1,95 @@
+/* eslint-env node */
+/* global require, module */
 const express = require('express');
 const router = express.Router();
 const pool = require('../database/connection');
 
 function makeDmKey(a, b) {
   return [a, b].sort().join('|');
+}
+
+let ensureChatInit = null;
+async function ensureChatTables() {
+  if (ensureChatInit) return ensureChatInit;
+  ensureChatInit = (async () => {
+    // schema
+    await pool.query(`CREATE SCHEMA IF NOT EXISTS chat;`);
+
+    // 有些環境你可能先前建過帶外鍵（user_uid -> users.uid）的 members/messages，
+    // 但使用者可能尚未同步進 users 表，會導致 23503 外鍵違反。
+    // 目前專案（posts/comments/likes）普遍不強制 FK，所以聊天室也採同策略：移除該 FK。
+    await pool.query(`ALTER TABLE IF EXISTS chat.members DROP CONSTRAINT IF EXISTS conversation_members_user_uid_fkey;`);
+    await pool.query(`ALTER TABLE IF EXISTS chat.members DROP CONSTRAINT IF EXISTS members_user_uid_fkey;`);
+    await pool.query(`ALTER TABLE IF EXISTS chat.members DROP CONSTRAINT IF EXISTS conversation_participants_user_uid_fkey;`);
+    await pool.query(`ALTER TABLE IF EXISTS chat.messages DROP CONSTRAINT IF EXISTS messages_sender_uid_fkey;`);
+    await pool.query(`ALTER TABLE IF EXISTS chat.messages DROP CONSTRAINT IF EXISTS chat_messages_sender_uid_fkey;`);
+
+    // conversations
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat.conversations (
+        id BIGSERIAL PRIMARY KEY,
+        type TEXT NOT NULL DEFAULT 'dm',
+        name TEXT,
+        avatar_url TEXT,
+        dm_key TEXT,
+        created_by_uid VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // dm_key 必須 unique，否則 ON CONFLICT (dm_key) 會直接噴錯
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_chat_conversations_dm_key
+      ON chat.conversations (dm_key)
+      WHERE dm_key IS NOT NULL;
+    `);
+
+    // members
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat.members (
+        conversation_id BIGINT NOT NULL REFERENCES chat.conversations(id) ON DELETE CASCADE,
+        user_uid VARCHAR(255) NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_read_message_id BIGINT,
+        PRIMARY KEY (conversation_id, user_uid)
+      );
+    `);
+
+    // messages
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat.messages (
+        id BIGSERIAL PRIMARY KEY,
+        conversation_id BIGINT NOT NULL REFERENCES chat.conversations(id) ON DELETE CASCADE,
+        sender_uid VARCHAR(255) NOT NULL,
+        body TEXT,
+        attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        client_message_id TEXT
+      );
+    `);
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_chat_messages_conversation_client_message_id
+      ON chat.messages (conversation_id, client_message_id)
+      WHERE client_message_id IS NOT NULL;
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id_id
+      ON chat.messages (conversation_id, id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_chat_members_user_uid
+      ON chat.members (user_uid);
+    `);
+  })().catch((e) => {
+    ensureChatInit = null;
+    throw e;
+  });
+  return ensureChatInit;
 }
 
 async function ensureMember(conversationId, uid, role = 'member') {
@@ -32,6 +118,7 @@ async function assertIsMember(conversationId, uid) {
 // 建立/取得 DM
 router.post('/dm', async (req, res) => {
   try {
+    await ensureChatTables();
     const { uid, otherUid } = req.body;
     if (!uid || !otherUid) {
       return res.status(400).json({ error: '缺少必填欄位', required: ['uid', 'otherUid'] });
@@ -60,6 +147,7 @@ router.post('/dm', async (req, res) => {
 
     res.json({ conversation });
   } catch (e) {
+    console.error('[chat/dm] error:', e);
     res.status(500).json({ error: '建立/取得 DM 失敗', details: e?.message || String(e) });
   }
 });
@@ -68,6 +156,7 @@ router.post('/dm', async (req, res) => {
 router.post('/groups', async (req, res) => {
   const client = await pool.connect();
   try {
+    await ensureChatTables();
     const { uid, name, memberUids = [] } = req.body;
     if (!uid || !name) {
       return res.status(400).json({ error: '缺少必填欄位', required: ['uid', 'name'] });
@@ -104,6 +193,7 @@ router.post('/groups', async (req, res) => {
     res.status(201).json({ conversation });
   } catch (e) {
     await client.query('ROLLBACK');
+    console.error('[chat/groups] error:', e);
     res.status(500).json({ error: '建立群組失敗', details: e?.message || String(e) });
   } finally {
     client.release();
@@ -113,6 +203,7 @@ router.post('/groups', async (req, res) => {
 // 列出我的聊天室（含最後一則訊息 + 未讀數）
 router.get('/conversations', async (req, res) => {
   try {
+    await ensureChatTables();
     const { uid } = req.query;
     if (!uid) return res.status(400).json({ error: '缺少 uid' });
 
@@ -148,6 +239,7 @@ router.get('/conversations', async (req, res) => {
 
     res.json({ conversations: r.rows });
   } catch (e) {
+    console.error('[chat/conversations] error:', e);
     res.status(500).json({ error: '取得聊天室列表失敗', details: e?.message || String(e) });
   }
 });
@@ -155,6 +247,7 @@ router.get('/conversations', async (req, res) => {
 // 拉訊息（分頁）
 router.get('/conversations/:id/messages', async (req, res) => {
   try {
+    await ensureChatTables();
     const conversationId = Number(req.params.id);
     const { uid, before, limit = 30 } = req.query;
 
@@ -190,6 +283,7 @@ router.get('/conversations/:id/messages', async (req, res) => {
     res.json({ messages: r.rows.reverse() });
   } catch (e) {
     const status = e.status || 500;
+    console.error('[chat/messages] error:', e);
     res.status(status).json({ error: '取得訊息失敗', details: e?.message || String(e) });
   }
 });
@@ -197,6 +291,7 @@ router.get('/conversations/:id/messages', async (req, res) => {
 // 送訊息（文字 + 附件 URL）
 router.post('/conversations/:id/messages', async (req, res) => {
   try {
+    await ensureChatTables();
     const conversationId = Number(req.params.id);
     const { uid, body = null, attachments = [], client_message_id = null } = req.body;
 
@@ -235,6 +330,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
     res.status(201).json({ message });
   } catch (e) {
     const status = e.status || 500;
+    console.error('[chat/send] error:', e);
     res.status(status).json({ error: '送訊息失敗', details: e?.message || String(e) });
   }
 });
@@ -242,6 +338,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
 // 標記已讀
 router.post('/conversations/:id/read', async (req, res) => {
   try {
+    await ensureChatTables();
     const conversationId = Number(req.params.id);
     const { uid, lastReadMessageId } = req.body;
 
@@ -265,6 +362,7 @@ router.post('/conversations/:id/read', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     const status = e.status || 500;
+    console.error('[chat/read] error:', e);
     res.status(status).json({ error: '標記已讀失敗', details: e?.message || String(e) });
   }
 });
