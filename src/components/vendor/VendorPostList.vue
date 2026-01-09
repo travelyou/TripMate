@@ -31,7 +31,7 @@ const filteredPosts = computed(() => {
 });
 
 // Sorting Logic
-const sortOption = ref('latest');
+const sortOption = ref('default');
 const sortedPosts = computed(() => {
   const list = [...filteredPosts.value];
   switch (sortOption.value) {
@@ -40,13 +40,13 @@ const sortedPosts = computed(() => {
     case 'collects': // 收藏最多
       return list.sort((a, b) => (b.collects || 0) - (a.collects || 0));
     case 'date-desc': // 日期近到遠
-      // Assuming time is ISO string now, or fallback to simple compare if needed
+      // Assuming time is ISO string now
       return list.sort((a, b) => new Date(b.time) - new Date(a.time));
     case 'date-asc': // 日期遠到近
       return list.sort((a, b) => new Date(a.time) - new Date(b.time));
-    case 'latest':
+    case 'default':
     default:
-       // Default fallback
+       // Verify strict default order (original array order)
       return list;
   }
 });
@@ -71,6 +71,7 @@ const sortedPosts = computed(() => {
           v-model="sortOption"
           class="appearance-none bg-white border border-gray-200 text-gray-700 py-2 pl-4 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-bold shadow-sm cursor-pointer"
         >
+          <option value="default">預設排序</option>
           <option value="likes">按讚最多</option>
           <option value="collects">收藏最多</option>
           <option value="date-desc">日期由近到遠</option>
