@@ -1,18 +1,24 @@
 <script setup>
+import { useMyItineraryStore } from '@/stores/myItinerary'
+import ItineraryDetailModal from './ItineraryDetailModal.vue'
+import { useRouter } from 'vue-router' // 🔥 補上這一行
 import { ref, computed, onUnmounted } from 'vue'
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
   ArrowLeft,
   Image as ImageIcon,
+  Briefcase as BriefcaseIcon,
   Smile,
   BarChart2,
   FileVideo,
   X,
   Hash,
+  MapPin,
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close', 'submit-post'])
+const router = useRouter()
 
 // --- 狀態管理 ---
 const currentStep = ref('menu') // 'menu', 'edit', 'tags', 'preview'
@@ -25,8 +31,93 @@ const postData = ref({
   tags: [], // 標籤
 })
 
+const errors = ref({
+  board: '',
+  title: '',
+  content: '',
+})
+
+const clearError = (field) => {
+  errors.value[field] = ''
+}
+
+const clearAllErrors = () => {
+  errors.value = {
+    board: '',
+    title: '',
+    content: '',
+  }
+}
+
+const itineraryStore = useMyItineraryStore()
+
 const tagSearch = ref('')
 
+const showItineraryModal = ref(false)
+
+const attachedItinerary = ref(null)
+
+
+// 🟢 1. 行程規劃彈窗 -> 按下「儲存」 (變成正式行程)
+const handleItinerarySave = (itineraryData) => {
+  console.log('收到行程資料，準備存檔:', itineraryData)
+
+  // 呼叫 Store 存入行程列表
+  itineraryStore.saveItinerary(itineraryData)
+
+  showItineraryModal.value = false
+  emit('close')
+  router.push({ name: 'my_itinerary' }) // 跳轉去看結果
+}
+
+// 🟢 2. 行程規劃彈窗 -> 按下「暫存草稿」
+const handleItineraryDraftSave = (itineraryData) => {
+  // 呼叫 Store 存入草稿
+  itineraryStore.addDraft({
+    type: 'itinerary',
+    typeLabel: '規劃行程',
+    title: itineraryData.title || '(未命名行程)',
+    content: `日期: ${itineraryData.startDate || '?'} ~ ${itineraryData.endDate || '?'}`,
+    rawItinerary: itineraryData,
+  })
+
+  alert('✨ 行程已存入草稿夾！')
+  showItineraryModal.value = false
+  emit('close')
+  router.push({ name: 'my_itinerary' })
+} // 🔥 注意這裡！這個大括號是用來結束 handleItineraryDraftSave 的
+
+// 🟢 3. 發起討論/找旅伴 -> 按下「存入草稿」
+// (把它搬到外面來，不要放在上面那個函式裡面)
+const handleSaveDraft = () => {
+  // 判斷目前的類型
+  const isTraveler = postData.value.board === '找旅伴'
+
+  // 呼叫 Store 存入草稿
+  itineraryStore.addDraft({
+    type: isTraveler ? 'traveler' : 'discussion',
+    typeLabel: postData.value.board || '討論區',
+    title: postData.value.title || '(無標題)',
+    content: postData.value.content || '(無內容)',
+    tags: postData.value.tags,
+  })
+
+  alert('✨ 文章已存入草稿夾！')
+  emit('close')
+  router.push({ name: 'my_itinerary' })
+}
+
+// 🟢 準備一個空白的行程物件，傳給組員的彈窗使用
+const getBlankItinerary = () => ({
+  id: null, // 設為 null，讓 Store 自己去產生 ID
+  title: '',
+  startDate: '',
+  endDate: '',
+  days: [
+    { day: 1, date: '', activities: [] }, // 🟢 貼心設計：預設給他第一天，不然使用者會不知道怎麼開始
+  ],
+  packingList: [],
+})
 // --- 圖片相關狀態 ---
 const fileInputRef = ref(null)
 const imageFiles = ref([]) // 存儲選中的圖片文件
@@ -46,6 +137,10 @@ const startPosting = (initialBoard = '') => {
     postData.value.board = ''
   }
   currentStep.value = 'edit'
+}
+
+const openItineraryDirectly = () => {
+  showItineraryModal.value = true
 }
 
 const addTag = (tagText) => {
@@ -111,14 +206,41 @@ const triggerFileSelect = () => {
 }
 
 const nextStep = () => {
-  if (currentStep.value === 'edit') currentStep.value = 'tags'
-  else if (currentStep.value === 'tags') currentStep.value = 'preview'
+  if (currentStep.value === 'edit') {
+    clearAllErrors()
+    const validationErrors = []
+    if (!postData.value.board || postData.value.board.trim() === '') {
+      errors.value.board = '還沒選擇發文看板呢寶'
+      validationErrors.push('看板版')
+    }
+    if (!postData.value.title || postData.value.title.trim() === '') {
+      errors.value.title = '寶你的標題呢'
+      validationErrors.push('標標題')
+    }
+    if (!postData.value.content || postData.value.content.trim() === '') {
+      errors.value.content = '請加上文章描述'
+      validationErrors.push('還是得描述一下的')
+    }
+
+    if (validationErrors.length > 0) {
+      const errorSummary = `記得喔!:${validationErrors.join('、')}`
+      alert(errorSummary)
+      return
+    }
+    currentStep.value = 'tags'
+  } else if (currentStep.value === 'tags') {
+    currentStep.value = 'preview'
+  }
 }
 
 const prevStep = () => {
-  if (currentStep.value === 'preview') currentStep.value = 'tags'
-  else if (currentStep.value === 'tags') currentStep.value = 'edit'
-  else if (currentStep.value === 'edit') currentStep.value = 'menu'
+  if (currentStep.value === 'preview') {
+    currentStep.value = 'tags'
+  } else if (currentStep.value === 'tags') {
+    currentStep.value = 'edit'
+  } else if (currentStep.value === 'edit') {
+    currentStep.value = 'menu'
+  }
 }
 
 const handleFinalSubmit = () => {
@@ -192,6 +314,17 @@ const filteredTags = computed(() => {
               <p class="text-xs text-gray-700">找到志同道合的夥伴</p>
             </div>
           </button>
+
+          <button
+            class="w-full flex items-center p-4 bg-indigo-300 hover:bg-green-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
+            @click="openItineraryDirectly"
+          >
+            <BriefcaseIcon class="w-6 h-6 text-green-700 mr-4" />
+            <div class="text-left">
+              <p class="font-bold text-black">規劃行程</p>
+              <p class="text-xs text-gray-700">這周末想做什麼?</p>
+            </div>
+          </button>
         </div>
 
         <button
@@ -213,10 +346,16 @@ const filteredTags = computed(() => {
           <select
             v-model="postData.board"
             class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500"
+            :class="errors.board ? 'border-red-500' : 'border-gray-400'"
+            @change="clearError('board')"
           >
-            <option value="" disabled selected>點此選擇發文看板 ▼</option>
+            <option value="" disabled>點此選擇發文看板 ▼</option>
             <option v-for="b in boards" :key="b" :value="b">{{ b }}</option>
           </select>
+          <!-- 加入錯誤訊息 -->
+          <span v-if="errors.board" class="text-red-500 text-xs font-bold ml-2">
+            {{ errors.board }}
+          </span>
         </div>
 
         <div class="p-4 flex-1 overflow-y-auto">
@@ -237,14 +376,45 @@ const filteredTags = computed(() => {
             type="text"
             placeholder="標題 (0/80)"
             class="w-full text-lg font-bold placeholder-gray-400 border-none focus:ring-0 p-0 mb-3 bg-transparent"
+            :class="errors.title ? 'border-b-2 border-red-500' : ''"
             maxlength="80"
+            @input="clearError('title')"
           />
+
+          <!-- 加入錯誤訊息 -->
+          <p v-if="errors.title" class="text-red-500 text-xs font-bold mb-2">
+            {{ errors.title }}
+          </p>
 
           <textarea
             v-model="postData.content"
             placeholder="請輸入你的內文..."
             class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
+            :class="errors.content ? 'border-b-2 border-red-500' : ''"
+            @input="clearError('content')"
           ></textarea>
+
+          <!-- 在 textarea 下方加入錯誤訊息 -->
+          <p v-if="errors.content" class="text-red-500 text-xs font-bold mb-2">
+            {{ errors.content }}
+          </p>
+          <div v-if="postData.board === '找旅伴' || attachedItinerary" class="mb-4">
+            <div
+              v-if="attachedItinerary"
+              class="w-full p-3 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-center justify-between"
+            >
+              <div class="text-sm font-bold text-blue-800">已加入行程規劃</div>
+            </div>
+
+            <button
+              v-else
+              class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
+              @click="showItineraryModal = true"
+            >
+              <MapPin class="w-4 h-4" />
+              ＋ 加入行程規劃
+            </button>
+          </div>
 
           <!-- 圖片預覽區 -->
           <div v-if="imagePreviews.length > 0" class="mt-4 space-y-2">
@@ -299,12 +469,13 @@ const filteredTags = computed(() => {
 
           <div class="flex gap-3">
             <button
-              class="flex-1 py-2 text-sm font-bold text-gray-500 bg-white border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+              class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300"
+              @click="handleSaveDraft"
             >
               存入草稿
             </button>
             <button
-              class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+              class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black"
               @click="nextStep"
             >
               下一步
@@ -436,9 +607,9 @@ const filteredTags = computed(() => {
             </div>
 
             <div class="flex flex-wrap gap-2">
-              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold"
-                >#{{ tag }}</span
-              >
+              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold">
+                #{{ tag }}
+              </span>
             </div>
           </div>
         </div>
@@ -459,6 +630,15 @@ const filteredTags = computed(() => {
         </div>
       </div>
     </div>
+
+    <ItineraryDetailModal
+      v-if="showItineraryModal"
+      :itinerary="getBlankItinerary()"
+      @close="showItineraryModal = false"
+      @save="handleItinerarySave"
+      @save-draft="handleItineraryDraftSave"
+    />
+
   </div>
 </template>
 
