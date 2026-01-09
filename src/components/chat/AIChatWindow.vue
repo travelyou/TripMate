@@ -102,11 +102,9 @@ onMounted(() => {
 
 <template>
   <div
-    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] bg-white border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
+    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] border-4 border-primary-600 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.25)] z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
   >
-    <div
-      class="bg-primary text-secondary-50 p-4 flex items-center justify-between border-b-4 border-primary-700"
-    >
+    <div class="bg-primary text-secondary-50 p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <BotIcon class="w-6 h-6" />
         <div>
@@ -114,7 +112,7 @@ onMounted(() => {
           <p class="text-xs text-orange-800 font-bold opacity-80">AI 智能行程顧問</p>
         </div>
       </div>
-      <button @click="$emit('close')" class="p-1 hover:bg-primary-600 rounded-full transition">
+      <button class="p-1 hover:bg-primary-600 rounded-full transition" @click="$emit('close')">
         <XIcon class="w-6 h-6" />
       </button>
     </div>
@@ -182,7 +180,7 @@ onMounted(() => {
     </div>
 
     <div class="p-4 border-t-2 border-gray-200 bg-white">
-      <form @submit.prevent="sendMessage" class="flex items-center space-x-2">
+      <form class="flex items-center space-x-2" @submit.prevent="sendMessage">
         <input
           v-model="messageInput"
           type="text"

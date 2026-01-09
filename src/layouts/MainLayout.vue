@@ -30,8 +30,23 @@ const router = useRouter()
 const isSearchPage = computed(() => route.name === 'search')
 const hideLayout = computed(() => route.meta.hideLayout === true)
 const hideSidebar = computed(() => route.meta.hideSidebar === true)
-
 const showRightAd = computed(() => !hideLayout.value && !route.meta.hideAd)
+
+// 動態設定 grid 模板欄位
+const gridClass = computed(() => {
+  if (hideSidebar.value && showRightAd.value) {
+    return 'lg:[grid-template-columns:4fr_1fr] xl:[grid-template-columns:4fr_1fr]'
+  }
+  if (hideSidebar.value && !showRightAd.value) {
+    return 'lg:[grid-template-columns:1fr]'
+  }
+  if (isSearchPage.value && showRightAd.value) {
+    return 'lg:[grid-template-columns:4fr_1fr] xl:[grid-template-columns:4fr_1fr]'
+  }
+  return showRightAd.value
+    ? 'lg:[grid-template-columns:1fr_3fr_1fr]'
+    : 'lg:[grid-template-columns:1fr_4fr]'
+})
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
@@ -194,13 +209,7 @@ const handleSubmitPost = async (postData) => {
     <div
       v-if="!hideLayout"
       class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 min-h-screen items-start gap-2"
-      :class="
-        isSearchPage && showRightAd
-          ? 'lg:[grid-template-columns:4fr_1fr] xl:[grid-template-columns:4fr_1fr]'
-          : showRightAd
-            ? 'lg:[grid-template-columns:1fr_3fr_1fr] '
-            : 'lg:[grid-template-columns:1fr_4fr]'
-      "
+      :class="gridClass"
     >
       <div
         v-if="!isSearchPage && !hideSidebar"

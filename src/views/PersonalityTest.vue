@@ -11,18 +11,18 @@ const result = computed(() => store.result) // 測驗結果
 </script>
 
 <template>
-  <div class="bg-slate-50 w-full rounded-xl overflow-auto">
+  <div class="w-full overflow-auto">
     <div class="mx-auto max-w-3xl py-10 sm:px-4">
       <header class="mb-6">
         <div class="flex items-center justify-between">
           <div class="px-4">
-            <h1 class="text-2xl font-bold tracking-tight">旅遊動物人格測驗</h1>
-            <p class="mt-1 text-sm text-slate-600">找出你的旅行風格</p>
+            <h1 class="text-2xl font-bold tracking-tight text-secondary-900">旅遊動物人格測驗</h1>
+            <p class="mt-1 text-sm text-secondary-600">找出你的旅行風格</p>
           </div>
 
           <button
             v-if="step === 'quiz'"
-            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+            class="rounded-xl border border-primary-600 bg-primary px-3 py-2 text-sm text-white hover:bg-primary-700"
             @click="store.resetTest"
           >
             重新開始

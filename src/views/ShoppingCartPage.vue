@@ -55,18 +55,18 @@ function goToFeatured() {
 </script>
 
 <template>
-  <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 xl:mr-20">
+  <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 xl:mr-20 rounded-2xl text-secondary-900">
     <h1 class="text-3xl font-bold ml-8 mb-5">購物車</h1>
 
     <!-- 購物車整個區塊 -->
     <div class="flex flex-col gap-5 lg:flex-row">
       <!-- 購物車列表 -->
-      <div v-show="!isCartEmpty" class="rounded-md">
+      <div v-show="!isCartEmpty" class="rounded-2xl">
         <ul class="grid gap-5">
           <li
             v-for="tour in tourGroups"
             :key="tour.id"
-            class="p-5 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 lg:min-w-[450px]"
+            class="p-5 border border-secondary-100 rounded-2xl bg-white hover:shadow-lg shadow-sm lg:min-w-[450px]"
           >
             <div class="flex flex-col justify-between gap-10 sm:flex-row">
               <!-- radio -->
@@ -98,22 +98,27 @@ function goToFeatured() {
                 <p class="text-right">NT.{{ tour.price }}</p>
                 <div class="flex gap-1 text-sm">
                   <button
-                    class="h-5 w-5 leading-4 border border-gray-200 rounded-md cursor-pointer"
+                    class="h-5 w-5 leading-4 border border-secondary-200 rounded-md cursor-pointer text-secondary-700 hover:bg-secondary-50"
                     @click="decreasePersons(tour)"
                   >
                     -
                   </button>
-                  <p class="h-5 w-5 leading-[18px] text-center border border-gray-200 rounded-md">
+                  <p
+                    class="h-5 w-5 leading-[18px] text-center border border-secondary-200 rounded-md text-secondary-700"
+                  >
                     {{ tour.persons }}
                   </p>
                   <button
-                    class="h-5 w-5 leading-4 border border-gray-200 rounded-md cursor-pointer"
+                    class="h-5 w-5 leading-4 border border-secondary-200 rounded-md cursor-pointer text-secondary-700 hover:bg-secondary-50"
                     @click="increasePersons(tour)"
                   >
                     +
                   </button>
                 </div>
-                <button class="text-red-500 cursor-pointer" @click="removeTour(tour.id)">
+                <button
+                  class="text-accent-600 hover:text-accent-700 cursor-pointer"
+                  @click="removeTour(tour.id)"
+                >
                   刪除
                 </button>
               </div>
@@ -130,7 +135,7 @@ function goToFeatured() {
         </div>
         <router-link
           to="/featured-itinerary"
-          class="py-2 px-8 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600"
+          class="py-2 px-8 text-center bg-primary text-white rounded-xl hover:bg-primary-700 disabled:bg-secondary-400"
         >
           前往精選行程
         </router-link>
@@ -139,7 +144,9 @@ function goToFeatured() {
       <!-- 購物車小結區 -->
 
       <div v-show="!isCartEmpty" class="min-w-48 md:max-w-240 lg:min-w-64">
-        <div class="p-5 bg-white rounded-md flex flex-col justify-between">
+        <div
+          class="p-5 bg-white rounded-2xl flex flex-col justify-between ring-1 ring-secondary-100 shadow-sm"
+        >
           <div>
             <h1>結算資訊</h1>
             <p class="text-gray-400 text-sm mb-5">請選擇要結帳的行程</p>
@@ -172,5 +179,3 @@ function goToFeatured() {
     </div>
   </section>
 </template>
-
-

@@ -18,7 +18,7 @@ const steps = ['確認商品', '填寫資料', '確認資料', '付款', '完成
       <li v-for="(step, index) in steps" :key="step" class="flex gap-1 flex-col items-center">
         <p
           class="rounded-full w-4 h-4 text-center content-center text-[8px] sm:w-8 sm:h-8 sm:text-base lg:w-10 lg:h-10 lg:text-lg"
-          :class="index + 1 <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800'"
+          :class="index + 1 <= currentStep ? 'bg-primary text-white' : 'bg-gray-300 text-gray-800'"
         >
           {{ index + 1 }}
         </p>
