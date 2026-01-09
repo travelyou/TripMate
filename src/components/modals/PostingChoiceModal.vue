@@ -104,7 +104,7 @@ const handleSaveDraft = () => {
 
   alert('✨ 文章已存入草稿夾！')
   emit('close')
-  router.push({ name: 'profile' })
+  router.push({ name: 'my_itinerary' })
 }
 
 // 🟢 準備一個空白的行程物件，傳給組員的彈窗使用
