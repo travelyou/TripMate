@@ -376,7 +376,7 @@ const filteredTags = computed(() => {
             class="w-full text-lg font-bold placeholder-gray-400 border-none focus:ring-0 p-0 mb-3 bg-transparent"
             :class="errors.title ? 'border-b-2 border-red-500' : ''"
             maxlength="80"
-            @input="clearErrcor('title')"
+            @input="clearError('title')"
           />
 
           <!-- 加入錯誤訊息 -->
