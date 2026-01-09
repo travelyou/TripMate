@@ -119,12 +119,12 @@ const getTagColor = (type) => {
   <div class="p-4">
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start pt-4">
       <div
-        class="lg:col-start-1 lg:row-start-1 bg-primary text-white font-black text-2xl p-5 rounded-xl shadow-primary-tall flex items-center rounded-none"
+        class="lg:col-start-1 lg:row-start-1 bg-primary p-5 rounded-xl shadow-primary-tall flex items-center"
       >
-        <div class="flex items-center gap-3 text-2xl font-bold text-secondary-50">
+        <h1 class="text-2xl font-black text-secondary-50 flex items-center gap-3">
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
-          <span>我的行程</span>
-        </div>
+          我的行程
+        </h1>
       </div>
 
       <div
@@ -245,4 +245,3 @@ const getTagColor = (type) => {
     />
   </div>
 </template>
-

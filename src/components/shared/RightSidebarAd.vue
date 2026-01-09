@@ -218,7 +218,7 @@ watch(
 </script>
 
 <template>
-  <div class="hidden lg:block shrink-0 space-y-6 self-start mt-10">
+  <div class="hidden lg:block shrink-0 space-y-6 self-start mt-2">
     <div v-if="selectedLargeAd" class="p-4 bg-white shadow-md rounded-xl">
       <h3 class="font-bold text-gray-800 mb-3 text-center">贊助廣告</h3>
       <div

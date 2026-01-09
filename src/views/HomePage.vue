@@ -180,10 +180,10 @@ const getPostData = (post) => ({
 </script>
 
 <template>
-  <div class="overflow-x-hidden p-4">
+  <div class="p-4">
     <div class="w-full min-w-0">
       <div
-        class="my-5 relative group bg-white p-4 border-4 border-primary shadow-primary-tall rounded-xl"
+        class="my-4 p-4 relative group bg-white  border-4 border-primary shadow-primary-tall rounded-xl"
       >
         <div>
           <h2 class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl">
@@ -262,7 +262,7 @@ const getPostData = (post) => ({
 
       <div>
         <div
-          class="mb-6 bg-primary p-5 rounded-xl mt-4 shadow-primary-tall"
+          class="my-6 bg-primary p-5 rounded-xl shadow-primary-tall"
         >
           <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
             最新動態

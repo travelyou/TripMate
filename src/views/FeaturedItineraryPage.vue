@@ -54,17 +54,17 @@ const closeShareModal = () => {
 </script>
 
 <template>
-  <div class="p-4 overflow-x-hidden">
+  <div class="p-4">
     <div class="w-full">
       <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall">
         <div class="flex justify-between items-center">
           <h1 class="text-2xl font-black text-secondary-50 flex items-center py-1">
             <MapIcon class="w-6 h-6 mr-3 text-white" />
-
             精選行程
           </h1>
         </div>
       </div>
+
       <div
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
@@ -106,4 +106,3 @@ const closeShareModal = () => {
 
   <ShareModal v-if="isShareModalOpen" :share-link="shareLink" @close="closeShareModal" />
 </template>
-
