@@ -4,29 +4,51 @@ import {
   Star as StarIcon,
   Calendar as CalendarIcon,
   ShoppingCart as ShoppingCartIcon,
-  ChevronRight as ChevronRightIcon
+  ArrowUpDown as ArrowUpDownIcon
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
-defineProps({
+const props = defineProps({
   itineraries: {
     type: Array,
     required: true
   },
-  regions: {
-    type: Array,
-    default: () => []
+  activeRegion: {
+    type: String,
+    default: '全部'
   }
 });
 
-const emit = defineEmits(['filter-change', 'page-change']);
+const emit = defineEmits(['page-change']);
 
-const activeRegion = ref('全部');
+// Filter Logic
+const filteredItineraries = computed(() => {
+  if (props.activeRegion === '全部') {
+    return props.itineraries;
+  }
+  return props.itineraries.filter(item => item.region === props.activeRegion);
+});
 
-const filterRegion = (region) => {
-  activeRegion.value = region;
-  emit('filter-change', region);
-};
+// Sorting Logic
+const sortOption = ref('recommended');
+const sortedItineraries = computed(() => {
+  const list = [...filteredItineraries.value];
+  switch (sortOption.value) {
+    case 'price-asc':
+      return list.sort((a, b) => a.price - b.price);
+    case 'price-desc':
+      return list.sort((a, b) => b.price - a.price);
+    case 'date-asc':
+      // Mock date sorting (using id as proxy: smaller ID = older)
+      return list.sort((a, b) => a.id - b.id);
+    case 'date-desc':
+      // Mock date sorting (using id as proxy: larger ID = newer)
+      return list.sort((a, b) => b.id - a.id);
+    case 'recommended':
+    default:
+      return list;
+  }
+});
 
 // Pagination Logic (Mock)
 const currentPage = ref(1);
@@ -38,36 +60,46 @@ const changePage = (page) => {
 
 <template>
   <div class="mb-8">
-    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+    <div class="flex items-center justify-between mb-6">
       <h2 class="inline-flex items-center text-2xl font-black text-amber-900 bg-gradient-to-r from-green-100 to-emerald-100 px-6 py-3 rounded-2xl border-4 border-green-300 shadow-[6px_6px_0px_0px_rgba(34,197,94,0.5)]">
         <MapIcon class="w-6 h-6 mr-2" />
         精選行程
+        <span v-if="activeRegion !== '全部'" class="ml-2 text-sm bg-green-500 text-white px-2 py-1 rounded-lg shadow-sm">
+          {{ activeRegion }}
+        </span>
       </h2>
 
-      <!-- 地區標籤 Tabs -->
-      <div class="flex overflow-x-auto pb-2 md:pb-0 gap-2 custom-scrollbar">
-        <button
-          v-for="region in ['全部', ...regions]"
-          :key="region"
-          class="px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border-2"
-          :class="[
-            activeRegion === region
-              ? 'bg-green-500 text-white border-green-600 shadow-md'
-              : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
-          ]"
-          @click="filterRegion(region)"
-        >
-          {{ region }}
-        </button>
+      <!-- Sorting Sorter -->
+      <div class="flex items-center gap-2">
+        <div class="relative group">
+          <select
+            v-model="sortOption"
+            class="appearance-none bg-white border border-gray-200 text-gray-700 py-2 pl-4 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm font-bold shadow-sm cursor-pointer"
+          >
+            <option value="recommended">🔥 熱門推薦 🔥</option>
+            <option value="price-asc">價格由低到高</option>
+            <option value="price-desc">價格由高到低</option>
+            <option value="date-asc">日期由近到遠</option>
+            <option value="date-desc">日期由遠到近</option>
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <ArrowUpDownIcon class="w-4 h-4" />
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Desktop/Tablet View: Grid -->
     <div class="hidden md:block">
+      <!-- Empty State -->
+      <div v-if="filteredItineraries.length === 0" class="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+        <p class="text-gray-500 font-bold">此地區暫無相關行程</p>
+      </div>
+
       <!-- Grid -->
-      <div class="grid grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-else class="grid grid-cols-2 lg:grid-cols-3 gap-6">
         <div
-          v-for="itinerary in itineraries"
+          v-for="itinerary in sortedItineraries"
           :key="itinerary.id"
           class="pixel-card bg-white overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer h-full flex flex-col"
         >
@@ -116,7 +148,7 @@ const changePage = (page) => {
       </div>
 
       <!-- Pagination Controls -->
-      <div class="flex justify-center mt-6 gap-2">
+      <div v-if="filteredItineraries.length > 0" class="flex justify-center mt-6 gap-2">
         <button
           v-for="p in 3"
           :key="p"
@@ -127,16 +159,20 @@ const changePage = (page) => {
       </div>
     </div>
 
-    <!-- Mobile View: Scroll Snap Carousel -->
+    <!-- Mobile View: Scroll Snap Carousel (2 Rows) -->
     <div class="md:hidden">
-      <div class="relative w-full">
-        <div class="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 custom-scrollbar">
+      <div v-if="sortedItineraries.length === 0" class="text-center py-8 text-gray-500 text-sm">
+        此地區暫無相關行程
+      </div>
+      <div v-else class="relative w-full">
+         <!-- HINT: grid-rows-2 + grid-flow-col creates the layout. h-[24rem] defines total height ~ 2 cards high -->
+        <div class="grid grid-rows-2 grid-flow-col gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory px-1">
           <div
-            v-for="itinerary in itineraries"
+            v-for="itinerary in sortedItineraries"
             :key="itinerary.id"
-            class="snap-center w-[calc(50%-8px)] shrink-0 first:ml-0"
+            class="snap-start w-[280px] h-full"
           >
-            <div class="pixel-card bg-white overflow-hidden h-full flex flex-col">
+            <div class="pixel-card bg-white overflow-hidden h-full flex flex-col shadow-sm rounded-xl">
               <div class="relative h-40 overflow-hidden">
                 <img :src="itinerary.image" class="w-full h-full object-cover" />
                 <div v-if="itinerary.tags && itinerary.tags[0]" class="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md border border-white">{{ itinerary.tags[0] }}</div>
@@ -157,15 +193,6 @@ const changePage = (page) => {
       </div>
     </div>
 
-    <!-- Expand Button -->
-    <div class="flex justify-center mt-4">
-      <button
-        class="flex items-center gap-2 bg-white text-amber-900 border-2 border-amber-200 px-8 py-3 rounded-full font-bold shadow-sm hover:bg-amber-50 hover:border-amber-400 transition-all hover:shadow-md"
-      >
-        <span>查看全部行程</span>
-        <ChevronRightIcon class="w-5 h-5" />
-      </button>
-    </div>
   </div>
 </template>
 

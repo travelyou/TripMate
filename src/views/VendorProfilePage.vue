@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch } from 'vue';
+import { onMounted, watch, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useVendorStore } from '@/stores/vendor';
 import { storeToRefs } from 'pinia';
@@ -8,11 +8,16 @@ import { storeToRefs } from 'pinia';
 import VendorHeader from '@/components/vendor/VendorHeader.vue';
 import VendorItineraryList from '@/components/vendor/VendorItineraryList.vue';
 import VendorPostList from '@/components/vendor/VendorPostList.vue';
-import VendorReviewList from '@/components/vendor/VendorReviewList.vue';
+import VendorRegionSelector from '@/components/vendor/VendorRegionSelector.vue';
+import VendorReviewModal from '@/components/vendor/VendorReviewModal.vue';
 
 const route = useRoute();
 const vendorStore = useVendorStore();
 const { currentVendor, vendorItineraries, vendorPosts, vendorReviews, loading } = storeToRefs(vendorStore);
+
+// State
+const activeRegion = ref('全部');
+const showReviewModal = ref(false);
 
 const loadData = async () => {
   const vendorId = route.params.id || 'vendor001'; // Default to mock ID if none
@@ -38,9 +43,10 @@ watch(
 );
 
 // Event Handlers
-const handleRegionFilter = (region) => {
-  const vendorId = route.params.id || 'vendor001';
-  vendorStore.fetchVendorItineraries(vendorId, { region });
+const handleRegionSelect = (region) => {
+  activeRegion.value = region;
+  // NOTE: In a real app we might want to fetch data filtered by region from backend
+  // but here we filter on client side in child components.
 };
 
 const handlePageChange = (page) => {
@@ -50,7 +56,7 @@ const handlePageChange = (page) => {
 </script>
 
 <template>
-  <div class="p-4 md:p-0">
+  <div class="p-4 md:px-0 md:pt-8 lg:pt-8 max-w-7xl mx-auto">
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center h-64">
       <div class="text-amber-600 font-bold text-xl animate-pulse">
@@ -61,7 +67,10 @@ const handlePageChange = (page) => {
     <!-- Content -->
     <div v-else-if="currentVendor" class="animate-fade-in">
       <!-- 廠商 Header (包含封面、基本資料、簡介) -->
-      <VendorHeader :vendor="currentVendor" />
+      <VendorHeader
+        :vendor="currentVendor"
+        @open-review-modal="showReviewModal = true"
+      />
 
       <!-- 廠商 Banner (本季主打) -->
       <div
@@ -76,27 +85,40 @@ const handlePageChange = (page) => {
         </div>
       </div>
 
+      <!-- 地區篩選器 -->
+      <VendorRegionSelector
+        :regions="currentVendor.regionTags"
+        :active-region="activeRegion"
+        @select-region="handleRegionSelect"
+      />
+
       <!-- 行程列表 -->
       <VendorItineraryList
         :itineraries="vendorItineraries"
-        :regions="currentVendor.regionTags"
-        @filter-change="handleRegionFilter"
+        :active-region="activeRegion"
         @page-change="handlePageChange"
       />
 
       <!-- 貼文列表 -->
       <VendorPostList
         :posts="vendorPosts"
+        :active-region="activeRegion"
       />
-
-      <!-- 評價列表 -->
-      <VendorReviewList :reviews="vendorReviews" />
     </div>
 
     <!-- Error/Empty State -->
     <div v-else class="text-center py-12 text-gray-500">
       找不到廠商資料
     </div>
+
+    <!-- Review Modal -->
+    <VendorReviewModal
+      :is-open="showReviewModal"
+      :reviews="vendorReviews"
+      :average-rating="currentVendor?.rating"
+      :total-reviews="currentVendor?.reviewCount"
+      @close="showReviewModal = false"
+    />
   </div>
 </template>
 
