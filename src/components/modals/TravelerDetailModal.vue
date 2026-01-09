@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import {
   X as XIcon,
@@ -239,13 +239,13 @@ const getIconComponent = (iconName) => {
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
-      return 'bg-green-500 text-white'
+      return 'bg-primary-600 text-white'
     case '已額滿':
-      return 'bg-red-500 text-white'
+      return 'bg-secondary-600 text-white'
     case '已出發':
-      return 'bg-gray-500 text-white'
+      return 'bg-secondary-500 text-white'
     default:
-      return 'bg-yellow-500 text-gray-900'
+      return 'bg-primary-100 text-primary-800'
   }
 }
 
@@ -304,11 +304,11 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-[#fffef7] w-full max-w-5xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] overflow-hidden relative"
+      class="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-xl border-2 border-primary  overflow-hidden relative"
     >
       <!-- 關閉按鈕 -->
       <button
-        class="absolute top-4 right-4 z-20 bg-white/90 border-2 border-gray-800 p-2 hover:bg-gray-100 transition shadow-md"
+        class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
         @click="emit('close')"
       >
         <XIcon class="w-6 h-6" />
@@ -316,14 +316,14 @@ onMounted(async () => {
 
       <div class="flex-1 overflow-y-auto custom-scrollbar">
         <!-- Banner 圖片 -->
-        <div class="relative w-full h-72 bg-gray-200 overflow-hidden">
+        <div class="relative w-full h-72 overflow-hidden ">
           <img :src="traveler.image" :alt="traveler.title" class="w-full h-full object-cover" />
           <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
 
           <!-- 狀態標籤 -->
           <div
             :class="getStatusClasses(traveler.status)"
-            class="absolute top-4 left-4 px-4 py-2 font-bold text-sm rounded-lg border-2 border-gray-800 shadow-lg"
+            class="absolute top-4 left-4 px-4 py-2 font-bold text-sm rounded-lg border-2 border-primary"
           >
             {{ traveler.status }}
           </div>
@@ -332,60 +332,60 @@ onMounted(async () => {
         <!-- 內容區 -->
         <div class="p-6">
           <div class="mb-6">
-            <h1 class="text-3xl font-black text-gray-900 mb-4">
+            <h1 class="text-3xl font-black text-secondary-900 mb-4">
               {{ traveler.title }}
             </h1>
 
             <div class="flex items-center space-x-3 mb-4">
               <img
                 :src="traveler.avatar"
-                class="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
               />
               <div>
                 <div class="flex items-center space-x-2">
-                  <span class="font-bold text-gray-800">{{ traveler.author }}</span>
+                  <span class="font-bold text-secondary-900">{{ traveler.author }}</span>
                   <span
-                    class="text-sm font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
+                    class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
                   >
                     {{ traveler.spiritAnimal }}
                   </span>
                 </div>
-                <div class="text-sm text-gray-500">發布於 {{ traveler.date || '最近' }}</div>
+                <div class="text-sm text-secondary-500">發布於 {{ traveler.date || '最近' }}</div>
               </div>
             </div>
 
             <!-- 旅行資訊卡片 -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                <div class="flex items-center text-red-500 mb-1">
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-600 mb-1">
                   <MapPinIcon class="w-4 h-4 mr-1" />
-                  <span class="text-xs font-bold text-gray-500">地點</span>
+                  <span class="text-xs font-bold text-secondary-500">地點</span>
                 </div>
-                <div class="font-bold text-gray-800">{{ traveler.location }}</div>
+                <div class="font-bold text-secondary-900">{{ traveler.location }}</div>
               </div>
 
-              <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                <div class="flex items-center text-amber-500 mb-1">
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-secondary-500 mb-1">
                   <CalendarIcon class="w-4 h-4 mr-1" />
-                  <span class="text-xs font-bold text-gray-500">日期</span>
+                  <span class="text-xs font-bold text-secondary-500">日期</span>
                 </div>
-                <div class="font-bold text-gray-800">{{ traveler.date }}</div>
+                <div class="font-bold text-secondary-900">{{ traveler.date }}</div>
               </div>
 
-              <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                <div class="flex items-center text-blue-500 mb-1">
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-500 mb-1">
                   <UsersIcon class="w-4 h-4 mr-1" />
-                  <span class="text-xs font-bold text-gray-500">人數</span>
+                  <span class="text-xs font-bold text-secondary-500">人數</span>
                 </div>
-                <div class="font-bold text-blue-600">{{ traveler.people }}</div>
+                <div class="font-bold text-primary-600">{{ traveler.people }}</div>
               </div>
 
-              <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                <div class="flex items-center text-purple-500 mb-1">
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-600 mb-1">
                   <MessageCircleIcon class="w-4 h-4 mr-1" />
-                  <span class="text-xs font-bold text-gray-500">留言</span>
+                  <span class="text-xs font-bold text-secondary-500">留言</span>
                 </div>
-                <div class="font-bold text-gray-800">{{ totalCommentCount }}</div>
+                <div class="font-bold text-secondary-900">{{ totalCommentCount }}</div>
               </div>
             </div>
           </div>
@@ -395,7 +395,7 @@ onMounted(async () => {
             <span
               v-for="tag in traveler.tags"
               :key="tag"
-              class="text-sm font-medium text-purple-700 bg-purple-100 px-3 py-1 rounded-full"
+              class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
             >
               #{{ tag }}
             </span>
@@ -403,17 +403,17 @@ onMounted(async () => {
 
           <!-- 內容描述 -->
           <div class="prose prose-lg max-w-none mb-6">
-            <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
+            <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
               {{ traveler.content }}
             </p>
           </div>
 
           <!-- 互動按鈕 -->
-          <div class="flex items-center space-x-4 py-4 border-t border-b border-gray-200 mb-6">
+          <div class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6">
             <button
               :class="[
                 'flex items-center space-x-1 transition group',
-                isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500',
+                isLiked ? 'text-accent-600' : 'text-secondary-400 hover:text-accent-600',
               ]"
               @click="handleLike"
             >
@@ -430,8 +430,8 @@ onMounted(async () => {
               :class="[
                 'flex items-center space-x-1 transition group',
                 userStore.isCollected(itemData)
-                  ? 'text-yellow-500'
-                  : 'text-gray-400 hover:text-yellow-600',
+                  ? 'text-primary-600'
+                  : 'text-secondary-400 hover:text-primary-600',
               ]"
               @click="
                 userStore.isCollected(itemData)
@@ -449,24 +449,24 @@ onMounted(async () => {
 
             <button
               v-if="traveler.status === '招募中'"
-              class="ml-auto bg-amber-500 text-white px-6 py-2 rounded-full font-bold hover:bg-amber-600 transition shadow-md"
+              class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md"
             >
               聯繫作者
             </button>
-            <div v-else class="ml-auto text-gray-400 font-bold">
+            <div v-else class="ml-auto text-secondary-400 font-bold">
               {{ traveler.status }}
             </div>
           </div>
 
           <!-- Tab 切換 -->
-          <div class="border-b-2 border-gray-200 mb-6">
+          <div class="border-b-2 border-primary-200 mb-6">
             <div class="flex space-x-1">
               <button
                 :class="[
                   'px-6 py-3 font-bold transition relative',
                   activeTab === 'itinerary'
-                    ? 'text-indigo-600 border-b-4 border-indigo-600'
-                    : 'text-gray-400 hover:text-gray-600',
+                    ? 'text-primary-600 border-b-4 border-primary-600'
+                    : 'text-secondary-400 hover:text-secondary-600',
                 ]"
                 @click="activeTab = 'itinerary'"
               >
@@ -477,8 +477,8 @@ onMounted(async () => {
                 :class="[
                   'px-6 py-3 font-bold transition relative',
                   activeTab === 'comments'
-                    ? 'text-indigo-600 border-b-4 border-indigo-600'
-                    : 'text-gray-400 hover:text-gray-600',
+                    ? 'text-primary-600 border-b-4 border-primary-600'
+                    : 'text-secondary-400 hover:text-secondary-600',
                 ]"
                 @click="activeTab = 'comments'"
               >
@@ -497,8 +497,8 @@ onMounted(async () => {
                 :class="[
                   'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
                   activeDayIndex === index
-                    ? 'bg-indigo-600 text-white border-indigo-700'
-                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+                    ? 'bg-primary-600 text-white border-primary-700'
+                    : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
                 ]"
                 @click="activeDayIndex = index"
               >
@@ -511,11 +511,11 @@ onMounted(async () => {
               <div
                 v-for="activity in activeDay.activities"
                 :key="activity.id"
-                class="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-sm"
+                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
               >
                 <div class="flex gap-4">
                   <div class="w-20 shrink-0">
-                    <div class="text-2xl font-black text-indigo-600">
+                    <div class="text-2xl font-black text-primary-600">
                       {{ activity.time }}
                     </div>
                   </div>
@@ -523,11 +523,11 @@ onMounted(async () => {
                     <div class="flex items-center space-x-2 mb-2">
                       <component
                         :is="getIconComponent(activity.icon)"
-                        class="w-5 h-5 text-indigo-500"
+                        class="w-5 h-5 text-primary-500"
                       />
-                      <h4 class="text-lg font-bold text-gray-800">{{ activity.title }}</h4>
+                      <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
                     </div>
-                    <p class="text-gray-600 text-sm">{{ activity.desc }}</p>
+                    <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
                   </div>
                 </div>
               </div>
@@ -535,29 +535,29 @@ onMounted(async () => {
 
             <!-- 打包清單 -->
             <div v-if="itineraryData.packingList" class="mt-8">
-              <h3 class="font-black text-lg text-gray-800 flex items-center mb-4">
-                <CheckSquareIcon class="w-5 h-5 mr-2 text-green-500" />
+              <h3 class="font-black text-lg text-secondary-900 flex items-center mb-4">
+                <CheckSquareIcon class="w-5 h-5 mr-2 text-primary" />
                 建議攜帶物品
               </h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
                   v-for="(cat, catIndex) in itineraryData.packingList"
                   :key="catIndex"
-                  class="bg-white border-2 border-gray-200 rounded-lg p-4"
+                  class="bg-white border-2 border-secondary-200 rounded-lg p-4"
                 >
-                  <h4 class="font-bold text-gray-700 mb-3">{{ cat.category }}</h4>
+                  <h4 class="font-bold text-secondary-700 mb-3">{{ cat.category }}</h4>
                   <div class="space-y-2">
                     <div v-for="item in cat.items" :key="item.id" class="flex items-center">
                       <input
                         v-model="item.checked"
                         type="checkbox"
-                        class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mr-2"
+                        class="w-4 h-4 text-primary-600 rounded border-secondary-300 focus:ring-primary-500 mr-2"
                         disabled
                       />
                       <span
                         :class="[
                           'text-sm',
-                          item.checked ? 'text-gray-400 line-through' : 'text-gray-700',
+                          item.checked ? 'text-secondary-400 line-through' : 'text-secondary-700',
                         ]"
                       >
                         {{ item.name }}
@@ -575,27 +575,27 @@ onMounted(async () => {
               <div
                 v-for="comment in normalizedComments"
                 :key="comment.id"
-                class="bg-white p-4 rounded-lg border-2 border-gray-200"
+                class="bg-white p-4 rounded-lg border-2 border-secondary-200"
               >
                 <div class="flex items-start space-x-3">
                   <img
                     :src="comment.avatar"
-                    class="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
+                    class="w-10 h-10 rounded-full object-cover border-2 border-secondary-100"
                   />
                   <div class="flex-1">
                     <div class="flex justify-between items-start mb-1">
-                      <span class="font-bold text-gray-800">{{ comment.author }}</span>
-                      <span class="text-xs text-gray-400">{{ comment.time }}</span>
+                      <span class="font-bold text-secondary-900">{{ comment.author }}</span>
+                      <span class="text-xs text-secondary-400">{{ comment.time }}</span>
                     </div>
-                    <p class="text-gray-700 text-sm mb-2">{{ comment.content }}</p>
+                    <p class="text-secondary-700 text-sm mb-2">{{ comment.content }}</p>
 
-                    <div class="flex items-center space-x-4 text-xs text-gray-500">
+                    <div class="flex items-center space-x-4 text-xs text-secondary-500">
                       <button
-                        class="flex items-center space-x-1 hover:text-red-500 transition"
+                        class="flex items-center space-x-1 hover:text-accent-600 transition"
                         @click="toggleCommentLike(comment)"
                       >
                         <HeartIcon
-                          :class="['w-3 h-3', comment.isLiked ? 'fill-red-500 text-red-500' : '']"
+                          :class="['w-3 h-3', comment.isLiked ? 'fill-current text-accent-600' : '']"
                         />
                         <span>{{ comment.likes || 0 }}</span>
                       </button>
@@ -604,15 +604,15 @@ onMounted(async () => {
                     <!-- 回覆 -->
                     <div
                       v-if="comment.replies && comment.replies.length"
-                      class="mt-3 pl-4 border-l-2 border-indigo-200 space-y-2"
+                      class="mt-3 pl-4 border-l-2 border-primary-200 space-y-2"
                     >
                       <div v-for="reply in comment.replies" :key="reply.id">
                         <div class="flex items-start space-x-2">
                           <img :src="reply.avatar" class="w-7 h-7 rounded-full object-cover" />
                           <div class="flex-1">
-                            <span class="font-bold text-gray-800 text-xs">{{ reply.author }}</span>
-                            <span class="text-xs text-gray-400 ml-2">{{ reply.time }}</span>
-                            <p class="text-gray-700 text-xs mt-0.5">{{ reply.content }}</p>
+                            <span class="font-bold text-secondary-900 text-xs">{{ reply.author }}</span>
+                            <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                            <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
                           </div>
                         </div>
                       </div>
@@ -621,25 +621,25 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <div v-else class="text-center text-gray-400 py-10">目前沒有留言，來當第一個吧！</div>
+            <div v-else class="text-center text-secondary-400 py-10">目前沒有留言，來當第一個吧！</div>
           </div>
         </div>
       </div>
 
       <!-- 留言輸入區（固定底部） -->
-      <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-gray-200 bg-white">
+      <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-secondary-200 bg-white">
         <div v-if="userStore.isLoggedIn" class="flex space-x-3">
           <input
             ref="commentInputRef"
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
-            class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 transition shadow-inner bg-gray-50 focus:bg-white outline-none"
+            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
             @keyup.enter="submitComment"
           />
           <button
             :disabled="!newComment.trim()"
-            class="bg-amber-500 text-white px-5 py-3 rounded-lg font-bold hover:bg-amber-600 transition disabled:opacity-50 flex items-center justify-center shadow-md"
+            class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
             @click="submitComment"
           >
             <SendIcon class="w-5 h-5" />
@@ -647,11 +647,11 @@ onMounted(async () => {
         </div>
         <div
           v-else
-          class="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg border-2 border-gray-200"
+          class="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-lg border-2 border-secondary-200"
         >
-          <p class="text-gray-600 mb-2">登入後才能回覆</p>
+          <p class="text-secondary-600 mb-2">登入後才能回覆</p>
           <button
-            class="bg-orange-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-orange-600 transition"
+            class="bg-primary-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-primary-700 transition"
             @click="router.push('/login')"
           >
             登入
@@ -681,3 +681,4 @@ onMounted(async () => {
   max-width: none;
 }
 </style>
+
