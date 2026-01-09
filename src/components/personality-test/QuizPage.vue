@@ -1,7 +1,7 @@
-<script setup>
+﻿<script setup>
 import { computed } from 'vue'
-import ProgressBar from '@/components/personality-test/components/ProgressBar.vue'
-import QuestionCard from '@/components/personality-test/components/QuestionCard.vue'
+import ProgressBar from '@/components/personality-test/ProgressBar.vue'
+import QuestionCard from '@/components/personality-test/QuestionCard.vue'
 import { usePersonalityStore } from '@/stores/personality'
 
 const store = usePersonalityStore()

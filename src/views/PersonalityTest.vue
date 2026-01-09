@@ -1,8 +1,8 @@
-<script setup>
+﻿<script setup>
 import { computed } from 'vue'
-import StartPage from '@/components/personality-test/pages/StartPage.vue'
-import QuizPage from '@/components/personality-test/pages/QuizPage.vue'
-import ResultPage from '@/components/personality-test/pages/ResultPage.vue'
+import StartPage from '@/components/personality-test/StartPage.vue'
+import QuizPage from '@/components/personality-test/QuizPage.vue'
+import ResultPage from '@/components/personality-test/ResultPage.vue'
 import { usePersonalityStore } from '@/stores/personality'
 
 const store = usePersonalityStore()

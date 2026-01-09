@@ -1,6 +1,6 @@
-<script setup>
+﻿<script setup>
 import { computed, ref } from 'vue'
-import ResultCard from '@/components/personality-test/components/ResultCard.vue'
+import ResultCard from '@/components/personality-test/ResultCard.vue'
 
 const props = defineProps({
   result: { type: Object, required: true },
