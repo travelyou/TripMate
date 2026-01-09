@@ -145,7 +145,23 @@ router.post('/dm', async (req, res) => {
     await ensureMember(conversation.id, uid, 'member');
     await ensureMember(conversation.id, otherUid, 'member');
 
-    res.json({ conversation });
+    // 盡量回傳對方暱稱/頭像，讓前端標題可直接用 nickname
+    let otherUser = null;
+    try {
+      const u = await pool.query(`SELECT uid, nickname, avatar, email FROM users WHERE uid = $1`, [otherUid]);
+      otherUser = u.rows[0] || null;
+    } catch {
+      // users 表可能尚未有資料，不阻塞
+    }
+
+    res.json({
+      conversation: {
+        ...conversation,
+        other_uid: otherUid,
+        other_nickname: otherUser?.nickname || (otherUser?.email ? String(otherUser.email).split('@')[0] : null),
+        other_avatar: otherUser?.avatar || null,
+      },
+    });
   } catch (e) {
     console.error('[chat/dm] error:', e);
     res.status(500).json({ error: '建立/取得 DM 失敗', details: e?.message || String(e) });
@@ -211,12 +227,24 @@ router.get('/conversations', async (req, res) => {
       `
       SELECT
         c.*,
+        ou.other_uid,
+        u2.nickname AS other_nickname,
+        u2.avatar AS other_avatar,
         lm.id AS last_message_id,
         lm.body AS last_message_body,
         lm.created_at AS last_message_at,
         COALESCE(unread.cnt, 0) AS unread_count
       FROM chat.members m
       JOIN chat.conversations c ON c.id = m.conversation_id
+      LEFT JOIN LATERAL (
+        SELECT
+          CASE
+            WHEN c.type <> 'dm' OR c.dm_key IS NULL THEN NULL
+            WHEN split_part(c.dm_key, '|', 1) = $1 THEN split_part(c.dm_key, '|', 2)
+            ELSE split_part(c.dm_key, '|', 1)
+          END AS other_uid
+      ) ou ON TRUE
+      LEFT JOIN users u2 ON u2.uid = ou.other_uid
       LEFT JOIN LATERAL (
         SELECT id, body, created_at
         FROM chat.messages

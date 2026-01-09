@@ -57,10 +57,10 @@ const headerTitle = computed(() => {
   const c = selectedConversation.value
   if (c.type === 'group') return c.name || `群組 #${c.id}`
   // dm：顯示對方 uid（最小可用版）
-  const other = getOtherUidFromDmKey(c.dm_key, myUid.value)
-  // 優先用好友 nickname
+  const other = c.other_uid || getOtherUidFromDmKey(c.dm_key, myUid.value)
+  // 優先用後端回傳的 other_nickname，其次用好友表 nickname
   const f = other ? friendMap.value.get(other) : null
-  return other ? (f?.nickname || other) : `私聊 #${c.id}`
+  return other ? (c.other_nickname || f?.nickname || other) : `私聊 #${c.id}`
 })
 
 const friendMap = computed(() => {
@@ -118,13 +118,13 @@ function getConversationDisplay(c) {
       avatarText: 'G',
     }
   }
-  const otherUid = getOtherUidFromDmKey(c.dm_key, myUid.value)
+  const otherUid = c.other_uid || getOtherUidFromDmKey(c.dm_key, myUid.value)
   const f = otherUid ? friendMap.value.get(otherUid) : null
   return {
-    title: f?.nickname || otherUid || `私聊 #${c.id}`,
+    title: c.other_nickname || f?.nickname || otherUid || `私聊 #${c.id}`,
     subtitle: c.last_message_body || '（沒有訊息）',
-    avatarUrl: f?.avatar || null,
-    avatarText: (f?.nickname || otherUid || 'D').slice(0, 1).toUpperCase(),
+    avatarUrl: c.other_avatar || f?.avatar || null,
+    avatarText: (c.other_nickname || f?.nickname || otherUid || 'D').slice(0, 1).toUpperCase(),
   }
 }
 
