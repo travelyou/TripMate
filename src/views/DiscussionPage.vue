@@ -127,12 +127,14 @@ const handleSubmitPost = async (postData) => {
 
     console.log('準備發布貼文，用戶 UID：', uid)
 
-    // 如果有圖片，先上傳圖片到 Supabase Storage
+    // 如果有圖片，先上傳圖片到後端（存進 Neon）
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
+      console.log(`準備上傳 ${postData.imageFiles.length} 張圖片...`)
       try {
         const { uploadMultipleImages } = await import('@/api/storage')
         imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
+        console.log('圖片上傳成功，URLs:', imageUrls)
       } catch (error) {
         console.error('圖片上傳失敗：', error)
         // 詢問用戶是否要繼續發布（不帶圖片）
@@ -144,6 +146,8 @@ const handleSubmitPost = async (postData) => {
         }
         // 如果用戶選擇繼續，imageUrls 保持為空陣列
       }
+    } else {
+      console.log('ℹ️ 沒有圖片需要上傳')
     }
 
     // 準備提交的資料

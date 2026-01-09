@@ -108,7 +108,7 @@ const handleSubmitPost = async (postData) => {
 
     console.log('⏳ 準備發布貼文，用戶 UID：', uid)
 
-    // 如果有圖片，先上傳圖片到 Supabase Storage
+    // 如果有圖片，先上傳圖片到後端（存進 Neon）
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
       try {

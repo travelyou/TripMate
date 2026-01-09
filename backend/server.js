@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global require, process */
 // 必須在最開始就加載環境變數，這樣其他模組才能正確讀取
 require('dotenv').config();
 
@@ -8,6 +10,8 @@ const postsRouter = require('./routes/posts');
 const commentsRouter = require('./routes/comments');
 const likesRouter = require('./routes/likes');
 const usersRouter = require('./routes/users');
+const chatRouter = require('./routes/chat');
+const filesRouter = require('./routes/files');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -64,6 +68,14 @@ app.use('/', likesRouter);
 // 使用用戶路由
 app.use('/api/users', usersRouter);
 app.use('/users', usersRouter);
+
+// 聊天室路由
+app.use('/api/chat', chatRouter);
+app.use('/chat', chatRouter);
+
+// 檔案上傳/下載（存 Neon）
+app.use('/api/files', filesRouter);
+app.use('/files', filesRouter);
 
 app.listen(PORT, HOST, () => {
   console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`);
