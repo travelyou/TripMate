@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import {
@@ -52,7 +52,7 @@ const formatPrice = (price) => {
 
 <template>
   <div
-    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border-2 border-secondary-200 shadow-[4px_4px_0px_0px_rgba(7,52,76,0.2)]"
+    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border-2 border-secondary-200 shadow-primary"
   >
     <div
       class="relative w-full h-48 md:h-52 overflow-hidden bg-secondary-100"
@@ -73,7 +73,7 @@ const formatPrice = (price) => {
 
       <div
         v-if="props.itinerary.isFeatured"
-        class="absolute top-2 right-2 bg-primary-100 text-primary-800 font-black text-xs px-2 py-1 border-2 border-primary-300 shadow-[2px_2px_0px_0px_rgba(7,52,76,0.35)]"
+        class="absolute top-2 right-2 bg-primary-100 text-primary-800 font-black text-xs px-2 py-1 border-2 border-primary-300 shadow-primary-sm"
       >
         FEATURED
       </div>
@@ -173,3 +173,4 @@ const formatPrice = (price) => {
 <style scoped>
 /* Replaced pixel-card and pixel-card-mini with Tailwind classes in template */
 </style>
+

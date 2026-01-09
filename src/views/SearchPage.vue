@@ -44,7 +44,7 @@
             :class="[
               'px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition border-2',
               activeTab === tab.value
-                ? 'bg-primary-700 text-white border-primary-700 shadow-[2px_2px_0px_0px_rgba(7,52,76,1)]'
+                ? 'bg-primary-700 text-white border-primary-700 shadow-primary-solid'
                 : 'bg-white text-secondary-600 border-secondary-200 hover:border-secondary-300 hover:bg-secondary-50',
             ]"
             @click="activeTab = tab.value"
@@ -509,3 +509,4 @@ const closeDiscussionDetailModal = () => {
   }
 }
 </style>
+

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import {
   X as XIcon,
@@ -370,7 +370,7 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col border-2 border-primary-600 shadow-[10px_10px_0px_0px_rgba(7,52,76,0.35)]"
+      class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col border-2 border-primary-600 shadow-primary-2xl"
     >
       <header
         class="p-4 border-b border-secondary-200 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-xl"
@@ -608,3 +608,4 @@ onMounted(async () => {
 
 /* 已移除 .pixel-modal（已用 Tailwind 類別替代） */
 </style>
+
