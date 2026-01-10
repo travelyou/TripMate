@@ -1,21 +1,21 @@
-// 必須在最開始就加載環境變數，這樣其他模組才能正確讀取
-require('dotenv').config();
+require('dotenv').config()
 
-const express = require('express');
-const cors = require('cors');
-const pool = require('./database/connection');
-const postsRouter = require('./routes/posts');
-const commentsRouter = require('./routes/comments');
-const likesRouter = require('./routes/likes');
-const usersRouter = require('./routes/users');
+const express = require('express')
+const cors = require('cors')
+const pool = require('./database/connection')
+const postsRouter = require('./routes/posts')
+const commentsRouter = require('./routes/comments')
+const likesRouter = require('./routes/likes')
+const usersRouter = require('./routes/users')
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const app = express()
+const PORT = process.env.PORT || 3000
 // 一律只用 IPv4：明確綁定到 IPv4 host，避免在部分環境預設走非 IPv4 的監聽位址
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '0.0.0.0'
+const travelersRoutes = require('./routes/travelers')
 
-app.use(cors());
-app.use(express.json());
+app.use(cors())
+app.use(express.json())
 
 // 根路徑處理
 app.get('/', (req, res) => {
@@ -25,46 +25,48 @@ app.get('/', (req, res) => {
       test: '/api/test',
       testDb: '/api/test-db',
       posts: '/api/posts',
-      comments: '/api/posts/:postId/comments'
-    }
-  });
-});
+      comments: '/api/posts/:postId/comments',
+    },
+  })
+})
 
 app.get('/api/test', (req, res) => {
-  res.json({ message: '後端 API 連接成功！' });
-});
+  res.json({ message: '後端 API 連接成功！' })
+})
 
 app.get('/api/test-db', async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW()');
+    const result = await pool.query('SELECT NOW()')
     res.json({
       message: '資料庫連接成功！',
-      timestamp: result.rows[0].now
-    });
+      timestamp: result.rows[0].now,
+    })
   } catch (error) {
     res.status(500).json({
       error: '資料庫連接失敗',
-      details: error?.message || String(error)
-    });
+      details: error?.message || String(error),
+    })
   }
-});
+})
 
 // 使用貼文路由
-app.use('/api/posts', postsRouter);
-app.use('/posts', postsRouter);
+app.use('/api/posts', postsRouter)
+app.use('/posts', postsRouter)
 
 // 使用留言路由
-app.use('/api', commentsRouter);
-app.use('/', commentsRouter);
+app.use('/api', commentsRouter)
+app.use('/', commentsRouter)
 
 // 使用按讚路由
-app.use('/api', likesRouter);
-app.use('/', likesRouter);
+app.use('/api', likesRouter)
+app.use('/', likesRouter)
 
 // 使用用戶路由
-app.use('/api/users', usersRouter);
-app.use('/users', usersRouter);
+app.use('/api/users', usersRouter)
+app.use('/users', usersRouter)
 
 app.listen(PORT, HOST, () => {
-  console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`);
-});
+  console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`)
+})
+
+app.use('/api/travelers', travelersRoutes)
