@@ -8,7 +8,7 @@ import { auth } from '@/firebase/config'
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
-import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
+import PostingChoiceCard from '@/components/cards/PostingChoiceCard.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/shared/RightSidebarAd.vue'
@@ -315,7 +315,7 @@ const handleSubmitPost = async (postData) => {
       </div>
     </Transition>
 
-    <PostingChoiceModal
+    <PostingChoiceCard
       v-if="isPostingModalOpen"
       @close="isPostingModalOpen = false"
       @select-discussion="handleSelectDiscussion"
