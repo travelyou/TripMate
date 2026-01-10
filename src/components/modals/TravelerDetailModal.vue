@@ -20,6 +20,7 @@ import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
+import axios from 'axios' // 記得引入 axios
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -46,48 +47,30 @@ const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const localComments = ref([])
 
+// 建立一個本地變數來存「完整資料」，預設先用傳進來的 props 擋著
+const localTravelerData = ref({ ...props.traveler })
+
+// ★★★ 修改重點 1：計算屬性現在改看 localTravelerData ★★★
 const itineraryData = computed(() => {
-  if (props.traveler.itinerary) {
-    return props.traveler.itinerary
+  // 優先使用後端抓回來的完整行程
+  if (localTravelerData.value.itinerary && localTravelerData.value.itinerary.days) {
+    return {
+      days: localTravelerData.value.itinerary.days,
+      // 把散落在外面的 packingList 整合進來，讓樣板讀得到
+      packingList: localTravelerData.value.packingList || [],
+    }
   }
+
+  // 如果真的沒有資料（例如讀取失敗），才顯示「暫無行程」或保持空白，不要顯示假資料了
   return {
-    days: [
-      {
-        day: 1,
-        date: props.traveler.date || '2026/01/15',
-        activities: [
-          {
-            id: 1,
-            time: '09:00',
-            icon: 'map-pin',
-            title: '集合出發',
-            desc: '機場集合，準備開始美好的旅程',
-          },
-          {
-            id: 2,
-            time: '14:00',
-            icon: 'coffee',
-            title: '當地美食體驗',
-            desc: '品嚐當地特色料理',
-          },
-        ],
-      },
-    ],
-    packingList: [
-      {
-        category: '必備物品',
-        items: [
-          { id: 1, name: '護照', checked: false },
-          { id: 2, name: '信用卡', checked: false },
-          { id: 3, name: '充電器', checked: false },
-        ],
-      },
-    ],
+    days: [],
+    packingList: [],
   }
 })
 
 const activeDayIndex = ref(0)
 const activeDay = computed(() => {
+  if (!itineraryData.value.days || itineraryData.value.days.length === 0) return { activities: [] }
   return itineraryData.value.days[activeDayIndex.value] || { activities: [] }
 })
 
@@ -108,7 +91,7 @@ const normalizedComments = computed(() => {
   if (localComments.value.length > 0) {
     return localComments.value
   }
-  return props.traveler.commentsData || []
+  return localTravelerData.value.commentsData || []
 })
 
 const totalCommentCount = computed(() => {
@@ -133,6 +116,29 @@ const loadLikesInfo = async () => {
     likesCount.value = info.likesCount
   } catch (error) {
     console.error(error)
+  }
+}
+
+// ★★★ 修改重點 2：抓取完整資料的函式 ★★★
+const fetchFullTravelerDetails = async () => {
+  try {
+    console.log('正在抓取詳細資料 ID:', props.traveler.id)
+    // 假設你的 API server 在同一網域或有設定 proxy
+    // 如果你的後端在 localhost:3000，這裡可能要寫完整網址
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/travelers/${props.traveler.id}`,
+    )
+
+    if (response.data.success) {
+      // 更新本地資料
+      localTravelerData.value = {
+        ...localTravelerData.value, // 保留原本的
+        ...response.data.data, // 用新的詳細資料覆蓋 (包含 itinerary, packingList)
+      }
+      console.log('詳細資料更新成功:', localTravelerData.value)
+    }
+  } catch (error) {
+    console.error('抓取詳細資料失敗:', error)
   }
 }
 
@@ -178,12 +184,11 @@ const submitComment = async () => {
     })
 
     localComments.value = [
-      ...localComments.value,
       {
         id: Date.now(),
-        author: '我',
+        author: userStore.currentUser?.displayName || '我',
         avatar:
-          currentUserUid.value.avatar ||
+          userStore.currentUser?.photoURL ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
         content: content,
         time: '剛剛',
@@ -191,6 +196,7 @@ const submitComment = async () => {
         isLiked: false,
         replies: [],
       },
+      ...localComments.value,
     ]
 
     newComment.value = ''
@@ -231,35 +237,45 @@ const getStatusClasses = (status) => {
 }
 
 const getDayLabel = (index) => {
-  const startDateStr = props.traveler.date || '2026/01/15'
-  const [year, month, day] = startDateStr.split(/[/-]/).map(Number)
-  const date = new Date(year, month - 1, day)
-  date.setDate(date.getDate() + index)
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${m}/${d}`
+  const startDateStr = localTravelerData.value.date || '2026/01/15'
+  const parts = startDateStr.split(/[/-]/)
+  if (parts.length >= 3) {
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1])
+    const day = parseInt(parts[2])
+
+    const date = new Date(year, month - 1, day)
+    date.setDate(date.getDate() + index)
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${m}/${d}`
+  }
+  return `Day ${index + 1}`
 }
 
 const itemData = computed(() => ({
-  id: props.traveler.id,
+  id: localTravelerData.value.id,
   type: 'traveler',
-  title: props.traveler.title,
-  content: props.traveler.content,
-  image: props.traveler.image,
-  author: props.traveler.author,
-  avatar: props.traveler.avatar,
-  location: props.traveler.location,
-  date: props.traveler.date,
-  status: props.traveler.status,
-  people: props.traveler.people,
-  tags: props.traveler.tags,
-  comments: props.traveler.comments,
+  title: localTravelerData.value.title,
+  content: localTravelerData.value.content,
+  image: localTravelerData.value.image,
+  author: localTravelerData.value.author,
+  avatar: localTravelerData.value.avatar,
+  location: localTravelerData.value.location,
+  date: localTravelerData.value.date,
+  status: localTravelerData.value.status,
+  people: localTravelerData.value.people,
+  tags: localTravelerData.value.tags,
+  comments: localTravelerData.value.comments,
 }))
 
 onMounted(async () => {
   if (props.traveler) {
     likesCount.value = props.traveler.likes || 0
     localComments.value = props.traveler.commentsData || []
+
+    // ★★★ 一掛載就去抓詳細資料 ★★★
+    await fetchFullTravelerDetails()
 
     if (currentUserUid.value) {
       await loadLikesInfo()
@@ -294,38 +310,44 @@ onMounted(async () => {
 
       <div class="flex-1 overflow-y-auto custom-scrollbar">
         <div class="relative w-full h-72 overflow-hidden">
-          <img :src="traveler.image" :alt="traveler.title" class="w-full h-full object-cover" />
+          <img
+            :src="localTravelerData.image"
+            :alt="localTravelerData.title"
+            class="w-full h-full object-cover"
+          />
           <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
 
           <div
-            :class="getStatusClasses(traveler.status)"
+            :class="getStatusClasses(localTravelerData.status)"
             class="absolute top-4 left-4 px-4 py-2 font-bold text-sm rounded-lg border-2 border-primary"
           >
-            {{ traveler.status }}
+            {{ localTravelerData.status }}
           </div>
         </div>
 
         <div class="p-6">
           <div class="mb-6">
             <h1 class="text-3xl font-black text-secondary-900 mb-4">
-              {{ traveler.title }}
+              {{ localTravelerData.title }}
             </h1>
 
             <div class="flex items-center space-x-3 mb-4">
               <img
-                :src="traveler.avatar"
+                :src="localTravelerData.avatar"
                 class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
               />
               <div>
                 <div class="flex items-center space-x-2">
-                  <span class="font-bold text-secondary-900">{{ traveler.author }}</span>
+                  <span class="font-bold text-secondary-900">{{ localTravelerData.author }}</span>
                   <span
                     class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
                   >
-                    {{ traveler.spiritAnimal }}
+                    {{ localTravelerData.spiritAnimal }}
                   </span>
                 </div>
-                <div class="text-sm text-secondary-500">發布於 {{ traveler.date || '最近' }}</div>
+                <div class="text-sm text-secondary-500">
+                  發布於 {{ localTravelerData.created_at || '最近' }}
+                </div>
               </div>
             </div>
 
@@ -335,7 +357,7 @@ onMounted(async () => {
                   <MapPinIcon class="w-4 h-4 mr-1" />
                   <span class="text-xs font-bold text-secondary-500">地點</span>
                 </div>
-                <div class="font-bold text-secondary-900">{{ traveler.location }}</div>
+                <div class="font-bold text-secondary-900">{{ localTravelerData.location }}</div>
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
@@ -343,7 +365,7 @@ onMounted(async () => {
                   <CalendarIcon class="w-4 h-4 mr-1" />
                   <span class="text-xs font-bold text-secondary-500">日期</span>
                 </div>
-                <div class="font-bold text-secondary-900">{{ traveler.date }}</div>
+                <div class="font-bold text-secondary-900">{{ localTravelerData.date }}</div>
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
@@ -351,7 +373,7 @@ onMounted(async () => {
                   <UsersIcon class="w-4 h-4 mr-1" />
                   <span class="text-xs font-bold text-secondary-500">人數</span>
                 </div>
-                <div class="font-bold text-primary-600">{{ traveler.people }}</div>
+                <div class="font-bold text-primary-600">{{ localTravelerData.people }}</div>
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
@@ -364,9 +386,12 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div v-if="traveler.tags && traveler.tags.length" class="flex flex-wrap gap-2 mb-6">
+          <div
+            v-if="localTravelerData.tags && localTravelerData.tags.length"
+            class="flex flex-wrap gap-2 mb-6"
+          >
             <span
-              v-for="tag in traveler.tags"
+              v-for="tag in localTravelerData.tags"
               :key="tag"
               class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
             >
@@ -376,7 +401,7 @@ onMounted(async () => {
 
           <div class="prose prose-lg max-w-none mb-6">
             <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
-              {{ traveler.content }}
+              {{ localTravelerData.content }}
             </p>
           </div>
 
@@ -419,13 +444,13 @@ onMounted(async () => {
             </button>
 
             <button
-              v-if="traveler.status === '招募中'"
+              v-if="localTravelerData.status === '招募中'"
               class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md"
             >
               聯繫作者
             </button>
             <div v-else class="ml-auto text-secondary-400 font-bold">
-              {{ traveler.status }}
+              {{ localTravelerData.status }}
             </div>
           </div>
 
@@ -459,49 +484,60 @@ onMounted(async () => {
           </div>
 
           <div v-if="activeTab === 'itinerary'" class="space-y-6">
-            <div class="flex overflow-x-auto space-x-2 pb-2">
-              <button
-                v-for="(day, index) in itineraryData.days"
-                :key="index"
-                :class="[
-                  'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
-                  activeDayIndex === index
-                    ? 'bg-primary-600 text-white border-primary-700'
-                    : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
-                ]"
-                @click="activeDayIndex = index"
-              >
-                Day {{ index + 1 }} - {{ getDayLabel(index) }}
-              </button>
-            </div>
+            <div v-if="itineraryData.days && itineraryData.days.length > 0">
+              <div class="flex overflow-x-auto space-x-2 pb-2">
+                <button
+                  v-for="(day, index) in itineraryData.days"
+                  :key="index"
+                  :class="[
+                    'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
+                    activeDayIndex === index
+                      ? 'bg-primary-600 text-white border-primary-700'
+                      : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
+                  ]"
+                  @click="activeDayIndex = index"
+                >
+                  Day {{ index + 1 }} - {{ getDayLabel(index) }}
+                </button>
+              </div>
 
-            <div class="space-y-4">
-              <div
-                v-for="activity in activeDay.activities"
-                :key="activity.id"
-                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
-              >
-                <div class="flex gap-4">
-                  <div class="w-20 shrink-0">
-                    <div class="text-2xl font-black text-primary-600">
-                      {{ activity.time }}
+              <div class="space-y-4">
+                <div v-if="activeDay.activities && activeDay.activities.length > 0">
+                  <div
+                    v-for="activity in activeDay.activities"
+                    :key="activity.id"
+                    class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
+                  >
+                    <div class="flex gap-4">
+                      <div class="w-20 shrink-0">
+                        <div class="text-2xl font-black text-primary-600">
+                          {{ activity.time }}
+                        </div>
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-2">
+                          <component
+                            :is="getIconComponent(activity.icon)"
+                            class="w-5 h-5 text-primary-500"
+                          />
+                          <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
+                        </div>
+                        <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div class="flex-1">
-                    <div class="flex items-center space-x-2 mb-2">
-                      <component
-                        :is="getIconComponent(activity.icon)"
-                        class="w-5 h-5 text-primary-500"
-                      />
-                      <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
-                    </div>
-                    <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
                   </div>
                 </div>
+                <div v-else class="text-center text-gray-500 py-4">當天無活動安排</div>
               </div>
             </div>
+            <div v-else class="text-center text-gray-400 py-10 bg-gray-50 rounded-lg">
+              作者尚未新增詳細行程
+            </div>
 
-            <div v-if="itineraryData.packingList" class="mt-8">
+            <div
+              v-if="itineraryData.packingList && itineraryData.packingList.length > 0"
+              class="mt-8"
+            >
               <h3 class="font-black text-lg text-secondary-900 flex items-center mb-4">
                 <CheckSquareIcon class="w-5 h-5 mr-2 text-primary" />
                 建議攜帶物品

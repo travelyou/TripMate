@@ -694,7 +694,15 @@ if (postData.value.itinerary.days.length === 0) {
                       >日期</span
                     >
                   </div>
-                  <div class="font-bold text-secondary-900">{{ postData.start_date }}</div>
+                  <div class="font-bold text-secondary-900">
+                    {{
+                      postData.start_date
+                        ? postData.end_date && postData.start_date !== postData.end_date
+                          ? `${postData.start_date} - ${postData.end_date}`
+                          : postData.start_date
+                        : '未設定日期'
+                    }}
+                  </div>
                 </div>
                 <div
                   class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm"
