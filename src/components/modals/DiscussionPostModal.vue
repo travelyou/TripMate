@@ -6,16 +6,23 @@ import {
   Image as ImageIcon,
   Hash as HashIcon,
   Send as SendIcon,
+  Save as SaveIcon, // 新增儲存圖示
+  Heart as HeartIcon,
+  MessageCircle as MessageCircleIcon,
+  Repeat2 as Repeat2Icon,
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
+import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createPost } from '@/api/posts'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
-
+const myItineraryStore = useMyItineraryStore()
 // 步驟控制
 const currentStep = ref('edit') // 'edit', 'tags', 'preview'
+const formError = ref('') // 通用錯誤訊息
 
 // 表單資料
 const postData = ref({
@@ -30,7 +37,7 @@ const postData = ref({
 const fileInputRef = ref(null)
 const imagePreviews = ref([])
 
-// 錯誤訊息
+// 錯誤訊息欄位驗證
 const errors = ref({
   board: '',
   title: '',
@@ -75,6 +82,7 @@ const filteredTags = computed(() => {
 // 清除錯誤
 const clearAllErrors = () => {
   errors.value = { board: '', title: '', content: '' }
+  formError.value = ''
 }
 
 // 驗證表單
@@ -97,17 +105,19 @@ const validateForm = () => {
     isValid = false
   }
 
+  if (!isValid) {
+    formError.value = '請檢查紅色必填欄位'
+  }
+
   return isValid
 }
 
 // 下一步
 const nextStep = () => {
   if (currentStep.value === 'edit') {
-    if (!validateForm()) {
-      alert('請完整填寫表單')
-      return
-    }
+    if (!validateForm()) return
     currentStep.value = 'tags'
+    formError.value = ''
   } else if (currentStep.value === 'tags') {
     currentStep.value = 'preview'
   }
@@ -115,6 +125,7 @@ const nextStep = () => {
 
 // 上一步
 const prevStep = () => {
+  formError.value = ''
   if (currentStep.value === 'preview') {
     currentStep.value = 'tags'
   } else if (currentStep.value === 'tags') {
@@ -177,15 +188,45 @@ const removeTag = (index) => {
   postData.value.tags.splice(index, 1)
 }
 
-// 最終發布
-const handleFinalSubmit = async () => {
-  if (!validateForm()) {
-    alert('請完整填寫表單')
+const handleSaveDraft = () => {
+  // 檢查是否有標題
+  if (!postData.value.title.trim()) {
+    formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
 
+  // 建立草稿物件
+  const draftData = {
+    id: Date.now(),
+    type: 'discussion', // 類型標記
+    typeLabel: '討論區', // 顯示標籤
+    title: postData.value.title,
+    content: postData.value.content || '無內容',
+    saveTime: new Date().toISOString(),
+    // 儲存完整資料包含圖片預覽，以便恢復
+    data: JSON.parse(
+      JSON.stringify({
+        ...postData.value,
+        // 這裡簡單處理：如果是 base64 可能會很大，實際專案建議先上傳或只存文字
+        // 為了演示效果，這裡假設存入 imagePreviews 以便還原
+        imagePreviews: imagePreviews.value,
+      }),
+    ),
+  }
+
+  // 存入 Store
+  myItineraryStore.addDraft(draftData)
+
+  alert('📦 已儲存至「我的行程」草稿夾！')
+  emit('close')
+}
+
+// 最終發布
+const handleFinalSubmit = async () => {
+  if (!validateForm()) return
+
   if (!auth.currentUser) {
-    alert('請先登入')
+    formError.value = '請先登入'
     return
   }
 
@@ -211,48 +252,75 @@ const handleFinalSubmit = async () => {
       alert('✨ 發文成功！')
       emit('success')
     } else {
-      alert('發文失敗：' + (response.message || '請稍後再試'))
+      formError.value = '發文失敗：' + (response.message || '請稍後再試')
     }
   } catch (error) {
     console.error('發文錯誤：', error)
-    alert('發文失敗：' + (error.message || '請稍後再試'))
+    formError.value = '發文失敗：' + (error.message || '請稍後再試')
   }
 }
 </script>
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
     @click.self="emit('close')"
   >
     <div
-      class="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border-4 border-gray-800 rounded-xl animate-pop-in"
+      :class="[
+        'bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
+        currentStep === 'preview' ? 'max-w-4xl h-[90vh]' : 'max-w-2xl max-h-[90vh]',
+      ]"
     >
-      <!-- Step 1: 編輯內容 -->
-      <div v-if="currentStep === 'edit'" class="flex flex-col h-full">
-        <!-- Header -->
-        <div
-          class="flex items-center justify-between p-4 border-b-4 border-gray-800 bg-gradient-to-r from-blue-100 to-indigo-100"
-        >
-          <h2 class="text-2xl font-black text-gray-800">發起討論</h2>
+      <div class="flex items-center justify-between p-4 border-b border-gray-100 bg-white z-10">
+        <div class="flex items-center gap-3">
           <button
-            class="p-2 hover:bg-white/80 rounded-full transition border-2 border-gray-800 bg-white"
-            @click="emit('close')"
+            v-if="currentStep !== 'edit' && currentStep !== 'preview'"
+            class="p-2 hover:bg-gray-100 rounded-full transition"
+            @click="prevStep"
           >
-            <XIcon class="w-6 h-6" />
+            <ArrowLeftIcon class="w-5 h-5 text-gray-500" />
           </button>
+          <h2 class="text-xl font-bold text-gray-800">
+            {{ currentStep === 'preview' ? '預覽文章' : '發起討論' }}
+          </h2>
         </div>
+        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="emit('close')">
+          <XIcon class="w-6 h-6 text-gray-500" />
+        </button>
+      </div>
 
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-4">
-          <!-- 選擇看板 -->
+      <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
+        <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
+          <div
+            v-for="step in ['edit', 'tags', 'preview']"
+            :key="step"
+            :class="[
+              'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
+              currentStep === step
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-400',
+            ]"
+          >
+            {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
+          </div>
+        </div>
+      </div>
+
+      <div
+        :class="[
+          'flex-1 overflow-y-auto custom-scrollbar',
+          currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
+        ]"
+      >
+        <div v-if="currentStep === 'edit'" class="space-y-6">
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">
               選擇看板 <span class="text-red-500">*</span>
             </label>
             <select
               v-model="postData.board"
-              class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none font-bold"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
               :class="{ 'border-red-500': errors.board }"
             >
               <option value="">請選擇看板</option>
@@ -263,7 +331,6 @@ const handleFinalSubmit = async () => {
             <p v-if="errors.board" class="text-red-500 text-xs mt-1">{{ errors.board }}</p>
           </div>
 
-          <!-- 標題 -->
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">
               標題 <span class="text-red-500">*</span>
@@ -272,14 +339,13 @@ const handleFinalSubmit = async () => {
               v-model="postData.title"
               type="text"
               placeholder="輸入一個吸引人的標題..."
-              class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none font-bold"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
               :class="{ 'border-red-500': errors.title }"
               maxlength="100"
             />
             <p v-if="errors.title" class="text-red-500 text-xs mt-1">{{ errors.title }}</p>
           </div>
 
-          <!-- 內容 -->
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">
               內容 <span class="text-red-500">*</span>
@@ -288,209 +354,220 @@ const handleFinalSubmit = async () => {
               v-model="postData.content"
               placeholder="分享你的旅遊經驗或提出問題..."
               rows="8"
-              class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-none"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none resize-none transition"
               :class="{ 'border-red-500': errors.content }"
             ></textarea>
             <p v-if="errors.content" class="text-red-500 text-xs mt-1">{{ errors.content }}</p>
           </div>
 
-          <!-- 圖片預覽 -->
           <div v-if="imagePreviews.length > 0" class="space-y-2">
             <label class="block text-sm font-bold text-gray-700">已選擇的圖片</label>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-3">
               <div
                 v-for="(url, index) in imagePreviews"
                 :key="index"
-                class="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-300"
+                class="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200"
               >
                 <img :src="url" alt="預覽" class="w-full h-full object-cover" />
                 <button
-                  class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  class="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center transition"
                   @click="removeImage(index)"
                 >
                   <XIcon class="w-4 h-4" />
                 </button>
               </div>
             </div>
-            <p class="text-xs text-gray-500">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="p-4 border-t-2 border-gray-200 bg-gray-50">
-          <div class="flex items-center justify-between mb-3">
-            <button
-              class="p-2 hover:bg-gray-200 rounded-full transition"
-              @click="triggerFileSelect"
-            >
-              <ImageIcon class="w-6 h-6 text-gray-600" />
-            </button>
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="handleImageSelect"
-            />
+            <p class="text-xs text-gray-400">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
           </div>
 
-          <div class="flex gap-3">
-            <button
-              class="flex-1 py-3 text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-lg border-4 border-gray-800 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)]"
-              @click="nextStep"
-            >
-              下一步
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: 新增標籤 -->
-      <div v-else-if="currentStep === 'tags'" class="flex flex-col h-full">
-        <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button class="hover:bg-gray-200 p-2 rounded-full" @click="prevStep">
-            <ArrowLeftIcon class="w-5 h-5" />
+          <button
+            class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2"
+            @click="triggerFileSelect"
+          >
+            <ImageIcon class="w-6 h-6" />
+            點擊上傳圖片
           </button>
-          <span class="font-bold text-lg">新增標籤</span>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            @change="handleImageSelect"
+          />
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6">
-          <!-- 搜尋標籤 -->
-          <div class="relative mb-6">
+        <div v-else-if="currentStep === 'tags'" class="space-y-6">
+          <div class="relative">
             <input
               v-model="tagSearch"
               type="text"
               placeholder="搜尋或建立新標籤..."
-              class="w-full pl-10 pr-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-xl focus:outline-none focus:border-blue-500 font-bold"
+              class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
               @keyup.enter="addTag(tagSearch)"
             />
             <HashIcon class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
           </div>
 
-          <!-- 已選標籤 -->
-          <div v-if="postData.tags.length > 0" class="mb-6">
+          <div v-if="postData.tags.length > 0">
             <h4 class="text-sm font-bold text-gray-700 mb-2">已選標籤：</h4>
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="(tag, index) in postData.tags"
                 :key="index"
-                class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold border-2 border-blue-300 flex items-center gap-1"
+                class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm font-bold border border-blue-100 flex items-center gap-1"
               >
                 #{{ tag }}
-                <button class="hover:text-red-500" @click="removeTag(index)">
+                <button class="hover:text-red-500 transition" @click="removeTag(index)">
                   <XIcon class="w-3 h-3" />
                 </button>
               </span>
             </div>
           </div>
 
-          <!-- 建立新標籤 -->
           <button
             v-if="tagSearch"
-            class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 mb-4 border-2 border-dashed border-blue-300"
+            class="w-full text-left p-3 hover:bg-blue-50 rounded-xl flex items-center gap-3 transition group"
             @click="addTag(tagSearch)"
           >
-            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <span class="font-bold text-lg text-blue-600">+</span>
+            <div
+              class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-200 transition"
+            >
+              <span class="font-bold text-lg">+</span>
             </div>
-            <div>
-              <p class="font-bold text-blue-600">新增「{{ tagSearch }}」</p>
-            </div>
+            <p class="font-bold text-blue-600">新增「{{ tagSearch }}」</p>
           </button>
 
-          <!-- 推薦標籤 -->
           <div>
             <h4 class="text-sm font-bold text-gray-700 mb-3">推薦標籤</h4>
-            <div class="space-y-2">
+            <div class="flex flex-wrap gap-2">
               <button
                 v-for="tag in filteredTags"
                 :key="tag"
-                class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 border-b border-gray-100"
+                class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-medium transition"
                 @click="addTag(tag)"
               >
-                <div
-                  class="w-10 h-10 rounded-full bg-gray-200 border-2 border-gray-800 flex items-center justify-center font-bold"
-                >
-                  #
-                </div>
-                <div>
-                  <p class="font-bold text-gray-800">{{ tag }}</p>
-                </div>
+                #{{ tag }}
               </button>
             </div>
           </div>
         </div>
 
-        <div class="p-4 border-t-2 border-gray-200 bg-gray-50">
-          <button
-            class="w-full py-3 text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-lg border-4 border-gray-800 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)]"
-            @click="nextStep"
-          >
-            預覽文章
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: 預覽 -->
-      <div v-else-if="currentStep === 'preview'" class="flex flex-col h-full">
-        <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button class="hover:bg-gray-200 p-2 rounded-full" @click="prevStep">
-            <ArrowLeftIcon class="w-5 h-5" />
-          </button>
-          <span class="font-bold text-lg">預覽文章</span>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
-          <div class="bg-white p-5 border-2 border-gray-200 rounded-lg shadow-sm">
-            <div class="flex justify-between items-start mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-gray-300 border-2 border-gray-400"></div>
+        <div v-else-if="currentStep === 'preview'" class="bg-white h-full relative">
+          <div class="p-6">
+            <div class="mb-6 pb-4 border-b-2 border-primary-200">
+              <div class="flex items-center space-x-3 mb-3">
+                <img
+                  :src="
+                    userStore.currentUser?.photoURL ||
+                    'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+                  "
+                  class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
+                />
                 <div>
-                  <p class="font-bold text-sm">{{ userStore.currentUser?.displayName || '你' }}</p>
-                  <p class="text-xs text-gray-500">剛剛</p>
+                  <span class="font-bold text-secondary-800">{{
+                    userStore.currentUser?.displayName || '你'
+                  }}</span>
+                  <div class="text-xs text-secondary-400">
+                    剛剛 • {{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}
+                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.board }} </span>
+                  </div>
                 </div>
               </div>
-              <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">
-                {{ postData.board }}
-              </span>
+
+              <div
+                v-if="imagePreviews.length > 0"
+                class="w-full max-h-96 object-cover rounded-lg overflow-hidden mb-4 bg-secondary-100"
+              >
+                <img :src="imagePreviews[0]" class="w-full h-full object-cover" />
+              </div>
+
+              <h4 class="text-xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
+
+              <p class="text-secondary-700 text-base mb-4 leading-relaxed whitespace-pre-wrap">
+                {{ postData.content }}
+              </p>
+
+              <div v-if="imagePreviews.length > 1" class="grid grid-cols-4 gap-2 mb-4">
+                <img
+                  v-for="(img, idx) in imagePreviews.slice(1)"
+                  :key="idx"
+                  :src="img"
+                  class="w-full h-20 object-cover rounded-lg border border-gray-100"
+                />
+              </div>
+
+              <div class="flex flex-wrap gap-2 mb-4">
+                <span
+                  v-for="tag in postData.tags"
+                  :key="tag"
+                  class="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-full"
+                >
+                  #{{ tag }}
+                </span>
+              </div>
+
+              <div
+                class="flex items-center text-secondary-400 text-sm mt-4 border-t border-secondary-100 pt-3 opacity-50 cursor-not-allowed"
+              >
+                <div class="flex items-center space-x-1 mr-6">
+                  <HeartIcon class="w-4 h-4" /> <span>0</span>
+                </div>
+                <div class="flex items-center space-x-1 mr-6">
+                  <MessageCircleIcon class="w-4 h-4" /> <span>0 留言</span>
+                </div>
+                <div class="flex items-center space-x-1 mr-6">
+                  <BookmarkIcon class="w-4 h-4" />
+                </div>
+                <div class="ml-auto">
+                  <Repeat2Icon class="w-4 h-4" />
+                </div>
+              </div>
             </div>
 
-            <h2 class="text-xl font-bold mb-3">{{ postData.title }}</h2>
-            <p class="text-gray-700 whitespace-pre-wrap mb-4">{{ postData.content }}</p>
-
-            <!-- 預覽圖片 -->
-            <div v-if="imagePreviews.length > 0" class="mb-4 flex flex-wrap gap-2">
-              <img
-                v-for="(url, index) in imagePreviews"
-                :key="index"
-                :src="url"
-                alt="預覽"
-                class="w-24 h-24 rounded-lg object-cover border-2 border-gray-300"
-              />
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold">
-                #{{ tag }}
-              </span>
+            <div
+              class="text-center text-secondary-400 py-10 bg-gray-50 rounded-lg border border-dashed border-gray-200"
+            >
+              預覽模式無法查看留言區塊
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="p-4 border-t-2 border-gray-200 bg-white flex gap-3">
+      <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
+        <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
+
+        <div class="flex gap-3">
           <button
-            class="flex-1 py-3 text-sm font-bold text-gray-600 bg-gray-200 rounded-lg border-4 border-gray-800"
-            @click="prevStep"
+            type="button"
+            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition"
+            @click="handleSaveDraft"
           >
-            返回修改
+            <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
           </button>
+
+          <template v-if="currentStep === 'preview'">
+            <button
+              class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition"
+              @click="prevStep"
+            >
+              返回修改
+            </button>
+            <button
+              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2"
+              @click="handleFinalSubmit"
+            >
+              <SendIcon class="w-4 h-4" />
+              確認發布
+            </button>
+          </template>
+
           <button
-            class="flex-1 py-3 text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-lg border-4 border-gray-800 shadow-[3px_3px_0px_0px_rgba(31,41,55,1)]"
-            @click="handleFinalSubmit"
+            v-else
+            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md"
+            @click="nextStep"
           >
-            <SendIcon class="w-4 h-4 inline mr-2" />
-            確認發布
+            下一步
           </button>
         </div>
       </div>
@@ -499,18 +576,17 @@ const handleFinalSubmit = async () => {
 </template>
 
 <style scoped>
-@keyframes popIn {
-  0% {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
 }
-
-.animate-pop-in {
-  animation: popIn 0.15s ease-out forwards;
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 </style>

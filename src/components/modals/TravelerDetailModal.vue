@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -19,8 +19,7 @@ import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
-import { toggleLike } from '@/api/likes'
-import { getTravelerById } from '@/api/travelers'
+import { toggleLike, getLikesInfo } from '@/api/likes'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -38,68 +37,78 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'traveler-updated'])
 
-// 完整的旅伴資料（從資料庫載入）
-const fullTravelerData = ref(null)
-const isLoadingDetail = ref(false)
 const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(0)
-
-// Tab 切換
 const activeTab = ref('itinerary')
-
-// 留言相關
 const newComment = ref('')
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
+const localComments = ref([])
 
-// 行程相關
-const activeDayIndex = ref(0)
-
-// 監聽 Firebase 認證
-onAuthStateChanged(auth, (user) => {
-  currentUserUid.value = user ? user.uid : null
-})
-
-// 載入旅伴完整資料
-const loadTravelerDetail = async () => {
-  isLoadingDetail.value = true
-  try {
-    const response = await getTravelerById(props.traveler.id, currentUserUid.value)
-
-    if (response.success) {
-      fullTravelerData.value = response.data
-      likesCount.value = response.data.likes_count || 0
-      isLiked.value = response.data.isLiked || false
-    }
-  } catch (error) {
-    console.error('載入旅伴詳情失敗：', error)
-    alert('載入旅伴詳情失敗，請稍後再試')
-  } finally {
-    isLoadingDetail.value = false
-  }
-}
-
-// 行程資料
 const itineraryData = computed(() => {
-  if (fullTravelerData.value) {
-    return {
-      days: fullTravelerData.value.itinerary?.days || [],
-      packingList: fullTravelerData.value.packingList || [],
-    }
+  if (props.traveler.itinerary) {
+    return props.traveler.itinerary
   }
-  // ✅ 修正：補充缺少的 return 語句
-  return { days: [], packingList: [] }
-}) // ✅ 修正：補充缺少的閉合括號
-
-const activeDay = computed(() => {
-  const days = itineraryData.value.days || []
-  return days[activeDayIndex.value] || { activities: [] }
+  return {
+    days: [
+      {
+        day: 1,
+        date: props.traveler.date || '2026/01/15',
+        activities: [
+          {
+            id: 1,
+            time: '09:00',
+            icon: 'map-pin',
+            title: '集合出發',
+            desc: '機場集合，準備開始美好的旅程',
+          },
+          {
+            id: 2,
+            time: '14:00',
+            icon: 'coffee',
+            title: '當地美食體驗',
+            desc: '品嚐當地特色料理',
+          },
+        ],
+      },
+    ],
+    packingList: [
+      {
+        category: '必備物品',
+        items: [
+          { id: 1, name: '護照', checked: false },
+          { id: 2, name: '信用卡', checked: false },
+          { id: 3, name: '充電器', checked: false },
+        ],
+      },
+    ],
+  }
 })
 
-// 留言資料
+const activeDayIndex = ref(0)
+const activeDay = computed(() => {
+  return itineraryData.value.days[activeDayIndex.value] || { activities: [] }
+})
+
+onAuthStateChanged(auth, async (user) => {
+  const previousUid = currentUserUid.value
+  currentUserUid.value = user ? user.uid : null
+
+  if (props.traveler?.id && previousUid !== currentUserUid.value) {
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+    } else {
+      isLiked.value = false
+    }
+  }
+})
+
 const normalizedComments = computed(() => {
-  return fullTravelerData.value?.commentsData || []
+  if (localComments.value.length > 0) {
+    return localComments.value
+  }
+  return props.traveler.commentsData || []
 })
 
 const totalCommentCount = computed(() => {
@@ -115,7 +124,18 @@ const totalCommentCount = computed(() => {
   return total
 })
 
-// 處理按讚
+const loadLikesInfo = async () => {
+  if (!props.traveler?.id || !currentUserUid.value) return
+
+  try {
+    const info = await getLikesInfo(props.traveler.id, currentUserUid.value)
+    isLiked.value = info.isLiked
+    likesCount.value = info.likesCount
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 const handleLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -127,12 +147,10 @@ const handleLike = async () => {
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
-    console.error('按讚操作失敗：', error)
-    alert(`按讚操作失敗：${error.message || '請稍後再試'}`)
+    console.error(error)
   }
 }
 
-// 處理留言按讚
 const toggleCommentLike = (item) => {
   if (typeof item.likes !== 'number') item.likes = 0
   if (item.isLiked) {
@@ -143,7 +161,6 @@ const toggleCommentLike = (item) => {
   item.isLiked = !item.isLiked
 }
 
-// 發送留言
 const submitComment = async () => {
   if (!newComment.value.trim()) return
 
@@ -155,13 +172,26 @@ const submitComment = async () => {
   const content = newComment.value.trim()
 
   try {
-    await createComment(props.traveler.id, {
+    const newCommentData = await createComment(props.traveler.id, {
       author_uid: currentUserUid.value,
       content: content,
     })
 
-    // 重新載入資料
-    await loadTravelerDetail()
+    localComments.value = [
+      ...localComments.value,
+      {
+        id: Date.now(),
+        author: '我',
+        avatar:
+          currentUserUid.value.avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
+        content: content,
+        time: '剛剛',
+        likes: 0,
+        isLiked: false,
+        replies: [],
+      },
+    ]
 
     newComment.value = ''
 
@@ -170,12 +200,10 @@ const submitComment = async () => {
       commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   } catch (error) {
-    console.error('發布留言失敗：', error)
-    alert(`發布留言失敗：${error.message || '請稍後再試'}`)
+    console.error(error)
   }
 }
 
-// 獲取圖標組件
 const getIconComponent = (iconName) => {
   switch (iconName) {
     case 'camera':
@@ -189,68 +217,61 @@ const getIconComponent = (iconName) => {
   }
 }
 
-// 獲取狀態樣式
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
-      return 'bg-green-500 text-white'
+      return 'bg-primary-600 text-white'
     case '已額滿':
-      return 'bg-red-500 text-white'
+      return 'bg-secondary-600 text-white'
     case '已出發':
-      return 'bg-gray-500 text-white'
+      return 'bg-secondary-500 text-white'
     default:
-      return 'bg-yellow-500 text-gray-900'
+      return 'bg-primary-100 text-primary-800'
   }
 }
 
-// 獲取日期標籤
 const getDayLabel = (index) => {
-  const days = itineraryData.value.days || []
-  const day = days[index]
-  if (!day || !day.date) return `Day ${index + 1}`
-
-  const date = new Date(day.date)
+  const startDateStr = props.traveler.date || '2026/01/15'
+  const [year, month, day] = startDateStr.split(/[/-]/).map(Number)
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + index)
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${m}/${d}`
 }
 
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-TW')
-}
-
-// 計算項目數據（用於收藏）
-const itemData = computed(() => {
-  if (!fullTravelerData.value) return null
-
-  return {
-    id: fullTravelerData.value.id,
-    type: 'traveler',
-    title: fullTravelerData.value.title,
-    content: fullTravelerData.value.content,
-    image: fullTravelerData.value.banner_image,
-    author: fullTravelerData.value.author_name,
-    avatar: fullTravelerData.value.author_avatar,
-    location: fullTravelerData.value.location,
-    date: fullTravelerData.value.start_date,
-    status: fullTravelerData.value.status,
-    people: `${fullTravelerData.value.current_people}/${fullTravelerData.value.max_people}`,
-    tags: fullTravelerData.value.tags,
-    comments: fullTravelerData.value.comments_count,
-  }
-})
+const itemData = computed(() => ({
+  id: props.traveler.id,
+  type: 'traveler',
+  title: props.traveler.title,
+  content: props.traveler.content,
+  image: props.traveler.image,
+  author: props.traveler.author,
+  avatar: props.traveler.avatar,
+  location: props.traveler.location,
+  date: props.traveler.date,
+  status: props.traveler.status,
+  people: props.traveler.people,
+  tags: props.traveler.tags,
+  comments: props.traveler.comments,
+}))
 
 onMounted(async () => {
-  await loadTravelerDetail()
+  if (props.traveler) {
+    likesCount.value = props.traveler.likes || 0
+    localComments.value = props.traveler.commentsData || []
+
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+    }
+  }
 
   if (props.scrollToComments) {
     activeTab.value = 'comments'
     await nextTick()
     if (commentsSectionRef.value) {
       commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (commentInputRef.value) commentInputRef.value.focus()
     }
   }
 })
@@ -262,353 +283,306 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-[#fffef7] w-full max-w-5xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] overflow-hidden relative"
+      class="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-xl border-2 border-primary overflow-hidden relative"
     >
-      <!-- 關閉按鈕 -->
       <button
-        class="absolute top-4 right-4 z-20 bg-white/90 border-2 border-gray-800 p-2 hover:bg-gray-100 transition shadow-md rounded"
+        class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
         @click="emit('close')"
       >
         <XIcon class="w-6 h-6" />
       </button>
 
       <div class="flex-1 overflow-y-auto custom-scrollbar">
-        <!-- 載入中 -->
-        <div v-if="isLoadingDetail" class="flex items-center justify-center h-96">
-          <div class="text-center">
-            <div
-              class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
-            ></div>
-            <p class="mt-4 text-gray-600">載入中...</p>
+        <div class="relative w-full h-72 overflow-hidden">
+          <img :src="traveler.image" :alt="traveler.title" class="w-full h-full object-cover" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+
+          <div
+            :class="getStatusClasses(traveler.status)"
+            class="absolute top-4 left-4 px-4 py-2 font-bold text-sm rounded-lg border-2 border-primary"
+          >
+            {{ traveler.status }}
           </div>
         </div>
 
-        <!-- 內容 -->
-        <div v-else-if="fullTravelerData">
-          <!-- Banner 圖片 -->
-          <div class="relative w-full h-72 bg-gray-200 overflow-hidden">
-            <img
-              :src="fullTravelerData.banner_image"
-              :alt="fullTravelerData.title"
-              class="w-full h-full object-cover"
-            />
-            <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+        <div class="p-6">
+          <div class="mb-6">
+            <h1 class="text-3xl font-black text-secondary-900 mb-4">
+              {{ traveler.title }}
+            </h1>
 
-            <!-- 狀態標籤 -->
-            <div
-              :class="getStatusClasses(fullTravelerData.status)"
-              class="absolute top-4 left-4 px-4 py-2 font-bold text-sm rounded-lg border-2 border-gray-800 shadow-lg"
-            >
-              {{ fullTravelerData.status }}
+            <div class="flex items-center space-x-3 mb-4">
+              <img
+                :src="traveler.avatar"
+                class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
+              />
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="font-bold text-secondary-900">{{ traveler.author }}</span>
+                  <span
+                    class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
+                  >
+                    {{ traveler.spiritAnimal }}
+                  </span>
+                </div>
+                <div class="text-sm text-secondary-500">發布於 {{ traveler.date || '最近' }}</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-600 mb-1">
+                  <MapPinIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">地點</span>
+                </div>
+                <div class="font-bold text-secondary-900">{{ traveler.location }}</div>
+              </div>
+
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-secondary-500 mb-1">
+                  <CalendarIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">日期</span>
+                </div>
+                <div class="font-bold text-secondary-900">{{ traveler.date }}</div>
+              </div>
+
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-500 mb-1">
+                  <UsersIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">人數</span>
+                </div>
+                <div class="font-bold text-primary-600">{{ traveler.people }}</div>
+              </div>
+
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-600 mb-1">
+                  <MessageCircleIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">留言</span>
+                </div>
+                <div class="font-bold text-secondary-900">{{ totalCommentCount }}</div>
+              </div>
             </div>
           </div>
 
-          <!-- 內容區 -->
-          <div class="p-6">
-            <!-- 標題與作者資訊 -->
-            <div class="mb-6">
-              <h1 class="text-3xl font-black text-gray-900 mb-4">
-                {{ fullTravelerData.title }}
-              </h1>
-
-              <div class="flex items-center space-x-3 mb-4">
-                <img
-                  :src="fullTravelerData.author_avatar"
-                  class="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                />
-                <div>
-                  <div class="flex items-center space-x-2">
-                    <span class="font-bold text-gray-800">{{ fullTravelerData.author_name }}</span>
-                    <span
-                      class="text-sm font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
-                    >
-                      {{ fullTravelerData.spirit_animal }}
-                    </span>
-                  </div>
-                  <div class="text-sm text-gray-500">
-                    發布於 {{ formatDate(fullTravelerData.created_at) }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- 旅行資訊卡片 -->
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                  <div class="flex items-center text-red-500 mb-1">
-                    <MapPinIcon class="w-4 h-4 mr-1" />
-                    <span class="text-xs font-bold text-gray-500">地點</span>
-                  </div>
-                  <div class="font-bold text-gray-800">{{ fullTravelerData.location }}</div>
-                </div>
-
-                <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                  <div class="flex items-center text-amber-500 mb-1">
-                    <CalendarIcon class="w-4 h-4 mr-1" />
-                    <span class="text-xs font-bold text-gray-500">日期</span>
-                  </div>
-                  <div class="font-bold text-gray-800 text-sm">
-                    {{ formatDate(fullTravelerData.start_date) }}
-                  </div>
-                </div>
-
-                <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                  <div class="flex items-center text-blue-500 mb-1">
-                    <UsersIcon class="w-4 h-4 mr-1" />
-                    <span class="text-xs font-bold text-gray-500">人數</span>
-                  </div>
-                  <div class="font-bold text-blue-600">
-                    {{ fullTravelerData.current_people }}/{{ fullTravelerData.max_people }}
-                  </div>
-                </div>
-
-                <div class="bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm">
-                  <div class="flex items-center text-purple-500 mb-1">
-                    <MessageCircleIcon class="w-4 h-4 mr-1" />
-                    <span class="text-xs font-bold text-gray-500">留言</span>
-                  </div>
-                  <div class="font-bold text-gray-800">{{ totalCommentCount }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 標籤 -->
-            <div
-              v-if="fullTravelerData.tags && fullTravelerData.tags.length"
-              class="flex flex-wrap gap-2 mb-6"
+          <div v-if="traveler.tags && traveler.tags.length" class="flex flex-wrap gap-2 mb-6">
+            <span
+              v-for="tag in traveler.tags"
+              :key="tag"
+              class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
             >
-              <span
-                v-for="tag in fullTravelerData.tags"
-                :key="tag"
-                class="text-sm font-medium text-purple-700 bg-purple-100 px-3 py-1 rounded-full"
-              >
-                #{{ tag }}
-              </span>
-            </div>
+              #{{ tag }}
+            </span>
+          </div>
 
-            <!-- 內容描述 -->
-            <div class="prose prose-lg max-w-none mb-6">
-              <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {{ fullTravelerData.content }}
-              </p>
-            </div>
+          <div class="prose prose-lg max-w-none mb-6">
+            <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
+              {{ traveler.content }}
+            </p>
+          </div>
 
-            <!-- 互動按鈕 -->
-            <div class="flex items-center space-x-4 py-4 border-t border-b border-gray-200 mb-6">
+          <div class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6">
+            <button
+              :class="[
+                'flex items-center space-x-1 transition group',
+                isLiked ? 'text-accent-600' : 'text-secondary-400 hover:text-accent-600',
+              ]"
+              @click="handleLike"
+            >
+              <HeartIcon
+                :class="[
+                  'w-5 h-5 transition-transform group-active:scale-125',
+                  { 'fill-current': isLiked },
+                ]"
+              />
+              <span class="font-bold">{{ likesCount || 0 }}</span>
+            </button>
+
+            <button
+              :class="[
+                'flex items-center space-x-1 transition group',
+                userStore.isCollected(itemData)
+                  ? 'text-primary-600'
+                  : 'text-secondary-400 hover:text-primary-600',
+              ]"
+              @click="
+                userStore.isCollected(itemData)
+                  ? userStore.removeFromCollection(itemData)
+                  : userStore.openCollectionModal(itemData)
+              "
+            >
+              <BookmarkIcon
+                :class="[
+                  'w-5 h-5 transition-transform group-active:scale-125',
+                  { 'fill-current': userStore.isCollected(itemData) },
+                ]"
+              />
+            </button>
+
+            <button
+              v-if="traveler.status === '招募中'"
+              class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md"
+            >
+              聯繫作者
+            </button>
+            <div v-else class="ml-auto text-secondary-400 font-bold">
+              {{ traveler.status }}
+            </div>
+          </div>
+
+          <div class="border-b-2 border-primary-200 mb-6">
+            <div class="flex space-x-1">
               <button
                 :class="[
-                  'flex items-center space-x-1 transition group',
-                  isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500',
+                  'px-6 py-3 font-bold transition relative',
+                  activeTab === 'itinerary'
+                    ? 'text-primary-600 border-b-4 border-primary-600'
+                    : 'text-secondary-400 hover:text-secondary-600',
                 ]"
-                @click="handleLike"
+                @click="activeTab = 'itinerary'"
               >
-                <HeartIcon
-                  :class="[
-                    'w-5 h-5 transition-transform group-active:scale-125',
-                    { 'fill-current': isLiked },
-                  ]"
-                />
-                <span class="font-bold">{{ likesCount }}</span>
+                <MapIcon class="w-5 h-5 inline mr-2" />
+                行程規劃
               </button>
-
               <button
-                v-if="itemData"
                 :class="[
-                  'flex items-center space-x-1 transition group',
-                  userStore.isCollected(itemData)
-                    ? 'text-yellow-500'
-                    : 'text-gray-400 hover:text-yellow-600',
+                  'px-6 py-3 font-bold transition relative',
+                  activeTab === 'comments'
+                    ? 'text-primary-600 border-b-4 border-primary-600'
+                    : 'text-secondary-400 hover:text-secondary-600',
                 ]"
-                @click="
-                  userStore.isCollected(itemData)
-                    ? userStore.removeFromCollection(itemData)
-                    : userStore.openCollectionModal(itemData)
-                "
+                @click="activeTab = 'comments'"
               >
-                <BookmarkIcon
-                  :class="[
-                    'w-5 h-5 transition-transform group-active:scale-125',
-                    { 'fill-current': userStore.isCollected(itemData) },
-                  ]"
-                />
+                <MessageCircleIcon class="w-5 h-5 inline mr-2" />
+                留言討論 ({{ totalCommentCount }})
               </button>
+            </div>
+          </div>
 
+          <div v-if="activeTab === 'itinerary'" class="space-y-6">
+            <div class="flex overflow-x-auto space-x-2 pb-2">
               <button
-                v-if="fullTravelerData.status === '招募中'"
-                class="ml-auto bg-amber-500 text-white px-6 py-2 rounded-full font-bold hover:bg-amber-600 transition shadow-md"
+                v-for="(day, index) in itineraryData.days"
+                :key="index"
+                :class="[
+                  'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
+                  activeDayIndex === index
+                    ? 'bg-primary-600 text-white border-primary-700'
+                    : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
+                ]"
+                @click="activeDayIndex = index"
               >
-                聯繫作者
+                Day {{ index + 1 }} - {{ getDayLabel(index) }}
               </button>
-              <div v-else class="ml-auto text-gray-400 font-bold">
-                {{ fullTravelerData.status }}
-              </div>
             </div>
 
-            <!-- Tab 切換 -->
-            <div class="border-b-2 border-gray-200 mb-6">
-              <div class="flex space-x-1">
-                <button
-                  :class="[
-                    'px-6 py-3 font-bold transition relative',
-                    activeTab === 'itinerary'
-                      ? 'text-indigo-600 border-b-4 border-indigo-600'
-                      : 'text-gray-400 hover:text-gray-600',
-                  ]"
-                  @click="activeTab = 'itinerary'"
-                >
-                  <MapIcon class="w-5 h-5 inline mr-2" />
-                  行程規劃
-                </button>
-                <button
-                  :class="[
-                    'px-6 py-3 font-bold transition relative',
-                    activeTab === 'comments'
-                      ? 'text-indigo-600 border-b-4 border-indigo-600'
-                      : 'text-gray-400 hover:text-gray-600',
-                  ]"
-                  @click="activeTab = 'comments'"
-                >
-                  <MessageCircleIcon class="w-5 h-5 inline mr-2" />
-                  留言討論 ({{ totalCommentCount }})
-                </button>
-              </div>
-            </div>
-
-            <!-- 行程內容區 -->
-            <div v-if="activeTab === 'itinerary'" class="space-y-6">
-              <!-- 天數選擇 -->
+            <div class="space-y-4">
               <div
-                v-if="itineraryData.days && itineraryData.days.length > 0"
-                class="flex overflow-x-auto space-x-2 pb-2"
+                v-for="activity in activeDay.activities"
+                :key="activity.id"
+                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
               >
-                <button
-                  v-for="(day, index) in itineraryData.days"
-                  :key="index"
-                  :class="[
-                    'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
-                    activeDayIndex === index
-                      ? 'bg-indigo-600 text-white border-indigo-700'
-                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
-                  ]"
-                  @click="activeDayIndex = index"
-                >
-                  Day {{ index + 1 }} - {{ getDayLabel(index) }}
-                </button>
-              </div>
-
-              <!-- 活動列表 -->
-              <div v-if="activeDay.activities && activeDay.activities.length > 0" class="space-y-4">
-                <div
-                  v-for="activity in activeDay.activities"
-                  :key="activity.id"
-                  class="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-sm"
-                >
-                  <div class="flex gap-4">
-                    <div class="w-20 shrink-0">
-                      <div class="text-2xl font-black text-indigo-600">
-                        {{ activity.time }}
-                      </div>
-                    </div>
-                    <div class="flex-1">
-                      <div class="flex items-center space-x-2 mb-2">
-                        <component
-                          :is="getIconComponent(activity.icon)"
-                          class="w-5 h-5 text-indigo-500"
-                        />
-                        <h4 class="text-lg font-bold text-gray-800">{{ activity.title }}</h4>
-                      </div>
-                      <p class="text-gray-600 text-sm">{{ activity.desc }}</p>
+                <div class="flex gap-4">
+                  <div class="w-20 shrink-0">
+                    <div class="text-2xl font-black text-primary-600">
+                      {{ activity.time }}
                     </div>
                   </div>
-                </div>
-              </div>
-              <div v-else class="text-center text-gray-400 py-10">這一天還沒有安排活動</div>
-
-              <!-- 打包清單 -->
-              <div
-                v-if="itineraryData.packingList && itineraryData.packingList.length > 0"
-                class="mt-8"
-              >
-                <h3 class="font-black text-lg text-gray-800 flex items-center mb-4">
-                  <CheckSquareIcon class="w-5 h-5 mr-2 text-green-500" />
-                  建議攜帶物品
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div
-                    v-for="(cat, catIndex) in itineraryData.packingList"
-                    :key="catIndex"
-                    class="bg-white border-2 border-gray-200 rounded-lg p-4"
-                  >
-                    <h4 class="font-bold text-gray-700 mb-3">{{ cat.category }}</h4>
-                    <div class="space-y-2">
-                      <div v-for="item in cat.items" :key="item.id" class="flex items-center">
-                        <input
-                          v-model="item.checked"
-                          type="checkbox"
-                          class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mr-2"
-                          disabled
-                        />
-                        <span
-                          :class="[
-                            'text-sm',
-                            item.checked ? 'text-gray-400 line-through' : 'text-gray-700',
-                          ]"
-                        >
-                          {{ item.name }}
-                        </span>
-                      </div>
+                  <div class="flex-1">
+                    <div class="flex items-center space-x-2 mb-2">
+                      <component
+                        :is="getIconComponent(activity.icon)"
+                        class="w-5 h-5 text-primary-500"
+                      />
+                      <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
                     </div>
+                    <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 留言區 -->
-            <div v-if="activeTab === 'comments'" ref="commentsSectionRef">
-              <div v-if="normalizedComments.length" class="space-y-4">
+            <div v-if="itineraryData.packingList" class="mt-8">
+              <h3 class="font-black text-lg text-secondary-900 flex items-center mb-4">
+                <CheckSquareIcon class="w-5 h-5 mr-2 text-primary" />
+                建議攜帶物品
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
-                  v-for="comment in normalizedComments"
-                  :key="comment.id"
-                  class="bg-white p-4 rounded-lg border-2 border-gray-200"
+                  v-for="(cat, catIndex) in itineraryData.packingList"
+                  :key="catIndex"
+                  class="bg-white border-2 border-secondary-200 rounded-lg p-4"
                 >
-                  <div class="flex items-start space-x-3">
-                    <img
-                      :src="comment.avatar"
-                      class="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
-                    />
-                    <div class="flex-1">
-                      <div class="flex justify-between items-start mb-1">
-                        <span class="font-bold text-gray-800">{{ comment.author }}</span>
-                        <span class="text-xs text-gray-400">{{ comment.time }}</span>
-                      </div>
-                      <p class="text-gray-700 text-sm mb-2">{{ comment.content }}</p>
-
-                      <div class="flex items-center space-x-4 text-xs text-gray-500">
-                        <button
-                          class="flex items-center space-x-1 hover:text-red-500 transition"
-                          @click="toggleCommentLike(comment)"
-                        >
-                          <HeartIcon
-                            :class="['w-3 h-3', comment.isLiked ? 'fill-red-500 text-red-500' : '']"
-                          />
-                          <span>{{ comment.likes || 0 }}</span>
-                        </button>
-                      </div>
-
-                      <!-- 回覆 -->
-                      <div
-                        v-if="comment.replies && comment.replies.length"
-                        class="mt-3 pl-4 border-l-2 border-indigo-200 space-y-2"
+                  <h4 class="font-bold text-secondary-700 mb-3">{{ cat.category }}</h4>
+                  <div class="space-y-2">
+                    <div v-for="item in cat.items" :key="item.id" class="flex items-center">
+                      <input
+                        v-model="item.checked"
+                        type="checkbox"
+                        class="w-4 h-4 text-primary-600 rounded border-secondary-300 focus:ring-primary-500 mr-2"
+                        disabled
+                      />
+                      <span
+                        :class="[
+                          'text-sm',
+                          item.checked ? 'text-secondary-400 line-through' : 'text-secondary-700',
+                        ]"
                       >
-                        <div v-for="reply in comment.replies" :key="reply.id">
-                          <div class="flex items-start space-x-2">
-                            <img :src="reply.avatar" class="w-7 h-7 rounded-full object-cover" />
-                            <div class="flex-1">
-                              <span class="font-bold text-gray-800 text-xs">{{
-                                reply.author
-                              }}</span>
-                              <span class="text-xs text-gray-400 ml-2">{{ reply.time }}</span>
-                              <p class="text-gray-700 text-xs mt-0.5">{{ reply.content }}</p>
-                            </div>
+                        {{ item.name }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="activeTab === 'comments'" ref="commentsSectionRef">
+            <div v-if="normalizedComments.length" class="space-y-4">
+              <div
+                v-for="comment in normalizedComments"
+                :key="comment.id"
+                class="bg-white p-4 rounded-lg border-2 border-secondary-200"
+              >
+                <div class="flex items-start space-x-3">
+                  <img
+                    :src="comment.avatar"
+                    class="w-10 h-10 rounded-full object-cover border-2 border-secondary-100"
+                  />
+                  <div class="flex-1">
+                    <div class="flex justify-between items-start mb-1">
+                      <span class="font-bold text-secondary-900">{{ comment.author }}</span>
+                      <span class="text-xs text-secondary-400">{{ comment.time }}</span>
+                    </div>
+                    <p class="text-secondary-700 text-sm mb-2">{{ comment.content }}</p>
+
+                    <div class="flex items-center space-x-4 text-xs text-secondary-500">
+                      <button
+                        class="flex items-center space-x-1 hover:text-accent-600 transition"
+                        @click="toggleCommentLike(comment)"
+                      >
+                        <HeartIcon
+                          :class="[
+                            'w-3 h-3',
+                            comment.isLiked ? 'fill-current text-accent-600' : '',
+                          ]"
+                        />
+                        <span>{{ comment.likes || 0 }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="comment.replies && comment.replies.length"
+                      class="mt-3 pl-4 border-l-2 border-primary-200 space-y-2"
+                    >
+                      <div v-for="reply in comment.replies" :key="reply.id">
+                        <div class="flex items-start space-x-2">
+                          <img :src="reply.avatar" class="w-7 h-7 rounded-full object-cover" />
+                          <div class="flex-1">
+                            <span class="font-bold text-secondary-900 text-xs">{{
+                              reply.author
+                            }}</span>
+                            <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                            <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
                           </div>
                         </div>
                       </div>
@@ -616,29 +590,27 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
-              <div v-else class="text-center text-gray-400 py-10">目前沒有留言，來當第一個吧！</div>
+            </div>
+            <div v-else class="text-center text-secondary-400 py-10">
+              目前沒有留言，來當第一個吧！
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 留言輸入區（固定底部） -->
-      <div
-        v-if="activeTab === 'comments' && fullTravelerData"
-        class="p-4 border-t-2 border-gray-200 bg-white"
-      >
+      <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-secondary-200 bg-white">
         <div v-if="userStore.isLoggedIn" class="flex space-x-3">
           <input
             ref="commentInputRef"
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
-            class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 transition shadow-inner bg-gray-50 focus:bg-white outline-none"
+            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
             @keyup.enter="submitComment"
           />
           <button
             :disabled="!newComment.trim()"
-            class="bg-amber-500 text-white px-5 py-3 rounded-lg font-bold hover:bg-amber-600 transition disabled:opacity-50 flex items-center justify-center shadow-md"
+            class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
             @click="submitComment"
           >
             <SendIcon class="w-5 h-5" />
@@ -646,11 +618,11 @@ onMounted(async () => {
         </div>
         <div
           v-else
-          class="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg border-2 border-gray-200"
+          class="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-lg border-2 border-secondary-200"
         >
-          <p class="text-gray-600 mb-2">登入後才能回覆</p>
+          <p class="text-secondary-600 mb-2">登入後才能回覆</p>
           <button
-            class="bg-orange-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-orange-600 transition"
+            class="bg-primary-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-primary-700 transition"
             @click="router.push('/login')"
           >
             登入

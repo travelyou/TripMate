@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { ref } from 'vue'
-import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
+import { storeToRefs } from 'pinia'
 import {
   Calendar as CalendarIcon,
   FolderOpen as FolderIcon,
@@ -12,7 +12,6 @@ import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
 const myItineraryStore = useMyItineraryStore()
 
-// 🟢 2. 使用 storeToRefs 拿資料，這樣資料變動時畫面才會跟著變
 const { myItineraries, drafts } = storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
@@ -33,7 +32,7 @@ const openAddItineraryModal = () => {
     startDate: '',
     endDate: '',
     status: 'planning',
-    // 🟢 3. 預設給一個 Day 1，不然組員的彈窗可能會報錯
+
     days: [{ day: 1, date: '', activities: [] }],
     packingList: [
       { category: '證件', items: [] },
@@ -47,13 +46,18 @@ const openAddItineraryModal = () => {
 // 開啟草稿
 const openDraft = (draft) => {
   // 判斷草稿類型，如果是行程草稿就打開編輯
-  if ((draft.type === 'my_itinerary' || draft.type === 'itinerary') && (draft.data || draft.rawItinerary)) {
+  if (
+    (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
+    (draft.data || draft.rawItinerary)
+  ) {
     // 兼容兩種草稿結構 (你原本寫的 & 我之前教你的)
     const dataToLoad = draft.data || draft.rawItinerary
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
     isDetailModalOpen.value = true
   } else {
-    alert(`這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`)
+    alert(
+      `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
+    )
   }
 }
 
@@ -65,7 +69,7 @@ const handleSaveDraft = (draftItinerary) => {
     typeLabel: '我的行程',
     title: draftItinerary.title || '(未命名行程)',
     content: `日期: ${draftItinerary.startDate || '?'} ~ ${draftItinerary.endDate || '?'}`,
-    rawItinerary: draftItinerary // 把整包資料存起來
+    rawItinerary: draftItinerary, // 把整包資料存起來
   })
 
   isDetailModalOpen.value = false
@@ -88,9 +92,10 @@ const handleSaveItinerary = (updatedItinerary) => {
 
   // 2. 從草稿夾移除 (如果這個行程原本是草稿)
   // (這裡簡單過濾掉 id 相同的草稿)
-  const draftIndex = myItineraryStore.drafts.findIndex(d =>
-    (d.data && d.data.id === updatedItinerary.id) ||
-    (d.rawItinerary && d.rawItinerary.id === updatedItinerary.id)
+  const draftIndex = myItineraryStore.drafts.findIndex(
+    (d) =>
+      (d.data && d.data.id === updatedItinerary.id) ||
+      (d.rawItinerary && d.rawItinerary.id === updatedItinerary.id),
   )
 
   if (draftIndex !== -1) {
@@ -110,7 +115,8 @@ const handleDeleteItinerary = (id) => {
 const getTagColor = (type) => {
   if (type === 'discussion') return 'bg-primary-600 text-white border-primary-700'
   if (type === 'traveler') return 'bg-primary-500 text-white border-primary-600'
-  if (type === 'my_itinerary' || type === 'itinerary') return 'bg-primary-700 text-white border-primary-800'
+  if (type === 'my_itinerary' || type === 'itinerary')
+    return 'bg-primary-700 text-white border-primary-800'
   return 'bg-secondary-500 text-white'
 }
 </script>
@@ -179,7 +185,10 @@ const getTagColor = (type) => {
             </div>
           </div>
 
-          <div v-if="myItineraries.length === 0" class="text-center py-10 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg">
+          <div
+            v-if="myItineraries.length === 0"
+            class="text-center py-10 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg"
+          >
             目前沒有行程，點擊下方按鈕新增！
           </div>
         </div>

@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
-import PostingChoiceCard from '@/components/cards/PostingChoiceCard.vue'
+import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import { getTravelers } from '@/api/travelers'
 
@@ -51,6 +51,12 @@ const handleFilterChange = (filter) => {
 }
 
 const handleTravelerUpdated = () => {
+  loadTravelers()
+}
+
+// 處理發文成功
+const handlePostSuccess = () => {
+  isPostingModalOpen.value = false
   loadTravelers()
 }
 
@@ -127,7 +133,11 @@ onMounted(() => {
     </div>
   </div>
 
-  <PostingChoiceCard v-if="isPostingModalOpen" @close="isPostingModalOpen = false" />
+  <TravelerPostModal
+    v-if="isPostingModalOpen"
+    @close="isPostingModalOpen = false"
+    @success="handlePostSuccess"
+  />
 
   <TravelerDetailModal
     v-if="isDetailModalOpen"
