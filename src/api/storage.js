@@ -1,78 +1,39 @@
-// src/api/storage.js
-import { supabase } from '@/supabase/config'
+// 這個檔案是拿來抓上傳圖片、檔案用的，會到 Firebase Storage 裡面再以 URL 的形式讓 Neon 管理
+import { storage } from '@/firebase/config'
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 
-/**
- * 上傳圖片到 Supabase Storage
- * @param {File} file - 圖片文件
- * @param {string} folder - 儲存資料夾（例如：'posts', 'avatars'）
- * @returns {Promise<string>} 圖片的公開 URL
- */
 export async function uploadImage(file, folder = 'posts') {
   try {
-    // 生成唯一檔名
+    if (!file) throw new Error('未提供檔案')
+
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
-    const fileName = `${timestamp}_${randomString}_${file.name}`
+    const safeName = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+    const path = `public/${folder}/${timestamp}_${randomString}_${safeName}`
 
-    // 上傳文件到 Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(folder) // Storage bucket 名稱
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      })
+    const fileRef = ref(storage, path)
+    await uploadBytes(fileRef, file, { contentType: file.type || 'application/octet-stream' })
+    const url = await getDownloadURL(fileRef)
 
-    if (error) {
-      throw error
-    }
-
-    // 獲取公開 URL
-    const { data: urlData } = supabase.storage
-      .from(folder)
-      .getPublicUrl(data.path)
-
-    return urlData.publicUrl
+    return { url, path }
   } catch (error) {
     console.error('圖片上傳失敗：', error)
-    throw new Error('圖片上傳失敗：' + error.message)
+    throw new Error('圖片上傳失敗：' + (error?.message || String(error)))
   }
 }
 
-/**
- * 上傳多張圖片
- * @param {File[]} files - 圖片文件陣列
- * @param {string} folder - 儲存資料夾
- * @returns {Promise<string[]>} 圖片的公開 URL 陣列
- */
 export async function uploadMultipleImages(files, folder = 'posts') {
   try {
-    const uploadPromises = Array.from(files).map((file) => uploadImage(file, folder))
-    const urls = await Promise.all(uploadPromises)
-    return urls
+    const list = Array.from(files || [])
+    return await Promise.all(list.map((f) => uploadImage(f, folder)))
   } catch (error) {
     console.error('批量圖片上傳失敗：', error)
-    throw new Error('批量圖片上傳失敗：' + error.message)
+    throw new Error('批量圖片上傳失敗：' + (error?.message || String(error)))
   }
 }
 
-/**
- * 刪除圖片
- * @param {string} filePath - 圖片路徑
- * @param {string} folder - 儲存資料夾
- */
-export async function deleteImage(filePath, folder = 'posts') {
-  try {
-    const { error } = await supabase.storage
-      .from(folder)
-      .remove([filePath])
-
-    if (error) {
-      throw error
-    }
-  } catch (error) {
-    console.error('圖片刪除失敗：', error)
-    throw new Error('圖片刪除失敗：' + error.message)
-  }
+export async function deleteImageByPath(path) {
+  if (!path) throw new Error('缺少 path')
+  const fileRef = ref(storage, path)
+  await deleteObject(fileRef)
 }
-
-
