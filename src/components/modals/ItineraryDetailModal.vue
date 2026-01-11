@@ -10,7 +10,7 @@ import {
   CheckSquare as CheckSquareIcon,
   Save as SaveIcon,
   Map as MapIcon,
-  FileText as FileTextIcon, // 🟢 新增：草稿圖示
+  FileText as FileTextIcon,
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -20,16 +20,19 @@ const props = defineProps({
   },
 })
 
-// 🟢 新增 'save-draft' 事件
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
 
 const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
 
 const activeDayIndex = ref(0)
 const activeDay = computed(() => {
-  if (!localItinerary.value.days) localItinerary.value.days = []
-  return localItinerary.value.days[activeDayIndex.value] || { activities: [] }
+  // 1. 先把 days 拿出來，如果是 undefined 就當作空陣列 (不要用 = 去賦值修改它)
+  const days = localItinerary.value.days || []
+
+  // 2. 安全地回傳當天的內容，如果找不到就回傳空活動
+  return days[activeDayIndex.value] || { activities: [] }
 })
+
 
 const getDayLabel = (index) => {
   const startDateStr = localItinerary.value.startDate
@@ -110,7 +113,6 @@ const handleSave = () => {
   emit('save', localItinerary.value)
 }
 
-// 🟢 新增：處理暫存草稿
 const handleSaveDraft = () => {
   emit('save-draft', localItinerary.value)
 }
@@ -124,11 +126,11 @@ const handleDelete = () => {
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
+    class="fixed inset-0 bg-black/60 z-[200] flex justify-center items-center p-4"
     @click.self="emit('close')"
   >
     <div
-      class="bg-[#fffef7] w-full max-w-6xl max-h-[90vh] flex flex-col pixel-modal shadow-2xl overflow-hidden relative"
+      class="bg-[#fffef7] w-full max-w-6xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] overflow-hidden relative itinerary-detail"
     >
       <div class="p-4 border-b-2 border-gray-200 flex justify-between items-start bg-white z-10">
         <div class="flex-1">
@@ -352,9 +354,6 @@ const handleDelete = () => {
 </template>
 
 <style scoped>
-.pixel-modal {
-  border: 4px solid #1f2937;
-}
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

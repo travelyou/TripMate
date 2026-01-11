@@ -63,7 +63,7 @@ router.post('/', async (req, res) => {
     }
   } catch (error) {
     console.error('創建/更新用戶失敗：', error);
-    res.status(500).json({ error: '創建/更新用戶失敗', details: error.message });
+    res.status(500).json({ error: '創建/更新用戶失敗', details: error?.message || String(error) });
   }
 });
 
@@ -81,7 +81,7 @@ router.get('/:uid', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('獲取用戶資料失敗：', error);
-    res.status(500).json({ error: '獲取用戶資料失敗', details: error.message });
+    res.status(500).json({ error: '獲取用戶資料失敗', details: error?.message || String(error) });
   }
 });
 
@@ -120,7 +120,7 @@ router.put('/:uid', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('更新用戶資料失敗：', error);
-    res.status(500).json({ error: '更新用戶資料失敗', details: error.message });
+    res.status(500).json({ error: '更新用戶資料失敗', details: error?.message || String(error) });
   }
 });
 

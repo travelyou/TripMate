@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import {
   X as XIcon,
@@ -26,13 +26,20 @@ const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(0)
 
+// 顯示用讚數：注意 0 也要顯示，不能用 `likesCount || ...` 這種會把 0 當成 false 的寫法
+const displayLikesCount = computed(() => {
+  return typeof likesCount.value === 'number'
+    ? likesCount.value
+    : (props.post?.likes ?? 0)
+})
+
 // 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
   // 如果用戶狀態改變，重新載入按讚狀態
-  if (props.post?.id && (previousUid !== currentUserUid.value)) {
+  if (props.post?.id && previousUid !== currentUserUid.value) {
     if (currentUserUid.value) {
       await loadLikesInfo()
     } else {
@@ -166,13 +173,24 @@ const handlePostLike = async () => {
     console.log('按讚操作成功，結果：', result)
     isLiked.value = result.liked
     likesCount.value = result.likesCount
+
+    // 同步回寫到 post，讓 modal 內其他顯示/父層列表保持一致
+    if (props.post) {
+      props.post.isLiked = result.liked
+      props.post.likes = result.likesCount
+    }
+    emit('post-updated', {
+      ...props.post,
+      isLiked: result.liked,
+      likes: result.likesCount,
+    })
   } catch (error) {
     console.error('按讚操作失敗：', error)
     console.error('錯誤詳情：', {
       message: error.message,
       stack: error.stack,
       postId: props.post?.id,
-      userId: currentUserUid.value
+      userId: currentUserUid.value,
     })
     alert(`按讚操作失敗：${error.message || '請稍後再試'}`)
   }
@@ -211,9 +229,17 @@ const submitComment = async () => {
     const updatedPost = await discussionsStore.loadPostById(props.post.id)
 
     // 更新本地留言列表
-    if (updatedPost && Array.isArray(updatedPost.commentsData) && updatedPost.commentsData.length > 0) {
+    if (
+      updatedPost &&
+      Array.isArray(updatedPost.commentsData) &&
+      updatedPost.commentsData.length > 0
+    ) {
       localComments.value = updatedPost.commentsData
-    } else if (updatedPost && Array.isArray(updatedPost.comments) && updatedPost.comments.length > 0) {
+    } else if (
+      updatedPost &&
+      Array.isArray(updatedPost.comments) &&
+      updatedPost.comments.length > 0
+    ) {
       localComments.value = updatedPost.comments
     }
 
@@ -248,10 +274,18 @@ const loadPostDetail = async () => {
     console.log('留言數據：', updatedPost?.commentsData)
 
     // 更新本地留言列表
-    if (updatedPost && Array.isArray(updatedPost.commentsData) && updatedPost.commentsData.length > 0) {
+    if (
+      updatedPost &&
+      Array.isArray(updatedPost.commentsData) &&
+      updatedPost.commentsData.length > 0
+    ) {
       localComments.value = updatedPost.commentsData
       console.log('已更新本地留言列表，數量：', localComments.value.length)
-    } else if (updatedPost && Array.isArray(updatedPost.comments) && updatedPost.comments.length > 0) {
+    } else if (
+      updatedPost &&
+      Array.isArray(updatedPost.comments) &&
+      updatedPost.comments.length > 0
+    ) {
       localComments.value = updatedPost.comments
       console.log('已更新本地留言列表（從 comments），數量：', localComments.value.length)
     } else {
@@ -278,17 +312,21 @@ const loadPostDetail = async () => {
 }
 
 // 監聽 post.id 變化，當打開 modal 時重新載入
-watch(() => props.post?.id, async (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    // 重置狀態
-    isLiked.value = false
-    likesCount.value = props.post?.likes || 0
-    localComments.value = []
+watch(
+  () => props.post?.id,
+  async (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      // 重置狀態
+      isLiked.value = false
+      likesCount.value = props.post?.likes || 0
+      localComments.value = []
 
-    // 載入貼文詳情和按讚狀態
-    await loadPostDetail()
-  }
-}, { immediate: true })
+      // 載入貼文詳情和按讚狀態
+      await loadPostDetail()
+    }
+  },
+  { immediate: true },
+)
 
 // 監聽用戶登入狀態變化
 watch(currentUserUid, async (newUid, oldUid) => {
@@ -332,33 +370,33 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col pixel-modal"
+      class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col border-2 border-primary-600 shadow-primary-2xl"
     >
       <header
-        class="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-xl"
+        class="p-4 border-b border-secondary-200 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-xl"
       >
-        <h3 class="text-xl font-bold text-gray-800">
+        <h3 class="text-xl font-bold text-secondary-800">
           {{ post.price || post.agencyName ? '行程詳情與諮詢' : '貼文詳情與討論' }}
         </h3>
-        <button class="text-gray-500 hover:text-gray-800 transition" @click="emit('close')">
+        <button class="text-secondary-500 hover:text-secondary-800 transition" @click="emit('close')">
           <XIcon class="w-6 h-6" />
         </button>
       </header>
 
       <div class="flex-grow overflow-y-auto custom-scrollbar p-5">
-        <div class="mb-6 pb-4 border-b-2 border-amber-300">
+        <div class="mb-6 pb-4 border-b-2 border-primary-200">
           <div class="flex items-center space-x-3 mb-3">
             <img
               :src="post.avatar || post.author?.avatar"
-              class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
             />
             <div>
-              <span class="font-bold text-gray-800">{{
+              <span class="font-bold text-secondary-800">{{
                 post.author?.nickname || post.author
               }}</span>
-              <div class="text-xs text-gray-400">
+              <div class="text-xs text-secondary-400">
                 {{ post.time || '剛剛' }} • {{ post.spiritAnimal || post.author?.spiritAnimal }}
-                <span v-if="post.agencyName" class="text-orange-500 font-bold ml-1">
+                <span v-if="post.agencyName" class="text-primary-600 font-bold ml-1">
                   (由 {{ post.agencyName }} 提供)
                 </span>
               </div>
@@ -367,14 +405,14 @@ onMounted(async () => {
 
           <div
             v-if="post.image || post.coverImage"
-            class="w-full max-h-96 object-cover rounded-lg overflow-hidden mb-4 bg-gray-100"
+            class="w-full max-h-96 object-cover rounded-lg overflow-hidden mb-4 bg-secondary-100"
           >
             <img :src="post.image || post.coverImage" class="w-full h-full object-cover" />
           </div>
 
-          <h4 class="text-xl font-bold text-gray-900 mb-3">{{ post.title }}</h4>
+          <h4 class="text-xl font-bold text-secondary-900 mb-3">{{ post.title }}</h4>
 
-          <p class="text-gray-700 text-base mb-4 leading-relaxed whitespace-pre-wrap">
+          <p class="text-secondary-700 text-base mb-4 leading-relaxed whitespace-pre-wrap">
             {{ post.fullContent || post.content }}
           </p>
 
@@ -382,13 +420,13 @@ onMounted(async () => {
             <span
               v-for="tag in post.tags"
               :key="tag"
-              class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full"
+              class="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-full"
             >
               #{{ tag }}
             </span>
           </div>
 
-          <div class="flex items-center text-gray-400 text-sm mt-4 border-t border-gray-100 pt-3">
+          <div class="flex items-center text-secondary-400 text-sm mt-4 border-t border-secondary-100 pt-3">
             <button
               :class="[
                 'flex items-center space-x-1 transition mr-6 group',
@@ -402,17 +440,17 @@ onMounted(async () => {
                   { 'fill-current': isLiked },
                 ]"
               />
-              <span>{{ likesCount || post.likes || 0 }}</span>
+              <span>{{ displayLikesCount }}</span>
             </button>
 
-            <div class="flex items-center space-x-1 text-indigo-600 mr-6">
+            <div class="flex items-center space-x-1 text-primary-600 mr-6">
               <MessageCircleIcon class="w-4 h-4" /> <span>{{ totalCommentCount }} 留言</span>
             </div>
 
             <button
               :class="[
                 'flex items-center space-x-1 transition mr-6 group',
-                userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600',
+                userStore.isCollected(itemData) ? 'text-primary-500' : 'hover:text-primary-600',
               ]"
               @click="
                 userStore.isCollected(itemData)
@@ -429,7 +467,7 @@ onMounted(async () => {
             </button>
 
             <button
-              class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
+              class="ml-auto flex items-center space-x-1 hover:text-secondary-600 transition"
               @click="isShareModalOpen = true"
             >
               <Repeat2Icon class="w-4 h-4" />
@@ -439,28 +477,28 @@ onMounted(async () => {
 
         <div ref="commentsSectionRef">
           <div v-if="normalizedComments.length">
-            <h4 class="font-bold text-lg mb-4 text-amber-800">
+            <h4 class="font-bold text-lg mb-4 text-primary-700">
               所有留言 ({{ totalCommentCount }})
             </h4>
 
             <div
               v-for="comment in normalizedComments"
               :key="comment.id"
-              class="mb-6 p-4 rounded-lg bg-white border-b border-gray-100"
+              class="mb-6 p-4 rounded-lg bg-white border-b border-secondary-100"
             >
               <div class="flex items-start space-x-3">
                 <img
                   :src="comment.avatar"
-                  class="w-8 h-8 rounded-full object-cover border-2 border-gray-100 mt-1"
+                  class="w-8 h-8 rounded-full object-cover border-2 border-secondary-100 mt-1"
                 />
                 <div class="flex-1">
                   <div class="flex justify-between items-start">
-                    <span class="font-bold text-gray-800 text-sm">{{ comment.author }}</span>
-                    <span class="text-xs text-gray-400">{{ comment.time }}</span>
+                    <span class="font-bold text-secondary-800 text-sm">{{ comment.author }}</span>
+                    <span class="text-xs text-secondary-400">{{ comment.time }}</span>
                   </div>
-                  <p class="text-gray-700 text-sm mt-1">{{ comment.content }}</p>
+                  <p class="text-secondary-700 text-sm mt-1">{{ comment.content }}</p>
 
-                  <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                  <div class="flex items-center space-x-4 mt-2 text-xs text-secondary-500">
                     <button
                       class="flex items-center space-x-1 hover:text-red-500 transition"
                       @click="toggleCommentLike(comment)"
@@ -474,7 +512,7 @@ onMounted(async () => {
                       <span>{{ comment.likes || 0 }}</span>
                     </button>
                     <button
-                      class="hover:text-amber-600 transition font-medium"
+                      class="hover:text-primary-600 transition font-medium"
                       @click="startReply(comment.id, comment.author)"
                     >
                       回覆
@@ -483,19 +521,19 @@ onMounted(async () => {
 
                   <div
                     v-if="comment.replies && comment.replies.length"
-                    class="mt-3 pl-4 border-l-2 border-indigo-200 space-y-3"
+                    class="mt-3 pl-4 border-l-2 border-primary-200 space-y-3"
                   >
                     <div v-for="reply in comment.replies" :key="reply.id" class="pt-1">
                       <div class="flex items-start space-x-2">
                         <img
                           :src="reply.avatar"
-                          class="w-6 h-6 rounded-full object-cover border border-gray-100 mt-1"
+                          class="w-6 h-6 rounded-full object-cover border border-secondary-100 mt-1"
                         />
                         <div class="flex-1">
-                          <span class="font-bold text-gray-800 text-xs">{{ reply.author }}</span>
-                          <span class="text-xs text-gray-400 ml-2">{{ reply.time }}</span>
-                          <p class="text-gray-700 text-xs mt-0.5">{{ reply.content }}</p>
-                          <div class="flex items-center space-x-4 mt-1 text-[10px] text-gray-500">
+                          <span class="font-bold text-secondary-800 text-xs">{{ reply.author }}</span>
+                          <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                          <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
+                          <div class="flex items-center space-x-4 mt-1 text-[10px] text-secondary-500">
                             <button
                               class="flex items-center space-x-1 hover:text-red-500 transition"
                               @click="toggleCommentLike(reply)"
@@ -517,15 +555,15 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-          <div v-else class="text-center text-gray-500 pt-10">目前沒有留言，來當第一個吧！</div>
+          <div v-else class="text-center text-secondary-500 pt-10">目前沒有留言，來當第一個吧！</div>
         </div>
       </div>
 
-      <footer class="p-4 border-t border-gray-200 sticky bottom-0 bg-white rounded-b-xl">
-        <div v-if="isReplyingTo" class="text-sm text-indigo-600 mb-2 flex items-center">
+      <footer class="p-4 border-t border-secondary-200 sticky bottom-0 bg-white rounded-b-xl">
+        <div v-if="isReplyingTo" class="text-sm text-primary-600 mb-2 flex items-center">
           <RefreshCcwIcon class="w-4 h-4 mr-2" />
           正在回覆 {{ newComment.split(' ')[0].replace('@', '') }}...
-          <button class="ml-2 text-gray-400 hover:text-gray-600" @click="cancelReply">
+          <button class="ml-2 text-secondary-400 hover:text-secondary-600" @click="cancelReply">
             <XIcon class="w-3 h-3" />
           </button>
         </div>
@@ -537,23 +575,27 @@ onMounted(async () => {
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
-            class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 transition shadow-inner bg-gray-50 focus:bg-white outline-none"
+            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
             @keyup.enter="submitComment"
           />
           <button
             :disabled="!newComment.trim()"
-            class="bg-amber-500 text-white px-5 py-3 rounded-lg font-bold hover:bg-amber-600 transition disabled:opacity-50 flex items-center justify-center shadow-md active:shadow-sm active:translate-y-0.5"
+            class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md active:shadow-sm active:translate-y-0.5"
             @click="submitComment"
           >
             <SendIcon class="w-5 h-5" />
           </button>
         </div>
-        <div v-else class="flex flex-col items-center justify-center p-1 bg-gray-50 rounded-lg border-2 border-gray-200">
-          <p class="text-gray-600 mb-1">登入後才能回覆</p>
+        <div
+          v-else
+          class="flex flex-col items-center justify-center p-1 bg-secondary-50 rounded-lg border-2 border-secondary-200"
+        >
+          <p class="text-secondary-600 mb-1">登入後才能回覆</p>
           <button
-            class="bg-orange-500 text-white px-6 py-1 rounded-lg font-bold hover:bg-orange-600 transition"
+            class="bg-primary-600 text-white px-6 py-1 rounded-lg font-bold hover:bg-primary-700 transition"
             @click="router.push('/login')"
-          >登入
+          >
+            登入
           </button>
         </div>
       </footer>
@@ -562,15 +604,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.pixel-modal {
-  border: 4px solid #8b6f47;
-  box-shadow: 10px 10px 0px 0px rgba(139, 111, 71, 0.5);
-}
-.custom-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.custom-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* scrollbar rules moved to src/assets/main.css */
+
+/* 已移除 .pixel-modal（已用 Tailwind 類別替代） */
 </style>
+

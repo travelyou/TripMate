@@ -56,6 +56,9 @@ const router = createRouter({
       path: '/vendor/:id',
       name: 'VendorProfile',
       component: () => import('@/views/VendorProfilePage.vue'),
+      meta: {
+        hideAd: true,
+      },
     },
     {
       path: '/collections',
@@ -75,6 +78,9 @@ const router = createRouter({
       path: '/search',
       name: 'search',
       component: () => import('@/views/SearchPage.vue'),
+      meta: {
+        hideSidebar: true,
+      },
     },
     {
       path: '/cart',

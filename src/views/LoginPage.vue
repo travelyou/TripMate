@@ -11,46 +11,52 @@
         class="h-8 sm:h-10 md:h-12 w-auto object-contain"
       />
     </button>
-    <div class="flex flex-none lg:flex-[2] items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0">
+    <div
+      class="flex flex-none lg:flex-[2] items-end lg:items-center justify-center p-0 sm:p-3 md:p-4 pb-0 overflow-hidden order-1 lg:order-none -mt-2 sm:mt-0"
+    >
       <img
         src="@/assets/pic/loginPage-removebg.png"
         alt="loginPage"
-        class="w-[240px] sm:w-[420px] md:w-[560px] lg:w-[900px] xl:w-[1000px] max-w-full object-contain transform -translate-y-0 sm:-translate-y-10 lg:-translate-y-20 max-h-[40vh] sm:max-h-[50vh] lg:max-h-full"
+        class="w-60 sm:w-[420px] md:w-[560px] lg:w-[900px] xl:w-[1000px] max-w-full object-contain transform -translate-y-0 sm:-translate-y-10 lg:-translate-y-20 max-h-[40vh] sm:max-h-[50vh] lg:max-h-full"
       />
     </div>
 
-    <div class="flex flex-none lg:flex-[3] items-center justify-center sm:p-0 md:p-0 lg:p-0 order-2 lg:order-none min-h-0 lg:-mt-2 sm:mt-0 lg:pt-8">
+    <div
+      class="flex flex-none lg:flex-[3] items-center justify-center sm:p-0 md:p-0 lg:p-0 order-2 lg:order-none min-h-0 lg:-mt-2 sm:mt-0 lg:pt-8"
+    >
       <div class="w-full max-w-lg flex flex-col items-center justify-center px-4 sm:px-0">
-        <div class="w-full flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
-                <span
-          :class="[
-            'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
-            activeTab === 'login' ? 'text-orange-600' : 'text-gray-400',
-          ]"
-          @click="activeTab = 'login'"
-        >
-          登入
-        </span>
-        <button
-          type="button"
-          class="relative inline-flex h-7 w-14 sm:h-8 sm:w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shrink-0"
-          :class="activeTab === 'login' ? 'bg-orange-600' : 'bg-gray-300'"
-          @click="activeTab = activeTab === 'login' ? 'register' : 'login'"
+        <div
+          class="w-full flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6"
         >
           <span
-            class="inline-block h-5 w-5 sm:h-6 sm:w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300"
-            :class="activeTab === 'login' ? 'translate-x-1' : 'translate-x-8 sm:translate-x-9'"
-          ></span>
-        </button>
-        <span
-          :class="[
-            'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
-            activeTab === 'register' ? 'text-orange-600' : 'text-gray-400',
-          ]"
-          @click="activeTab = 'register'"
-        >
-          註冊
-        </span>
+            :class="[
+              'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
+              activeTab === 'login' ? 'text-orange-600' : 'text-gray-400',
+            ]"
+            @click="activeTab = 'login'"
+          >
+            登入
+          </span>
+          <button
+            type="button"
+            class="relative inline-flex h-7 w-14 sm:h-8 sm:w-16 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shrink-0"
+            :class="activeTab === 'login' ? 'bg-orange-600' : 'bg-gray-300'"
+            @click="activeTab = activeTab === 'login' ? 'register' : 'login'"
+          >
+            <span
+              class="inline-block h-5 w-5 sm:h-6 sm:w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300"
+              :class="activeTab === 'login' ? 'translate-x-1' : 'translate-x-8 sm:translate-x-9'"
+            ></span>
+          </button>
+          <span
+            :class="[
+              'text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 cursor-pointer select-none',
+              activeTab === 'register' ? 'text-orange-600' : 'text-gray-400',
+            ]"
+            @click="activeTab = 'register'"
+          >
+            註冊
+          </span>
         </div>
 
         <div class="form-wrapper w-full flex items-center justify-center px-2 sm:px-0">
@@ -85,7 +91,9 @@
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base">
                   密碼
-                  <span class="text-xs text-gray-500 font-normal block sm:inline">(6位以上英、數字，必須包含大小寫)</span>
+                  <span class="text-xs text-gray-500 font-normal block sm:inline"
+                    >(6位以上英、數字，必須包含大小寫)</span
+                  >
                 </label>
                 <input
                   id="password"
@@ -188,7 +196,9 @@
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base">
                   密碼
-                  <span class="text-xs text-gray-500 font-normal block sm:inline">(6位以上英、數字，必須包含大小寫)</span>
+                  <span class="text-xs text-gray-500 font-normal block sm:inline"
+                    >(6位以上英、數字，必須包含大小寫)</span
+                  >
                 </label>
                 <input
                   id="password"
@@ -282,9 +292,39 @@ const loginErrors = ref({
 //登入：送出資料
 const userStore = useUserStore()
 const router = useRouter()
+
+const applyUserProfileToStore = (profileData) => {
+  if (typeof userStore.setUserProfile === 'function') {
+    userStore.setUserProfile(profileData)
+    return
+  }
+  if (typeof userStore.updateProfile === 'function') {
+    userStore.updateProfile({
+      id: profileData?.uid,
+      uid: profileData?.uid,
+      email: profileData?.email,
+      nickname: profileData?.nickname,
+      name: profileData?.realName || profileData?.nickname,
+      avatar: profileData?.avatar,
+      bio: profileData?.bio,
+      spiritAnimal: profileData?.spiritAnimal,
+    })
+  }
+}
+
 const handleLogin = async () => {
+  // 清理 email：避免零寬字元/全形符號導致 Firebase 判定 auth/invalid-email
+  loginForm.value.email = (loginForm.value.email || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/\uFF20/g, '@') // ＠
+    .replace(/[\uFF0E\u3002\uFF61]/g, '.') // ． 。 ｡
+
   console.log('🔵 登入函數被觸發', { email: loginForm.value.email, password: loginForm.value.password ? '***' : '' })
-  
+
   //送出後出錯則欄位清空
   loginErrors.value = {
     email: '',
@@ -313,16 +353,18 @@ const handleLogin = async () => {
       loginForm.value.password,
     )
     console.log('✅ 登入成功：', userCredential.user)
-    
+
+
     // 從 Firestore 獲取用戶資料
     try {
       const userDocRef = doc(db, 'users', userCredential.user.uid)
       const userDoc = await getDoc(userDocRef)
-      
+
+
       if (userDoc.exists()) {
         // 更新 user store
         const userData = userDoc.data()
-        userStore.setUserProfile({
+        applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...userData,
@@ -331,7 +373,8 @@ const handleLogin = async () => {
         // 如果 Firestore 中沒有用戶資料，創建一個
         const defaultUserData = {
           realName: '',
-          nickname: userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
+          nickname:
+            userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
           email: userCredential.user.email,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
           bio: '',
@@ -339,7 +382,7 @@ const handleLogin = async () => {
           createdAt: new Date(),
         }
         await setDoc(userDocRef, defaultUserData)
-        userStore.setUserProfile({
+        applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...defaultUserData,
@@ -349,7 +392,8 @@ const handleLogin = async () => {
       console.error('獲取用戶資料失敗：', error)
       // 即使獲取失敗也允許登入
     }
-    
+
+
     userStore.login()
     console.log('🚀 正在跳轉到首頁...')
     router.push('/')
@@ -371,6 +415,31 @@ const handleLogin = async () => {
 //註冊：送出資料
 const handleRegister = async () => {
   try {
+    registerErrors.value = {
+      realName: '',
+      nickname: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      general: '',
+    }
+
+    const sanitizeEmail = (raw) => {
+      return (raw || '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        // 移除常見「看不見」字元（零寬空白/零寬連字/Byte Order Mark）
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        // 移除所有空白字元（含中間的空白）
+        .replace(/\s+/g, '')
+        // 常見全形符號轉半形（避免 IME 輸入造成 Firebase 判定 invalid-email）
+        .replace(/\uFF20/g, '@') // ＠
+        .replace(/[\uFF0E\u3002\uFF61]/g, '.') // 「．」「。」「 ｡」
+    }
+
+    registerForm.value.email = sanitizeEmail(registerForm.value.email)
+
     // 1. 檢查必填欄位
     if (!registerForm.value.realName) {
       registerErrors.value.realName = '請填寫真實姓名'
@@ -454,15 +523,23 @@ const handleRegister = async () => {
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
     // 更新 user store
-    userStore.setUserProfile({
+    applyUserProfileToStore({
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       ...userData,
     })
 
     console.log('註冊成功：', userCredential.user)
-    userStore.login()
-    router.push('/')
+    await userStore.logout()
+
+    // 切回登入頁籤並帶入 email，提升體驗
+    activeTab.value = 'login'
+    loginForm.value.email = registerForm.value.email
+    loginForm.value.password = ''
+
+    // 清空註冊表單（避免重複提交）
+    registerForm.value.password = ''
+    registerForm.value.confirmPassword = ''
   } catch (error) {
     console.log('註冊失敗', error.message)
     // 不同狀況的註冊失敗
@@ -470,6 +547,8 @@ const handleRegister = async () => {
       registerErrors.value.email = '此電子信箱已被註冊使用'
     } else if (error.code === 'auth/weak-password') {
       registerErrors.value.password = '密碼強度不夠'
+    } else if (error.code === 'auth/invalid-email') {
+      registerErrors.value.email = '電子信箱格式錯誤（請確認沒有空白，並使用例如 name@example.com）'
     } else {
       registerErrors.value.general = '註冊失敗：' + error.message
     }
@@ -482,6 +561,14 @@ const handleForgotPassword = async () => {
       loginErrors.value.email = '請輸入註冊時的電子郵件'
       return
     }
+    loginForm.value.email = (loginForm.value.email || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, '')
+      .replace(/\uFF20/g, '@')
+      .replace(/[\uFF0E\u3002\uFF61]/g, '.')
     await sendPasswordResetEmail(auth, loginForm.value.email)
     alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
@@ -11,7 +11,7 @@ import AppFABs from '@/components/shared/AppFABs.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import AIChatWindow from '@/components/chat/AIChatWindow.vue'
-import RightSidebarAd from '@/components/common/RightSidebarAd.vue'
+import RightSidebarAd from '@/components/shared/RightSidebarAd.vue'
 import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
 import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
 
@@ -30,6 +30,23 @@ const router = useRouter()
 const isSearchPage = computed(() => route.name === 'search')
 const hideLayout = computed(() => route.meta.hideLayout === true)
 const hideSidebar = computed(() => route.meta.hideSidebar === true)
+const showRightAd = computed(() => !hideLayout.value && !route.meta.hideAd)
+
+// 動態設定 grid 模板欄位
+const gridClass = computed(() => {
+  if (hideSidebar.value && showRightAd.value) {
+    return 'lg:[grid-template-columns:4fr_1fr] xl:[grid-template-columns:4fr_1fr]'
+  }
+  if (hideSidebar.value && !showRightAd.value) {
+    return 'lg:[grid-template-columns:1fr]'
+  }
+  if (isSearchPage.value && showRightAd.value) {
+    return 'lg:[grid-template-columns:4fr_1fr] xl:[grid-template-columns:4fr_1fr]'
+  }
+  return showRightAd.value
+    ? 'lg:[grid-template-columns:1fr_3fr_1fr]'
+    : 'lg:[grid-template-columns:1fr_4fr]'
+})
 
 const isMobileMenuOpen = ref(false)
 const isPostingModalOpen = ref(false)
@@ -38,6 +55,7 @@ const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 
+/*
 // 背景圖片陣列
 const backgroundImages = [
   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
@@ -56,8 +74,10 @@ const backgroundImages = [
   'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop', // 熱氣球
 ]
 
+
 // 隨機選圖
 const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
+*/
 
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
@@ -115,7 +135,7 @@ const handleSubmitPost = async (postData) => {
         console.error('圖片上傳失敗：', error)
         // 詢問用戶是否要繼續發布（不帶圖片）
         const shouldContinue = confirm(
-          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？',
         )
         if (!shouldContinue) {
           return
@@ -181,42 +201,44 @@ const handleSubmitPost = async (postData) => {
   <div
     class="min-h-screen relative transition-all duration-1000"
     :class="
-      hideLayout
-        ? 'bg-[#fffef7]'
-        : 'bg-[#f5e6d3] pixel-bg bg-cover bg-center md:bg-fixed bg-no-repeat'
+      hideLayout ? 'bg-secondary-50' : 'bg-secondary-50 bg-cover bg-center md:bg-fixed bg-no-repeat'
     "
-    :style="{ backgroundImage: `url('${currentBgImage}')` }"
   >
     <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
     <div
       v-if="!hideLayout"
-      class="max-w-[1500px] mx-auto flex pt-16 md:pt-18 min-h-screen items-start gap-5"
+      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 min-h-screen items-start gap-2"
+      :class="gridClass"
     >
       <div
         v-if="!isSearchPage && !hideSidebar"
-        class="contents lg:block w-[280px] shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar lg:border-x-4 border-[#8b6f47]"
+        class="contents lg:block shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
       >
         <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
       </div>
 
       <main
-        class="flex-1 min-w-0 transition-all duration-300"
-        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 p-4 md:p-0']"
+        class="min-w-0 transition-all duration-300"
+        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 ']"
       >
         <RouterView />
       </main>
 
       <div
-        v-if="!hideLayout && !route.meta.hideAd"
-        class="hidden lg:block w-[300px] shrink-0 mr-2"
+        v-if="showRightAd"
+        class="hidden lg:block shrink-0 mr-2"
         :class="{ 'mt-6': !isSearchPage }"
       >
         <RightSidebarAd />
       </div>
     </div>
 
-    <div v-else class="w-screen h-screen overflow-y-auto scrollable-container">
+    <div
+      v-else
+      class="w-screen h-screen overflow-y-auto overscroll-contain"
+      style="-webkit-overflow-scrolling: touch"
+    >
       <RouterView />
     </div>
 
@@ -229,7 +251,14 @@ const handleSubmitPost = async (postData) => {
       />
     </div>
 
-    <Transition name="slide-up">
+    <Transition
+      enter-active-class="transition-all duration-300 ease"
+      enter-from-class="opacity-0 translate-y-full"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-300 ease"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-full"
+    >
       <div
         v-if="isMobileActionMenuOpen"
         class="fixed inset-0 z-[60] flex items-end justify-center lg:hidden"
@@ -238,22 +267,20 @@ const handleSubmitPost = async (postData) => {
           class="absolute inset-0 bg-black/50 backdrop-blur-sm"
           @click="isMobileActionMenuOpen = false"
         ></div>
-        <div
-          class="relative w-full bg-[#fffef7] rounded-t-3xl p-6 pb-24 shadow-2xl animate-slide-up"
-        >
-          <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-2">
-            <h3 class="text-xl font-bold text-amber-900">快速功能</h3>
+        <div class="relative w-full bg-secondary-50 rounded-t-3xl p-6 pb-24 shadow-2xl">
+          <div class="flex justify-between items-center mb-6 border-b-2 border-secondary-100 pb-2">
+            <h3 class="text-xl font-bold text-primary-700">快速功能</h3>
             <button
-              class="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+              class="p-2 bg-secondary-100 rounded-full hover:bg-secondary-200"
               @click="isMobileActionMenuOpen = false"
             >
-              <XIcon class="w-5 h-5 text-gray-600" />
+              <XIcon class="w-5 h-5 text-secondary-600" />
             </button>
           </div>
           <div class="grid grid-cols-4 gap-4">
             <button class="flex flex-col items-center gap-2 group" @click="handleOpenPosting">
               <div
-                class="w-14 h-14 bg-red-500 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-red-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <PlusIcon class="w-8 h-8 text-white" />
               </div>
@@ -261,15 +288,15 @@ const handleSubmitPost = async (postData) => {
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleQuickAction">
               <div
-                class="w-14 h-14 bg-yellow-400 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-yellow-400 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
-                <SparklesIcon class="w-8 h-8 text-amber-900" />
+                <SparklesIcon class="w-8 h-8 text-primary-700" />
               </div>
               <span class="text-xs font-bold text-gray-700">抽卡</span>
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleTogglePrivateChat">
               <div
-                class="w-14 h-14 bg-green-500 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-green-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <MessageCircleIcon class="w-8 h-8 text-white" />
               </div>
@@ -277,7 +304,7 @@ const handleSubmitPost = async (postData) => {
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleToggleAiChat">
               <div
-                class="w-14 h-14 bg-indigo-500 rounded-2xl border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-indigo-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <BotIcon class="w-8 h-8 text-white" />
               </div>
@@ -296,7 +323,7 @@ const handleSubmitPost = async (postData) => {
       @submit-post="handleSubmitPost"
     />
     <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
- <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
+    <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>
 
@@ -304,20 +331,3 @@ const handleSubmitPost = async (postData) => {
     <AddToCollectionModal v-if="userStore.isCollectionModalOpen" />
   </Transition>
 </template>
-
-<style scoped>
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s ease;
-}
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(100%);
-}
-
-.scrollable-container {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-}
-</style>

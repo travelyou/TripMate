@@ -1,5 +1,5 @@
-<script setup>
-import TravelerCard from '@/components/posts/TravelerCard.vue'
+﻿<script setup>
+import TravelerCard from '@/components/cards/TravelerCard.vue'
 
 defineProps({
   trips: {

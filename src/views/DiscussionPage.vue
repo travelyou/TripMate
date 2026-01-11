@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted } from 'vue'
 import {
   Plus as PlusIcon,
@@ -15,7 +15,7 @@ import { toggleLike } from '@/api/likes'
 
 // 引入組件
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
-import PostDetailModal from '@/components/modals/PostDetailModal.vue'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 
 const discussionsStore = useDiscussionsStore()
@@ -28,15 +28,19 @@ const currentUserUid = ref(null)
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
-  
+
   console.log('認證狀態變化：', {
     previousUid,
     newUid: currentUserUid.value,
     userEmail: user?.email,
   })
-  
+
   // 如果用戶登入狀態改變，重新載入按讚狀態
-  if (previousUid !== currentUserUid.value && currentUserUid.value && discussionsStore.discussions.length > 0) {
+  if (
+    previousUid !== currentUserUid.value &&
+    currentUserUid.value &&
+    discussionsStore.discussions.length > 0
+  ) {
     await Promise.all(
       discussionsStore.discussions.map(async (post) => {
         try {
@@ -47,11 +51,11 @@ onAuthStateChanged(auth, async (user) => {
         } catch (error) {
           console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
         }
-      })
+      }),
     )
   } else if (!currentUserUid.value) {
     // 如果登出，清除所有按讚狀態
-    discussionsStore.discussions.forEach(post => {
+    discussionsStore.discussions.forEach((post) => {
       post.isLiked = false
     })
   }
@@ -65,7 +69,7 @@ onMounted(async () => {
     currentUserUid.value = firebaseUser.uid
     console.log('組件掛載時檢測到已登入用戶：', currentUserUid.value)
   }
-  
+
   try {
     await discussionsStore.loadDiscussions()
     // 載入每個貼文的按讚狀態
@@ -80,7 +84,7 @@ onMounted(async () => {
           } catch (error) {
             console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
           }
-        })
+        }),
       )
     }
   } catch (error) {
@@ -111,7 +115,7 @@ const handleSubmitPost = async (postData) => {
     // 檢查用戶是否已登入（也檢查 Firebase Auth 的當前用戶）
     const firebaseUser = auth.currentUser
     const uid = currentUserUid.value || firebaseUser?.uid
-    
+
     if (!uid) {
       alert('請先登入後才能發布貼文')
       console.error('發布貼文失敗：用戶未登入', {
@@ -120,7 +124,7 @@ const handleSubmitPost = async (postData) => {
       })
       return
     }
-    
+
     console.log('準備發布貼文，用戶 UID：', uid)
 
     // 如果有圖片，先上傳圖片到 Supabase Storage
@@ -133,7 +137,7 @@ const handleSubmitPost = async (postData) => {
         console.error('圖片上傳失敗：', error)
         // 詢問用戶是否要繼續發布（不帶圖片）
         const shouldContinue = confirm(
-          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？',
         )
         if (!shouldContinue) {
           return
@@ -163,7 +167,7 @@ const handleSubmitPost = async (postData) => {
 
     // 調用 API 創建貼文
     const newPost = await discussionsStore.addPost(submitData)
-    
+
     console.log('貼文發布成功：', newPost)
 
     // 關閉模態框
@@ -195,13 +199,13 @@ const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 
-const openPostDetailModal = (post, focusComment = false) => {
+const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
   isDetailModalOpen.value = true
 }
 
-const closePostDetailModal = () => {
+const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
@@ -238,18 +242,18 @@ const getPostData = (post) => ({
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
+  <div class="p-4 overflow-x-hidden">
     <div class="w-full">
       <div
-        class="bg-pink-100 p-5 rounded-xl mb-6 mt-4 border-4 border-pink-300 shadow-[4px_4px_0px_0px_rgba(236,72,153,0.5)]"
+        class="mb-6 mt-4 bg-primary rounded-xl p-5 border border-secondary-100 shadow-primary-tall"
       >
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-amber-900 flex items-center">
-            <MessageCircleIcon class="w-7 h-7 mr-3 text-indigo-500 fill-indigo-100" />
+          <h1 class="text-2xl font-black text-white flex items-center">
+            <MessageCircleIcon class="w-7 h-7 mr-3 text-white" />
             討論區
           </h1>
           <button
-            class="bg-red-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center border-4 border-gray-800"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition shadow-md flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -258,16 +262,16 @@ const getPostData = (post) => ({
         </div>
       </div>
 
-      <div class="mb-8 p-4 bg-white/90">
+      <div class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
               activeFilter === filter
-                ? 'bg-amber-400 text-gray-900'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                ? 'bg-primary text-secondary-50'
+                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
             ]"
             @click="activeFilter = filter"
           >
@@ -280,38 +284,38 @@ const getPostData = (post) => ({
         <div
           v-for="post in discussionsStore.discussions"
           :key="post.id"
-          class="pixel-card p-5 bg-[#fffef7]"
+          class="p-5 bg-white ring-1 ring-secondary-200 shadow-md rounded-2xl hover:shadow-lg transition cursor-pointer"
         >
           <div class="flex items-center space-x-3 mb-4">
             <img
               :src="post.avatar"
-              class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
             />
             <div>
               <div class="flex items-center space-x-2">
-                <span class="font-bold text-gray-800">{{ post.author }}</span>
+                <span class="font-bold text-secondary-800">{{ post.author }}</span>
                 <span
-                  class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
+                  class="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full"
                 >
                   {{ post.spiritAnimal }}
                 </span>
               </div>
-              <div class="text-xs text-gray-400">{{ post.time }} • 討論區</div>
+              <div class="text-xs text-secondary-400">{{ post.time }} • 討論區</div>
             </div>
           </div>
 
           <h3
-            class="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600"
-            @click="openPostDetailModal(post, false)"
+            class="text-lg font-bold text-secondary-900 mb-2 cursor-pointer hover:text-primary-600"
+            @click="openDiscussionDetailModal(post, false)"
           >
             {{ post.title }}
           </h3>
 
-          <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
+          <p class="text-secondary-600 text-sm mb-4 line-clamp-4 leading-relaxed">
             {{ post.content }}
           </p>
 
-          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100">
+          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100">
             <img
               :src="post.image"
               class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -320,23 +324,21 @@ const getPostData = (post) => ({
 
           <div
             v-if="post.tags && post.tags.length"
-            class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3"
+            class="flex flex-wrap gap-2 mb-4 border-b border-secondary-100 pb-3"
           >
             <span
               v-for="tag in post.tags"
               :key="tag"
-              class="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1 rounded-full cursor-pointer hover:bg-amber-200 transition"
+              class="text-xs font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full cursor-pointer hover:bg-primary-200 transition"
             >
               #{{ tag }}
             </span>
           </div>
 
-          <div class="flex items-center text-gray-400 text-sm pt-1">
+          <div class="flex items-center text-secondary-400 text-sm pt-1">
             <button
               class="flex items-center space-x-1 transition mr-6 group"
-              :class="
-                post.isLiked ? 'text-red-500' : 'hover:text-red-500'
-              "
+              :class="post.isLiked ? 'text-red-500' : 'hover:text-red-500'"
               @click.stop="handlePostLike(post)"
             >
               <HeartIcon
@@ -347,8 +349,8 @@ const getPostData = (post) => ({
             </button>
 
             <button
-              class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
-              @click="openPostDetailModal(post, true)"
+              class="flex items-center space-x-1 hover:text-primary-600 transition mr-6"
+              @click="openDiscussionDetailModal(post, true)"
             >
               <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
             </button>
@@ -357,8 +359,8 @@ const getPostData = (post) => ({
               class="flex items-center space-x-1 transition mr-6 group"
               :class="
                 userStore.isCollected(getPostData(post))
-                  ? 'text-yellow-500'
-                  : 'hover:text-yellow-600'
+                  ? 'text-primary-500'
+                  : 'hover:text-primary-600'
               "
               @click.stop="
                 userStore.isCollected(getPostData(post))
@@ -373,7 +375,7 @@ const getPostData = (post) => ({
             </button>
 
             <button
-              class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
+              class="ml-auto flex items-center space-x-1 hover:text-secondary-600 transition"
               @click="openShareModal(post.id)"
             >
               <Repeat2Icon class="w-4 h-4" />
@@ -389,20 +391,14 @@ const getPostData = (post) => ({
     @close="isPostingModalOpen = false"
     @submit-post="handleSubmitPost"
   />
-  <PostDetailModal
+  <DiscussionDetailModal
     v-if="isDetailModalOpen"
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
-    @close="closePostDetailModal"
+    @close="closeDiscussionDetailModal"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
 
-<style scoped>
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-</style>
+<!-- 已移除 .pixel-card（已用 Tailwind 實作） -->
+

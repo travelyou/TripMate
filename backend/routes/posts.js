@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
     console.error('錯誤堆疊：', error.stack);
     res.status(500).json({
       error: '獲取貼文失敗',
-      details: error.message,
+      details: error?.message || String(error),
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
@@ -59,6 +59,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const idNum = Number(id);
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'id 必須是正整數' });
+    }
 
     // 獲取貼文，包含按讚數和留言數（用戶資訊從 Firestore 獲取）
     const postQuery = `
@@ -73,7 +77,7 @@ router.get('/:id', async (req, res) => {
       GROUP BY p.id
     `;
 
-    const postResult = await pool.query(postQuery, [id]);
+    const postResult = await pool.query(postQuery, [idNum]);
 
     if (postResult.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
@@ -84,7 +88,7 @@ router.get('/:id', async (req, res) => {
     // 獲取留言（用戶資訊從 Firestore 獲取）
     const commentsResult = await pool.query(
       'SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC',
-      [id]
+      [idNum]
     );
 
     post.commentsData = commentsResult.rows;
@@ -94,7 +98,7 @@ router.get('/:id', async (req, res) => {
     res.json(post);
   } catch (error) {
     console.error('獲取貼文詳情失敗：', error);
-    res.status(500).json({ error: '獲取貼文詳情失敗', details: error.message });
+    res.status(500).json({ error: '獲取貼文詳情失敗', details: error?.message || String(error) });
   }
 });
 
@@ -165,7 +169,7 @@ router.post('/', async (req, res) => {
     console.error('請求資料：', req.body);
     res.status(500).json({
       error: '創建貼文失敗',
-      details: error.message,
+      details: error?.message || String(error),
       code: error.code,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -176,10 +180,14 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const idNum = Number(id);
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'id 必須是正整數' });
+    }
     const { title, content, image_urls, tags } = req.body;
 
     // 檢查貼文是否存在
-    const checkResult = await pool.query('SELECT id FROM posts WHERE id = $1', [id]);
+    const checkResult = await pool.query('SELECT id FROM posts WHERE id = $1', [idNum]);
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
@@ -201,13 +209,13 @@ router.put('/:id', async (req, res) => {
       content || null,
       tags || null,
       image_urls || null,
-      id
+      idNum
     ]);
     const updatedPost = result.rows[0];
     res.json(updatedPost);
   } catch (error) {
     console.error('更新貼文失敗：', error);
-    res.status(500).json({ error: '更新貼文失敗', details: error.message });
+    res.status(500).json({ error: '更新貼文失敗', details: error?.message || String(error) });
   }
 });
 
@@ -215,20 +223,24 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const idNum = Number(id);
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'id 必須是正整數' });
+    }
 
     // 檢查貼文是否存在
-    const checkResult = await pool.query('SELECT id FROM posts WHERE id = $1', [id]);
+    const checkResult = await pool.query('SELECT id FROM posts WHERE id = $1', [idNum]);
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
 
     // 刪除貼文（CASCADE 會自動刪除相關的標籤、留言、點讚）
-    await pool.query('DELETE FROM posts WHERE id = $1', [id]);
+    await pool.query('DELETE FROM posts WHERE id = $1', [idNum]);
 
     res.json({ message: '貼文已刪除' });
   } catch (error) {
     console.error('刪除貼文失敗：', error);
-    res.status(500).json({ error: '刪除貼文失敗', details: error.message });
+    res.status(500).json({ error: '刪除貼文失敗', details: error?.message || String(error) });
   }
 });
 

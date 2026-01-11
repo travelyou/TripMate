@@ -305,7 +305,7 @@ function backStep() {
       </div>
 
       <!-- 右側：訂單摘要 -->
-      <div class="min-w-[250px] bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
+      <div class="min-w-64 bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
         <h3 class="text-xl font-bold">訂單摘要</h3>
 
         <div class="space-y-2">
