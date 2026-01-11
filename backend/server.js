@@ -1,9 +1,10 @@
+/* eslint-env node */
+/* global require, process */
 // 必須在最開始就加載環境變數，這樣其他模組才能正確讀取
 require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const https = require('https');
 const pool = require('./database/connection');
 const postsRouter = require('./routes/posts');
 const commentsRouter = require('./routes/comments');
@@ -15,25 +16,25 @@ const PORT = process.env.PORT || 3000;
 // 一律只用 IPv4：明確綁定到 IPv4 host，避免在部分環境預設走非 IPv4 的監聽位址
 const HOST = process.env.HOST || '0.0.0.0';
 
-  app.use(cors());
-  app.use(express.json());
+app.use(cors());
+app.use(express.json());
 
-  // 根路徑處理
-  app.get('/', (req, res) => {
-    res.json({
-      message: 'TripMate 後端 API 服務',
-      endpoints: {
-        test: '/api/test',
-        testDb: '/api/test-db',
-        posts: '/api/posts',
-        comments: '/api/posts/:postId/comments'
-      }
-    });
+// 根路徑處理
+app.get('/', (req, res) => {
+  res.json({
+    message: 'TripMate 後端 API 服務',
+    endpoints: {
+      test: '/api/test',
+      testDb: '/api/test-db',
+      posts: '/api/posts',
+      comments: '/api/posts/:postId/comments',
+    },
   });
+});
 
-  app.get('/api/test', (req, res) => {
-    res.json({ message: '後端 API 連接成功！' });
-  });
+app.get('/api/test', (req, res) => {
+  res.json({ message: '後端 API 連接成功！' });
+});
 
 app.get('/api/test-db', async (req, res) => {
   try {
