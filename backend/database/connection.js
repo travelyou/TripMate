@@ -11,12 +11,15 @@ const dnsResolve4 = promisify(dns.resolve4);
 dns.setDefaultResultOrder('ipv4first');
 
 function checkEnvVars() {
+  // Neon 常用一條連線字串（DATABASE_URL），也支援傳統分拆欄位（DB_HOST...）
+  if (process.env.DATABASE_URL) return true;
+
   const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-  const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 
   if (missingEnvVars.length > 0) {
     console.error('缺少環境變數：', missingEnvVars.join(', '));
-    console.error('請確認 backend/.env 文件存在且包含所有必要的配置。');
+    console.error('請確認 backend/.env 文件存在且包含所有必要的配置（或改用 DATABASE_URL）。');
     return false;
   }
   return true;
@@ -27,20 +30,41 @@ async function createPool() {
     throw new Error('缺少必要的環境變數');
   }
 
-  console.log('資料庫連接配置：');
-  console.log('  DB_HOST:', process.env.DB_HOST);
-  console.log('  DB_PORT:', process.env.DB_PORT);
-  console.log('  DB_NAME:', process.env.DB_NAME);
-  console.log('  DB_USER:', process.env.DB_USER);
-  console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+  const connectionString = process.env.DATABASE_URL;
+  let dbHost = process.env.DB_HOST;
 
-  if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
-    console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
+  if (connectionString) {
+    // 避免把密碼印出來：只顯示 host/port/db
+    let parsed;
+    try {
+      parsed = new URL(connectionString);
+      dbHost = parsed.hostname;
+    } catch {
+      // 若 DATABASE_URL 格式不合法，後續 new Pool 會拋錯；這裡先維持原樣
+    }
+
+    console.log('資料庫連接配置（DATABASE_URL）：');
+    if (parsed) {
+      console.log('  host:', parsed.hostname);
+      console.log('  port:', parsed.port || '(預設)');
+      console.log('  database:', (parsed.pathname || '').replace(/^\//, '') || '(未指定)');
+      console.log('  user:', parsed.username ? '已設置' : '未設置');
+      console.log('  password:', parsed.password ? '已設置' : '未設置');
+    } else {
+      console.log('  DATABASE_URL: 已設置（格式解析失敗，請確認字串是否正確）');
+    }
+  } else {
+    console.log('資料庫連接配置（分拆變數）：');
+    console.log('  DB_HOST:', process.env.DB_HOST);
+    console.log('  DB_PORT:', process.env.DB_PORT);
+    console.log('  DB_NAME:', process.env.DB_NAME);
+    console.log('  DB_USER:', process.env.DB_USER);
+    console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+
+    if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
+      console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
+    }
   }
-
-  const useConnectionPooling = process.env.USE_POOLING === 'true';
-
-  const dbHost = process.env.DB_HOST;
 
   // 一律只用 IPv4：若 DB_HOST 包含 ':'，很可能不是 IPv4 位址/主機名格式
   if (typeof dbHost === 'string' && dbHost.includes(':')) {
@@ -64,16 +88,22 @@ async function createPool() {
       throw new Error(`僅 IPv4 模式下 DNS 解析失敗：${msg}（請確認 DB_HOST 有 IPv4 A 記錄）`);
     }
   }
-  const poolConfig = {
-    // 保留 hostname，避免 SSL SNI 因為使用 IP 而失效（Neon 會回 Endpoint ID is not specified）
-    host: dbHost,
-    port: parseInt(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    connectionTimeoutMillis: 20000,
-    idleTimeoutMillis: 30000,
-  };
+  const poolConfig = connectionString
+    ? {
+        connectionString,
+        connectionTimeoutMillis: 20000,
+        idleTimeoutMillis: 30000,
+      }
+    : {
+        // 保留 hostname，避免 SSL SNI 因為使用 IP 而失效（Neon 會回 Endpoint ID is not specified）
+        host: dbHost,
+        port: parseInt(process.env.DB_PORT) || 5432,
+        database: process.env.DB_NAME,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        connectionTimeoutMillis: 20000,
+        idleTimeoutMillis: 30000,
+      };
 
   // 強制 pg 只用 IPv4
   poolConfig.family = 4;
@@ -91,28 +121,12 @@ async function createPool() {
     }
   }
 
-  // Supabase 通常需要 SSL。若你的環境不需要，可在 .env 設定 DB_SSL=false 關閉。
+  // Neon（雲端 Postgres）通常需要 SSL。若你的環境不需要，可在 .env 設定 DB_SSL=false 關閉。
   // （pg 的 ssl=true 需用物件形式，否則會因憑證驗證失敗）
   const dbSslRaw = (process.env.DB_SSL ?? 'true').toString().toLowerCase();
   const useSsl = dbSslRaw !== 'false' && dbSslRaw !== '0' && dbSslRaw !== 'no';
   if (useSsl) {
     poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
-  }
-
-  if (useConnectionPooling && process.env.DB_PORT === '6543') {
-    // Supabase Pooler 常要求 user 格式為 postgres.<projectRef>
-    // 若你使用 pooler host（如 *.pooler.supabase.com），無法從 DB_HOST 推出 projectRef，
-    // 可在 .env 設定 SUPABASE_PROJECT_REF=<你的 project ref> 讓系統自動補齊 user。
-    const userFromEnv = process.env.DB_USER;
-    const needsProjectUser = userFromEnv && !userFromEnv.includes('.');
-    const projectRefFromEnv = process.env.SUPABASE_PROJECT_REF;
-    const projectRefFromHostMatch = (process.env.DB_HOST || '').match(/^db\.([a-z0-9]+)\.supabase\.co$/i)?.[1];
-    const projectRef = projectRefFromEnv || projectRefFromHostMatch;
-
-    if (needsProjectUser && projectRef) {
-      poolConfig.user = `postgres.${projectRef}`;
-      console.log('使用 Connection Pooling，用戶名已調整為：', poolConfig.user);
-    }
   }
 
   const pool = new Pool(poolConfig);
