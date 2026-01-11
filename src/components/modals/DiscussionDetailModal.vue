@@ -16,6 +16,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { useDiscussionsStore } from '@/stores/discussions'
+import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -497,7 +498,7 @@ onMounted(async () => {
                 <div class="flex-1">
                   <div class="flex justify-between items-start">
                     <span class="font-bold text-secondary-800 text-sm">{{ comment.author }}</span>
-                    <span class="text-xs text-secondary-400">{{ comment.time }}</span>
+                    <span class="text-xs text-secondary-400">{{ formatTime(comment.time) }}</span>
                   </div>
                   <p class="text-secondary-700 text-sm mt-1">{{ comment.content }}</p>
 
@@ -536,7 +537,9 @@ onMounted(async () => {
                           <span class="font-bold text-secondary-800 text-xs">{{
                             reply.author
                           }}</span>
-                          <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                          <span class="text-xs text-secondary-400 ml-2">{{
+                            formatTime(reply.time)
+                          }}</span>
                           <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
                           <div
                             class="flex items-center space-x-4 mt-1 text-[10px] text-secondary-500"

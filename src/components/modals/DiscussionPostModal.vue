@@ -156,11 +156,11 @@ const handleImageSelect = (event) => {
       return
     }
 
-    // 轉換為 base64
+    // 只用於預覽，不保存到 postData
     const reader = new FileReader()
     reader.onload = (e) => {
       imagePreviews.value.push(e.target.result)
-      postData.value.images.push(e.target.result)
+      // 不再保存到 postData.value.images
     }
     reader.readAsDataURL(file)
   })
@@ -172,7 +172,7 @@ const handleImageSelect = (event) => {
 
 const removeImage = (index) => {
   imagePreviews.value.splice(index, 1)
-  postData.value.images.splice(index, 1)
+  // 不需要操作 postData.value.images
 }
 
 // 標籤處理
@@ -236,7 +236,7 @@ const handleFinalSubmit = async () => {
       title: postData.value.title,
       content: postData.value.content,
       tags: postData.value.tags,
-      images: postData.value.images,
+      images: [], // 不上傳圖片，送空陣列
       author_uid: auth.currentUser.uid,
       author_name: userStore.currentUser?.displayName || '匿名',
       author_avatar:
@@ -251,6 +251,7 @@ const handleFinalSubmit = async () => {
     if (response.success) {
       alert('✨ 發文成功！')
       emit('success')
+      emit('close')
     } else {
       formError.value = '發文失敗：' + (response.message || '請稍後再試')
     }

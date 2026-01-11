@@ -31,7 +31,6 @@ const myItineraryStore = useMyItineraryStore()
 
 const currentStep = ref('basic')
 const formError = ref('')
-const isSubmitting = ref(false) // 防止重複提交
 
 // 預覽頁面的 Tab 狀態
 const previewActiveTab = ref('itinerary')
@@ -125,14 +124,14 @@ const handleBannerSelect = (event) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     bannerPreview.value = e.target.result
-    postData.value.banner_image = e.target.result
+    // 不保存到 postData，只用於預覽
   }
   reader.readAsDataURL(file)
 }
 
 const removeBanner = () => {
   bannerPreview.value = ''
-  postData.value.banner_image = ''
+  // 不需要清除 postData.value.banner_image
 }
 
 const addDay = () => {
@@ -273,14 +272,8 @@ const handleSaveDraft = () => {
   emit('close')
 }
 
-// 確認發布 (改進版：防止重複提交 + 詳細錯誤處理)
+// 確認發布 (維持原樣，送後端)
 const handleFinalSubmit = async () => {
-  // 防止重複提交
-  if (isSubmitting.value) {
-    console.log('正在提交中，請稍候...')
-    return
-  }
-
   const error = validateBasic()
   if (error) {
     formError.value = error
@@ -292,23 +285,19 @@ const handleFinalSubmit = async () => {
     return
   }
 
-  isSubmitting.value = true
-  formError.value = ''
-
   try {
-    // 只發送後端需要的字段，避免傳遞多餘資料
     const payload = {
       title: postData.value.title,
       content: postData.value.content,
-      banner_image: postData.value.banner_image || 'https://picsum.photos/1200/400',
       location: postData.value.location,
       start_date: postData.value.start_date,
       end_date: postData.value.end_date,
       max_people: postData.value.max_people,
-      status: '招募中',
-      tags: postData.value.tags || [],
+      tags: postData.value.tags,
       itinerary: postData.value.itinerary,
-      packingList: postData.value.packingList || [],
+      packingList: postData.value.packingList,
+      status: '招募中',
+      banner_image: 'https://picsum.photos/1200/400', // 只用預設圖片
       author_uid: auth.currentUser.uid,
       author_name: userStore.currentUser?.displayName || '匿名',
       author_avatar:
@@ -317,11 +306,7 @@ const handleFinalSubmit = async () => {
       spirit_animal: userStore.currentUser?.spiritAnimal || '🦁 樂天派',
     }
 
-    console.log('🚀 準備發送 payload:', payload)
-
     const response = await createTraveler(payload)
-
-    console.log('✅ API 回應:', response)
 
     if (response.success) {
       alert('✨ 旅伴招募發布成功！')
@@ -331,26 +316,8 @@ const handleFinalSubmit = async () => {
       formError.value = '發布失敗：' + (response.message || '請稍後再試')
     }
   } catch (error) {
-    console.error('❌ 發布錯誤詳情:', error)
-
-    // 更詳細的錯誤訊息
-    if (error.response) {
-      // 後端返回錯誤 (4xx, 5xx)
-      const errorMsg = error.response.data?.message || error.response.statusText
-      formError.value = `發布失敗：${errorMsg}`
-      console.error('後端錯誤:', error.response.data)
-      console.error('狀態碼:', error.response.status)
-    } else if (error.request) {
-      // 請求發送但沒有收到回應（網路問題）
-      formError.value = '網路連線問題，請檢查網路後重試'
-      console.error('無回應，請求對象:', error.request)
-    } else {
-      // 其他錯誤（設置請求時發生的錯誤）
-      formError.value = '發布失敗：' + (error.message || '發生未知錯誤')
-      console.error('錯誤:', error.message)
-    }
-  } finally {
-    isSubmitting.value = false
+    console.error(error)
+    formError.value = '發布失敗，發生未知錯誤'
   }
 }
 
@@ -912,11 +879,10 @@ if (postData.value.itinerary.days.length === 0) {
             </button>
             <button
               type="button"
-              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md"
               @click="handleFinalSubmit"
             >
-              {{ isSubmitting ? '發布中...' : '確認發布' }}
+              確認發布
             </button>
           </template>
 

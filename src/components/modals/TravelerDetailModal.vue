@@ -20,7 +20,8 @@ import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
-import axios from 'axios' // 記得引入 axios
+import { getTravelerById, incrementView } from '@/api/travelers'
+import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -123,19 +124,18 @@ const loadLikesInfo = async () => {
 const fetchFullTravelerDetails = async () => {
   try {
     console.log('正在抓取詳細資料 ID:', props.traveler.id)
-    // 假設你的 API server 在同一網域或有設定 proxy
-    // 如果你的後端在 localhost:3000，這裡可能要寫完整網址
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/travelers/${props.traveler.id}`,
-    )
+    const response = await getTravelerById(props.traveler.id, currentUserUid.value)
 
-    if (response.data.success) {
+    if (response.success) {
       // 更新本地資料
       localTravelerData.value = {
         ...localTravelerData.value, // 保留原本的
-        ...response.data.data, // 用新的詳細資料覆蓋 (包含 itinerary, packingList)
+        ...response.data, // 用新的詳細資料覆蓋 (包含 itinerary, packingList)
       }
       console.log('詳細資料更新成功:', localTravelerData.value)
+
+      // 單獨呼叫增加瀏覽數
+      incrementView(props.traveler.id)
     }
   } catch (error) {
     console.error('抓取詳細資料失敗:', error)
@@ -587,7 +587,7 @@ onMounted(async () => {
                   <div class="flex-1">
                     <div class="flex justify-between items-start mb-1">
                       <span class="font-bold text-secondary-900">{{ comment.author }}</span>
-                      <span class="text-xs text-secondary-400">{{ comment.time }}</span>
+                      <span class="text-xs text-secondary-400">{{ formatTime(comment.time) }}</span>
                     </div>
                     <p class="text-secondary-700 text-sm mb-2">{{ comment.content }}</p>
 
@@ -617,7 +617,9 @@ onMounted(async () => {
                             <span class="font-bold text-secondary-900 text-xs">{{
                               reply.author
                             }}</span>
-                            <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                            <span class="text-xs text-secondary-400 ml-2">{{
+                              formatTime(reply.time)
+                            }}</span>
                             <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
                           </div>
                         </div>
