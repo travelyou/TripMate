@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { X } from 'lucide-vue-next'
-import ResultCard from '@/components/personality-test/components/ResultCard.vue'
+import ResultCard from '@/components/personality-test/ResultCard.vue'
 
 const props = defineProps({
   result: {
