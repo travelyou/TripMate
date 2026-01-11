@@ -12,6 +12,12 @@ defineProps({
   }
 })
 
+const emit = defineEmits(['open-personality-result'])
+
+const handleOpenPersonalityResult = () => {
+  emit('open-personality-result')
+}
+
 // Wishlist Physics Logic
 const ballContainer = ref(null)
 
@@ -68,7 +74,10 @@ function resetBalls() {
         >
           {{ user.spiritAnimal ? user.spiritAnimal.split(' ')[1] : '樂天派' }}
         </div>
-        <button class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-pink-100 text-pink-600 text-xs md:text-sm font-bold rounded-full hover:bg-pink-200 transition">
+        <button
+          class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-pink-100 text-pink-600 text-xs md:text-sm font-bold rounded-full hover:bg-pink-200 transition"
+          @click="handleOpenPersonalityResult"
+        >
           查看詳情
         </button>
       </div>
