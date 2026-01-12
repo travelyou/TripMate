@@ -8,6 +8,7 @@ import DashboardSidebar from '@/components/vendor-dashboard/DashboardSidebar.vue
 import DashboardHeader from '@/components/vendor-dashboard/DashboardHeader.vue'
 import TabBasicInfo from '@/components/vendor-dashboard/tabs/TabBasicInfo.vue'
 import TabItineraryList from '@/components/vendor-dashboard/tabs/TabItineraryList.vue'
+import TabPostList from '@/components/vendor-dashboard/tabs/TabPostList.vue'
 
 const router = useRouter()
 const vendorStore = useVendorStore()
@@ -87,21 +88,15 @@ onMounted(async () => {
               </div>
             </div>
 
+
+
             <!-- 貼文管理 Tab -->
             <div v-if="activeTab === 'posts'">
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                <div class="flex items-center justify-between mb-6">
-                  <h2 class="text-xl font-bold text-gray-900">貼文管理</h2>
-                  <button class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-shadow">
-                    + 新增貼文
-                  </button>
-                </div>
-                <div class="space-y-4">
-                  <!-- 內容區域 -->
-                  <div class="text-center py-12 text-gray-400">
-                    <p>貼文列表</p>
-                  </div>
-                </div>
+                 <TabPostList
+                   @create="alert('功能建置中...')"
+                   @edit="alert('功能建置中...')"
+                 />
               </div>
             </div>
           </div>

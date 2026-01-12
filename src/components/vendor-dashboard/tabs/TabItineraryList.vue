@@ -1,17 +1,56 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useVendorStore } from '@/stores/vendor'
 import { Plus, Edit, Trash2, MapPin, Calendar, Star } from 'lucide-vue-next'
+import ItineraryModal from '@/components/vendor-dashboard/modals/ItineraryModal.vue'
 
 const vendorStore = useVendorStore()
 const itineraries = computed(() => vendorStore.vendorItineraries)
 const currentVendor = computed(() => vendorStore.currentVendor)
+
+const isModalOpen = ref(false)
+const editingItinerary = ref(null)
+
+// 開啟新增 Modal
+const handleCreate = () => {
+  // editingItinerary.value = null
+  // isModalOpen.value = true
+  alert('功能即將開放，敬請期待！')
+}
+
+// 開啟編輯 Modal
+const handleEdit = () => {
+  // editingItinerary.value = item
+  // isModalOpen.value = true
+  alert('功能即將開放，敬請期待！')
+}
+
+// 儲存行程 (新增或更新)
+const handleSave = async (formData) => {
+  try {
+    if (editingItinerary.value) {
+      // 編輯模式
+      await vendorStore.updateItinerary(editingItinerary.value.id, formData)
+    } else {
+      // 新增模式
+      await vendorStore.createItinerary(currentVendor.value.id, formData)
+    }
+    isModalOpen.value = false
+    // 重新取得資料
+    await vendorStore.fetchVendorItineraries(currentVendor.value.id)
+  } catch (error) {
+    console.error('儲存失敗:', error)
+    alert('儲存失敗，請稍後再試')
+  }
+}
 
 // 刪除確認
 const handleDelete = async (id) => {
   if (confirm('確定要刪除此行程嗎？此動作無法復原。')) {
     try {
       await vendorStore.deleteItinerary(id)
+      // 重新取得資料
+      await vendorStore.fetchVendorItineraries(currentVendor.value.id)
     } catch (error) {
       console.error('刪除失敗:', error)
       alert('刪除失敗，請稍後再試')
@@ -34,8 +73,6 @@ onMounted(() => {
     vendorStore.fetchVendorItineraries(currentVendor.value.id)
   }
 })
-
-const emit = defineEmits(['create', 'edit'])
 </script>
 
 <template>
@@ -50,7 +87,7 @@ const emit = defineEmits(['create', 'edit'])
       </div>
       <button
         class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all flex items-center gap-2"
-        @click="emit('create')"
+        @click="handleCreate"
       >
         <Plus class="w-4 h-4" />
         新增行程
@@ -121,7 +158,7 @@ const emit = defineEmits(['create', 'edit'])
           <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
             <button
               class="text-gray-500 hover:text-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-50 text-sm font-medium transition-colors flex items-center gap-1"
-              @click="emit('edit', item)"
+              @click="handleEdit"
             >
               <Edit class="w-4 h-4" />
               編輯
@@ -147,11 +184,19 @@ const emit = defineEmits(['create', 'edit'])
       <p class="text-gray-500 mb-6">開始新增您的第一個旅遊行程商品吧！</p>
       <button
         class="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors inline-flex items-center gap-2"
-        @click="emit('create')"
+        @click="handleCreate"
       >
         <Plus class="w-4 h-4" />
         新增行程
       </button>
     </div>
+
+    <!-- 行程表單 Modal -->
+    <ItineraryModal
+      :is-open="isModalOpen"
+      :initial-data="editingItinerary"
+      @close="isModalOpen = false"
+      @save="handleSave"
+    />
   </div>
 </template>
