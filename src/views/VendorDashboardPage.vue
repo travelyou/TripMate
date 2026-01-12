@@ -7,6 +7,7 @@ import DashboardNav from '@/components/vendor-dashboard/DashboardNav.vue'
 import DashboardSidebar from '@/components/vendor-dashboard/DashboardSidebar.vue'
 import DashboardHeader from '@/components/vendor-dashboard/DashboardHeader.vue'
 import TabBasicInfo from '@/components/vendor-dashboard/tabs/TabBasicInfo.vue'
+import TabItineraryList from '@/components/vendor-dashboard/tabs/TabItineraryList.vue'
 
 const router = useRouter()
 const vendorStore = useVendorStore()
@@ -79,18 +80,10 @@ onMounted(async () => {
             <!-- 行程管理 Tab -->
             <div v-if="activeTab === 'itineraries'">
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                <div class="flex items-center justify-between mb-6">
-                  <h2 class="text-xl font-bold text-gray-900">行程管理</h2>
-                  <button class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-shadow">
-                    + 新增行程
-                  </button>
-                </div>
-                <div class="space-y-4">
-                  <!-- 內容區域 -->
-                  <div class="text-center py-12 text-gray-400">
-                    <p>行程列表</p>
-                  </div>
-                </div>
+                <TabItineraryList
+                  @create="() => alert('新增行程功能將在 Commit 7 實作 (Modal)')"
+                  @edit="(item) => alert(`編輯行程: ${item.name} (將在 Commit 7 實作)`)"
+                />
               </div>
             </div>
 
