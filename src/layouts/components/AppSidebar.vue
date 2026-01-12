@@ -32,7 +32,7 @@ const menuItems = [
     textColor: 'text-secondary',
   },
   {
-    name: 'find_traveler',
+    name: 'travelers',
     label: '找旅伴',
     icon: UsersIcon,
     iconColor: 'text-primary-600',
@@ -76,7 +76,7 @@ const bottomMenuItems = [
 const mobileNavItems = [
   { name: 'home', label: '首頁', icon: HomeIcon },
   { name: 'discussion', label: '討論', icon: ForumIcon },
-  { name: 'find_traveler', label: '找伴', icon: UsersIcon },
+  { name: 'travelers', label: '找伴', icon: UsersIcon },
   { name: 'featured_itinerary', label: '精選', icon: MapIcon },
   { name: 'my_itinerary', label: '行程', icon: CalendarIcon },
   { name: 'menu', label: '更多', icon: MenuIcon },
@@ -102,7 +102,7 @@ const handleMobileNavClick = (item) => {
 
 <template>
   <aside
-    class="w-full min-h-full bg-white border-x border-secondary-100 hidden lg:flex lg:min-w-40 flex-col p-2  overflow-hidden"
+    class="w-full min-h-full bg-white border-x border-secondary-100 hidden lg:flex lg:min-w-40 flex-col p-2 overflow-hidden"
   >
     <div class="flex justify-between my-4 p-2 gap-4">
       <div

@@ -9,7 +9,7 @@ import { auth } from '@/firebase/config'
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
-import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
+import PostingChoiceCard from '@/components/cards/PostingChoiceCard.vue'
 import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/shared/RightSidebarAd.vue'
@@ -126,7 +126,7 @@ const handleSubmitPost = async (postData) => {
 
     console.log('⏳ 準備發布貼文，用戶 UID：', uid)
 
-    // 如果有圖片，先上傳圖片到後端（存進 Neon）
+    // 如果有圖片，先上傳圖片到 Firebase Storage
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
       try {
@@ -318,7 +318,7 @@ const handleSubmitPost = async (postData) => {
       </div>
     </Transition>
 
-    <PostingChoiceModal
+    <PostingChoiceCard
       v-if="isPostingModalOpen"
       @close="isPostingModalOpen = false"
       @select-discussion="handleSelectDiscussion"

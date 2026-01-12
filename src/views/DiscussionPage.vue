@@ -14,28 +14,19 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { toggleLike } from '@/api/likes'
 
 // 引入組件
-import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
+import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 
 const discussionsStore = useDiscussionsStore()
 const userStore = useUserStore()
 
-// 當前用戶 UID
 const currentUserUid = ref(null)
 
-// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  console.log('認證狀態變化：', {
-    previousUid,
-    newUid: currentUserUid.value,
-    userEmail: user?.email,
-  })
-
-  // 如果用戶登入狀態改變，重新載入按讚狀態
   if (
     previousUid !== currentUserUid.value &&
     currentUserUid.value &&
@@ -45,7 +36,7 @@ onAuthStateChanged(auth, async (user) => {
       discussionsStore.discussions.map(async (post) => {
         try {
           const { getLikesInfo } = await import('@/api/likes')
-          const info = await getLikesInfo(post.id, currentUserUid.value)
+          const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
           post.isLiked = info.isLiked
           post.likes = info.likesCount || post.likes
         } catch (error) {
@@ -54,31 +45,26 @@ onAuthStateChanged(auth, async (user) => {
       }),
     )
   } else if (!currentUserUid.value) {
-    // 如果登出，清除所有按讚狀態
     discussionsStore.discussions.forEach((post) => {
       post.isLiked = false
     })
   }
 })
 
-// 在組件掛載時載入貼文
 onMounted(async () => {
-  // 確保獲取當前用戶（如果已經登入）
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
     currentUserUid.value = firebaseUser.uid
-    console.log('組件掛載時檢測到已登入用戶：', currentUserUid.value)
   }
 
   try {
     await discussionsStore.loadDiscussions()
-    // 載入每個貼文的按讚狀態
     if (currentUserUid.value) {
       await Promise.all(
         discussionsStore.discussions.map(async (post) => {
           try {
             const { getLikesInfo } = await import('@/api/likes')
-            const info = await getLikesInfo(post.id, currentUserUid.value)
+            const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
             post.isLiked = info.isLiked
             post.likes = info.likesCount || post.likes
           } catch (error) {
@@ -92,7 +78,6 @@ onMounted(async () => {
   }
 })
 
-// 處理貼文按讚
 const handlePostLike = async (post) => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -100,7 +85,7 @@ const handlePostLike = async (post) => {
   }
 
   try {
-    const result = await toggleLike(post.id, currentUserUid.value)
+    const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
@@ -109,6 +94,7 @@ const handlePostLike = async (post) => {
   }
 }
 
+<<<<<<< HEAD
 // 處理貼文提交
 const handleSubmitPost = async (postData) => {
   try {
@@ -192,6 +178,12 @@ const handleSubmitPost = async (postData) => {
     })
     alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
   }
+=======
+// 發文成功後的回調
+const handlePostSuccess = async () => {
+  isPostingModalOpen.value = false
+  await discussionsStore.loadDiscussions()
+>>>>>>> issues/100
 }
 
 // --- 模態框狀態管理 ---
@@ -234,7 +226,7 @@ const getPostData = (post) => ({
   id: post.id,
   type: 'discussion',
   title: post.title,
-  image: post.image,
+  image: post.banner,
   author: post.author,
   avatar: post.avatar,
   content: post.content,
@@ -266,7 +258,9 @@ const getPostData = (post) => ({
         </div>
       </div>
 
-      <div class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl">
+      <div
+        class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
+      >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
@@ -319,10 +313,33 @@ const getPostData = (post) => ({
             {{ post.content }}
           </p>
 
-          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100">
+          <!-- 顯示封面圖（banner） -->
+          <div
+            v-if="post.banner"
+            class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100"
+          >
             <img
-              :src="post.image"
+              :src="post.banner"
               class="w-full h-full object-cover hover:scale-105 transition duration-500"
+              alt="討論封面"
+            />
+          </div>
+
+          <!-- 顯示內文圖片（image_urls），最多顯示 4 張 -->
+          <div
+            v-if="post.image_urls && post.image_urls.length > 0"
+            class="grid gap-2 mb-4"
+            :class="{
+              'grid-cols-1': post.image_urls.length === 1,
+              'grid-cols-2': post.image_urls.length >= 2,
+            }"
+          >
+            <img
+              v-for="(url, idx) in post.image_urls.slice(0, 4)"
+              :key="idx"
+              :src="url"
+              class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition"
+              :alt="`圖片 ${idx + 1}`"
             />
           </div>
 
@@ -390,11 +407,12 @@ const getPostData = (post) => ({
     </div>
   </div>
 
-  <PostingChoiceModal
+  <DiscussionPostModal
     v-if="isPostingModalOpen"
     @close="isPostingModalOpen = false"
-    @submit-post="handleSubmitPost"
+    @success="handlePostSuccess"
   />
+
   <DiscussionDetailModal
     v-if="isDetailModalOpen"
     :post="selectedPost"
@@ -403,6 +421,3 @@ const getPostData = (post) => ({
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
-
-<!-- 已移除 .pixel-card（已用 Tailwind 實作） -->
-
