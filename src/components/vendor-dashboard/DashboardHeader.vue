@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Star, MapPin, Calendar, TrendingUp } from 'lucide-vue-next'
 
-const props = defineProps({
+defineProps({
   vendor: {
     type: Object,
     required: true
