@@ -16,6 +16,7 @@ import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createPost } from '@/api/discussions'
+import { uploadImage, uploadMultipleImages } from '@/api/storage'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -253,7 +254,6 @@ const handleFinalSubmit = async () => {
     
     if (imageFiles.value.length > 0) {
       try {
-        const { uploadImage, uploadMultipleImages } = await import('@/api/storage')
         
         // 上傳第一張作為 banner
         if (imageFiles.value.length > 0) {

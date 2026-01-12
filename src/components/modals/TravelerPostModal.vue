@@ -24,6 +24,7 @@ import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createTraveler } from '@/api/travelers'
+import { uploadImage } from '@/api/storage'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -295,7 +296,6 @@ const handleFinalSubmit = async () => {
 
     if (bannerFile.value) {
       try {
-        const { uploadImage } = await import('@/api/storage')
         console.log('📤 [旅伴發文] 開始上傳 banner 圖片...')
         bannerImageUrl = await uploadImage(bannerFile.value, 'travelers')
         console.log('✅ [旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
