@@ -5,7 +5,7 @@ import ResultCard from '@/components/personality-test/ResultCard.vue'
 const props = defineProps({
   result: { type: Object, required: true },
 })
-defineEmits(['restart'])
+defineEmits(['restart', 'save'])
 
 // 複製狀態：追蹤是否已成功複製分享文字
 const copied = ref(false)
@@ -64,12 +64,12 @@ const copyShareText = async () => {
 
     <!-- 按鈕列 -->
     <div class="grid gap-3 sm:grid-cols-2">
-      <router-link
-        to="/profile"
+      <button
         class="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-center font-semibold text-white hover:bg-slate-800"
+        @click="$emit('save')"
       >
         儲存到個人頁
-      </router-link>
+      </button>
 
       <button
         class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm hover:bg-slate-50"

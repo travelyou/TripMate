@@ -1,15 +1,19 @@
 <script setup>
 import { ref } from 'vue'
 
-defineProps({
+const props = defineProps({
   user: {
     type: Object,
-    required: true
+    required: true,
   },
   wishlist: {
     type: Array,
-    required: true
-  }
+    required: true,
+  },
+  personalityResult: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['open-personality-result'])
@@ -66,20 +70,36 @@ function resetBalls() {
     >
       <div class="bg-white rounded-[14px] p-3 md:p-6 h-full flex flex-col items-center justify-center text-center">
         <h3 class="text-sm md:text-lg font-bold text-gray-800 mb-1 md:mb-2">🧩 性格測驗</h3>
-        <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">
-          {{ user.spiritAnimal ? user.spiritAnimal.split(' ')[0] : '🦁' }}
-        </div>
-        <div
-          class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 truncate max-w-full"
-        >
-          {{ user.spiritAnimal ? user.spiritAnimal.split(' ')[1] : '樂天派' }}
-        </div>
-        <button
-          class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-pink-100 text-pink-600 text-xs md:text-sm font-bold rounded-full hover:bg-pink-200 transition"
-          @click="handleOpenPersonalityResult"
-        >
-          查看詳情
-        </button>
+        <template v-if="props.personalityResult">
+          <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">
+            {{ props.personalityResult.animalEmoji }}
+          </div>
+          <div
+            class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 truncate max-w-full"
+          >
+            {{ props.personalityResult.animalName }}
+          </div>
+          <button
+            class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-pink-100 text-pink-600 text-xs md:text-sm font-bold rounded-full hover:bg-pink-200 transition"
+            @click="handleOpenPersonalityResult"
+          >
+            查看詳情
+          </button>
+        </template>
+        <template v-else>
+          <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">😓</div>
+          <div
+            class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 truncate max-w-full"
+          >
+            尚未測驗
+          </div>
+          <router-link
+            to="/test"
+            class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-pink-100 text-pink-600 text-xs md:text-sm font-bold rounded-full hover:bg-pink-200 transition"
+          >
+            開始測驗
+          </router-link>
+        </template>
       </div>
     </div>
 
