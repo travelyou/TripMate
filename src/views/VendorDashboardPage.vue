@@ -5,6 +5,7 @@ import { useVendorStore } from '@/stores/vendor'
 import { useUserStore } from '@/stores/user'
 import DashboardNav from '@/components/vendor-dashboard/DashboardNav.vue'
 import DashboardSidebar from '@/components/vendor-dashboard/DashboardSidebar.vue'
+import DashboardHeader from '@/components/vendor-dashboard/DashboardHeader.vue'
 
 const router = useRouter()
 const vendorStore = useVendorStore()
@@ -52,6 +53,9 @@ onMounted(async () => {
 
       <!-- 主要內容區 -->
       <main class="flex-1 overflow-auto">
+        <!-- Dashboard Header -->
+        <DashboardHeader v-if="currentVendor && !loading" :vendor="currentVendor" />
+
         <!-- 內容區域 -->
         <div class="p-8">
           <!-- Loading 狀態 -->
