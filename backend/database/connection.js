@@ -66,12 +66,17 @@ function shouldRetryConnectionError(err) {
 }
 
 function checkEnvVars() {
+  if (process.env.DB_URL || process.env.DATABASE_URL) {
+    return true;
+  }
+
   const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
   const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
   if (missingEnvVars.length > 0) {
     console.error('缺少環境變數：', missingEnvVars.join(', '));
     console.error('請確認 backend/.env 文件存在且包含所有必要的配置。');
+    console.error('或者提供 DB_URL 或 DATABASE_URL 连接字符串。');
     return false;
   }
   return true;
@@ -85,6 +90,69 @@ async function createPool() {
     throw new Error('缺少必要的環境變數');
   }
 
+  const connectionString = process.env.DB_URL || process.env.DATABASE_URL;
+
+  if (connectionString) {
+    console.log('使用連接字符串模式（DB_URL/DATABASE_URL）');
+    console.log('連接字符串來源:', process.env.DB_URL ? 'DB_URL' : 'DATABASE_URL');
+
+    try {
+      const poolConfig = {
+        connectionString: connectionString,
+        ssl: {
+          rejectUnauthorized: false,
+        },
+        connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 120000,
+        idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS) || 60000,
+        max: parseInt(process.env.DB_POOL_MAX) || 3,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: parseInt(process.env.DB_KEEPALIVE_DELAY_MS) || 10000,
+        maxLifetime: parseInt(process.env.DB_MAX_LIFETIME_MS) || 3600000,
+      };
+
+      const isPooler = connectionString.includes('-pooler');
+      if (isPooler) {
+        console.log('✅ 檢測到連接池端點（Connection Pooling）');
+        if (!process.env.DB_CONNECT_TIMEOUT_MS) {
+          poolConfig.connectionTimeoutMillis = 120000;
+          console.log('  連接超時已設置為 120 秒（連接池端點需要更長時間）');
+        }
+      }
+
+      const pool = new Pool(poolConfig);
+
+      console.log('測試連接字符串連接...');
+      await pool.query('SELECT 1');
+      console.log('連接字符串連接成功！');
+
+      pool.on('connect', () => {
+        console.log('資料庫連接成功！');
+        debugLog('connection.js:198', 'Pool connect event', { timestamp: Date.now() }, 'A,B,C');
+      });
+
+      pool.on('error', (err) => {
+        console.error('資料庫連接池錯誤：', err.message);
+        console.error('錯誤代碼：', err.code);
+        debugLog('connection.js:205', 'Pool error event', { code: err.code, message: err.message, errno: err.errno, syscall: err.syscall }, 'A,B,C');
+        if (err.code === 'ENOTFOUND') {
+          console.error('無法解析資料庫主機名，請檢查連接字符串是否正確');
+        } else if (err.code === '28000') {
+          console.error('Neon 連接錯誤：可能是 SNI 或 endpoint 配置問題');
+        }
+        if (err.detail) console.error('錯誤詳情：', err.detail);
+        if (err.hint) console.error('提示：', err.hint);
+      });
+
+      return pool;
+    } catch (error) {
+      console.error('連接字符串連接失敗：', error.message);
+      console.error('嘗試回退到分離配置模式...');
+      // 如果连接字符串失败，继续使用分离配置
+    }
+  }
+
+  // 使用分离配置模式
+  console.log('📋 使用分離配置模式（DB_HOST, DB_PORT, etc.）');
   console.log('資料庫連接配置：');
   console.log('  DB_HOST:', process.env.DB_HOST);
   console.log('  DB_PORT:', process.env.DB_PORT);
@@ -102,7 +170,7 @@ async function createPool() {
   const isNeonPooler = typeof dbHost === 'string' && dbHost.includes('-pooler');
 
   if (isNeonPooler) {
-    console.log('✅ 檢測到 Neon 連接池端點（Connection Pooling）');
+    console.log('檢測到 Neon 連接池端點（Connection Pooling）');
   }
 
   if (typeof dbHost === 'string' && dbHost.includes(':')) {
@@ -173,23 +241,23 @@ async function createPool() {
     // #region agent log
     debugLog('connection.js:173', 'TCP connection test success', { duration: Date.now() - tcpTestStartTime }, 'F,H');
     // #endregion
-    console.log(`✅ TCP 連接測試成功：${resolvedIp}:${dbPort}`);
+    console.log(`TCP 連接測試成功：${resolvedIp}:${dbPort}`);
   } catch (tcpError) {
     // #region agent log
     debugLog('connection.js:177', 'TCP connection test failed', { error: tcpError.message, code: tcpError.code, errno: tcpError.errno, duration: Date.now() - tcpTestStartTime }, 'F,H');
     // #endregion
-    console.error(`❌ TCP 連接測試失敗：${tcpError.message}`);
-    console.error(`   錯誤代碼：${tcpError.code || 'N/A'}`);
-    console.error(`   這可能表示網路路由或防火牆問題`);
+    console.error(`TCP 連接測試失敗：${tcpError.message}`);
+    console.error(`錯誤代碼：${tcpError.code || 'N/A'}`);
+    console.error(`這可能表示網路路由或防火牆問題`);
     if (isNeonPooler) {
-      console.error(`   檢測到連接池端點，但本地環境可能無法連接`);
-      console.error(`   建議解決方案：`);
-      console.error(`   1. 檢查網路連接和防火牆設置`);
-      console.error(`   2. 嘗試使用非連接池端點（在 DB_HOST 中去掉 -pooler 後綴）`);
-      console.error(`   3. 確認 Neon 連接池端點是否允許從當前 IP 連接`);
-      console.error(`   4. 如果是在本地開發，考慮使用非連接池端點`);
+      console.error(`檢測到連接池端點，但本地環境可能無法連接`);
+      console.error(`建議解決方案：`);
+      console.error(`1. 檢查網路連接和防火牆設置`);
+      console.error(`2. 嘗試使用非連接池端點（在 DB_HOST 中去掉 -pooler 後綴）`);
+      console.error(`3. 確認 Neon 連接池端點是否允許從當前 IP 連接`);
+      console.error(`4. 如果是在本地開發，考慮使用非連接池端點`);
     }
-    console.warn(`   警告：TCP 測試失敗，但將繼續嘗試連接資料庫...`);
+    console.warn(`警告：TCP 測試失敗，但將繼續嘗試連接資料庫...`);
   }
   const poolConfig = {
     host: dbHost,
@@ -213,18 +281,14 @@ async function createPool() {
   // #endregion
 
   poolConfig.family = 4;
-  // 强制使用之前解析的 IPv4 地址，确保 DNS 解析一致性
   poolConfig.lookup = (hostname, options, callback) => {
-    // 如果主机名匹配且已解析，直接使用解析的 IP
     if (resolvedIp && hostname === dbHost) {
       console.log(`使用已解析的 IP 地址：${resolvedIp}（主機名：${hostname}）`);
       return callback(null, resolvedIp, 4);
     }
-    // 否则进行新的 DNS 查询，但强制使用 IPv4
     return dns.lookup(hostname, { ...(options || {}), family: 4, all: false }, (err, address, family) => {
       if (err) {
         console.warn(`DNS lookup 失敗（${hostname}）：${err.message}，嘗試使用已解析的 IP`);
-        // 如果新的查询失败，尝试使用之前解析的 IP
         if (resolvedIp) {
           return callback(null, resolvedIp, 4);
         }
@@ -261,14 +325,12 @@ async function createPool() {
       };
       console.log(`SSL 配置：servername=${dbHost}`);
       debugLog('connection.js:151', 'SSL config set for pooler', { servername: dbHost, rejectUnauthorized: false }, 'B');
-      // #endregion
     }
 
     if (!process.env.DB_CONNECT_TIMEOUT_MS) {
       poolConfig.connectionTimeoutMillis = 120000;
       console.log(`連接超時已設置為 120 秒（連接池端點需要更長時間）`);
       debugLog('connection.js:190', 'connectionTimeout set to 120000 for pooler', { timeout: 120000 }, 'A');
-      // #endregion
     }
   } else if (useSsl) {
     poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
