@@ -71,10 +71,10 @@ async function createPool() {
 
   const useConnectionPooling = process.env.USE_POOLING === 'true' || process.env.USE_POOLING === '1';
   const dbHost = process.env.DB_HOST;
-  
+
   // 檢測 Neon 連接池（主機名包含 -pooler）
   const isNeonPooler = typeof dbHost === 'string' && dbHost.includes('-pooler');
-  
+
   if (isNeonPooler) {
     console.log('✅ 檢測到 Neon 連接池端點（Connection Pooling）');
   }
@@ -151,7 +151,7 @@ async function createPool() {
     // Neon 連接池使用標準端口 5432，不需要特殊用戶名格式
     // 連接池會自動處理連接管理
   }
-  
+
   // Supabase 連接池處理（端口 6543）
   if (useConnectionPooling && process.env.DB_PORT === '6543') {
     console.log('✅ 使用 Supabase 連接池模式');
