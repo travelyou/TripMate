@@ -82,11 +82,26 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('❌ [Backend GET /] ========== 錯誤 ==========')
     console.error('❌ [Backend GET /] 錯誤訊息:', error.message)
+    console.error('❌ [Backend GET /] 錯誤名稱:', error.name)
+    console.error('❌ [Backend GET /] 錯誤代碼:', error.code)
     console.error('❌ [Backend GET /] 錯誤堆疊:', error.stack)
+
+    if (error.name === 'AggregateError' && error.errors) {
+      console.error('❌ [Backend GET /] AggregateError 詳細錯誤:')
+      error.errors.forEach((err, index) => {
+        console.error(`  錯誤 ${index + 1}:`, err.message, err.code)
+      })
+    }
+
+    const errorDetails = error.name === 'AggregateError' && error.errors
+      ? error.errors.map(e => e.message || String(e)).join('; ')
+      : error?.message || String(error)
 
     res.status(500).json({
       error: '獲取討論失敗',
-      details: error?.message || String(error),
+      details: errorDetails,
+      errorType: error.name,
+      errorCode: error.code,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     })
   }

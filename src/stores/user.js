@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios' // 新增：引入 axios 用於與後端溝通
+import axios from 'axios'
+import { API_BASE_URL } from '@/api/config'
 import { auth, db } from '@/firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
@@ -143,8 +144,7 @@ export const useUserStore = defineStore('user', () => {
     if (!targetUid) return
 
     try {
-      // 指向 Port 3000 的後端 API
-      const response = await axios.get(`http://localhost:3000/api/likes/user/${targetUid}`, {
+      const response = await axios.get(`${API_BASE_URL}/likes/user/${targetUid}`, {
         params: { board: 'discussion' },
       })
       favorites.value = response.data
@@ -180,10 +180,10 @@ export const useUserStore = defineStore('user', () => {
     // 3. 發送後端請求
     try {
       const targetUid = currentUser.value.uid || currentUser.value.id
-      await axios.post('http://localhost:3000/api/likes', {
+      await axios.post(`${API_BASE_URL}/likes`, {
         post_id: item.id,
         author_uid: targetUid,
-        board: 'discussion', // 目前固定，未來可根據 itemType 調整
+        board: 'discussion',
       })
       console.log('✅ [Store] 按讚操作已同步至後端')
     } catch (error) {
