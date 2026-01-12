@@ -51,6 +51,7 @@ const postData = ref({
 
 const bannerPreview = ref('')
 const bannerFileInput = ref(null)
+const bannerFile = ref(null) // 保存原始 File 對象
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 const suggestedTags = [
@@ -121,6 +122,8 @@ const handleBannerSelect = (event) => {
     alert('圖片大小不能超過 5MB')
     return
   }
+  // 保存原始 File 對象
+  bannerFile.value = file
   const reader = new FileReader()
   reader.onload = (e) => {
     bannerPreview.value = e.target.result
@@ -131,6 +134,7 @@ const handleBannerSelect = (event) => {
 
 const removeBanner = () => {
   bannerPreview.value = ''
+  bannerFile.value = null
   // 不需要清除 postData.value.banner_image
 }
 
@@ -286,6 +290,26 @@ const handleFinalSubmit = async () => {
   }
 
   try {
+    // 如果有選擇 banner 圖片，先上傳到 Firebase Storage
+    let bannerImageUrl = 'https://picsum.photos/1200/400' // 預設圖片
+
+    if (bannerFile.value) {
+      try {
+        const { uploadImage } = await import('@/api/storage')
+        console.log('📤 [旅伴發文] 開始上傳 banner 圖片...')
+        bannerImageUrl = await uploadImage(bannerFile.value, 'travelers')
+        console.log('✅ [旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
+      } catch (error) {
+        console.error('❌ [旅伴發文] Banner 圖片上傳失敗：', error)
+        const shouldContinue = confirm(
+          'Banner 圖片上傳失敗：' + error.message + '\n\n是否要繼續發布（使用預設圖片）？'
+        )
+        if (!shouldContinue) {
+          return
+        }
+      }
+    }
+
     const payload = {
       title: postData.value.title,
       content: postData.value.content,
@@ -297,7 +321,7 @@ const handleFinalSubmit = async () => {
       itinerary: postData.value.itinerary,
       packingList: postData.value.packingList,
       status: '招募中',
-      banner_image: 'https://picsum.photos/1200/400', // 只用預設圖片
+      banner_image: bannerImageUrl, // 使用上傳後的 URL
       author_uid: auth.currentUser.uid,
       author_name: userStore.currentUser?.displayName || '匿名',
       author_avatar:
@@ -305,6 +329,12 @@ const handleFinalSubmit = async () => {
         'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
       spirit_animal: userStore.currentUser?.spiritAnimal || '🦁 樂天派',
     }
+
+    console.log('📤 [旅伴發文] 提交 payload:', {
+      title: payload.title,
+      hasBanner: !!payload.banner_image,
+      bannerUrl: payload.banner_image,
+    })
 
     const response = await createTraveler(payload)
 

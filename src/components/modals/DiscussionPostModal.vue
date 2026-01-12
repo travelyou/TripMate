@@ -32,6 +32,7 @@ const postData = ref({
 
 const fileInputRef = ref(null)
 const imagePreviews = ref([])
+const imageFiles = ref([]) // 保存原始 File 對象
 
 const errors = ref({
   category: '',
@@ -159,6 +160,9 @@ const handleImageSelect = (event) => {
       return
     }
 
+    // 保存原始 File 對象
+    imageFiles.value.push(file)
+
     const reader = new FileReader()
     reader.onload = (e) => {
       imagePreviews.value.push(e.target.result)
@@ -175,6 +179,7 @@ const handleImageSelect = (event) => {
 const removeImage = (index) => {
   console.log('🗑️ [圖片移除] 移除第', index + 1, '張圖片')
   imagePreviews.value.splice(index, 1)
+  imageFiles.value.splice(index, 1) // 同時移除對應的 File 對象
 }
 
 const addTag = (tagText) => {
@@ -240,19 +245,54 @@ const handleFinalSubmit = async () => {
   console.log('✅ [發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
 
   try {
-    console.log('🚀 [發文 Step 2] 準備 payload')
+    console.log('🚀 [發文 Step 2] 開始上傳圖片到 Firebase Storage')
+    
+    // 上傳圖片到 Firebase Storage
+    let bannerUrl = null
+    let imageUrls = []
+    
+    if (imageFiles.value.length > 0) {
+      try {
+        const { uploadImage, uploadMultipleImages } = await import('@/api/storage')
+        
+        // 上傳第一張作為 banner
+        if (imageFiles.value.length > 0) {
+          console.log('📤 [發文 Step 2.1] 上傳 banner 圖片...')
+          bannerUrl = await uploadImage(imageFiles.value[0], 'discussions')
+          console.log('✅ [發文 Step 2.1] Banner 上傳成功:', bannerUrl)
+        }
+        
+        // 上傳其餘圖片
+        if (imageFiles.value.length > 1) {
+          console.log('📤 [發文 Step 2.2] 上傳其餘', imageFiles.value.length - 1, '張圖片...')
+          const remainingFiles = imageFiles.value.slice(1)
+          imageUrls = await uploadMultipleImages(remainingFiles, 'discussions')
+          console.log('✅ [發文 Step 2.2] 其餘圖片上傳成功:', imageUrls)
+        }
+      } catch (error) {
+        console.error('❌ [發文 Step 2] 圖片上傳失敗:', error)
+        const shouldContinue = confirm(
+          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？'
+        )
+        if (!shouldContinue) {
+          return
+        }
+      }
+    }
+
+    console.log('🚀 [發文 Step 3] 準備 payload')
     const payload = {
       board: 'discussion',
       category: postData.value.category,
       title: postData.value.title,
       content: postData.value.content,
       tags: postData.value.tags,
-      banner: imagePreviews.value.length > 0 ? imagePreviews.value[0] : null,
-      image_urls: imagePreviews.value.slice(1),
+      banner: bannerUrl,
+      image_urls: imageUrls,
       author_uid: auth.currentUser.uid,
     }
 
-    console.log('✅ [發文 Step 2] Payload 準備完成')
+    console.log('✅ [發文 Step 3] Payload 準備完成')
     console.log('📊 [發文 Payload] 詳細資料:', {
       board: payload.board,
       category: payload.category,
@@ -260,19 +300,18 @@ const handleFinalSubmit = async () => {
       contentLength: payload.content.length,
       tagsCount: payload.tags.length,
       hasBanner: !!payload.banner,
-      bannerSize: payload.banner ? (payload.banner.length / 1024).toFixed(2) + ' KB' : '無',
       imageUrlsCount: payload.image_urls.length,
       author_uid: payload.author_uid,
     })
 
-    console.log('🚀 [發文 Step 3] 調用 createPost API')
+    console.log('🚀 [發文 Step 4] 調用 createPost API')
     const response = await createPost(payload)
 
-    console.log('✅ [發文 Step 3] API 回應成功')
+    console.log('✅ [發文 Step 4] API 回應成功')
     console.log('📊 [發文 Response]', response)
 
     if (response) {
-      console.log('✅ [發文 Step 4] 發文成功！')
+      console.log('✅ [發文 Step 5] 發文成功！')
       alert('✨ 發文成功！')
       emit('success')
       emit('close')
