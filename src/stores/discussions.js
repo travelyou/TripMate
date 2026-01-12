@@ -1,7 +1,7 @@
 // src/stores/discussions.js
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { fetchPosts, fetchPostById, createPost, updatePost, deletePost } from '@/api/posts'
+import { fetchPosts, fetchPostById, createPost, updatePost, deletePost } from '@/api/discussions'
 import { db } from '@/firebase/config'
 import { doc, getDoc } from 'firebase/firestore'
 
@@ -241,13 +241,13 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-    // --- 貼文資料（從 API 獲取） ---
-    const discussions = ref([])
-    const loading = ref(false)
-    const error = ref(null)
+  // --- 貼文資料（從 API 獲取） ---
+  const discussions = ref([])
+  const loading = ref(false)
+  const error = ref(null)
 
-    // 將後端數據格式轉換為前端格式
-    const transformPost = (post) => {
+  // 將後端數據格式轉換為前端格式
+  const transformPost = (post) => {
     // 格式化時間（將 timestamp 轉換為 "X小時前" 格式）
     const formatTime = (timestamp) => {
       if (!timestamp) return '剛剛'
@@ -271,7 +271,9 @@ export const useDiscussionsStore = defineStore('discussions', () => {
         id: comment.id,
         author: comment.author_nickname || comment.author_uid || '匿名用戶',
         author_uid: comment.author_uid,
-        avatar: comment.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+        avatar:
+          comment.author_avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
         time: formatTime(comment.created_at),
         content: comment.content,
         likes: comment.likes || 0,
@@ -286,14 +288,16 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       author: post.author_nickname || post.author_uid || '匿名用戶',
       author_uid: post.author_uid,
       spiritAnimal: post.author_spirit_animal || '',
-      avatar: post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_uid}`,
+      avatar:
+        post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_uid}`,
       time: formatTime(post.created_at),
       title: post.title,
       content: post.content,
       image: post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : null, // 取第一張圖片
       image_urls: post.image_urls || [],
       likes: post.likes_count || post.likes || 0, // 從資料庫獲取按讚數
-      comments: post.comments_count || post.comments || (post.commentsData ? post.commentsData.length : 0),
+      comments:
+        post.comments_count || post.comments || (post.commentsData ? post.commentsData.length : 0),
       tags: post.tags || [],
       commentsData: formatComments(post.commentsData || []), // 格式化留言數據
       board: post.board,
@@ -302,166 +306,165 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-    // 從 Firestore 獲取用戶資訊
-    const getUserInfoFromFirestore = async (uid) => {
-      if (!uid) return null
-      try {
-        const userDocRef = doc(db, 'users', uid)
-        const userDoc = await getDoc(userDocRef)
-        if (userDoc.exists()) {
-          return userDoc.data()
-        }
-      } catch (error) {
-        console.error(`獲取用戶 ${uid} 資訊失敗：`, error)
+  // 從 Firestore 獲取用戶資訊
+  const getUserInfoFromFirestore = async (uid) => {
+    if (!uid) return null
+    try {
+      const userDocRef = doc(db, 'users', uid)
+      const userDoc = await getDoc(userDocRef)
+      if (userDoc.exists()) {
+        return userDoc.data()
       }
-      return null
+    } catch (error) {
+      console.error(`獲取用戶 ${uid} 資訊失敗：`, error)
     }
+    return null
+  }
 
-    // 批量獲取用戶資訊並更新貼文
-    const enrichPostsWithUserInfo = async (posts) => {
-      // 獲取所有唯一的 author_uid
-      const uniqueUids = [...new Set(posts.map(p => p.author_uid).filter(Boolean))]
+  // 批量獲取用戶資訊並更新貼文
+  const enrichPostsWithUserInfo = async (posts) => {
+    // 獲取所有唯一的 author_uid
+    const uniqueUids = [...new Set(posts.map((p) => p.author_uid).filter(Boolean))]
 
-      // 批量獲取用戶資訊
-      const userInfoMap = {}
-      await Promise.all(
-        uniqueUids.map(async (uid) => {
-          const userInfo = await getUserInfoFromFirestore(uid)
-          if (userInfo) {
-            userInfoMap[uid] = userInfo
-          }
-        })
-      )
+    // 批量獲取用戶資訊
+    const userInfoMap = {}
+    await Promise.all(
+      uniqueUids.map(async (uid) => {
+        const userInfo = await getUserInfoFromFirestore(uid)
+        if (userInfo) {
+          userInfoMap[uid] = userInfo
+        }
+      }),
+    )
 
-      // 更新貼文資訊
-      return posts.map(post => {
-        const userInfo = userInfoMap[post.author_uid]
+    // 更新貼文資訊
+    return posts.map((post) => {
+      const userInfo = userInfoMap[post.author_uid]
+      if (userInfo) {
+        post.author_nickname = userInfo.nickname
+        post.author_avatar = userInfo.avatar
+        post.author_spirit_animal = userInfo.spiritAnimal
+      }
+      return post
+    })
+  }
+
+  // 獲取所有貼文
+  const loadDiscussions = async (page = 1, limit = 10) => {
+    loading.value = true
+    error.value = null
+    try {
+      const data = await fetchPosts(page, limit)
+      // 從 Firestore 獲取用戶資訊並更新貼文
+      const enrichedPosts = await enrichPostsWithUserInfo(data.posts)
+      discussions.value = enrichedPosts.map(transformPost)
+      return data
+    } catch (err) {
+      error.value = err.message
+      console.error('獲取貼文失敗：', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 獲取單個貼文詳情
+  const loadPostById = async (id) => {
+    loading.value = true
+    error.value = null
+    try {
+      const post = await fetchPostById(id)
+      // 從 Firestore 獲取貼文作者資訊
+      if (post.author_uid) {
+        const userInfo = await getUserInfoFromFirestore(post.author_uid)
         if (userInfo) {
           post.author_nickname = userInfo.nickname
           post.author_avatar = userInfo.avatar
           post.author_spirit_animal = userInfo.spiritAnimal
         }
-        return post
-      })
-    }
-
-    // 獲取所有貼文
-    const loadDiscussions = async (page = 1, limit = 10) => {
-      loading.value = true
-      error.value = null
-      try {
-        const data = await fetchPosts(page, limit)
-        // 從 Firestore 獲取用戶資訊並更新貼文
-        const enrichedPosts = await enrichPostsWithUserInfo(data.posts)
-        discussions.value = enrichedPosts.map(transformPost)
-        return data
-      } catch (err) {
-        error.value = err.message
-        console.error('獲取貼文失敗：', err)
-        throw err
-      } finally {
-        loading.value = false
       }
-    }
 
-    // 獲取單個貼文詳情
-    const loadPostById = async (id) => {
-      loading.value = true
-      error.value = null
-      try {
-        const post = await fetchPostById(id)
-        // 從 Firestore 獲取貼文作者資訊
-        if (post.author_uid) {
-          const userInfo = await getUserInfoFromFirestore(post.author_uid)
-          if (userInfo) {
-            post.author_nickname = userInfo.nickname
-            post.author_avatar = userInfo.avatar
-            post.author_spirit_animal = userInfo.spiritAnimal
-          }
+      // 從 Firestore 獲取留言作者資訊
+      if (post.commentsData && Array.isArray(post.commentsData)) {
+        const commentUids = [...new Set(post.commentsData.map((c) => c.author_uid).filter(Boolean))]
+        const commentUserInfoMap = {}
+        await Promise.all(
+          commentUids.map(async (uid) => {
+            const userInfo = await getUserInfoFromFirestore(uid)
+            if (userInfo) {
+              commentUserInfoMap[uid] = userInfo
+            }
+          }),
+        )
+
+        post.commentsData = post.commentsData.map((comment) => ({
+          ...comment,
+          author_nickname: commentUserInfoMap[comment.author_uid]?.nickname,
+          author_avatar: commentUserInfoMap[comment.author_uid]?.avatar,
+          author_spirit_animal: commentUserInfoMap[comment.author_uid]?.spiritAnimal,
+        }))
+      }
+
+      return transformPost(post)
+    } catch (err) {
+      error.value = err.message
+      console.error('獲取貼文失敗：', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 創建新貼文
+  const addPost = async (postData) => {
+    try {
+      const newPost = await createPost(postData)
+
+      // 從 Firestore 獲取作者資訊
+      if (newPost.author_uid) {
+        const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
+        if (userInfo) {
+          newPost.author_nickname = userInfo.nickname
+          newPost.author_avatar = userInfo.avatar
+          newPost.author_spirit_animal = userInfo.spiritAnimal
         }
-
-        // 從 Firestore 獲取留言作者資訊
-        if (post.commentsData && Array.isArray(post.commentsData)) {
-          const commentUids = [...new Set(post.commentsData.map(c => c.author_uid).filter(Boolean))]
-          const commentUserInfoMap = {}
-          await Promise.all(
-            commentUids.map(async (uid) => {
-              const userInfo = await getUserInfoFromFirestore(uid)
-              if (userInfo) {
-                commentUserInfoMap[uid] = userInfo
-              }
-            })
-          )
-
-          post.commentsData = post.commentsData.map(comment => ({
-            ...comment,
-            author_nickname: commentUserInfoMap[comment.author_uid]?.nickname,
-            author_avatar: commentUserInfoMap[comment.author_uid]?.avatar,
-            author_spirit_animal: commentUserInfoMap[comment.author_uid]?.spiritAnimal,
-          }))
-        }
-
-        return transformPost(post)
-      } catch (err) {
-        error.value = err.message
-        console.error('獲取貼文失敗：', err)
-        throw err
-      } finally {
-        loading.value = false
       }
+
+      const transformedPost = transformPost(newPost)
+      discussions.value.unshift(transformedPost) // 添加到開頭
+      return transformedPost
+    } catch (err) {
+      console.error('建立貼文失敗：', err)
+      throw err
     }
+  }
 
-    // 創建新貼文
-    const addPost = async (postData) => {
-      try {
-        const newPost = await createPost(postData)
-
-        // 從 Firestore 獲取作者資訊
-        if (newPost.author_uid) {
-          const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
-          if (userInfo) {
-            newPost.author_nickname = userInfo.nickname
-            newPost.author_avatar = userInfo.avatar
-            newPost.author_spirit_animal = userInfo.spiritAnimal
-          }
-        }
-
-        const transformedPost = transformPost(newPost)
-        discussions.value.unshift(transformedPost) // 添加到開頭
-        return transformedPost
-      } catch (err) {
-        console.error('建立貼文失敗：', err)
-        throw err
+  // 更新貼文
+  const editPost = async (id, postData) => {
+    try {
+      const updatedPost = await updatePost(id, postData)
+      const transformedPost = transformPost(updatedPost)
+      const index = discussions.value.findIndex((p) => p.id === id)
+      if (index !== -1) {
+        discussions.value[index] = transformedPost
       }
+      return transformedPost
+    } catch (err) {
+      console.error('更新貼文失敗：', err)
+      throw err
     }
+  }
 
-    // 更新貼文
-    const editPost = async (id, postData) => {
-      try {
-        const updatedPost = await updatePost(id, postData)
-        const transformedPost = transformPost(updatedPost)
-        const index = discussions.value.findIndex((p) => p.id === id)
-        if (index !== -1) {
-          discussions.value[index] = transformedPost
-        }
-        return transformedPost
-      } catch (err) {
-        console.error('更新貼文失敗：', err)
-        throw err
-      }
+  // 刪除貼文
+  const removePost = async (id) => {
+    try {
+      await deletePost(id)
+      discussions.value = discussions.value.filter((p) => p.id !== id)
+    } catch (err) {
+      console.error('刪除貼文失敗：', err)
+      throw err
     }
-
-    // 刪除貼文
-    const removePost = async (id) => {
-      try {
-        await deletePost(id)
-        discussions.value = discussions.value.filter((p) => p.id !== id)
-      } catch (err) {
-        console.error('刪除貼文失敗：', err)
-        throw err
-      }
-    }
-
+  }
 
   return {
     discussions,
@@ -474,4 +477,3 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     removePost,
   }
 })
-

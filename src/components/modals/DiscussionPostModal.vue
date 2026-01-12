@@ -15,7 +15,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
-import { createPost } from '@/api/posts'
+import { createPost } from '@/api/discussions'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()

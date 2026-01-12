@@ -23,7 +23,7 @@ Directory structure:
     │   └── routes/
     │       ├── comments.js
     │       ├── likes.js
-    │       ├── posts.js
+    │       ├── discussions.js
     │       ├── travelers.js
     │       └── users.js
     └── src/
@@ -33,7 +33,7 @@ Directory structure:
         │   ├── comments.js
         │   ├── config.js
         │   ├── likes.js
-        │   ├── posts.js
+        │   ├── discussions.js
         │   ├── storage.js
         │   ├── travelers.js
         │   └── users.js
