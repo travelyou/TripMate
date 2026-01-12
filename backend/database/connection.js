@@ -71,12 +71,12 @@ function checkEnvVars() {
   }
 
   const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-  const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 
   if (missingEnvVars.length > 0) {
     console.error('缺少環境變數：', missingEnvVars.join(', '));
     console.error('請確認 backend/.env 文件存在且包含所有必要的配置。');
-    console.error('或者提供 DB_URL 或 DATABASE_URL 连接字符串。');
+    console.error('或者提供 DB_URL。');
     return false;
   }
   return true;
