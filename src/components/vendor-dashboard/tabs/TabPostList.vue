@@ -22,11 +22,11 @@ const handleDelete = async (id) => {
 }
 
 const handleCreate = () => {
-  alert('功能即將開放，敬請期待！')
+  alert('待串接')
 }
 
 const handleEdit = () => {
-  alert('功能即將開放，敬請期待！')
+  alert('待串接')
 }
 
 // 載入資料
