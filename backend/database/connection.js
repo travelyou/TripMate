@@ -125,12 +125,17 @@ async function createPool() {
   };
 
   // Neon 相容性：若執行環境因任何原因拿不到 TLS SNI，Neon 會要求帶 endpoint id
-  // Neon 文件建議：?options=endpoint%3D<endpoint-id>
-  // 在 node-postgres 可用 poolConfig.options = `endpoint=<endpoint-id>`
-  // Neon 錯誤訊息定義：endpoint id = 網域名稱的第一段（原樣，不做裁切）
+
   if (!poolConfig.options && typeof dbHost === 'string' && dbHost.endsWith('.neon.tech')) {
     const firstLabel = dbHost.split('.')[0] || '';
-    const endpointId = firstLabel;
+    let endpointId = firstLabel;
+
+    // 如果是連接池端點，去掉 -pooler 後綴以獲取正確的 endpoint ID
+    if (isNeonPooler && endpointId.endsWith('-pooler')) {
+      endpointId = endpointId.replace(/-pooler$/, '');
+      console.log(`Neon 連接池：從 ${firstLabel} 提取 endpoint ID: ${endpointId}`);
+    }
+
     if (endpointId) {
       poolConfig.options = `endpoint=${endpointId}`;
       console.log(`Neon: 已自動注入 endpoint options（endpoint=${endpointId}）以確保相容性`);
@@ -141,15 +146,30 @@ async function createPool() {
   // （pg 的 ssl=true 需用物件形式，否則會因憑證驗證失敗）
   const dbSslRaw = (process.env.DB_SSL ?? 'true').toString().toLowerCase();
   const useSsl = dbSslRaw !== 'false' && dbSslRaw !== '0' && dbSslRaw !== 'no';
-  if (useSsl) {
-    poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
-  }
 
   // Neon 連接池處理（主機名包含 -pooler）
   if (isNeonPooler) {
     console.log('✅ 使用 Neon 連接池模式');
     // Neon 連接池使用標準端口 5432，不需要特殊用戶名格式
     // 連接池會自動處理連接管理
+
+    // Neon 連接池必須使用 SSL，且 servername 必須匹配主機名
+    // 這對於 SNI (Server Name Indication) 很重要
+    if (useSsl) {
+      poolConfig.ssl = {
+        rejectUnauthorized: false,
+        servername: dbHost, // 使用完整主機名以確保 SNI 正確
+      };
+      console.log(`SSL 配置：servername=${dbHost}`);
+    }
+
+    // Neon 連接池可能需要更長時間建立初始連接（特別是 cold start 時）
+    // 保持原本的 60 秒超時，但確保有足夠時間
+    if (!process.env.DB_CONNECT_TIMEOUT_MS) {
+      poolConfig.connectionTimeoutMillis = 60000;
+    }
+  } else if (useSsl) {
+    poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
   }
 
   // Supabase 連接池處理（端口 6543）
