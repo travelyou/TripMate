@@ -36,7 +36,7 @@ onAuthStateChanged(auth, async (user) => {
       discussionsStore.discussions.map(async (post) => {
         try {
           const { getLikesInfo } = await import('@/api/likes')
-          const info = await getLikesInfo(post.id, currentUserUid.value)
+          const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
           post.isLiked = info.isLiked
           post.likes = info.likesCount || post.likes
         } catch (error) {
@@ -64,7 +64,7 @@ onMounted(async () => {
         discussionsStore.discussions.map(async (post) => {
           try {
             const { getLikesInfo } = await import('@/api/likes')
-            const info = await getLikesInfo(post.id, currentUserUid.value)
+            const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
             post.isLiked = info.isLiked
             post.likes = info.likesCount || post.likes
           } catch (error) {

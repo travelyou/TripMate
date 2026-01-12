@@ -4,9 +4,14 @@ const pool = require('../database/connection')
 
 // GET /api/discussions - 獲取所有討論（支援分頁和分類篩選）
 router.get('/', async (req, res) => {
+  console.log('🔵 [Backend GET /] ========== 開始 ==========')
+  console.log('🔵 [Backend GET /] Query 參數:', req.query)
+
   try {
     const { page = 1, limit = 10, category } = req.query
     const offset = (page - 1) * limit
+
+    console.log('🔵 [Backend GET / Step 1] 分頁參數:', { page, limit, offset, category })
 
     // 構建查詢條件
     let whereClause = 'd.deleted_at IS NULL'
@@ -16,6 +21,9 @@ router.get('/', async (req, res) => {
       whereClause += ' AND d.category = $3'
       queryParams.push(category)
     }
+
+    console.log('🔵 [Backend GET / Step 2] WHERE 子句:', whereClause)
+    console.log('🔵 [Backend GET / Step 2] 查詢參數:', queryParams)
 
     // 查詢討論，包含按讚數和留言數
     const discussionsQuery = `
@@ -32,7 +40,9 @@ router.get('/', async (req, res) => {
       LIMIT $1 OFFSET $2
     `
 
+    console.log('🔵 [Backend GET / Step 3] 執行查詢')
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
+    console.log('🔵 [Backend GET / Step 3] 查詢結果數量:', discussionsResult.rows.length)
 
     // 查詢總數
     let countQuery = 'SELECT COUNT(*) FROM discussion.discussion WHERE deleted_at IS NULL'
@@ -43,8 +53,10 @@ router.get('/', async (req, res) => {
       countParams.push(category)
     }
 
+    console.log('🔵 [Backend GET / Step 4] 查詢總數')
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
+    console.log('🔵 [Backend GET / Step 4] 總數:', total)
 
     // 處理結果
     const discussions = discussionsResult.rows.map((discussion) => ({
@@ -56,6 +68,8 @@ router.get('/', async (req, res) => {
       tags: Array.isArray(discussion.tags) ? discussion.tags : [],
     }))
 
+    console.log('✅ [Backend GET /] 查詢成功，回傳', discussions.length, '筆資料')
+
     res.json({
       posts: discussions,
       pagination: {
@@ -66,8 +80,10 @@ router.get('/', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('獲取討論失敗：', error)
-    console.error('錯誤堆疊：', error.stack)
+    console.error('❌ [Backend GET /] ========== 錯誤 ==========')
+    console.error('❌ [Backend GET /] 錯誤訊息:', error.message)
+    console.error('❌ [Backend GET /] 錯誤堆疊:', error.stack)
+
     res.status(500).json({
       error: '獲取討論失敗',
       details: error?.message || String(error),
@@ -76,12 +92,131 @@ router.get('/', async (req, res) => {
   }
 })
 
+// POST /api/discussions - 創建新討論
+router.post('/', async (req, res) => {
+  console.log('🟢 [Backend POST /] ========== 開始創建討論 ==========')
+  console.log('🟢 [Backend POST / Step 0] 收到請求')
+  console.log('🟢 [Backend POST / Step 0] Content-Type:', req.headers['content-type'])
+  console.log('🟢 [Backend POST / Step 0] Body 大小:', JSON.stringify(req.body).length, 'bytes')
+
+  try {
+    const {
+      author_uid,
+      // board, // 這裡不需要 board
+      category,
+      title,
+      content,
+      banner = null,
+      image_urls = [],
+      tags = [],
+    } = req.body
+
+    console.log('🟢 [Backend POST / Step 1] 解析請求資料')
+    console.log('📊 [Backend POST / Data]', {
+      author_uid,
+      category,
+      titleLength: title?.length || 0,
+      contentLength: content?.length || 0,
+      hasBanner: !!banner,
+      bannerSize: banner ? `${(banner.length / 1024).toFixed(2)} KB` : '無',
+      imageUrlsCount: Array.isArray(image_urls) ? image_urls.length : 0,
+      tagsCount: Array.isArray(tags) ? tags.length : 0,
+    })
+
+    // 驗證必填欄位
+    console.log('🟢 [Backend POST / Step 2] 驗證必填欄位')
+    if (!author_uid || !title || !content) {
+      console.log('❌ [Backend POST / Step 2] 必填欄位缺失:', {
+        hasAuthorUid: !!author_uid,
+        hasTitle: !!title,
+        hasContent: !!content,
+      })
+
+      return res.status(400).json({
+        error: '缺少必填欄位',
+        required: ['author_uid', 'title', 'content'],
+        received: {
+          hasAuthorUid: !!author_uid,
+          hasTitle: !!title,
+          hasContent: !!content,
+        },
+      })
+    }
+    console.log('✅ [Backend POST / Step 2] 必填欄位驗證通過')
+
+    // 確保 tags 和 image_urls 是陣列
+    const tagsArray = Array.isArray(tags) ? tags : []
+    const imageUrlsArray = Array.isArray(image_urls) ? image_urls : []
+
+    console.log('🟢 [Backend POST / Step 3] 準備插入資料庫')
+    console.log('📊 [Backend POST / SQL Data]', {
+      author_uid,
+      category,
+      title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
+      contentLength: content.length,
+      tagsCount: tagsArray.length,
+      hasBanner: !!banner,
+      imageUrlsCount: imageUrlsArray.length,
+    })
+
+    // 插入討論 (已移除 board)
+    const insertDiscussionQuery = `
+      INSERT INTO discussion.discussion (
+        author_uid, category, title, content, tags, banner, image_urls
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `
+
+    console.log('🟢 [Backend POST / Step 4] 執行 SQL INSERT')
+    const discussionResult = await pool.query(insertDiscussionQuery, [
+      author_uid,
+      category,
+      title,
+      content,
+      tagsArray,
+      banner,
+      imageUrlsArray,
+    ])
+
+    const newDiscussion = discussionResult.rows[0]
+    console.log('✅ [Backend POST / Step 5] 插入成功！')
+    console.log('📊 [Backend POST / Success] 新討論 ID:', newDiscussion.id)
+    console.log('📊 [Backend POST / Success] 創建時間:', newDiscussion.created_at)
+
+    console.log('🟢 [Backend POST /] ========== 完成 ==========')
+    res.status(201).json(newDiscussion)
+  } catch (error) {
+    console.error('❌ [Backend POST /] ========== 失敗 ==========')
+    console.error('❌ [Backend POST /] 錯誤類型:', error.name)
+    console.error('❌ [Backend POST /] 錯誤訊息:', error.message)
+    console.error('❌ [Backend POST /] 錯誤代碼:', error.code)
+    console.error('❌ [Backend POST /] 錯誤堆疊:', error.stack)
+    console.error('❌ [Backend POST /] 請求 Body:', req.body)
+
+    if (error.code) {
+      console.error('❌ [Backend POST /] PostgreSQL 錯誤代碼:', error.code)
+      console.error('❌ [Backend POST /] PostgreSQL 錯誤詳情:', error.detail)
+    }
+
+    res.status(500).json({
+      error: '創建討論失敗',
+      details: error?.message || String(error),
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    })
+  }
+})
+
 // GET /api/discussions/:id - 獲取單個討論詳情
 router.get('/:id', async (req, res) => {
+  console.log('🔵 [Backend GET /:id] 開始，ID:', req.params.id)
+
   try {
     const { id } = req.params
     const idNum = Number(id)
     if (!Number.isInteger(idNum) || idNum <= 0) {
+      console.log('❌ [Backend GET /:id] ID 格式錯誤:', id)
       return res.status(400).json({ error: '討論 ID 格式錯誤', details: 'id 必須是正整數' })
     }
 
@@ -98,13 +233,16 @@ router.get('/:id', async (req, res) => {
       GROUP BY d.id
     `
 
+    console.log('🔵 [Backend GET /:id] 執行查詢')
     const discussionResult = await pool.query(discussionQuery, [idNum])
 
     if (discussionResult.rows.length === 0) {
+      console.log('❌ [Backend GET /:id] 討論不存在')
       return res.status(404).json({ error: '討論不存在' })
     }
 
     const discussion = discussionResult.rows[0]
+    console.log('🔵 [Backend GET /:id] 找到討論:', discussion.title)
 
     // 獲取留言
     const commentsResult = await pool.query(
@@ -121,95 +259,18 @@ router.get('/:id', async (req, res) => {
     discussion.image_urls = Array.isArray(discussion.image_urls) ? discussion.image_urls : []
     discussion.tags = Array.isArray(discussion.tags) ? discussion.tags : []
 
+    console.log('✅ [Backend GET /:id] 回傳成功，留言數:', commentsResult.rows.length)
     res.json(discussion)
   } catch (error) {
-    console.error('獲取討論詳情失敗：', error)
+    console.error('❌ [Backend GET /:id] 錯誤:', error)
     res.status(500).json({ error: '獲取討論詳情失敗', details: error?.message || String(error) })
-  }
-})
-
-// POST /api/discussions - 創建新討論
-router.post('/', async (req, res) => {
-  try {
-    const {
-      author_uid,
-      board = 'discussion',
-      category,
-      title,
-      content,
-      banner = null,
-      image_urls = [],
-      tags = [],
-    } = req.body
-
-    console.log('收到創建討論請求：', {
-      author_uid,
-      board,
-      category,
-      title: title?.substring(0, 50),
-      content: content?.substring(0, 50),
-      hasBanner: !!banner,
-      imageUrlsCount: image_urls?.length || 0,
-      tagsCount: tags?.length || 0,
-    })
-
-    // 驗證必填欄位
-    if (!author_uid || !title || !content) {
-      return res.status(400).json({
-        error: '缺少必填欄位',
-        required: ['author_uid', 'title', 'content'],
-        received: {
-          hasAuthorUid: !!author_uid,
-          hasTitle: !!title,
-          hasContent: !!content,
-        },
-      })
-    }
-
-    // 確保 tags 和 image_urls 是陣列
-    const tagsArray = Array.isArray(tags) ? tags : []
-    const imageUrlsArray = Array.isArray(image_urls) ? image_urls : []
-
-    // 插入討論
-    const insertDiscussionQuery = `
-      INSERT INTO discussion.discussion (
-        author_uid, board, category, title, content, tags, banner, image_urls
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `
-
-    const discussionResult = await pool.query(insertDiscussionQuery, [
-      author_uid,
-      board,
-      category,
-      title,
-      content,
-      tagsArray,
-      banner,
-      imageUrlsArray,
-    ])
-
-    const newDiscussion = discussionResult.rows[0]
-
-    console.log('討論創建成功，ID：', newDiscussion.id)
-
-    res.status(201).json(newDiscussion)
-  } catch (error) {
-    console.error('創建討論失敗：', error)
-    console.error('錯誤堆疊：', error.stack)
-    console.error('請求資料：', req.body)
-    res.status(500).json({
-      error: '創建討論失敗',
-      details: error?.message || String(error),
-      code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    })
   }
 })
 
 // PUT /api/discussions/:id - 更新討論
 router.put('/:id', async (req, res) => {
+  console.log('🟡 [Backend PUT /:id] 開始，ID:', req.params.id)
+
   try {
     const { id } = req.params
     const idNum = Number(id)
@@ -218,12 +279,19 @@ router.put('/:id', async (req, res) => {
     }
     const { title, content, category, banner, image_urls, tags } = req.body
 
+    console.log('🟡 [Backend PUT /:id] 更新資料:', {
+      hasTitle: !!title,
+      hasContent: !!content,
+      hasCategory: !!category,
+    })
+
     // 檢查討論是否存在
     const checkResult = await pool.query(
       'SELECT id FROM discussion.discussion WHERE id = $1 AND deleted_at IS NULL',
       [idNum],
     )
     if (checkResult.rows.length === 0) {
+      console.log('❌ [Backend PUT /:id] 討論不存在')
       return res.status(404).json({ error: '討論不存在' })
     }
 
@@ -250,16 +318,20 @@ router.put('/:id', async (req, res) => {
       image_urls || null,
       idNum,
     ])
+
     const updatedDiscussion = result.rows[0]
+    console.log('✅ [Backend PUT /:id] 更新成功')
     res.json(updatedDiscussion)
   } catch (error) {
-    console.error('更新討論失敗：', error)
+    console.error('❌ [Backend PUT /:id] 錯誤:', error)
     res.status(500).json({ error: '更新討論失敗', details: error?.message || String(error) })
   }
 })
 
 // DELETE /api/discussions/:id - 軟刪除討論
 router.delete('/:id', async (req, res) => {
+  console.log('🔴 [Backend DELETE /:id] 開始，ID:', req.params.id)
+
   try {
     const { id } = req.params
     const idNum = Number(id)
@@ -273,6 +345,7 @@ router.delete('/:id', async (req, res) => {
       [idNum],
     )
     if (checkResult.rows.length === 0) {
+      console.log('❌ [Backend DELETE /:id] 討論不存在')
       return res.status(404).json({ error: '討論不存在' })
     }
 
@@ -282,9 +355,10 @@ router.delete('/:id', async (req, res) => {
       [idNum],
     )
 
+    console.log('✅ [Backend DELETE /:id] 刪除成功')
     res.json({ message: '討論已刪除', id: idNum })
   } catch (error) {
-    console.error('刪除討論失敗：', error)
+    console.error('❌ [Backend DELETE /:id] 錯誤:', error)
     res.status(500).json({ error: '刪除討論失敗', details: error?.message || String(error) })
   }
 })

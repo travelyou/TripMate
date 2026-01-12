@@ -7,12 +7,11 @@ const discussionsRouter = require('./routes/discussions')
 const commentsRouter = require('./routes/comments')
 const likesRouter = require('./routes/likes')
 const usersRouter = require('./routes/users')
+const travelersRoutes = require('./routes/travelers')
 
 const app = express()
 const PORT = process.env.PORT || 3000
-// 一律只用 IPv4：明確綁定到 IPv4 host，避免在部分環境預設走非 IPv4 的監聽位址
 const HOST = process.env.HOST || '0.0.0.0'
-const travelersRoutes = require('./routes/travelers')
 
 app.use(cors())
 app.use(express.json())
@@ -27,6 +26,7 @@ app.get('/', (req, res) => {
       discussions: '/api/discussions',
       comments: '/api/posts/:postId/comments',
       travelers: '/api/travelers',
+      likes: '/api/likes',
     },
   })
 })
@@ -57,7 +57,7 @@ app.use('/api/discussions', discussionsRouter)
 app.use('/api', commentsRouter)
 
 // 使用按讚路由
-app.use('/api', likesRouter)
+app.use('/api/likes', likesRouter)
 
 // 使用旅伴路由
 app.use('/api/travelers', travelersRoutes)
