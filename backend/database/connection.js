@@ -151,7 +151,30 @@ async function initializePool() {
       return pool;
     } catch (error) {
       initError = error;
-      console.error('資料庫連接池初始化失敗：', error.message);
+      // 注意：某些錯誤的 message 可能為空，務必印出完整物件與常見欄位，便於 Zeabur/CI 排查
+      console.error('資料庫連接池初始化失敗：', error?.message || '(no message)');
+      console.error('資料庫連接池初始化失敗（完整錯誤物件）：', error);
+      console.error(
+        '資料庫錯誤欄位：',
+        JSON.stringify(
+          {
+            name: error?.name,
+            code: error?.code,
+            errno: error?.errno,
+            syscall: error?.syscall,
+            address: error?.address,
+            port: error?.port,
+            severity: error?.severity,
+            detail: error?.detail,
+            hint: error?.hint,
+            routine: error?.routine,
+            where: error?.where,
+          },
+          null,
+          2,
+        ),
+      );
+      if (error?.stack) console.error('stack:', error.stack);
       throw error;
     }
   })();

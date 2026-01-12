@@ -65,6 +65,9 @@ app.use('/api/travelers', travelersRoutes)
 // 使用用戶路由
 app.use('/api/users', usersRouter)
 
+// 相容：若部署環境沒有 /api 前綴（或你想支援兩種路徑），也提供 /discussions
+app.use('/discussions', discussionsRouter)
+
 app.listen(PORT, HOST, () => {
   console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`)
 })
