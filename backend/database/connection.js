@@ -125,24 +125,24 @@ async function createPool() {
   };
 
   // Neon 相容性：若執行環境因任何原因拿不到 TLS SNI，Neon 會要求帶 endpoint id
-
+  // 對於連接池端點，SNI 已經包含完整信息，不需要額外的 endpoint option
+  // 對於非連接池端點，需要設置 endpoint option 以確保相容性
   if (!poolConfig.options && typeof dbHost === 'string' && dbHost.endsWith('.neon.tech')) {
-    const firstLabel = dbHost.split('.')[0] || '';
-    let endpointId = firstLabel;
+    // 對於連接池端點，不設置 endpoint option，讓 SNI 自動處理
+    // 這樣可以避免 SNI 和 endpoint option 不一致的錯誤
+    if (!isNeonPooler) {
+      const firstLabel = dbHost.split('.')[0] || '';
+      const endpointId = firstLabel;
 
-    // 如果是連接池端點，去掉 -pooler 後綴以獲取正確的 endpoint ID
-    if (isNeonPooler && endpointId.endsWith('-pooler')) {
-      endpointId = endpointId.replace(/-pooler$/, '');
-      console.log(`Neon 連接池：從 ${firstLabel} 提取 endpoint ID: ${endpointId}`);
-    }
-
-    if (endpointId) {
-      poolConfig.options = `endpoint=${endpointId}`;
-      console.log(`Neon: 已自動注入 endpoint options（endpoint=${endpointId}）以確保相容性`);
+      if (endpointId) {
+        poolConfig.options = `endpoint=${endpointId}`;
+        console.log(`Neon: 已自動注入 endpoint options（endpoint=${endpointId}）以確保相容性`);
+      }
+    } else {
+      console.log(`Neon 連接池：使用 SNI 自動處理，不設置 endpoint option`);
     }
   }
 
-  // Supabase 通常需要 SSL。若你的環境不需要，可在 .env 設定 DB_SSL=false 關閉。
   // （pg 的 ssl=true 需用物件形式，否則會因憑證驗證失敗）
   const dbSslRaw = (process.env.DB_SSL ?? 'true').toString().toLowerCase();
   const useSsl = dbSslRaw !== 'false' && dbSslRaw !== '0' && dbSslRaw !== 'no';
