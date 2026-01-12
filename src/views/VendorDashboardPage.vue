@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/user'
 import DashboardNav from '@/components/vendor-dashboard/DashboardNav.vue'
 import DashboardSidebar from '@/components/vendor-dashboard/DashboardSidebar.vue'
 import DashboardHeader from '@/components/vendor-dashboard/DashboardHeader.vue'
+import TabBasicInfo from '@/components/vendor-dashboard/tabs/TabBasicInfo.vue'
 
 const router = useRouter()
 const vendorStore = useVendorStore()
@@ -71,13 +72,7 @@ onMounted(async () => {
             <!-- 基本資料 Tab -->
             <div v-if="activeTab === 'basic_info'">
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-6">基本資料編輯</h2>
-                <div class="space-y-6">
-                  <!-- 內容區域 -->
-                  <div class="text-center py-12 text-gray-400">
-                    <p>基本資料編輯功能</p>
-                  </div>
-                </div>
+                <TabBasicInfo />
               </div>
             </div>
 
