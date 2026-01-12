@@ -17,9 +17,9 @@ const router = createRouter({
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
-      path: '/find-traveler',
-      name: 'find_traveler',
-      component: () => import('@/views/FindTravelerPage.vue'),
+      path: '/travelers',
+      name: 'travelers',
+      component: () => import('@/views/TravelerPage.vue'),
     },
     {
       path: '/featured-itinerary',
@@ -53,7 +53,7 @@ const router = createRouter({
       },
     },
     {
-      path: '/vendor/:id',
+      path: '/vendor',
       name: 'VendorProfile',
       component: () => import('@/views/VendorProfilePage.vue'),
       meta: {

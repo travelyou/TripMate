@@ -1,21 +1,33 @@
-// 這個檔案是拿來抓上傳圖片、檔案用的，會到 Firebase Storage 裡面再以 URL 的形式讓 Neon 管理
+// src/api/storage.js
 import { storage } from '@/firebase/config'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 
+/**
+ * 上傳圖片到 Firebase Storage
+ * @param {File} file - 圖片文件
+ * @param {string} folder - 儲存資料夾（例如：'posts', 'avatars'）
+ * @returns {Promise<string>} 圖片的公開 URL
+ */
 export async function uploadImage(file, folder = 'posts') {
   try {
     if (!file) throw new Error('未提供檔案')
 
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
-    const safeName = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
-    const path = `public/${folder}/${timestamp}_${randomString}_${safeName}`
+    const fileName = `${timestamp}_${randomString}_${file.name}`
 
-    const fileRef = ref(storage, path)
-    await uploadBytes(fileRef, file, { contentType: file.type || 'application/octet-stream' })
-    const url = await getDownloadURL(fileRef)
+    // 創建儲存路徑引用
+    const storageRef = ref(storage, `${folder}/${fileName}`)
 
-    return { url, path }
+    // 上傳文件到 Firebase Storage
+    await uploadBytes(storageRef, file, {
+      cacheControl: 'public, max-age=3600'
+    })
+
+    // 獲取公開 URL
+    const downloadURL = await getDownloadURL(storageRef)
+
+    return downloadURL
   } catch (error) {
     console.error('圖片上傳失敗：', error)
     throw new Error('圖片上傳失敗：' + (error?.message || String(error)))
@@ -28,12 +40,39 @@ export async function uploadMultipleImages(files, folder = 'posts') {
     return await Promise.all(list.map((f) => uploadImage(f, folder)))
   } catch (error) {
     console.error('批量圖片上傳失敗：', error)
-    throw new Error('批量圖片上傳失敗：' + (error?.message || String(error)))
+    throw new Error('批量圖片上傳失敗：' + error.message)
   }
 }
 
-export async function deleteImageByPath(path) {
-  if (!path) throw new Error('缺少 path')
-  const fileRef = ref(storage, path)
-  await deleteObject(fileRef)
+/**
+ * 刪除圖片
+ * @param {string} filePath - 圖片路徑或完整 URL
+ * @param {string} folder - 儲存資料夾
+ */
+export async function deleteImage(filePath, folder = 'posts') {
+  try {
+    // 如果 filePath 是完整 URL，需要提取路徑
+    let storagePath = filePath
+    if (filePath.includes('/o/')) {
+      // Firebase Storage URL 格式：https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media
+      const urlMatch = filePath.match(/\/o\/([^?]+)/)
+      if (urlMatch) {
+        storagePath = decodeURIComponent(urlMatch[1])
+      }
+    } else if (!filePath.startsWith(folder)) {
+      // 如果不是完整路徑，加上資料夾前綴
+      storagePath = `${folder}/${filePath}`
+    }
+
+    // 創建儲存路徑引用
+    const storageRef = ref(storage, storagePath)
+
+    // 刪除文件
+    await deleteObject(storageRef)
+  } catch (error) {
+    console.error('圖片刪除失敗：', error)
+    throw new Error('圖片刪除失敗：' + error.message)
+  }
 }
+
+
