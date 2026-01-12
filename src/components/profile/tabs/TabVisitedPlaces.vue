@@ -160,8 +160,8 @@ function isInternational(location) {
 // 切換 Tab 的 CSS 類別
 const tabBtnClass = (isActive) => {
   return isActive
-    ? 'bg-indigo-600 text-white shadow-md'
-    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+    ? 'bg-primary-600 text-white shadow-md'
+    : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-200'
 }
 </script>
 
@@ -170,7 +170,7 @@ const tabBtnClass = (isActive) => {
 
     <!-- 1. 分頁切換區 (Tabs) -->
     <div class="flex justify-center mb-6">
-      <div class="bg-gray-100 p-1 rounded-xl flex gap-1">
+      <div class="bg-secondary-100 p-1 rounded-xl flex gap-1">
         <button
           class="px-6 py-2 rounded-lg font-medium text-sm transition-all duration-300 flex items-center gap-2"
           :class="tabBtnClass(currentTab === 'domestic')"
@@ -203,28 +203,28 @@ const tabBtnClass = (isActive) => {
 
     <!-- 3. 自助登錄區 (僅限本人可見) -->
     <!-- 根據 currentTab 顯示對應的輸入框 -->
-    <div v-if="isCurrentUser" class="bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100 mt-8 transition-all duration-500">
-      <h3 class="font-bold text-gray-800 mb-4 flex items-center text-lg">
-        <Stamp class="w-5 h-5 mr-2 text-indigo-500" />
+    <div v-if="isCurrentUser" class="bg-primary-50/60 rounded-2xl p-6 border border-primary-100 mt-8 transition-all duration-500">
+      <h3 class="font-bold text-secondary-800 mb-4 flex items-center text-lg">
+        <Stamp class="w-5 h-5 mr-2 text-primary-500" />
         自助簽證登錄 (Self Check-in)
       </h3>
 
       <!-- 國內登錄表單 -->
       <div v-if="currentTab === 'domestic'" class="animate-fade-in-up">
-        <div class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Domestic (TW)</div>
+        <div class="text-xs font-bold text-primary-400 uppercase tracking-wider mb-2">Domestic (TW)</div>
         <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center relative">
           <!-- Emoji Picker Button -->
           <button
-            class="w-10 h-10 flex-none rounded-xl border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-xl shadow-sm transition relative"
+            class="w-10 h-10 flex-none rounded-xl border border-secondary-200 bg-white hover:bg-secondary-50 flex items-center justify-center text-xl shadow-sm transition relative"
             @click.stop="showEmojiPicker = !showEmojiPicker"
           >
             {{ selectedIcon }}
             <!-- Emoji Dropdown -->
-             <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 p-2 bg-white rounded-2xl shadow-xl border border-gray-100 grid grid-cols-5 gap-1 w-64 z-50">
+             <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 p-2 bg-white rounded-2xl shadow-xl border border-secondary-100 grid grid-cols-5 gap-1 w-64 z-50">
                 <button
                   v-for="emoji in emojiList"
                   :key="emoji"
-                  class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg text-lg transition"
+                  class="w-10 h-10 flex items-center justify-center hover:bg-secondary-100 rounded-lg text-lg transition"
                   @click.stop="selectedIcon = emoji; showEmojiPicker = false"
                 >
                   {{ emoji }}
@@ -235,16 +235,16 @@ const tabBtnClass = (isActive) => {
           <input
             v-model="newDomesticPlace"
             placeholder="城市名稱 (如: 台南)"
-            class="px-4 py-2 border rounded-xl text-sm flex-1 focus:ring-2 focus:ring-indigo-500 outline-none bg-white min-w-0"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0"
             @keyup.enter="handleAdd('domestic')"
           />
           <input
             v-model="newDomesticDate"
             type="month"
-            class="px-4 py-2 border rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-indigo-500 outline-none text-gray-500 bg-white"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-secondary-500 bg-white"
           />
           <button
-            class="p-2 bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md transition transform active:scale-95 flex justify-center items-center"
+            class="p-2 bg-primary-600 rounded-xl hover:bg-primary-700 shadow-md transition transform active:scale-95 flex justify-center items-center"
             title="蓋上戳章"
             @click="handleAdd('domestic')"
           >
@@ -256,19 +256,19 @@ const tabBtnClass = (isActive) => {
 
       <!-- 國外登錄表單 -->
       <div v-else class="animate-fade-in-up">
-        <div class="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2">International</div>
+        <div class="text-xs font-bold text-primary-400 uppercase tracking-wider mb-2">International</div>
         <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
            <!-- Reuse Emoji Picker Button (Can extract to component, but duplicate for simplicity now) -->
            <button
-            class="w-10 h-10 flex-none rounded-xl border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-xl shadow-sm transition relative"
+            class="w-10 h-10 flex-none rounded-xl border border-secondary-200 bg-white hover:bg-secondary-50 flex items-center justify-center text-xl shadow-sm transition relative"
             @click.stop="showEmojiPicker = !showEmojiPicker"
           >
             {{ selectedIcon }}
-             <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 p-2 bg-white rounded-2xl shadow-xl border border-gray-100 grid grid-cols-5 gap-1 w-64 z-50">
+             <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 p-2 bg-white rounded-2xl shadow-xl border border-secondary-100 grid grid-cols-5 gap-1 w-64 z-50">
                 <button
                   v-for="emoji in emojiList"
                   :key="emoji"
-                  class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg text-lg transition"
+                  class="w-10 h-10 flex items-center justify-center hover:bg-secondary-100 rounded-lg text-lg transition"
                   @click.stop="selectedIcon = emoji; showEmojiPicker = false"
                 >
                   {{ emoji }}
@@ -279,16 +279,16 @@ const tabBtnClass = (isActive) => {
            <input
             v-model="newInternationalPlace"
             placeholder="城市名稱 (如: 東京)"
-            class="px-4 py-2 border rounded-xl text-sm flex-1 focus:ring-2 focus:ring-orange-500 outline-none bg-white min-w-0"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0"
             @keyup.enter="handleAdd('international')"
           />
           <input
             v-model="newInternationalDate"
             type="month"
-            class="px-4 py-2 border rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-orange-500 outline-none text-gray-500 bg-white"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-secondary-500 bg-white"
           />
           <button
-            class="p-2 bg-orange-500 rounded-xl hover:bg-orange-600 shadow-md transition transform active:scale-95 flex justify-center items-center"
+            class="p-2 bg-primary-600 rounded-xl hover:bg-primary-700 shadow-md transition transform active:scale-95 flex justify-center items-center"
             title="蓋上戳章"
             @click="handleAdd('international')"
           >
@@ -306,15 +306,15 @@ const tabBtnClass = (isActive) => {
           <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600">
             <AlertTriangle class="w-6 h-6" />
           </div>
-          <h3 class="text-lg font-bold text-gray-800 mb-2">確定刪除此戳章？</h3>
-          <p class="text-sm text-gray-500 mb-6">
+          <h3 class="text-lg font-bold text-secondary-800 mb-2">確定刪除此戳章？</h3>
+          <p class="text-sm text-secondary-500 mb-6">
             刪除後將無法復原，您確定要移除這個足跡紀錄嗎？
             <br>
-            <span class="font-bold text-gray-700 mt-2 block">{{ itemToDelete?.location }}</span>
+            <span class="font-bold text-secondary-700 mt-2 block">{{ itemToDelete?.location }}</span>
           </p>
           <div class="flex gap-3 w-full">
             <button
-              class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
+              class="flex-1 px-4 py-2 bg-secondary-100 text-secondary-700 rounded-xl font-medium hover:bg-secondary-200 transition"
               @click="cancelDelete"
             >
               取消
@@ -335,33 +335,33 @@ const tabBtnClass = (isActive) => {
       <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl scale-100 animate-pop-in">
         <div class="flex flex-col items-center text-center">
             <!-- Icon -->
-           <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-3xl">
+           <div class="w-16 h-16 bg-secondary-100 rounded-full flex items-center justify-center mb-4 text-3xl">
              🙈
            </div>
 
-           <h3 class="text-xl font-bold text-gray-800 mb-2">確定要隱藏這個足跡？</h3>
+           <h3 class="text-xl font-bold text-secondary-800 mb-2">確定要隱藏這個足跡？</h3>
 
-           <div class="bg-gray-50 p-4 rounded-xl w-full mb-6 text-left border border-gray-100">
+           <div class="bg-secondary-50 p-4 rounded-xl w-full mb-6 text-left border border-secondary-100">
                <div class="flex items-center gap-2 mb-1">
-                 <span class="text-xs font-bold text-indigo-500 px-2 py-0.5 bg-indigo-50 rounded-full border border-indigo-100">{{ itemToHide?.type }}</span>
-                 <span class="font-bold text-gray-800">{{ itemToHide?.location }}</span>
+                 <span class="text-xs font-bold text-primary-600 px-2 py-0.5 bg-primary-50 rounded-full border border-primary-100">{{ itemToHide?.type }}</span>
+                 <span class="font-bold text-secondary-800">{{ itemToHide?.location }}</span>
                </div>
-               <div class="text-sm text-gray-500 pl-1">{{ itemToHide?.date }}</div>
+               <div class="text-sm text-secondary-500 pl-1">{{ itemToHide?.date }}</div>
            </div>
 
-           <p class="text-sm text-gray-400 mb-8">
+           <p class="text-sm text-secondary-400 mb-8">
              隱藏後，您隨時可以在「<strong>編輯個人資料 > 隱藏的足跡</strong>」中將其還原。
            </p>
 
            <div class="flex gap-3 w-full">
              <button
-               class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition"
+               class="flex-1 px-4 py-3 bg-secondary-100 text-secondary-700 rounded-xl font-bold hover:bg-secondary-200 transition"
                @click="isHideConfirmModalOpen = false"
              >
                取消
              </button>
              <button
-               class="flex-1 px-4 py-3 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-900 transition shadow-lg shadow-gray-200"
+               class="flex-1 px-4 py-3 bg-primary-700 text-white rounded-xl font-bold hover:bg-primary-800 transition shadow-lg shadow-primary/20"
                @click="confirmHide"
              >
                確認隱藏
