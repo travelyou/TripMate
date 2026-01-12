@@ -63,14 +63,21 @@ async function createPool() {
   console.log('  DB_NAME:', process.env.DB_NAME);
   console.log('  DB_USER:', process.env.DB_USER);
   console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置');
+  console.log('  連接池模式:', process.env.USE_POOLING === 'true' || process.env.USE_POOLING === '1' ? '啟用' : '停用');
 
   if (process.env.DB_HOST && (process.env.DB_HOST.includes(':') || process.env.DB_HOST.includes('/'))) {
     console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
   }
 
-  const useConnectionPooling = process.env.USE_POOLING === 'true';
-
+  const useConnectionPooling = process.env.USE_POOLING === 'true' || process.env.USE_POOLING === '1';
   const dbHost = process.env.DB_HOST;
+  
+  // 檢測 Neon 連接池（主機名包含 -pooler）
+  const isNeonPooler = typeof dbHost === 'string' && dbHost.includes('-pooler');
+  
+  if (isNeonPooler) {
+    console.log('✅ 檢測到 Neon 連接池端點（Connection Pooling）');
+  }
 
   // 一律只用 IPv4：若 DB_HOST 包含 ':'，很可能不是 IPv4 位址/主機名格式
   if (typeof dbHost === 'string' && dbHost.includes(':')) {
@@ -138,7 +145,16 @@ async function createPool() {
     poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
   }
 
+  // Neon 連接池處理（主機名包含 -pooler）
+  if (isNeonPooler) {
+    console.log('✅ 使用 Neon 連接池模式');
+    // Neon 連接池使用標準端口 5432，不需要特殊用戶名格式
+    // 連接池會自動處理連接管理
+  }
+  
+  // Supabase 連接池處理（端口 6543）
   if (useConnectionPooling && process.env.DB_PORT === '6543') {
+    console.log('✅ 使用 Supabase 連接池模式');
     // Supabase Pooler 常要求 user 格式為 postgres.<projectRef>
     // 若你使用 pooler host（如 *.pooler.supabase.com），無法從 DB_HOST 推出 projectRef，
     // 可在 .env 設定 SUPABASE_PROJECT_REF=<你的 project ref> 讓系統自動補齊 user。

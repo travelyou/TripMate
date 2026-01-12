@@ -22,7 +22,33 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
 ]
 
-// CORS 配置
+// CORS 配置函數
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range')
+  }
+}
+
+// 手動處理 OPTIONS 預檢請求（使用中間件而非路由）
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin
+    if (!origin || allowedOrigins.includes(origin)) {
+      setCorsHeaders(req, res)
+      return res.status(204).send()
+    } else {
+      return res.status(403).send()
+    }
+  }
+  next()
+})
+
+// CORS 配置（用於非 OPTIONS 請求）
 const corsOptions = {
   origin(origin, cb) {
     // 允許沒有 origin 的請求（例如：Postman、curl、伺服器端請求）
@@ -48,7 +74,7 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 }
 
-// 使用 CORS 中間件處理所有請求（包括 OPTIONS 預檢請求）
+// 使用 CORS 中間件處理所有非 OPTIONS 請求
 app.use(cors(corsOptions))
 
 // 記錄所有請求（用於除錯）
