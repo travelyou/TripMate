@@ -126,8 +126,6 @@ Directory structure:
         │   ├── personality.js
         │   ├── travelers.js
         │   └── user.js
-        ├── supabase/
-        │   └── config.js
         ├── utils/
         │   └── time.js
         └── views/
