@@ -4,11 +4,36 @@ const { Pool } = require('pg');
 require('dotenv').config();
 const dns = require('dns');
 const { promisify } = require('util');
+const fs = require('fs');
+const path = require('path');
+const net = require('net');
 
 const dnsLookup = promisify(dns.lookup);
 const dnsResolve4 = promisify(dns.resolve4);
 
 dns.setDefaultResultOrder('ipv4first');
+
+const DEBUG_LOG_PATH = path.join(process.cwd(), '.cursor', 'debug.log');
+function debugLog(location, message, data, hypothesisId) {
+  try {
+    const logDir = path.dirname(DEBUG_LOG_PATH);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logEntry = JSON.stringify({
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId,
+    }) + '\n';
+    fs.appendFileSync(DEBUG_LOG_PATH, logEntry, 'utf8');
+  } catch {
+    // ignore
+  }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,6 +78,9 @@ function checkEnvVars() {
 }
 
 async function createPool() {
+  // #region agent log
+  debugLog('connection.js:55', 'createPool entry', { timestamp: Date.now() }, 'A');
+  // #endregion
   if (!checkEnvVars()) {
     throw new Error('缺少必要的環境變數');
   }
@@ -69,7 +97,6 @@ async function createPool() {
     console.error('警告：DB_HOST 包含端口或路徑，這是不正確的！');
   }
 
-  const useConnectionPooling = process.env.USE_POOLING === 'true' || process.env.USE_POOLING === '1';
   const dbHost = process.env.DB_HOST;
 
   const isNeonPooler = typeof dbHost === 'string' && dbHost.includes('-pooler');
@@ -82,18 +109,87 @@ async function createPool() {
     throw new Error('DB_HOST 格式不支援（包含 ":"）。此專案已設定為僅使用 IPv4，請改用 IPv4 的 DB_HOST（例如 IPv4 位址或可解析出 A 記錄的主機名）。');
   }
 
+  // #region agent log
+  const dnsStartTime = Date.now();
+  debugLog('connection.js:92', 'DNS resolution start', { host: dbHost, startTime: dnsStartTime }, 'C');
+  // #endregion
+  let resolvedIp = null;
   try {
     const addrs4 = await dnsResolve4(dbHost);
     if (!addrs4?.length) throw new Error('查無 IPv4 A 記錄');
-    console.log(`DNS A 記錄可用（IPv4）：${addrs4[0]}`);
+    resolvedIp = addrs4[0];
+    console.log(`DNS A 記錄可用（IPv4）：${resolvedIp}`);
+    // #region agent log
+    debugLog('connection.js:97', 'DNS resolution success', { ip: resolvedIp, duration: Date.now() - dnsStartTime }, 'C');
+    // #endregion
   } catch (e) {
     try {
       const lookedUp = await dnsLookup(dbHost, { family: 4 });
-      console.log(`DNS lookup 可用（IPv4）：${lookedUp.address}`);
+      resolvedIp = lookedUp.address;
+      console.log(`DNS lookup 可用（IPv4）：${resolvedIp}`);
+      // #region agent log
+      debugLog('connection.js:103', 'DNS lookup fallback success', { ip: resolvedIp, duration: Date.now() - dnsStartTime }, 'C');
+      // #endregion
     } catch (e2) {
       const msg = e?.message || e2?.message || '未知 DNS 錯誤';
       throw new Error(`僅 IPv4 模式下 DNS 解析失敗：${msg}（請確認 DB_HOST 有 IPv4 A 記錄）`);
     }
+  }
+
+  // #region agent log
+  const tcpTestStartTime = Date.now();
+  debugLog('connection.js:110', 'TCP connection test start', { ip: resolvedIp, port: parseInt(process.env.DB_PORT) || 5432 }, 'F,H');
+  // #endregion
+  const dbPort = parseInt(process.env.DB_PORT) || 5432;
+  try {
+    await new Promise((resolve, reject) => {
+      const socket = new net.Socket();
+      const timeout = 10000;
+      let resolved = false;
+
+      socket.setTimeout(timeout);
+      socket.once('connect', () => {
+        if (!resolved) {
+          resolved = true;
+          socket.destroy();
+          resolve();
+        }
+      });
+      socket.once('timeout', () => {
+        if (!resolved) {
+          resolved = true;
+          socket.destroy();
+          reject(new Error('TCP connection timeout'));
+        }
+      });
+      socket.once('error', (err) => {
+        if (!resolved) {
+          resolved = true;
+          reject(err);
+        }
+      });
+      socket.connect(dbPort, resolvedIp);
+    });
+    // #region agent log
+    debugLog('connection.js:173', 'TCP connection test success', { duration: Date.now() - tcpTestStartTime }, 'F,H');
+    // #endregion
+    console.log(`✅ TCP 連接測試成功：${resolvedIp}:${dbPort}`);
+  } catch (tcpError) {
+    // #region agent log
+    debugLog('connection.js:177', 'TCP connection test failed', { error: tcpError.message, code: tcpError.code, errno: tcpError.errno, duration: Date.now() - tcpTestStartTime }, 'F,H');
+    // #endregion
+    console.error(`❌ TCP 連接測試失敗：${tcpError.message}`);
+    console.error(`   錯誤代碼：${tcpError.code || 'N/A'}`);
+    console.error(`   這可能表示網路路由或防火牆問題`);
+    if (isNeonPooler) {
+      console.error(`   檢測到連接池端點，但本地環境可能無法連接`);
+      console.error(`   建議解決方案：`);
+      console.error(`   1. 檢查網路連接和防火牆設置`);
+      console.error(`   2. 嘗試使用非連接池端點（在 DB_HOST 中去掉 -pooler 後綴）`);
+      console.error(`   3. 確認 Neon 連接池端點是否允許從當前 IP 連接`);
+      console.error(`   4. 如果是在本地開發，考慮使用非連接池端點`);
+    }
+    console.warn(`   警告：TCP 測試失敗，但將繼續嘗試連接資料庫...`);
   }
   const poolConfig = {
     host: dbHost,
@@ -101,7 +197,9 @@ async function createPool() {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 60000,
+    connectionTimeoutMillis: isNeonPooler
+      ? parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 120000
+      : parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 60000,
     idleTimeoutMillis: isNeonPooler
       ? parseInt(process.env.DB_IDLE_TIMEOUT_MS) || 60000
       : parseInt(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
@@ -110,6 +208,9 @@ async function createPool() {
     keepAliveInitialDelayMillis: parseInt(process.env.DB_KEEPALIVE_DELAY_MS) || 10000,
     maxLifetime: parseInt(process.env.DB_MAX_LIFETIME_MS) || 3600000,
   };
+  // #region agent log
+  debugLog('connection.js:120', 'poolConfig created', { connectionTimeout: poolConfig.connectionTimeoutMillis, idleTimeout: poolConfig.idleTimeoutMillis, max: poolConfig.max, isNeonPooler, hasSSL: !!poolConfig.ssl }, 'A,D');
+  // #endregion
 
   poolConfig.family = 4;
   poolConfig.lookup = (hostname, options, callback) => {
@@ -141,38 +242,45 @@ async function createPool() {
         servername: dbHost,
       };
       console.log(`SSL 配置：servername=${dbHost}`);
+      // #region agent log
+      debugLog('connection.js:151', 'SSL config set for pooler', { servername: dbHost, rejectUnauthorized: false }, 'B');
+      // #endregion
     }
 
     if (!process.env.DB_CONNECT_TIMEOUT_MS) {
-      poolConfig.connectionTimeoutMillis = 60000;
+      poolConfig.connectionTimeoutMillis = 120000;
+      console.log(`連接超時已設置為 120 秒（連接池端點需要更長時間）`);
+      // #region agent log
+      debugLog('connection.js:190', 'connectionTimeout set to 120000 for pooler', { timeout: 120000 }, 'A');
+      // #endregion
     }
   } else if (useSsl) {
     poolConfig.ssl = { rejectUnauthorized: false, servername: dbHost };
   }
 
-  if (useConnectionPooling && process.env.DB_PORT === '6543') {
-    console.log('✅ 使用 Supabase 連接池模式');
-    const userFromEnv = process.env.DB_USER;
-    const needsProjectUser = userFromEnv && !userFromEnv.includes('.');
-    const projectRefFromEnv = process.env.SUPABASE_PROJECT_REF;
-    const projectRefFromHostMatch = (process.env.DB_HOST || '').match(/^db\.([a-z0-9]+)\.supabase\.co$/i)?.[1];
-    const projectRef = projectRefFromEnv || projectRefFromHostMatch;
 
-    if (needsProjectUser && projectRef) {
-      poolConfig.user = `postgres.${projectRef}`;
-      console.log('使用 Connection Pooling，用戶名已調整為：', poolConfig.user);
-    }
-  }
 
+  const poolCreateStartTime = Date.now();
+  debugLog('connection.js:189', 'Pool creation start', { config: JSON.stringify({ host: poolConfig.host, port: poolConfig.port, database: poolConfig.database, user: poolConfig.user, hasPassword: !!poolConfig.password, connectionTimeout: poolConfig.connectionTimeoutMillis, hasSSL: !!poolConfig.ssl }) }, 'D,E');
+  // #endregion
   const pool = new Pool(poolConfig);
+  // #region agent log
+  debugLog('connection.js:193', 'Pool object created', { duration: Date.now() - poolCreateStartTime }, 'D');
+  // #endregion
 
   pool.on('connect', () => {
     console.log('資料庫連接成功！');
+    // #region agent log
+    debugLog('connection.js:198', 'Pool connect event', { timestamp: Date.now() }, 'A,B,C');
+    // #endregion
   });
 
   pool.on('error', (err) => {
     console.error('資料庫連接池錯誤：', err.message);
     console.error('錯誤代碼：', err.code);
+    // #region agent log
+    debugLog('connection.js:205', 'Pool error event', { code: err.code, message: err.message, errno: err.errno, syscall: err.syscall }, 'A,B,C');
+    // #endregion
     if (err.code === 'ENOTFOUND') {
       console.error('無法解析資料庫主機名，請檢查 DB_HOST 是否正確');
     } else if (err.code === '28000') {
@@ -201,8 +309,19 @@ async function initializePool() {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       let pool = null;
       try {
+        // #region agent log
+        const attemptStartTime = Date.now();
+        debugLog('connection.js:239', 'Connection attempt start', { attempt, maxAttempts, startTime: attemptStartTime }, 'A');
+        // #endregion
         pool = await createPool();
+        // #region agent log
+        debugLog('connection.js:243', 'Pool created, starting query test', { duration: Date.now() - attemptStartTime }, 'A');
+        // #endregion
+        const queryStartTime = Date.now();
         await pool.query('SELECT 1');
+        // #region agent log
+        debugLog('connection.js:248', 'Query test success', { queryDuration: Date.now() - queryStartTime, totalDuration: Date.now() - attemptStartTime }, 'A,B,C');
+        // #endregion
 
         poolInstance = pool;
         console.log('資料庫連接池已初始化（且已驗證可查詢）');
@@ -210,6 +329,9 @@ async function initializePool() {
       } catch (error) {
         initError = error;
         const codes = getNestedErrorCodes(error);
+        // #region agent log
+        debugLog('connection.js:258', 'Connection attempt failed', { attempt, maxAttempts, errorName: error?.name, errorCode: error?.code, errorMessage: error?.message, codes, isAggregateError: error?.name === 'AggregateError', hasErrors: !!error?.errors, errors: error?.errors?.map(e => ({ code: e.code, message: e.message, errno: e.errno, syscall: e.syscall, address: e.address, port: e.port })) }, 'A,B,C,D,E');
+        // #endregion
         console.error(
           `資料庫連接池初始化失敗（第 ${attempt}/${maxAttempts} 次）：`,
           error?.message || '(no message)',
