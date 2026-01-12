@@ -8,7 +8,7 @@ export const useVendorStore = defineStore('vendor', () => {
   const loading = ref(false)
   const error = ref(null)
 
-  // 模擬數據 - 廠商基本資料
+  // 🔴 MOCK DATA - 廠商基本資料
   const mockVendor = {
     id: 'vendor001',
     name: '環遊世界旅行社',
@@ -19,15 +19,12 @@ export const useVendorStore = defineStore('vendor', () => {
     regionTags: ['日本', '韓國', '東南亞', '歐洲', '美洲'],
     rating: 4.8,
     reviewCount: 328,
-    // postsCount: 45,
-    // itineraryCount: 28,
-    // followersCount: 1520,
     description:
       '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。',
     isVerified: true,
   }
 
-  // 模擬數據 - 貼文
+  // 🔴 MOCK DATA - 貼文
   const mockPosts = [
     {
       id: 1,
@@ -38,7 +35,7 @@ export const useVendorStore = defineStore('vendor', () => {
       likes: 245,
       collects: 120,
       comments: 38,
-      time: '2025-11-15', // Changed to ISO date for easier sorting
+      time: '2025-11-15',
       tags: ['日本', '賞楓', '京都', '東北亞'],
     },
     {
@@ -67,7 +64,7 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // 模擬數據 - 行程
+  // 🔴 MOCK DATA - 行程
   const mockItineraries = [
     {
       id: 1,
@@ -155,7 +152,7 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // 模擬數據 - 評價
+  // 🔴 MOCK DATA - 評價
   const mockReviews = [
     {
       id: 1,
@@ -185,18 +182,21 @@ export const useVendorStore = defineStore('vendor', () => {
 
   const vendorReviews = ref([])
 
-  // Actions
+  // ========================================
+  // 前台 Actions
+  // ========================================
+
+  /**
+   * 📡 API ENDPOINT: GET /api/vendors/:vendorId
+   * Supabase: SELECT * FROM vendors WHERE id = :vendorId
+   */
   const fetchVendorProfile = async (id) => {
     loading.value = true
     error.value = null
     try {
-      // 模擬 API 延遲 (加快速度 500ms -> 100ms)
+      // 🔴 MOCK DATA
       await new Promise((resolve) => setTimeout(resolve, 100))
-
-      // 在真實情境中，這裡會根據 id 發送 API 請求
-      // 現在我們回傳模擬數據，並根據 id 稍微改變內容 (如果需要)
       console.log(`Fetching vendor profile for ID: ${id}`)
-
       currentVendor.value = { ...mockVendor, id }
     } catch (err) {
       error.value = err.message
@@ -206,21 +206,26 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
+  /**
+   * 📡 API ENDPOINT: GET /api/vendors/:vendorId/posts
+   */
   const fetchVendorPosts = async (id) => {
-    // 模擬 API 請求
+    // 🔴 MOCK DATA
     await new Promise((resolve) => setTimeout(resolve, 100))
     console.log(`Fetching posts for vendor: ${id}`)
     vendorPosts.value = mockPosts
   }
 
+  /**
+   * 📡 API ENDPOINT: GET /api/vendors/:vendorId/itineraries
+   */
   const fetchVendorItineraries = async (id, filter = {}) => {
-    // 模擬 API 請求
+    // 🔴 MOCK DATA
     await new Promise((resolve) => setTimeout(resolve, 100))
     console.log(`Fetching itineraries for vendor: ${id}`)
 
     let result = [...mockItineraries]
 
-    // 簡單的模擬過濾
     if (filter.region && filter.region !== '全部') {
       result = result.filter((item) => item.region === filter.region)
     }
@@ -228,12 +233,195 @@ export const useVendorStore = defineStore('vendor', () => {
     vendorItineraries.value = result
   }
 
+  /**
+   * 📡 API ENDPOINT: GET /api/vendors/:vendorId/reviews
+   */
   const fetchVendorReviews = async (id) => {
+    // 🔴 MOCK DATA
     await new Promise(resolve => setTimeout(resolve, 100))
     console.log(`Fetching reviews for vendor: ${id}`)
     vendorReviews.value = mockReviews
   }
 
+  // ========================================
+  // 廠商後台 CRUD Actions
+  // ========================================
+
+  /**
+   * 📡 API ENDPOINT: PUT /api/vendors/:vendorId
+   * Supabase: UPDATE vendors SET ... WHERE id = :vendorId
+   * 用途: 更新廠商基本資料
+   */
+  const updateVendorProfile = async (vendorId, profileData) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      currentVendor.value = { ...currentVendor.value, ...profileData }
+
+      // 📡 未來實作:
+      // const { data, error } = await supabase
+      //   .from('vendors')
+      //   .update(profileData)
+      //   .eq('id', vendorId)
+      // if (error) throw error
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 📡 API ENDPOINT: POST /api/vendors/:vendorId/itineraries
+   * Supabase: INSERT INTO itineraries (...)
+   */
+  const createItinerary = async (vendorId, itineraryData) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const newItinerary = {
+        id: Date.now(),
+        ...itineraryData,
+        vendorId,
+        rating: 0,
+        reviewCount: 0
+      }
+      vendorItineraries.value.push(newItinerary)
+
+      return { success: true, data: newItinerary }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 📡 API ENDPOINT: PUT /api/itineraries/:itineraryId
+   * Supabase: UPDATE itineraries SET ... WHERE id = :itineraryId
+   */
+  const updateItinerary = async (itineraryId, itineraryData) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const index = vendorItineraries.value.findIndex(i => i.id === itineraryId)
+      if (index !== -1) {
+        vendorItineraries.value[index] = {
+          ...vendorItineraries.value[index],
+          ...itineraryData
+        }
+      }
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 📡 API ENDPOINT: DELETE /api/itineraries/:itineraryId
+   * Supabase: DELETE FROM itineraries WHERE id = :itineraryId
+   */
+  const deleteItinerary = async (itineraryId) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      vendorItineraries.value = vendorItineraries.value.filter(i => i.id !== itineraryId)
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 📡 API ENDPOINT: POST /api/vendors/:vendorId/posts
+   * Supabase: INSERT INTO vendor_posts (...)
+   */
+  const createPost = async (vendorId, postData) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const newPost = {
+        id: Date.now(),
+        ...postData,
+        vendorId,
+        likes: 0,
+        collects: 0,
+        comments: 0,
+        time: new Date().toISOString().split('T')[0]
+      }
+      vendorPosts.value.unshift(newPost)
+
+      return { success: true, data: newPost }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 📡 API ENDPOINT: PUT /api/posts/:postId
+   * Supabase: UPDATE vendor_posts SET ... WHERE id = :postId
+   */
+  const updatePost = async (postId, postData) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const index = vendorPosts.value.findIndex(p => p.id === postId)
+      if (index !== -1) {
+        vendorPosts.value[index] = {
+          ...vendorPosts.value[index],
+          ...postData
+        }
+      }
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 📡 API ENDPOINT: DELETE /api/posts/:postId
+   * Supabase: DELETE FROM vendor_posts WHERE id = :postId
+   */
+  const deletePost = async (postId) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      await new Promise(resolve => setTimeout(resolve, 500))
+      vendorPosts.value = vendorPosts.value.filter(p => p.id !== postId)
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
 
   return {
     currentVendor,
@@ -242,9 +430,18 @@ export const useVendorStore = defineStore('vendor', () => {
     vendorReviews,
     loading,
     error,
+    // 前台 Actions
     fetchVendorProfile,
     fetchVendorPosts,
     fetchVendorItineraries,
     fetchVendorReviews,
+    // 廠商後台 CRUD Actions
+    updateVendorProfile,
+    createItinerary,
+    updateItinerary,
+    deleteItinerary,
+    createPost,
+    updatePost,
+    deletePost,
   }
 })
