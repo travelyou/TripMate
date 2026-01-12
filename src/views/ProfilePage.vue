@@ -24,6 +24,9 @@ const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
 
 const user = computed(() => userStore.currentUser)
+const personalityResult = computed(
+  () => personalityStore.savedResult || personalityStore.result,
+)
 const isCurrentUser = true // In real app, check if route param ID matches current user ID
 
 // Tab State
@@ -165,6 +168,7 @@ onMounted(() => {
         <ProfileSidebar
           :user="user"
           :wishlist="userStore.wishlist"
+          :personality-result="personalityResult"
           @open-personality-result="openPersonalityResult"
         />
       </div>
@@ -250,7 +254,7 @@ onMounted(() => {
 
     <PersonalityResultModal
       v-if="isPersonalityModalOpen"
-      :result="personalityStore.result"
+      :result="personalityResult"
       @close="closePersonalityResult"
     />
   </div>

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useUserStore } from '@/stores/user'
 
 // 題目資料
 const QUESTIONS = [
@@ -430,6 +431,7 @@ export const usePersonalityStore = defineStore('personalityTest', {
     currentIndex: 0,
     answers: [],
     result: null,
+    savedResult: null,
   }),
 
   getters: {
@@ -489,6 +491,17 @@ export const usePersonalityStore = defineStore('personalityTest', {
       }
 
       this.step = 'result'
+    },
+    saveResult(resultOverride = null) {
+      const result = resultOverride || this.result
+      if (!result) return false
+
+      const userStore = useUserStore()
+      this.savedResult = result
+      userStore.updateProfile({
+        spiritAnimal: `${result.animalEmoji} ${result.animalName}`,
+      })
+      return true
     },
     resetTest() {
       this.step = 'start'
