@@ -10,6 +10,36 @@ const dnsResolve4 = promisify(dns.resolve4);
 
 dns.setDefaultResultOrder('ipv4first');
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getNestedErrorCodes(err) {
+  const codes = new Set();
+  if (err?.code) codes.add(err.code);
+  if (Array.isArray(err?.errors)) {
+    for (const e of err.errors) {
+      if (e?.code) codes.add(e.code);
+    }
+  }
+  return [...codes];
+}
+
+function shouldRetryConnectionError(err) {
+  const codes = getNestedErrorCodes(err);
+  return codes.some((c) =>
+    [
+      'ETIMEDOUT',
+      'ECONNREFUSED',
+      'ECONNRESET',
+      'EHOSTUNREACH',
+      'ENETUNREACH',
+      'EAI_AGAIN',
+      'ENOTFOUND',
+    ].includes(c),
+  );
+}
+
 function checkEnvVars() {
   const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
   const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -47,8 +77,6 @@ async function createPool() {
     throw new Error('DB_HOST 格式不支援（包含 ":"）。此專案已設定為僅使用 IPv4，請改用 IPv4 的 DB_HOST（例如 IPv4 位址或可解析出 A 記錄的主機名）。');
   }
 
-  // 注意：dns.lookup 在某些 Windows/網路環境會偏向走系統解析，可能拿不到 A 記錄；
-  // 這裡優先用 dns.resolve4 直接查 A 記錄，較穩定可控。
   // 一律只允許 IPv4：必須存在 A 記錄；但連線仍使用「原始 hostname」以保留 TLS SNI（Neon 需要）
   try {
     const addrs4 = await dnsResolve4(dbHost);
@@ -71,12 +99,18 @@ async function createPool() {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    connectionTimeoutMillis: 20000,
+    // Neon 有時會 cold start；在某些平台上 TCP 連線也可能較慢，保守拉長一點
+    connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 60000,
     idleTimeoutMillis: 30000,
   };
 
   // 強制 pg 只用 IPv4
   poolConfig.family = 4;
+  // 額外保險：讓 pg 內部的 dns.lookup 也只回 IPv4（避免 Node 的 Happy Eyeballs 嘗試 IPv6）
+  poolConfig.lookup = (hostname, options, callback) => {
+    // node:net 會傳入 options，這裡強制 family=4
+    return dns.lookup(hostname, { ...(options || {}), family: 4 }, callback);
+  };
 
   // Neon 相容性：若執行環境因任何原因拿不到 TLS SNI，Neon 會要求帶 endpoint id
   // Neon 文件建議：?options=endpoint%3D<endpoint-id>
@@ -141,42 +175,71 @@ async function initializePool() {
   }
 
   initPromise = (async () => {
-    try {
-      let pool = await createPool();
-      // 強制建立連線並驗證（避免啟動後第一個 query 才爆）
-      await pool.query('SELECT 1');
+    const maxAttempts = parseInt(process.env.DB_CONNECT_MAX_ATTEMPTS) || 6;
+    const baseDelayMs = parseInt(process.env.DB_CONNECT_RETRY_BASE_DELAY_MS) || 2000;
 
-      poolInstance = pool;
-      console.log('資料庫連接池已初始化（且已驗證可查詢）');
-      return pool;
-    } catch (error) {
-      initError = error;
-      // 注意：某些錯誤的 message 可能為空，務必印出完整物件與常見欄位，便於 Zeabur/CI 排查
-      console.error('資料庫連接池初始化失敗：', error?.message || '(no message)');
-      console.error('資料庫連接池初始化失敗（完整錯誤物件）：', error);
-      console.error(
-        '資料庫錯誤欄位：',
-        JSON.stringify(
-          {
-            name: error?.name,
-            code: error?.code,
-            errno: error?.errno,
-            syscall: error?.syscall,
-            address: error?.address,
-            port: error?.port,
-            severity: error?.severity,
-            detail: error?.detail,
-            hint: error?.hint,
-            routine: error?.routine,
-            where: error?.where,
-          },
-          null,
-          2,
-        ),
-      );
-      if (error?.stack) console.error('stack:', error.stack);
-      throw error;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let pool = null;
+      try {
+        pool = await createPool();
+        // 強制建立連線並驗證（避免啟動後第一個 query 才爆）
+        await pool.query('SELECT 1');
+
+        poolInstance = pool;
+        console.log('資料庫連接池已初始化（且已驗證可查詢）');
+        return pool;
+      } catch (error) {
+        initError = error;
+        const codes = getNestedErrorCodes(error);
+        // 注意：某些錯誤的 message 可能為空，務必印出完整物件與常見欄位，便於 Zeabur/CI 排查
+        console.error(
+          `資料庫連接池初始化失敗（第 ${attempt}/${maxAttempts} 次）：`,
+          error?.message || '(no message)',
+        );
+        console.error('資料庫連接池初始化失敗（完整錯誤物件）：', error);
+        console.error(
+          '資料庫錯誤欄位：',
+          JSON.stringify(
+            {
+              name: error?.name,
+              code: error?.code,
+              nestedCodes: codes,
+              errno: error?.errno,
+              syscall: error?.syscall,
+              address: error?.address,
+              port: error?.port,
+              severity: error?.severity,
+              detail: error?.detail,
+              hint: error?.hint,
+              routine: error?.routine,
+              where: error?.where,
+            },
+            null,
+            2,
+          ),
+        );
+        if (error?.stack) console.error('stack:', error.stack);
+
+        // 失敗時把 pool 關掉，避免殘留 socket
+        try {
+          if (pool) await pool.end();
+        } catch {
+          // ignore
+        }
+
+        const retryable = shouldRetryConnectionError(error);
+        if (!retryable || attempt === maxAttempts) {
+          throw error;
+        }
+
+        const delay = Math.min(15000, baseDelayMs * attempt);
+        console.log(`資料庫連線失敗可重試，${delay}ms 後重試...`);
+        await sleep(delay);
+      }
     }
+
+    // 理論上不會走到這裡
+    throw initError || new Error('資料庫連接池初始化失敗（未知原因）');
   })();
 
   return initPromise;
