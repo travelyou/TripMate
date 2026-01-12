@@ -138,38 +138,58 @@ router.get('/user/:uid', async (req, res) => {
 })
 
 // GET /api/likes/:postId - 獲取單篇文章按讚資訊
-router.get('/:postId', async (req, res) => {
-  // ... (保留你原本的程式碼)
+router.get('/:postId', async (req, res, next) => {
   console.log('🔵 [Backend Likes GET] ========== 開始 ==========')
-  // ... (省略，因為你上面已經有了，這裡只需要確保上面的 user 路由放在 /:postId 之前，避免衝突)
-  // 注意：Express路由匹配是由上而下，因為 :postId 會把 'user' 也當成 id，
-  // 所以一定要把 router.get('/user/:uid'...) 放在 router.get('/:postId'...) 之前！
 
-  // (為節省篇幅，這裡請維持你原本的邏輯，但請務必檢查順序)
   try {
     const { postId } = req.params
-    const { author_uid, board } = req.query
+    // board 預設 discussion，避免前端漏帶就直接 400
+    const boardRaw = req.query?.board
+    const board = typeof boardRaw === 'string' && boardRaw.trim() ? boardRaw.trim() : 'discussion'
 
-    // 簡單的防止 'user' 被當成 ID
-    if (postId === 'user') return res.next()
-
-    if (!board) return res.status(400).json({ error: '缺少 board' })
+    const authorUidRaw = req.query?.author_uid
+    const author_uid =
+      typeof authorUidRaw === 'string' && authorUidRaw.trim() ? authorUidRaw.trim() : null
 
     const postIdNum = Number(postId)
-    // ... (你原本的邏輯)
-    const countQuery = `SELECT COUNT(*) as count FROM public.likes WHERE post_id = $1 AND board = $2`
-    const countResult = await pool.query(countQuery, [postIdNum, board])
-    const likesCount = parseInt(countResult.rows[0].count) || 0
-
-    let isLiked = false
-    if (author_uid) {
-      const checkQuery = `SELECT id FROM public.likes WHERE post_id = $1 AND author_uid = $2 AND board = $3`
-      const checkResult = await pool.query(checkQuery, [postIdNum, author_uid, board])
-      isLiked = checkResult.rows.length > 0
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      return res.status(400).json({
+        error: 'postId 格式錯誤',
+        details: 'postId 必須是正整數',
+      })
     }
-    res.json({ likesCount, isLiked })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
+
+    // 若有人誤打 /api/likes/user 這類，交給前面更明確的路由或 404
+    if (postId === 'user') return next()
+
+    // 一次查 likesCount + isLiked，減少 DB roundtrip（對併發 8 筆請求比較友善）
+    const query = `
+      SELECT
+        (SELECT COUNT(*)::int FROM public.likes WHERE post_id = $1 AND board = $2) AS likes_count,
+        CASE
+          WHEN $3::text IS NULL THEN false
+          ELSE EXISTS (
+            SELECT 1
+            FROM public.likes
+            WHERE post_id = $1 AND board = $2 AND author_uid = $3
+          )
+        END AS is_liked
+    `
+
+    const result = await pool.query(query, [postIdNum, board, author_uid])
+    const row = result.rows?.[0] || { likes_count: 0, is_liked: false }
+
+    res.json({
+      likesCount: Number(row.likes_count) || 0,
+      isLiked: !!row.is_liked,
+    })
+  } catch (error) {
+    console.error('❌ [Backend Likes GET] 錯誤:', error)
+    res.status(500).json({
+      error: '獲取按讚資訊失敗',
+      details: error?.message || String(error),
+      code: error?.code,
+    })
   }
 })
 

@@ -102,6 +102,11 @@ async function createPool() {
     // Neon 有時會 cold start；在某些平台上 TCP 連線也可能較慢，保守拉長一點
     connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 60000,
     idleTimeoutMillis: 30000,
+    // 避免瞬間開太多連線（Neon/平台可能會抖或限流），預設保守一點
+    max: parseInt(process.env.DB_POOL_MAX) || 3,
+    // 在某些平台上保持 TCP 活性可降低長連線被中間設備回收後的突發 timeout
+    keepAlive: true,
+    keepAliveInitialDelayMillis: parseInt(process.env.DB_KEEPALIVE_DELAY_MS) || 10000,
   };
 
   // 強制 pg 只用 IPv4
@@ -263,9 +268,33 @@ module.exports = new Proxy({}, {
       return async function(...args) {
         await initializePool();
         const method = poolInstance[prop];
-        return typeof method === 'function'
-          ? method.apply(poolInstance, args)
-          : method;
+        if (typeof method !== 'function') return method;
+
+        // 針對查詢：遇到可重試的連線錯誤（例如 Neon cold start / 網路抖動）做有限次重試
+        if (prop === 'query') {
+          const maxAttempts = parseInt(process.env.DB_QUERY_MAX_ATTEMPTS) || 3;
+          const baseDelayMs = parseInt(process.env.DB_QUERY_RETRY_BASE_DELAY_MS) || 500;
+
+          let lastErr;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              return await method.apply(poolInstance, args);
+            } catch (e) {
+              lastErr = e;
+              const retryable = shouldRetryConnectionError(e);
+              if (!retryable || attempt === maxAttempts) throw e;
+
+              const delay = Math.min(3000, baseDelayMs * attempt);
+              console.warn(
+                `[DB] query 失敗可重試（第 ${attempt}/${maxAttempts} 次，codes=${getNestedErrorCodes(e).join(',') || 'n/a'}），${delay}ms 後重試...`,
+              );
+              await sleep(delay);
+            }
+          }
+          throw lastErr;
+        }
+
+        return method.apply(poolInstance, args);
       };
     }
 
