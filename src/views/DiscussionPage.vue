@@ -85,7 +85,7 @@ const handlePostLike = async (post) => {
   }
 
   try {
-    const result = await toggleLike(post.id, currentUserUid.value)
+    const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
@@ -140,7 +140,7 @@ const getPostData = (post) => ({
   id: post.id,
   type: 'discussion',
   title: post.title,
-  image: post.image,
+  image: post.banner,
   author: post.author,
   avatar: post.avatar,
   content: post.content,
@@ -227,10 +227,33 @@ const getPostData = (post) => ({
             {{ post.content }}
           </p>
 
-          <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100">
+          <!-- 顯示封面圖（banner） -->
+          <div
+            v-if="post.banner"
+            class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100"
+          >
             <img
-              :src="post.image"
+              :src="post.banner"
               class="w-full h-full object-cover hover:scale-105 transition duration-500"
+              alt="討論封面"
+            />
+          </div>
+
+          <!-- 顯示內文圖片（image_urls），最多顯示 4 張 -->
+          <div
+            v-if="post.image_urls && post.image_urls.length > 0"
+            class="grid gap-2 mb-4"
+            :class="{
+              'grid-cols-1': post.image_urls.length === 1,
+              'grid-cols-2': post.image_urls.length >= 2,
+            }"
+          >
+            <img
+              v-for="(url, idx) in post.image_urls.slice(0, 4)"
+              :key="idx"
+              :src="url"
+              class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition"
+              :alt="`圖片 ${idx + 1}`"
             />
           </div>
 

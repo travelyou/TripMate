@@ -3,7 +3,7 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const pool = require('./database/connection')
-const postsRouter = require('./routes/posts')
+const discussionsRouter = require('./routes/discussions')
 const commentsRouter = require('./routes/comments')
 const likesRouter = require('./routes/likes')
 const usersRouter = require('./routes/users')
@@ -24,8 +24,9 @@ app.get('/', (req, res) => {
     endpoints: {
       test: '/api/test',
       testDb: '/api/test-db',
-      posts: '/api/posts',
+      discussions: '/api/discussions',
       comments: '/api/posts/:postId/comments',
+      travelers: '/api/travelers',
     },
   })
 })
@@ -49,23 +50,20 @@ app.get('/api/test-db', async (req, res) => {
   }
 })
 
-// 使用貼文路由
-app.use('/api/posts', postsRouter)
-app.use('/posts', postsRouter)
+// 使用討論區路由
+app.use('/api/discussions', discussionsRouter)
 
 // 使用留言路由
 app.use('/api', commentsRouter)
-app.use('/', commentsRouter)
 
 // 使用按讚路由
 app.use('/api', likesRouter)
-app.use('/', likesRouter)
 
+// 使用旅伴路由
 app.use('/api/travelers', travelersRoutes)
 
 // 使用用戶路由
 app.use('/api/users', usersRouter)
-app.use('/users', usersRouter)
 
 app.listen(PORT, HOST, () => {
   console.log(`伺服器連接成功在 http://127.0.0.1:${PORT}`)

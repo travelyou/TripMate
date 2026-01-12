@@ -18,7 +18,8 @@ const itemData = computed(() => ({
   id: props.post.id,
   type: 'discussion', // 強制標記為 discussion
   title: props.post.title,
-  image: props.post.image,
+  image: props.post.banner, // 使用 banner 作為主圖
+  banner: props.post.banner,
   author: props.post.author,
   avatar: props.post.avatar,
   content: props.post.content,
@@ -61,13 +62,33 @@ const itemData = computed(() => ({
       {{ post.content }}
     </p>
 
+    <!-- 封面圖（banner） -->
     <div
-      v-if="post.image"
+      v-if="post.banner"
       class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100"
     >
       <img
-        :src="post.image"
+        :src="post.banner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
+        alt="討論封面"
+      />
+    </div>
+
+    <!-- 內文圖片（image_urls），最多顯示 4 張 -->
+    <div
+      v-if="post.image_urls && post.image_urls.length > 0"
+      class="grid gap-2 mb-4"
+      :class="{
+        'grid-cols-1': post.image_urls.length === 1,
+        'grid-cols-2': post.image_urls.length >= 2,
+      }"
+    >
+      <img
+        v-for="(url, idx) in post.image_urls.slice(0, 4)"
+        :key="idx"
+        :src="url"
+        class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
+        :alt="`圖片 ${idx + 1}`"
       />
     </div>
 

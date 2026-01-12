@@ -1,9 +1,14 @@
 import { API_BASE_URL } from './config'
 
 // 獲取所有貼文
-export async function fetchPosts(page = 1, limit = 10) {
+export async function fetchPosts(page = 1, limit = 10, category = null) {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts?page=${page}&limit=${limit}`)
+    let url = `${API_BASE_URL}/discussions?page=${page}&limit=${limit}`
+    if (category && category !== '全部') {
+      url += `&category=${encodeURIComponent(category)}`
+    }
+
+    const response = await fetch(url)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
       console.error('API 錯誤詳情：', errorData)
@@ -20,7 +25,7 @@ export async function fetchPosts(page = 1, limit = 10) {
 // 獲取單個貼文詳情
 export async function fetchPostById(id) {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts/${id}`)
+    const response = await fetch(`${API_BASE_URL}/discussions/${id}`)
     if (!response.ok) {
       throw new Error('獲取貼文失敗')
     }
@@ -35,7 +40,7 @@ export async function fetchPostById(id) {
 // 創建新貼文
 export async function createPost(postData) {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts`, {
+    const response = await fetch(`${API_BASE_URL}/discussions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,7 +62,7 @@ export async function createPost(postData) {
 // 更新貼文
 export async function updatePost(id, postData) {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/discussions/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +83,7 @@ export async function updatePost(id, postData) {
 // 刪除貼文
 export async function deletePost(id) {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/discussions/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) {

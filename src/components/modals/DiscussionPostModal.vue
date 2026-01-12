@@ -6,7 +6,7 @@ import {
   Image as ImageIcon,
   Hash as HashIcon,
   Send as SendIcon,
-  Save as SaveIcon, // 新增儲存圖示
+  Save as SaveIcon,
   Heart as HeartIcon,
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
@@ -20,17 +20,17 @@ import { createPost } from '@/api/discussions'
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
+
 // 步驟控制
 const currentStep = ref('edit') // 'edit', 'tags', 'preview'
 const formError = ref('') // 通用錯誤訊息
 
 // 表單資料
 const postData = ref({
-  board: '',
+  category: '',
   title: '',
   content: '',
   tags: [],
-  images: [], // 圖片的 base64 或 URL
 })
 
 // 圖片相關
@@ -39,7 +39,7 @@ const imagePreviews = ref([])
 
 // 錯誤訊息欄位驗證
 const errors = ref({
-  board: '',
+  category: '',
   title: '',
   content: '',
 })
@@ -47,16 +47,16 @@ const errors = ref({
 // 標籤搜尋
 const tagSearch = ref('')
 
-// 模擬看板列表
-const boards = [
-  '亞洲旅遊',
-  '歐洲旅遊',
-  '美洲旅遊',
-  '窮遊省錢',
+// 分類選項
+const categories = [
+  '有圖',
+  '新貼文',
+  '找旅伴',
+  '找話題',
+  '旅遊攻略',
+  '景點推薦',
   '美食分享',
-  '住宿推薦',
-  '行程請益',
-  '簽證問題',
+  '住宿心得',
 ]
 
 // 推薦標籤
@@ -81,7 +81,7 @@ const filteredTags = computed(() => {
 
 // 清除錯誤
 const clearAllErrors = () => {
-  errors.value = { board: '', title: '', content: '' }
+  errors.value = { category: '', title: '', content: '' }
   formError.value = ''
 }
 
@@ -90,8 +90,8 @@ const validateForm = () => {
   clearAllErrors()
   let isValid = true
 
-  if (!postData.value.board || postData.value.board.trim() === '') {
-    errors.value.board = '請選擇看板'
+  if (!postData.value.category || postData.value.category.trim() === '') {
+    errors.value.category = '請選擇分類'
     isValid = false
   }
 
@@ -156,11 +156,9 @@ const handleImageSelect = (event) => {
       return
     }
 
-    // 只用於預覽，不保存到 postData
     const reader = new FileReader()
     reader.onload = (e) => {
       imagePreviews.value.push(e.target.result)
-      // 不再保存到 postData.value.images
     }
     reader.readAsDataURL(file)
   })
@@ -172,7 +170,6 @@ const handleImageSelect = (event) => {
 
 const removeImage = (index) => {
   imagePreviews.value.splice(index, 1)
-  // 不需要操作 postData.value.images
 }
 
 // 標籤處理
@@ -189,32 +186,26 @@ const removeTag = (index) => {
 }
 
 const handleSaveDraft = () => {
-  // 檢查是否有標題
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
 
-  // 建立草稿物件
   const draftData = {
     id: Date.now(),
-    type: 'discussion', // 類型標記
-    typeLabel: '討論區', // 顯示標籤
+    type: 'discussion',
+    typeLabel: '討論區',
     title: postData.value.title,
     content: postData.value.content || '無內容',
     saveTime: new Date().toISOString(),
-    // 儲存完整資料包含圖片預覽，以便恢復
     data: JSON.parse(
       JSON.stringify({
         ...postData.value,
-        // 這裡簡單處理：如果是 base64 可能會很大，實際專案建議先上傳或只存文字
-        // 為了演示效果，這裡假設存入 imagePreviews 以便還原
         imagePreviews: imagePreviews.value,
       }),
     ),
   }
 
-  // 存入 Store
   myItineraryStore.addDraft(draftData)
 
   alert('📦 已儲存至「我的行程」草稿夾！')
@@ -232,28 +223,24 @@ const handleFinalSubmit = async () => {
 
   try {
     const payload = {
-      board: postData.value.board,
+      board: 'discussion',
+      category: postData.value.category,
       title: postData.value.title,
       content: postData.value.content,
       tags: postData.value.tags,
-      images: [], // 不上傳圖片，送空陣列
+      banner: imagePreviews.value.length > 0 ? imagePreviews.value[0] : null,
+      image_urls: imagePreviews.value.slice(1),
       author_uid: auth.currentUser.uid,
-      author_name: userStore.currentUser?.displayName || '匿名',
-      author_avatar:
-        userStore.currentUser?.photoURL ||
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
     }
 
     console.log('發布討論貼文：', payload)
 
     const response = await createPost(payload)
 
-    if (response.success) {
+    if (response) {
       alert('✨ 發文成功！')
       emit('success')
       emit('close')
-    } else {
-      formError.value = '發文失敗：' + (response.message || '請稍後再試')
     }
   } catch (error) {
     console.error('發文錯誤：', error)
@@ -268,68 +255,48 @@ const handleFinalSubmit = async () => {
     @click.self="emit('close')"
   >
     <div
-      :class="[
-        'bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
-        currentStep === 'preview' ? 'max-w-4xl h-[90vh]' : 'max-w-2xl max-h-[90vh]',
-      ]"
+      class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
     >
-      <div class="flex items-center justify-between p-4 border-b border-gray-100 bg-white z-10">
-        <div class="flex items-center gap-3">
-          <button
-            v-if="currentStep !== 'edit' && currentStep !== 'preview'"
-            class="p-2 hover:bg-gray-100 rounded-full transition"
-            @click="prevStep"
-          >
-            <ArrowLeftIcon class="w-5 h-5 text-gray-500" />
-          </button>
-          <h2 class="text-xl font-bold text-gray-800">
-            {{ currentStep === 'preview' ? '預覽文章' : '發起討論' }}
-          </h2>
-        </div>
-        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="emit('close')">
-          <XIcon class="w-6 h-6 text-gray-500" />
+      <div
+        class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-primary to-blue-600"
+      >
+        <button
+          v-if="currentStep !== 'edit'"
+          class="p-2 hover:bg-white/20 rounded-full transition"
+          @click="prevStep"
+        >
+          <ArrowLeftIcon class="w-5 h-5 text-white" />
+        </button>
+        <div v-else class="w-9"></div>
+
+        <h3 class="text-xl font-black text-white">
+          {{
+            currentStep === 'edit' ? '編輯貼文' : currentStep === 'tags' ? '添加標籤' : '預覽貼文'
+          }}
+        </h3>
+
+        <button class="p-2 hover:bg-white/20 rounded-full transition" @click="emit('close')">
+          <XIcon class="w-5 h-5 text-white" />
         </button>
       </div>
 
-      <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
-        <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
-          <div
-            v-for="step in ['edit', 'tags', 'preview']"
-            :key="step"
-            :class="[
-              'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
-              currentStep === step
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-400',
-            ]"
-          >
-            {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
-          </div>
-        </div>
-      </div>
-
-      <div
-        :class="[
-          'flex-1 overflow-y-auto custom-scrollbar',
-          currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
-        ]"
-      >
-        <div v-if="currentStep === 'edit'" class="space-y-6">
+      <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <div v-if="currentStep === 'edit'" class="p-6 space-y-5">
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">
-              選擇看板 <span class="text-red-500">*</span>
+              分類 <span class="text-red-500">*</span>
             </label>
             <select
-              v-model="postData.board"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
-              :class="{ 'border-red-500': errors.board }"
+              v-model="postData.category"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
+              :class="{ 'border-red-500': errors.category }"
             >
-              <option value="">請選擇看板</option>
-              <option v-for="board in boards" :key="board" :value="board">
-                {{ board }}
+              <option value="" disabled selected>請選擇分類</option>
+              <option v-for="cat in categories" :key="cat" :value="cat">
+                {{ cat }}
               </option>
             </select>
-            <p v-if="errors.board" class="text-red-500 text-xs mt-1">{{ errors.board }}</p>
+            <p v-if="errors.category" class="text-red-500 text-xs mt-1">{{ errors.category }}</p>
           </div>
 
           <div>
@@ -370,6 +337,12 @@ const handleFinalSubmit = async () => {
                 class="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200"
               >
                 <img :src="url" alt="預覽" class="w-full h-full object-cover" />
+                <span
+                  v-if="index === 0"
+                  class="absolute top-1 left-1 bg-primary text-white text-xs px-2 py-0.5 rounded-full"
+                >
+                  封面
+                </span>
                 <button
                   class="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center transition"
                   @click="removeImage(index)"
@@ -378,7 +351,9 @@ const handleFinalSubmit = async () => {
                 </button>
               </div>
             </div>
-            <p class="text-xs text-gray-400">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
+            <p class="text-xs text-gray-400">
+              已選擇 {{ imagePreviews.length }}/5 張圖片（第一張為封面）
+            </p>
           </div>
 
           <button
@@ -398,7 +373,7 @@ const handleFinalSubmit = async () => {
           />
         </div>
 
-        <div v-else-if="currentStep === 'tags'" class="space-y-6">
+        <div v-else-if="currentStep === 'tags'" class="p-6 space-y-6">
           <div class="relative">
             <input
               v-model="tagSearch"
@@ -471,16 +446,17 @@ const handleFinalSubmit = async () => {
                   }}</span>
                   <div class="text-xs text-secondary-400">
                     剛剛 • {{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}
-                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.board }} </span>
+                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.category }} </span>
                   </div>
                 </div>
               </div>
 
+              <!-- 封面圖（第一張） -->
               <div
                 v-if="imagePreviews.length > 0"
                 class="w-full max-h-96 object-cover rounded-lg overflow-hidden mb-4 bg-secondary-100"
               >
-                <img :src="imagePreviews[0]" class="w-full h-full object-cover" />
+                <img :src="imagePreviews[0]" class="w-full h-full object-cover" alt="封面" />
               </div>
 
               <h4 class="text-xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
@@ -489,12 +465,14 @@ const handleFinalSubmit = async () => {
                 {{ postData.content }}
               </p>
 
+              <!-- 內文圖片（第二張之後） -->
               <div v-if="imagePreviews.length > 1" class="grid grid-cols-4 gap-2 mb-4">
                 <img
                   v-for="(img, idx) in imagePreviews.slice(1)"
                   :key="idx"
                   :src="img"
                   class="w-full h-20 object-cover rounded-lg border border-gray-100"
+                  alt="內文圖片"
                 />
               </div>
 
