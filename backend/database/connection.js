@@ -213,11 +213,29 @@ async function createPool() {
   // #endregion
 
   poolConfig.family = 4;
+  // 强制使用之前解析的 IPv4 地址，确保 DNS 解析一致性
   poolConfig.lookup = (hostname, options, callback) => {
-    return dns.lookup(hostname, { ...(options || {}), family: 4 }, callback);
+    // 如果主机名匹配且已解析，直接使用解析的 IP
+    if (resolvedIp && hostname === dbHost) {
+      console.log(`使用已解析的 IP 地址：${resolvedIp}（主機名：${hostname}）`);
+      return callback(null, resolvedIp, 4);
+    }
+    // 否则进行新的 DNS 查询，但强制使用 IPv4
+    return dns.lookup(hostname, { ...(options || {}), family: 4, all: false }, (err, address, family) => {
+      if (err) {
+        console.warn(`DNS lookup 失敗（${hostname}）：${err.message}，嘗試使用已解析的 IP`);
+        // 如果新的查询失败，尝试使用之前解析的 IP
+        if (resolvedIp) {
+          return callback(null, resolvedIp, 4);
+        }
+        return callback(err);
+      }
+      console.log(`DNS lookup 成功：${address}（主機名：${hostname}）`);
+      callback(null, address, family || 4);
+    });
   };
 
-  if (!poolConfig.options && typeof dbHost === 'string' && dbHost.endsWith('.neon.tech')) {
+  if (typeof dbHost === 'string' && dbHost.endsWith('.neon.tech')) {
     if (!isNeonPooler) {
       const firstLabel = dbHost.split('.')[0] || '';
       const endpointId = firstLabel;
@@ -242,7 +260,6 @@ async function createPool() {
         servername: dbHost,
       };
       console.log(`SSL 配置：servername=${dbHost}`);
-      // #region agent log
       debugLog('connection.js:151', 'SSL config set for pooler', { servername: dbHost, rejectUnauthorized: false }, 'B');
       // #endregion
     }
@@ -250,7 +267,6 @@ async function createPool() {
     if (!process.env.DB_CONNECT_TIMEOUT_MS) {
       poolConfig.connectionTimeoutMillis = 120000;
       console.log(`連接超時已設置為 120 秒（連接池端點需要更長時間）`);
-      // #region agent log
       debugLog('connection.js:190', 'connectionTimeout set to 120000 for pooler', { timeout: 120000 }, 'A');
       // #endregion
     }
@@ -259,18 +275,15 @@ async function createPool() {
   }
 
 
-
   const poolCreateStartTime = Date.now();
   debugLog('connection.js:189', 'Pool creation start', { config: JSON.stringify({ host: poolConfig.host, port: poolConfig.port, database: poolConfig.database, user: poolConfig.user, hasPassword: !!poolConfig.password, connectionTimeout: poolConfig.connectionTimeoutMillis, hasSSL: !!poolConfig.ssl }) }, 'D,E');
   // #endregion
   const pool = new Pool(poolConfig);
-  // #region agent log
   debugLog('connection.js:193', 'Pool object created', { duration: Date.now() - poolCreateStartTime }, 'D');
   // #endregion
 
   pool.on('connect', () => {
     console.log('資料庫連接成功！');
-    // #region agent log
     debugLog('connection.js:198', 'Pool connect event', { timestamp: Date.now() }, 'A,B,C');
     // #endregion
   });
@@ -278,7 +291,6 @@ async function createPool() {
   pool.on('error', (err) => {
     console.error('資料庫連接池錯誤：', err.message);
     console.error('錯誤代碼：', err.code);
-    // #region agent log
     debugLog('connection.js:205', 'Pool error event', { code: err.code, message: err.message, errno: err.errno, syscall: err.syscall }, 'A,B,C');
     // #endregion
     if (err.code === 'ENOTFOUND') {
@@ -309,17 +321,17 @@ async function initializePool() {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       let pool = null;
       try {
-        // #region agent log
+
         const attemptStartTime = Date.now();
         debugLog('connection.js:239', 'Connection attempt start', { attempt, maxAttempts, startTime: attemptStartTime }, 'A');
         // #endregion
         pool = await createPool();
-        // #region agent log
+
         debugLog('connection.js:243', 'Pool created, starting query test', { duration: Date.now() - attemptStartTime }, 'A');
         // #endregion
         const queryStartTime = Date.now();
         await pool.query('SELECT 1');
-        // #region agent log
+
         debugLog('connection.js:248', 'Query test success', { queryDuration: Date.now() - queryStartTime, totalDuration: Date.now() - attemptStartTime }, 'A,B,C');
         // #endregion
 
@@ -329,7 +341,7 @@ async function initializePool() {
       } catch (error) {
         initError = error;
         const codes = getNestedErrorCodes(error);
-        // #region agent log
+
         debugLog('connection.js:258', 'Connection attempt failed', { attempt, maxAttempts, errorName: error?.name, errorCode: error?.code, errorMessage: error?.message, codes, isAggregateError: error?.name === 'AggregateError', hasErrors: !!error?.errors, errors: error?.errors?.map(e => ({ code: e.code, message: e.message, errno: e.errno, syscall: e.syscall, address: e.address, port: e.port })) }, 'A,B,C,D,E');
         // #endregion
         console.error(
@@ -377,7 +389,18 @@ async function initializePool() {
       }
     }
 
-    throw initError || new Error('資料庫連接池初始化失敗（未知原因）');
+    const finalError = initError || new Error('資料庫連接池初始化失敗（未知原因）');
+    const errorMessage = finalError.message || '未知錯誤';
+    const errorCode = finalError.code || '';
+    const errorDetails = finalError.errors
+      ? finalError.errors.map(e => `${e.code || ''}: ${e.message || ''}`).join('; ')
+      : '';
+
+    const fullMessage = `資料庫連接池初始化失敗：${errorMessage}${errorCode ? ` (${errorCode})` : ''}${errorDetails ? ` - ${errorDetails}` : ''}`;
+    const error = new Error(fullMessage);
+    error.originalError = finalError;
+    error.code = errorCode;
+    throw error;
   })();
 
   return initPromise;
@@ -393,7 +416,17 @@ module.exports = new Proxy({}, {
     }
 
     if (initError) {
-      throw new Error(`資料庫連接池初始化失敗：${initError.message}`);
+      const errorMessage = initError.message || '未知錯誤';
+      const errorCode = initError.code || '';
+      const errorDetails = initError.errors
+        ? initError.errors.map(e => `${e.code || ''}: ${e.message || ''}`).join('; ')
+        : '';
+
+      const fullMessage = `資料庫連接池初始化失敗：${errorMessage}${errorCode ? ` (${errorCode})` : ''}${errorDetails ? ` - ${errorDetails}` : ''}`;
+      const error = new Error(fullMessage);
+      error.originalError = initError;
+      error.code = errorCode;
+      throw error;
     }
 
     const asyncMethods = ['query', 'connect', 'end'];
