@@ -1,5 +1,5 @@
-<script setup>
-import PostCard from '@/components/posts/PostCard.vue'
+﻿<script setup>
+import PostCard from '@/components/cards/DiscussionCard.vue'
 
 defineProps({
   posts: {

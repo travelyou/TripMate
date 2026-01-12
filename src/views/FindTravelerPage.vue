@@ -1,8 +1,8 @@
-<script setup>
+﻿<script setup>
 import { ref } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import { useTravelersStore } from '@/stores/travelers'
-import TravelerCard from '@/components/posts/TravelerCard.vue'
+import TravelerCard from '@/components/cards/TravelerCard.vue'
 import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 
@@ -31,18 +31,16 @@ const activeFilter = ref('全部')
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
+  <div class="p-4 overflow-x-hidden">
     <div class="w-full">
-      <div
-        class="bg-green-100 p-5 rounded-xl mb-6 mt-4 border-4 border-green-300 shadow-[4px_4px_0px_0px_rgba(34,197,94,0.5)]"
-      >
+      <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall">
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-amber-900 flex items-center">
-            <UsersIcon class="w-7 h-7 mr-3 text-red-500 fill-red-100" />
+          <h1 class="text-2xl font-black text-secondary-50 flex items-center">
+            <UsersIcon class="w-6 h-6 mr-3 text-white" />
             找旅伴
           </h1>
           <button
-            class="bg-green-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] flex items-center border-4 border-gray-800"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition flex items-center"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -51,18 +49,16 @@ const activeFilter = ref('全部')
         </div>
       </div>
 
-      <div
-        class="mb-8 p-4 bg-white/90 border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
-      >
+      <div class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl">
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
               activeFilter === filter
-                ? 'bg-red-400 text-gray-900'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                ? 'bg-primary text-secondary-50'
+                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
             ]"
             @click="activeFilter = filter"
           >
@@ -93,3 +89,4 @@ const activeFilter = ref('全部')
     @close="closeTravelerDetail"
   />
 </template>
+

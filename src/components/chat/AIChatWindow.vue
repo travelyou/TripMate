@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
@@ -102,19 +102,17 @@ onMounted(() => {
 
 <template>
   <div
-    class="fixed bottom-20 md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] bg-white border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.3)] z-50 flex flex-col animate-slide-up"
+    class="fixed bottom-20 bg-primary md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] border-4 border-primary-600 shadow-primary-strong z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
   >
-    <div
-      class="bg-pink-300 text-amber-900 p-4 flex items-center justify-between border-b-4 border-amber-400"
-    >
+    <div class="bg-primary text-secondary-50 p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <BotIcon class="w-6 h-6" />
         <div>
           <h3 class="font-bold text-lg">TripMate 助手</h3>
-          <p class="text-xs text-orange-800 font-bold opacity-80">AI 智能行程顧問</p>
+          <p class="text-xs text-white font-bold opacity-80">AI 智能行程顧問</p>
         </div>
       </div>
-      <button @click="$emit('close')" class="p-1 hover:bg-orange-400/50 rounded-full transition">
+      <button class="p-1 hover:bg-primary-600 rounded-full transition" @click="$emit('close')">
         <XIcon class="w-6 h-6" />
       </button>
     </div>
@@ -131,7 +129,7 @@ onMounted(() => {
       >
         <div
           v-if="msg.type === 'bot'"
-          class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0 border-2 border-orange-600"
+          class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700"
         >
           <BotIcon class="w-5 h-5 text-white" />
         </div>
@@ -140,8 +138,8 @@ onMounted(() => {
           class="p-3 shadow-sm max-w-[85%] text-sm overflow-hidden"
           :class="[
             msg.type === 'user'
-              ? 'bg-orange-500 text-white rounded-2xl rounded-tr-sm border-2 border-orange-600 font-medium'
-              : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border-2 border-gray-200 markdown-body',
+              ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm border-2 border-primary-700 font-medium'
+              : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border-2 border-secondary-100 markdown-body',
           ]"
         >
           <div v-if="msg.type === 'bot'" v-html="msg.content"></div>
@@ -158,12 +156,12 @@ onMounted(() => {
 
       <div v-if="isLoading" class="flex items-start space-x-2">
         <div
-          class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0 border-2 border-orange-600"
+          class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700"
         >
           <BotIcon class="w-5 h-5 text-white" />
         </div>
         <div
-          class="bg-white p-3 rounded-2xl rounded-tl-sm border-2 border-gray-200 flex items-center space-x-1"
+          class="bg-white p-3 rounded-2xl rounded-tl-sm border-2 border-secondary-100 flex items-center space-x-1"
         >
           <div
             class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
@@ -182,18 +180,18 @@ onMounted(() => {
     </div>
 
     <div class="p-4 border-t-2 border-gray-200 bg-white">
-      <form @submit.prevent="sendMessage" class="flex items-center space-x-2">
+      <form class="flex items-center space-x-2" @submit.prevent="sendMessage">
         <input
           v-model="messageInput"
           type="text"
           :disabled="isLoading"
           placeholder="請問您想去哪裡玩？"
-          class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-full focus:border-orange-500 focus:outline-none text-sm bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+          class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
         />
         <button
           type="submit"
           :disabled="isLoading"
-          class="p-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition border-2 border-orange-700 shadow-sm active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border-2 border-primary-700 shadow-sm active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <LoaderIcon v-if="isLoading" class="w-5 h-5 animate-spin" />
           <SendIcon v-else class="w-5 h-5" />
@@ -229,6 +227,6 @@ onMounted(() => {
   list-style-type: disc;
 }
 .markdown-body :deep(strong) {
-  color: #d97706;
+  color: #07344c;
 }
 </style>

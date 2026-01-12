@@ -1,9 +1,9 @@
-<script setup>
+﻿<script setup>
 import { ref } from 'vue'
 import { Map as MapIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/featured'
 
-import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
+import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 
@@ -54,29 +54,29 @@ const closeShareModal = () => {
 </script>
 
 <template>
-  <div class="p-4 md:p-0 overflow-x-hidden">
+  <div class="p-4">
     <div class="w-full">
-      <div
-        class="bg-orange-500 text-white font-black text-2xl p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] flex items-center"
-      >
-        <div class="flex items-center space-x-3">
-          <MapIcon class="w-6 h-6 fill-white" />
-          <span>精選行程</span>
+      <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-black text-secondary-50 flex items-center py-1">
+            <MapIcon class="w-6 h-6 mr-3 text-white" />
+            精選行程
+          </h1>
         </div>
       </div>
 
       <div
-        class="p-4 bg-white mb-6 space-y-4 border-4 border-orange-300 shadow-[4px_4px_0px_0px_rgba(234,88,12,0.5)]"
+        class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-gray-800 shadow-[2px_2px_0px_0px_rgba(31,41,55,1)]',
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
               activeFilter === filter
-                ? 'bg-orange-400 text-gray-900'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                ? 'bg-primary text-secondary-50'
+                : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200',
             ]"
             @click="activeFilter = filter"
           >

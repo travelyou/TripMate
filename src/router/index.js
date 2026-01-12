@@ -87,6 +87,9 @@ const router = createRouter({
       path: '/search',
       name: 'search',
       component: () => import('@/views/SearchPage.vue'),
+      meta: {
+        hideSidebar: true,
+      },
     },
     {
       path: '/cart',

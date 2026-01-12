@@ -30,8 +30,8 @@ app.get('/', (req, res) => {
       test: '/api/test',
       testDb: '/api/test-db',
       posts: '/api/posts',
-      comments: '/api/posts/:postId/comments'
-    }
+      comments: '/api/posts/:postId/comments',
+    },
   });
 });
 

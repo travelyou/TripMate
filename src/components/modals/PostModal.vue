@@ -5,9 +5,7 @@ import PostModal from './components/PostModal.vue'
 <template>
   <PostModal />
   <div class="modal-overlay">
-
     <div class="modal-container">
-
       <div class="modal-header">
         <h3>建立新貼文</h3>
         <button class="close-btn">&times;</button>
@@ -20,14 +18,11 @@ import PostModal from './components/PostModal.vue'
       <div class="modal-footer">
         <button class="submit-btn">發布</button>
       </div>
-
     </div>
   </div>
 </template>
 
 <style scoped>
-/* scoped 代表這些 CSS 只會影響這個檔案，不會汙染到別人的元件 */
-
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -36,7 +31,7 @@ import PostModal from './components/PostModal.vue'
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 1000;
-  display: flex; /* 讓內容置中 */
+  display: flex;
   justify-content: center;
   align-items: center;
 }
@@ -46,7 +41,7 @@ import PostModal from './components/PostModal.vue'
   width: 90%;
   max-width: 500px;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -92,7 +87,7 @@ import PostModal from './components/PostModal.vue'
 
 .modal-body textarea:focus {
   outline: none;
-  border-color: #4CAF50; /* 聚焦時變色 */
+  border-color: #4caf50; /* 聚焦時變色 */
 }
 
 .modal-footer {
@@ -103,7 +98,7 @@ import PostModal from './components/PostModal.vue'
 }
 
 .submit-btn {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   padding: 8px 24px;
@@ -119,7 +114,13 @@ import PostModal from './components/PostModal.vue'
 
 /* 簡單的淡入動畫 */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

@@ -3,7 +3,7 @@ import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue
 import ShareModal from '@/components/modals/ShareModal.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
-import { useUserStore } from '@/stores/user' // 1. 引入 UserStore
+import { useUserStore } from '@/stores/user'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { toggleLike } from '@/api/likes'
@@ -14,7 +14,7 @@ import {
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
   Users as UsersIcon,
-  Bookmark as BookmarkIcon, // 引入 Bookmark
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 import { ref, onMounted } from 'vue'
 
@@ -180,26 +180,26 @@ const getPostData = (post) => ({
 </script>
 
 <template>
-  <div class="overflow-x-hidden">
+  <div class="p-4">
     <div class="w-full min-w-0">
-      <div class="mb-10 relative group">
-        <div class="mb-4 mt-4">
-          <h2
-            class="inline-flex items-center text-xl font-bold text-amber-900 bg-orange-100 px-5 py-2 rounded-xl border-4 border-orange-200 shadow-[4px_4px_0px_0px_rgba(251,146,60,0.5)]"
-          >
+      <div
+        class="my-4 p-4 relative group bg-white  border-4 border-primary shadow-primary-tall rounded-xl"
+      >
+        <div>
+          <h2 class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl">
             旅伴推薦
           </h2>
         </div>
 
         <button
-          class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 border-2 border-amber-900 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
           @click="scroll('left')"
         >
           <ChevronLeftIcon class="w-6 h-6" />
         </button>
 
         <button
-          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 border-2 border-amber-900 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
           @click="scroll('right')"
         >
           <ChevronRightIcon class="w-6 h-6" />
@@ -207,19 +207,21 @@ const getPostData = (post) => ({
 
         <div
           ref="scrollContainer"
-          class="flex overflow-x-auto space-x-4 p-4 bg-white rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
+          class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
         >
           <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
-            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-[1.5rem] p-4 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)] cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
+            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
             @click="openDiscussionDetailModal(item, false)"
           >
             <img
               :src="item.image"
-              class="absolute inset-0 w-full h-full object-contain transition duration-700 group-hover/card:scale-110 opacity-90"
+              class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover/card:scale-110 opacity-90"
             />
-            <div class="absolute inset-0 bg-black/50 group-hover/card:bg-black/60 transition"></div>
+            <div
+              class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"
+            ></div>
 
             <div class="relative z-10 h-full flex flex-col justify-between">
               <div class="flex justify-between items-start">
@@ -248,7 +250,7 @@ const getPostData = (post) => ({
                   {{ item.title }}
                 </h3>
                 <button
-                  class="text-[10px] bg-white text-gray-900 border-2 border-gray-900 px-3 py-1 rounded-full font-extrabold hover:bg-gray-100 shadow-lg transition"
+                  class="text-[10px] bg-white text-secondary px-3 py-1 rounded-full font-extrabold hover:bg-gray-100 shadow-lg transition"
                 >
                   探索行程
                 </button>
@@ -259,10 +261,10 @@ const getPostData = (post) => ({
       </div>
 
       <div>
-        <div class="mb-6">
-          <h2
-            class="inline-flex items-center text-xl font-bold text-amber-900 bg-orange-100 px-5 py-2 rounded-xl border-4 border-orange-200 shadow-[4px_4px_0px_0px_rgba(251,146,60,0.5)]"
-          >
+        <div
+          class="my-6 bg-primary p-5 rounded-xl shadow-primary-tall"
+        >
+          <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
             最新動態
           </h2>
         </div>
@@ -271,7 +273,7 @@ const getPostData = (post) => ({
           <div
             v-for="post in discussionsStore.discussions"
             :key="post.id"
-            class="p-5 bg-[#fffef7] border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+            class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl hover:shadow-xl transition cursor-pointer"
           >
             <div class="flex items-center space-x-3 mb-4">
               <img
@@ -382,3 +384,4 @@ const getPostData = (post) => ({
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
+

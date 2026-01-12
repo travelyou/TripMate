@@ -21,29 +21,29 @@ const menuItems = [
     name: 'home',
     label: '為你推薦',
     icon: HomeIcon,
-    iconColor: 'text-amber-800',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
   {
     name: 'discussion',
     label: '討論區',
     icon: ForumIcon,
-    iconColor: 'text-indigo-600',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
   {
     name: 'find_traveler',
     label: '找旅伴',
     icon: UsersIcon,
-    iconColor: 'text-green-600',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
   {
     name: 'featured_itinerary',
     label: '精選行程',
     icon: MapIcon,
-    iconColor: 'text-orange-600',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
 ]
 
@@ -52,15 +52,15 @@ const bottomMenuItems = [
     name: 'my_itinerary',
     label: '我的行程',
     icon: CalendarIcon,
-    iconColor: 'text-blue-600',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
   {
     name: 'profile',
     label: '個人檔案',
     icon: UserIcon,
-    iconColor: 'text-gray-700',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
 
   {
@@ -68,8 +68,8 @@ const bottomMenuItems = [
     params: { id: 'test' },
     label: '廠商檔案',
     icon: UserIcon,
-    iconColor: 'text-gray-700',
-    textColor: 'text-amber-900',
+    iconColor: 'text-primary-600',
+    textColor: 'text-secondary',
   },
 ]
 
@@ -102,37 +102,35 @@ const handleMobileNavClick = (item) => {
 
 <template>
   <aside
-    class="w-full min-h-full hidden lg:flex lg:min-w-[230px] flex-col p-4 rounded-2xl shadow-lg overflow-hidden"
+    class="w-full min-h-full bg-white border-x border-secondary-100 hidden lg:flex lg:min-w-40 flex-col p-2  overflow-hidden"
   >
-    <div class="flex justify-between my-4 pb-4 gap-4">
+    <div class="flex justify-between my-4 p-2 gap-4">
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center bg-white rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToFavorites"
       >
-        <HeartIcon class="w-8 h-8 text-red-600 hover:text-red-700 transition fill-red-600" />
-        <span class="text-xs font-bold mt-1 text-black">愛心</span>
+        <HeartIcon class="w-8 h-8 text-primary transition fill-primary" />
+        <span class="font-bold text-primary">愛心</span>
       </div>
 
       <div
-        class="cursor-pointer w-[48%] aspect-square flex flex-col items-center justify-center bg-white rounded-xl shadow-sm transition-transform active:translate-y-1 hover:shadow-md"
+        class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToCollections"
       >
-        <BookmarkIcon
-          class="w-8 h-8 text-amber-700 hover:text-amber-800 transition fill-amber-700"
-        />
-        <span class="text-xs font-bold mt-1 text-black">收藏</span>
+        <BookmarkIcon class="w-8 h-8 text-primary transition fill-primary" />
+        <span class="font-bold text-primary">收藏</span>
       </div>
     </div>
 
     <nav>
-      <div class="bg-white p-4 rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-hidden">
         <RouterLink
           v-for="item in menuItems"
           :key="item.name"
           :to="{ name: item.name }"
           :class="[
-            'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            route.name === item.name ? 'bg-[#fff5e6]' : 'hover:bg-[#fff8ee]',
+            'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
+            route.name === item.name ? 'bg-primary-50 shadow-md' : 'hover:shadow-md',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
@@ -148,8 +146,8 @@ const handleMobileNavClick = (item) => {
           :key="item.name"
           :to="{ name: item.name, params: item.params }"
           :class="[
-            'flex items-center p-5 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            route.name === item.name ? 'bg-[#fff5e6]' : 'hover:bg-[#fff8ee]',
+            'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
+            route.name === item.name ? 'bg-primary-50 shadow-md' : 'hover:shadow-md',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />
@@ -162,15 +160,15 @@ const handleMobileNavClick = (item) => {
   </aside>
 
   <nav
-    class="fixed bottom-0 left-0 right-0 h-16 bg-[#fcf9f2] z-50 flex justify-between items-center px-1 lg:hidden shadow-md"
+    class="fixed bottom-0 left-0 right-0 h-16 bg-secondary-50 z-50 flex justify-between items-center px-1 lg:hidden shadow-md"
   >
     <button
       v-for="item in mobileNavItems"
       :key="item.name"
-      class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:bg-orange-50 transition active:scale-95 px-0.5"
+      class="flex flex-col items-center justify-center w-full h-full text-secondary-400 hover:bg-secondary-100 transition active:scale-95 px-0.5"
       :class="
         route.name === item.name && item.name !== 'menu'
-          ? 'bg-[#fff5e6] border-t-4 border-t-orange-500 -mt-1'
+          ? 'bg-primary-50 border-t-4 border-t-primary-500 -mt-1'
           : ''
       "
       @click="handleMobileNavClick(item)"
@@ -180,14 +178,16 @@ const handleMobileNavClick = (item) => {
         class="w-5 h-5 mb-1 transition-colors"
         :class="
           route.name === item.name && item.name !== 'menu'
-            ? 'text-orange-600 fill-orange-100'
-            : 'text-gray-500'
+            ? 'text-primary-600 fill-primary-100'
+            : 'text-secondary-500'
         "
       />
       <span
         class="text-xs font-bold transition-colors whitespace-nowrap scale-95 origin-center"
         :class="
-          route.name === item.name && item.name !== 'menu' ? 'text-orange-600' : 'text-gray-500'
+          route.name === item.name && item.name !== 'menu'
+            ? 'text-primary-600'
+            : 'text-secondary-500'
         "
       >
         {{ item.label }}

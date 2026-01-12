@@ -237,17 +237,15 @@ watch(
       <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
       <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
         <!-- Tab Navigation -->
-        <div
-          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 md:p-2 flex space-x-1"
-        >
+        <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1.5 md:p-2 flex space-x-1">
           <button
             v-for="tab in tabs"
             :key="tab.k"
             :class="[
               'flex-1 py-2 md:py-3 text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2',
               activeTab === tab.k
-                ? 'bg-indigo-50 text-indigo-600 shadow-sm'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700',
+                ? 'bg-primary-50 text-primary-600 shadow-sm'
+                : 'text-secondary-500 hover:bg-secondary-50 hover:text-secondary-700',
             ]"
             @click="activeTab = tab.k"
           >
@@ -259,7 +257,7 @@ watch(
         </div>
 
         <!-- Tab Content Container -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[400px] p-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 min-h-[400px] p-6">
           <TabVisitedPlaces
             v-if="activeTab === 'visited_places'"
             :visited-places="userStore.visitedPlaces"

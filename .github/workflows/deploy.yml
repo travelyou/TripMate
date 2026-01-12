@@ -1,0 +1,78 @@
+name: .env 前端環境建構文件
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+# 添加權限配置
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install npm ci
+        run: npm ci
+      
+      - name: Create .env file for frontend
+        run: |
+          cat > .env << EOF
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
+          VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}
+          EOF
+      
+      - name: Build frontend
+        run: npm run build
+      
+      # 在構建後創建後端配置文件
+      - name: Create backend config in dist
+        run: |
+          mkdir -p dist/config
+          cat > dist/config/backend-config.json << EOF
+          {
+            "PORT": "${{ secrets.BACKEND_PORT }}",
+            "DB_HOST": "${{ secrets.DB_HOST }}",
+            "DB_PORT": "${{ secrets.DB_PORT }}",
+            "DB_NAME": "${{ secrets.DB_NAME }}",
+            "DB_USER": "${{ secrets.DB_USER }}",
+            "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}",
+            "USE_POOLING": "${{ secrets.USE_POOLING }}"
+          }
+          EOF
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist

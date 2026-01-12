@@ -1,0 +1,154 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    name: Frontend Build
+    permissions:
+      contents: read
+      pull-requests: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build frontend
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:3000/api' }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+        run: npm run build
+  
+  backend:
+    runs-on: ubuntu-latest
+    name: Backend Test
+    permissions:
+      contents: read
+      pull-requests: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Test database connection
+        working-directory: ./backend
+        env:
+          # Neon / Postgres secrets (CI values)
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_SSL: ${{ secrets.DB_SSL || 'true' }}
+          USE_POOLING: ${{ secrets.USE_POOLING || 'false' }}
+          PORT: ${{ secrets.BACKEND_PORT || '3000' }}
+        run: |
+          set -euo pipefail
+
+          # 若使用 fork PR，GitHub 可能不會提供 secrets；此時跳過連線測試避免誤判失敗
+          if [ -z "${DATABASE_URL:-}" ] && { [ -z "${DB_HOST:-}" ] || [ -z "${DB_PORT:-}" ] || [ -z "${DB_NAME:-}" ] || [ -z "${DB_USER:-}" ] || [ -z "${DB_PASSWORD:-}" ]; }; then
+            echo "警告: CI 未取得資料庫 secrets（可能是 fork PR 或尚未設定 Secrets），跳過資料庫連接測試"
+            exit 0
+          fi
+
+          echo "開始測試資料庫連線（Neon/Postgres）..."
+          node - <<'NODE'
+          const pool = require('./database/connection');
+          (async () => {
+            try {
+              const r = await pool.query('SELECT 1 AS ok');
+              console.log('✅ DB 連線成功:', r.rows?.[0] ?? r);
+              process.exit(0);
+            } catch (err) {
+              console.error('❌ DB 連線失敗:', err?.message || err);
+              process.exit(1);
+            }
+          })();
+          NODE
+  
+  deploy-env-to-zeabur:
+    runs-on: ubuntu-latest
+    name: Deploy Environment Variables to Zeabur
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    
+    steps:
+      - name: Set environment variables to Zeabur
+        env:
+          ZEABUR_TOKEN: ${{ secrets.ZEABUR_API_TOKEN }}
+          FRONTEND_SERVICE_ID: ${{ secrets.ZEABUR_FRONTEND_SERVICE_ID }}
+          BACKEND_SERVICE_ID: ${{ secrets.ZEABUR_BACKEND_SERVICE_ID }}
+        run: |
+          set_env_var() {
+            local service_id=$1
+            local key=$2
+            local value=$3
+            curl -X POST https://api.zeabur.com/graphql \
+              -H "Authorization: Bearer $ZEABUR_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation(\$serviceId: String!, \$key: String!, \$value: String!) { updateServiceEnvironmentVariable(input: { serviceId: \$serviceId, key: \$key, value: \$value }) { id } }\",
+                \"variables\": {
+                  \"serviceId\": \"$service_id\",
+                  \"key\": \"$key\",
+                  \"value\": \"$value\"
+                }
+              }"
+          }
+          
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_API_KEY" "${{ secrets.VITE_FIREBASE_API_KEY }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_AUTH_DOMAIN" "${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_PROJECT_ID" "${{ secrets.VITE_FIREBASE_PROJECT_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_STORAGE_BUCKET" "${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_MESSAGING_SENDER_ID" "${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_APP_ID" "${{ secrets.VITE_FIREBASE_APP_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_FIREBASE_MEASUREMENT_ID" "${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_API_BASE_URL" "${{ secrets.VITE_API_BASE_URL }}"
+          set_env_var "$FRONTEND_SERVICE_ID" "VITE_GEMINI_API_KEY" "${{ secrets.VITE_GEMINI_API_KEY }}"
+          
+          set_env_var "$BACKEND_SERVICE_ID" "DB_HOST" "${{ secrets.DB_HOST }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_PORT" "${{ secrets.DB_PORT }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_NAME" "${{ secrets.DB_NAME }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_USER" "${{ secrets.DB_USER }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_PASSWORD" "${{ secrets.DB_PASSWORD }}"
+          set_env_var "$BACKEND_SERVICE_ID" "DB_SSL" "${{ secrets.DB_SSL || 'true' }}"
+          set_env_var "$BACKEND_SERVICE_ID" "USE_POOLING" "${{ secrets.USE_POOLING || 'false' }}"
+          set_env_var "$BACKEND_SERVICE_ID" "PORT" "${{ secrets.BACKEND_PORT || '3000' }}"
+          
+          echo "所有環境變數已經都設定在 Zeabur"

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import {
@@ -38,13 +38,13 @@ const itemData = computed(() => ({
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
-      return 'bg-green-500 text-white border-green-700'
+      return 'bg-primary-600 text-white'
     case '已額滿':
-      return 'bg-red-500 text-white border-red-700'
+      return 'bg-primary-700 text-white'
     case '已出發':
-      return 'bg-gray-500 text-white border-gray-700'
+      return 'bg-secondary-500 text-white'
     default:
-      return 'bg-yellow-500 text-gray-900 border-yellow-700'
+      return 'bg-primary-100 text-primary-800'
   }
 }
 </script>
@@ -52,18 +52,18 @@ const getStatusClasses = (status) => {
 <template>
   <div @click="$emit('open-detail', traveler)">
     <div
-      class="p-5 bg-[#fffef7] transition relative cursor-pointer border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+      class="p-5 bg-white transition relative cursor-pointer rounded-2xl border-2 border-secondary-200 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]"
     >
       <div
         :class="getStatusClasses(traveler.status)"
-        class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-lg border-b-4 border-l-4 z-10"
+        class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-xl rounded-tr-xl border-b-2 border-l-2 border-primary-200 shadow-primary-sm z-10"
       >
         {{ traveler.status }}
       </div>
 
       <div class="flex flex-col lg:flex-row gap-4">
         <div
-          class="w-full lg:w-1/3 h-40 lg:h-auto shrink-0 rounded-lg overflow-hidden border-2 border-gray-200"
+          class="w-full lg:w-1/3 h-40 lg:h-auto shrink-0 rounded-xl overflow-hidden border-2 border-secondary-200"
         >
           <img :src="traveler.image" :alt="traveler.title" class="w-full h-full object-cover" />
         </div>
@@ -72,13 +72,13 @@ const getStatusClasses = (status) => {
           <div class="flex items-center space-x-3 mb-2">
             <img
               :src="traveler.avatar"
-              class="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+              class="w-8 h-8 rounded-full object-cover border-2 border-secondary-200"
             />
             <div>
               <div class="flex items-center space-x-1">
-                <span class="font-bold text-sm text-gray-800">{{ traveler.author }}</span>
+                <span class="font-bold text-sm text-secondary-900">{{ traveler.author }}</span>
                 <span
-                  class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full"
+                  class="text-xs font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded-full"
                 >
                   {{ traveler.spiritAnimal }}
                 </span>
@@ -87,20 +87,20 @@ const getStatusClasses = (status) => {
           </div>
 
           <div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2 hover:text-indigo-600">
+            <h3 class="text-xl font-bold text-secondary-900 mb-2 hover:text-primary-600">
               {{ traveler.title }}
             </h3>
-            <p class="text-gray-600 text-sm mb-3 line-clamp-2">
+            <p class="text-secondary-600 text-sm mb-3 line-clamp-2">
               {{ traveler.content }}
             </p>
           </div>
 
-          <div class="space-y-2 text-sm text-gray-700">
+          <div class="space-y-2 text-sm text-secondary-700">
             <div v-if="traveler.tags && traveler.tags.length" class="flex flex-wrap gap-1">
               <span
                 v-for="tag in traveler.tags"
                 :key="tag"
-                class="text-xs font-medium text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full"
+                class="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full hover:bg-primary-200 transition"
               >
                 #{{ tag }}
               </span>
@@ -108,11 +108,11 @@ const getStatusClasses = (status) => {
 
             <div class="flex items-center flex-wrap gap-4 mt-2">
               <span class="flex items-center">
-                <MapPinIcon class="w-4 h-4 mr-1 text-red-500" />
+                <MapPinIcon class="w-4 h-4 mr-1 text-primary-500" />
                 {{ traveler.location }}
               </span>
               <span class="flex items-center">
-                <CalendarIcon class="w-4 h-4 mr-1 text-amber-500" />
+                <CalendarIcon class="w-4 h-4 mr-1 text-secondary-500" />
                 {{ traveler.date }}
               </span>
 
@@ -120,8 +120,8 @@ const getStatusClasses = (status) => {
                 class="flex items-center group transition"
                 :class="
                   userStore.isFavorite(itemData)
-                    ? 'text-red-500'
-                    : 'text-gray-400 hover:text-red-500'
+                    ? 'text-accent-600'
+                    : 'text-secondary-400 hover:text-accent-600'
                 "
                 @click.stop="userStore.toggleFavorite(itemData)"
               >
@@ -135,8 +135,8 @@ const getStatusClasses = (status) => {
                 class="flex items-center space-x-1 transition group"
                 :class="
                   userStore.isCollected(itemData)
-                    ? 'text-yellow-500'
-                    : 'text-gray-400 hover:text-yellow-600'
+                    ? 'text-primary-600'
+                    : 'text-secondary-400 hover:text-primary-600'
                 "
                 @click.stop="
                   userStore.isCollected(itemData)
@@ -153,15 +153,15 @@ const getStatusClasses = (status) => {
                 }}</span>
               </button>
 
-              <span class="flex items-center text-indigo-500 ml-auto md:ml-0">
+              <span class="flex items-center text-primary-600 ml-auto md:ml-0">
                 <MessageCircleIcon class="w-4 h-4 mr-1" />
                 {{ traveler.comments || 0 }}
               </span>
             </div>
 
-            <div class="flex justify-between items-end pt-2 border-t border-gray-100">
-              <div class="flex items-center text-gray-800 font-bold">
-                <UsersIcon class="w-5 h-5 mr-1 text-blue-500" />
+            <div class="flex justify-between items-end pt-2 border-t border-secondary-100">
+              <div class="flex items-center text-secondary-900 font-bold">
+                <UsersIcon class="w-5 h-5 mr-1 text-primary-500" />
                 招募人數：
                 <span class="text-lg text-blue-600 ml-1">{{ traveler.people }}</span>
               </div>
@@ -170,8 +170,8 @@ const getStatusClasses = (status) => {
                 :disabled="traveler.status === '已額滿'"
                 :class="
                   traveler.status === '已額滿'
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-amber-500 text-white hover:bg-amber-600'
+                    ? 'bg-secondary-200 text-secondary-500 cursor-not-allowed'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
                 "
                 class="px-4 py-2 rounded-full font-bold transition text-sm shadow-md"
               >

@@ -1,36 +1,36 @@
-<template>
-  <div class="min-h-screen bg-[#fffef7] flex flex-col pb-24 lg:pb-0">
-    <div class="sticky top-0 z-30 bg-[#fcf9f2] shadow-sm border-b border-gray-200 p-4">
+﻿<template>
+  <div class="min-h-screen bg-secondary-50 flex flex-col pb-24 lg:pb-0">
+    <div class="sticky top-0 z-30 bg-secondary-100 shadow-sm border-b border-secondary-200 p-4">
       <div class="w-full">
         <div class="flex items-center gap-3 mb-4">
           <button
-            class="p-2 -ml-2 hover:bg-gray-200 rounded-full transition text-gray-600 md:hidden"
+            class="p-2 -ml-2 hover:bg-secondary-100 rounded-full transition text-secondary-600 md:hidden"
             @click="router.back()"
           >
             <ChevronLeftIcon class="w-6 h-6" />
           </button>
 
           <div class="relative flex-1">
-            <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400" />
             <input
               ref="searchInput"
               v-model="searchQuery"
               type="text"
               placeholder="搜尋關鍵字..."
-              class="w-full pl-10 pr-10 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition text-base"
+              class="w-full pl-10 pr-10 py-3 bg-white border-2 border-secondary-200 rounded-xl focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition text-base"
               @keyup.enter="performSearch"
             />
             <button
               v-if="searchQuery"
-              class="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
+              class="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-secondary-100 rounded-full"
               @click="clearSearch"
             >
-              <XIcon class="w-4 h-4 text-gray-400" />
+              <XIcon class="w-4 h-4 text-secondary-400" />
             </button>
           </div>
 
           <button
-            class="hidden md:block px-6 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[2px]"
+            class="hidden md:block px-6 py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[2px]"
             @click="performSearch"
           >
             搜尋
@@ -44,8 +44,8 @@
             :class="[
               'px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition border-2',
               activeTab === tab.value
-                ? 'bg-gray-800 text-white border-gray-800 shadow-[2px_2px_0px_0px_rgba(251,146,60,1)]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50',
+                ? 'bg-primary-700 text-white border-primary-700 shadow-primary-solid'
+                : 'bg-white text-secondary-600 border-secondary-200 hover:border-secondary-300 hover:bg-secondary-50',
             ]"
             @click="activeTab = tab.value"
           >
@@ -55,7 +55,7 @@
 
         <div
           v-if="currentSubFilters.length > 0"
-          class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-2 border-t border-gray-200"
+          class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-2 border-t border-secondary-200"
         >
           <button
             v-for="filter in currentSubFilters"
@@ -63,8 +63,8 @@
             :class="[
               'px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition border',
               activeSubFilter === filter
-                ? 'bg-orange-100 text-orange-700 border-orange-300'
-                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+                ? 'bg-primary-100 text-primary-700 border-primary-300'
+                : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
             ]"
             @click="activeSubFilter = filter"
           >
@@ -78,10 +78,10 @@
       <div class="w-full min-w-0">
         <div
           v-if="!hasSearched"
-          class="flex flex-col items-center justify-center mt-20 text-gray-400 space-y-4"
+          class="flex flex-col items-center justify-center mt-20 text-secondary-400 space-y-4"
         >
-          <div class="bg-gray-100 p-6 rounded-full animate-bounce-slow">
-            <SearchIcon class="w-12 h-12 text-gray-300" />
+          <div class="bg-secondary-100 p-6 rounded-full animate-bounce-slow">
+            <SearchIcon class="w-12 h-12 text-secondary-300" />
           </div>
           <p>輸入關鍵字來尋找旅伴或靈感吧！</p>
 
@@ -89,7 +89,7 @@
             <span
               v-for="tag in ['#東京獨旅', '#京都賞楓', '#環島', '#美食']"
               :key="tag"
-              class="px-3 py-1 bg-gray-100 text-xs text-gray-600 rounded-full cursor-pointer hover:bg-orange-100 hover:text-orange-600 transition"
+              class="px-3 py-1 bg-secondary-100 text-xs text-secondary-600 rounded-full cursor-pointer hover:bg-primary-100 hover:text-primary-600 transition"
               @click="quickSearch(tag.replace('#', ''))"
             >
               {{ tag }}
@@ -97,17 +97,17 @@
           </div>
         </div>
 
-        <div v-else-if="filteredResults.length === 0" class="text-center mt-20 text-gray-500">
+        <div v-else-if="filteredResults.length === 0" class="text-center mt-20 text-secondary-500">
           <p class="text-lg">
-            找不到與「<span class="text-orange-600 font-bold">{{ searchQuery }}</span
+            找不到與「<span class="text-primary-600 font-bold">{{ searchQuery }}</span
             >」相關的結果
           </p>
           <p class="text-sm mt-2">試試看切換其他分類，或使用更通用的關鍵字。</p>
         </div>
 
         <div v-else class="space-y-4">
-          <p class="text-sm text-gray-500 mb-2 ml-1">
-            在 <span class="font-bold text-gray-700">{{ getTabLabel(activeTab) }}</span>
+          <p class="text-sm text-secondary-500 mb-2 ml-1">
+            在 <span class="font-bold text-secondary-700">{{ getTabLabel(activeTab) }}</span>
             <span v-if="activeSubFilter !== '全部'"> ({{ activeSubFilter }}) </span>
             中找到 {{ filteredResults.length }} 筆結果
           </p>
@@ -115,25 +115,25 @@
           <div
             v-for="item in paginatedResults"
             :key="`${item.type}-${item.id}`"
-            class="bg-white p-4 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:shadow-md transition cursor-pointer flex gap-4 group"
+            class="bg-white p-4 rounded-xl border-2 border-secondary-100 hover:border-primary-300 hover:shadow-md transition cursor-pointer flex gap-4 group"
             @click="handleResultClick(item)"
           >
             <div v-if="item.type === 'traveler'" class="w-16 h-16 shrink-0">
               <img
                 :src="item.avatar"
-                class="w-full h-full object-cover rounded-full border-2 border-gray-200 group-hover:border-orange-200 transition"
+                class="w-full h-full object-cover rounded-full border-2 border-secondary-200 group-hover:border-primary-200 transition"
               />
             </div>
             <div
               v-else
-              class="w-24 h-24 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-100"
+              class="w-24 h-24 shrink-0 bg-secondary-100 rounded-lg overflow-hidden border border-secondary-100"
             >
               <img
                 v-if="item.image"
                 :src="item.image"
                 class="w-full h-full object-cover group-hover:scale-110 transition duration-500"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-gray-300">
+              <div v-else class="w-full h-full flex items-center justify-center text-secondary-300">
                 <ImageIcon class="w-8 h-8" />
               </div>
             </div>
@@ -146,16 +146,16 @@
                 >
                   {{ getCategoryLabel(item.type) }}
                 </span>
-                <span class="text-xs text-gray-400">{{ item.date }}</span>
+                <span class="text-xs text-secondary-400">{{ item.date }}</span>
               </div>
 
               <h3
-                class="font-bold text-gray-800 line-clamp-1 mb-1 group-hover:text-orange-600 transition"
+                class="font-bold text-secondary-800 line-clamp-1 mb-1 group-hover:text-primary-600 transition"
                 v-html="highlightText(item.title)"
               ></h3>
 
               <p
-                class="text-xs text-gray-500 line-clamp-2 leading-relaxed"
+                class="text-xs text-secondary-500 line-clamp-2 leading-relaxed"
                 v-html="highlightText(item.description)"
               ></p>
 
@@ -163,7 +163,7 @@
                 <span
                   v-for="tag in item.tags.slice(0, 3)"
                   :key="tag"
-                  class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded"
+                  class="text-[10px] bg-secondary-100 text-secondary-500 px-1.5 py-0.5 rounded"
                   v-html="'#' + highlightText(tag)"
                 >
                 </span>
@@ -173,14 +173,14 @@
 
           <div
             v-if="totalPages > 1"
-            class="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-gray-200"
+            class="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-secondary-200"
           >
             <button
               class="px-4 py-2 rounded-lg font-bold transition flex items-center gap-1"
               :class="
                 currentPage === 1
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
+                  ? 'text-secondary-300 cursor-not-allowed'
+                  : 'text-secondary-600 hover:bg-secondary-100 hover:text-primary-600'
               "
               :disabled="currentPage === 1"
               @click="changePage(currentPage - 1)"
@@ -190,7 +190,7 @@
             </button>
 
             <div class="flex items-center gap-2">
-              <span class="text-sm font-bold text-gray-800">
+              <span class="text-sm font-bold text-secondary-800">
                 {{ currentPage }} / {{ totalPages }}
               </span>
             </div>
@@ -199,8 +199,8 @@
               class="px-4 py-2 rounded-lg font-bold transition flex items-center gap-1"
               :class="
                 currentPage === totalPages
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
+                  ? 'text-secondary-300 cursor-not-allowed'
+                  : 'text-secondary-600 hover:bg-secondary-100 hover:text-primary-600'
               "
               :disabled="currentPage === totalPages"
               @click="changePage(currentPage + 1)"
@@ -348,7 +348,7 @@ const highlightText = (text) => {
   // 4. 替換文字，加上 highlight class
   return text.replace(
     regex,
-    '<span class="bg-yellow-200 text-amber-900 font-bold rounded-sm px-0.5">$1</span>',
+    '<span class="bg-primary-100 text-primary-700 font-bold rounded-sm px-0.5">$1</span>',
   )
 }
 
@@ -479,9 +479,9 @@ const getCategoryStyle = (type) => {
   const map = {
     traveler: 'bg-green-50 text-green-600 border-green-200',
     discussion: 'bg-indigo-50 text-indigo-600 border-indigo-200',
-    itinerary: 'bg-amber-50 text-amber-600 border-amber-200',
+    itinerary: 'bg-primary-50 text-primary-700 border-primary-200',
   }
-  return map[type] || 'bg-gray-50 text-gray-600 border-gray-200'
+  return map[type] || 'bg-secondary-50 text-secondary-600 border-secondary-200'
 }
 
 const handleResultClick = (item) => {
@@ -509,3 +509,4 @@ const closeDiscussionDetailModal = () => {
   }
 }
 </style>
+

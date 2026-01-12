@@ -1,12 +1,12 @@
-<script setup>
+﻿<script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user' // 1. 引入 Store
 import { Heart, MessageCircle, Users, Map } from 'lucide-vue-next'
 
 // 引入你的卡片元件
-import PostCard from '@/components/posts/PostCard.vue'
-import TravelerCard from '@/components/posts/TravelerCard.vue'
-import ItineraryCard from '@/components/itinerary/ItineraryCard.vue'
+import PostCard from '@/components/cards/DiscussionCard.vue'
+import TravelerCard from '@/components/cards/TravelerCard.vue'
+import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 
 // 2. 初始化 Store
 const userStore = useUserStore()
@@ -35,12 +35,12 @@ const handleCardClick = (item) => {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto w-full mt-[20px]">
+  <div class="max-w-5xl mx-auto w-full mt-6 px-4">
     <div
-      class="relative bg-gradient-to-r from-pink-500 to-rose-400 rounded-3xl p-8 mb-8 text-white shadow-lg overflow-hidden"
+      class="relative bg-gradient-to-r from-primary-700 to-primary-500 rounded-3xl p-8 mb-8 text-white shadow-lg overflow-hidden"
     >
       <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/20 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-0 left-0 w-60 h-60 bg-rose-900/20 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-0 left-0 w-60 h-60 bg-primary-900/20 rounded-full blur-3xl"></div>
 
       <div class="relative z-10 flex items-center gap-6">
         <div
@@ -50,7 +50,7 @@ const handleCardClick = (item) => {
         </div>
         <div>
           <h1 class="text-3xl font-black mb-2 tracking-wide">我的最愛</h1>
-          <p class="text-pink-100 font-medium">這裡收藏了你喜歡的所有內容，隨時回味！</p>
+          <p class="text-secondary-100 font-medium">這裡收藏了你喜歡的所有內容，隨時回味！</p>
         </div>
 
         <div
@@ -58,14 +58,14 @@ const handleCardClick = (item) => {
         >
           <div class="text-center">
             <div class="text-2xl font-bold">{{ userStore.favorites.length }}</div>
-            <div class="text-xs text-pink-100">收藏總數</div>
+            <div class="text-xs text-secondary-100">收藏總數</div>
           </div>
         </div>
       </div>
     </div>
 
     <div
-      class="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 mb-6 flex overflow-x-auto custom-scroll"
+      class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-2 mb-6 flex overflow-x-auto custom-scroll"
     >
       <button
         v-for="tab in tabs"
@@ -74,8 +74,8 @@ const handleCardClick = (item) => {
         class="flex-1 min-w-24 py-3 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2"
         :class="
           activeTab === tab.id
-            ? 'bg-pink-50 text-pink-600 shadow-sm ring-2 ring-pink-100'
-            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+            ? 'bg-primary-50 text-primary-600 shadow-sm ring-2 ring-primary-100'
+            : 'text-secondary-500 hover:bg-secondary-50 hover:text-secondary-700'
         "
       >
         <component :is="tab.icon" class="w-4 h-4" :class="{ 'fill-current': tab.id === 'all' }" />
@@ -86,9 +86,9 @@ const handleCardClick = (item) => {
     <div class="space-y-6 min-h-[400px]">
       <div
         v-if="filteredItems.length === 0"
-        class="text-center py-20 text-gray-400 bg-white/90 rounded-3xl border-2 border-dashed border-gray-200"
+        class="text-center py-20 text-secondary-400 bg-white/90 rounded-3xl border-2 border-dashed border-secondary-200"
       >
-        <Heart class="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <Heart class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
         <p class="font-bold text-lg">這裡目前是空的</p>
         <p class="text-sm">快去探索並點擊愛心收藏吧！</p>
       </div>

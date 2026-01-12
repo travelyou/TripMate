@@ -31,7 +31,7 @@ const itemData = computed(() => ({
 
 <template>
   <div
-    class="p-5 bg-[#fffef7] cursor-pointer border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+    class="p-5 bg-white transition relative cursor-pointer shadow-md hover:shadow-lg rounded-xl border-2 border-secondary-200"
     @click="$emit('click', post)"
   >
     <div class="flex items-center space-x-3 mb-4">
