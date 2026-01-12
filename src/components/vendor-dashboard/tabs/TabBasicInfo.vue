@@ -14,7 +14,10 @@ const form = ref({
   name: '',
   slogan: '',
   description: '',
-  regionTags: []
+  regionTags: [],
+  avatar: '',
+  bannerImage: '',
+  isBannerVisible: true
 })
 
 // 預設地區選項
@@ -37,7 +40,10 @@ watch(currentVendor, (vendor) => {
       name: vendor.name || '',
       slogan: vendor.slogan || '',
       description: vendor.description || '',
-      regionTags: vendor.regionTags || []
+      regionTags: vendor.regionTags || [],
+      avatar: vendor.avatar || '',
+      bannerImage: vendor.bannerImage || '',
+      isBannerVisible: vendor.isBannerVisible !== undefined ? vendor.isBannerVisible : true
     }
   }
 }, { immediate: true })
@@ -138,9 +144,38 @@ const handleReset = () => {
       name: currentVendor.value.name || '',
       slogan: currentVendor.value.slogan || '',
       description: currentVendor.value.description || '',
-      regionTags: [...(currentVendor.value.regionTags || [])]
+      regionTags: [...(currentVendor.value.regionTags || [])],
+      avatar: currentVendor.value.avatar || '',
+      bannerImage: currentVendor.value.bannerImage || '',
+      isBannerVisible: currentVendor.value.isBannerVisible !== undefined ? currentVendor.value.isBannerVisible : true
     }
     hasChanges.value = false
+  }
+}
+
+// 圖片上傳處理
+const handleImageUpload = async (event, type) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  try {
+    saving.value = true // 顯示上傳中
+    // 上傳圖片並取得 URL
+    const url = await vendorStore.uploadVendorImage(file, type)
+
+    // 更新表單資料 (僅更新圖片連結)
+    form.value[type] = url
+    // 標記為有變更 (讓使用者最後需要點擊儲存變更來送出)
+    hasChanges.value = true
+
+    alert('圖片上傳成功！別忘了點擊「儲存變更」來保存設定。')
+  } catch (err) {
+    console.error('上傳失敗:', err)
+    alert('圖片上傳失敗，請稍後再試。')
+  } finally {
+    saving.value = false
+    // 清空 input 讓同檔名可以再選
+    event.target.value = ''
   }
 }
 </script>
@@ -339,6 +374,115 @@ const handleReset = () => {
           已選擇 {{ form.regionTags.length }} / 5 個地區標籤
           <span v-if="isEditing && form.regionTags.length >= 5" class="ml-1">(已達上限)</span>
         </p>
+      </div>
+
+      <!-- 圖片設置區塊 -->
+      <div class="border-t border-gray-100 pt-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">圖片設置</h3>
+
+        <!-- 廠商頭像 -->
+        <div class="mb-8">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            廠商頭像 (Avatar)
+          </label>
+          <div class="flex items-start gap-4">
+            <div class="relative group cursor-pointer" @click="isEditing && $refs.avatarInput.click()">
+              <img
+                :src="form.avatar || 'https://via.placeholder.com/150'"
+                class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md bg-gray-100"
+                alt="Avatar"
+              />
+              <div
+                v-if="isEditing"
+                class="absolute bottom-0 right-0 bg-white p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-gray-50 transition-colors z-10"
+              >
+                <Edit class="w-4 h-4 text-gray-600" />
+              </div>
+
+              <!-- 遮罩提示 -->
+              <div v-if="isEditing" class="absolute inset-0 rounded-full bg-black/ opacity-0 group-hover:opacity-20 transition-opacity"></div>
+            </div>
+
+            <div class="flex-1">
+              <p class="text-sm text-gray-500 mb-2">
+                建議尺寸 400x400px，支援 JPG/PNG。
+              </p>
+              <input
+                ref="avatarInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="(e) => handleImageUpload(e, 'avatar')"
+              />
+              <button
+                v-if="isEditing"
+                class="text-sm text-amber-600 font-medium hover:text-amber-700 underline decoration-dashed underline-offset-4"
+                @click="$refs.avatarInput.click()"
+              >
+                更換頭像
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 網站橫幅 -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              網站首頁橫幅 (Banner)
+            </label>
+
+            <!-- 顯示設定開關 -->
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <div class="relative">
+                <input
+                  type="checkbox"
+                  v-model="form.isBannerVisible"
+                  :disabled="!isEditing"
+                  class="sr-only peer"
+                >
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+              </div>
+              <span class="text-sm text-gray-600 font-medium">在前台顯示</span>
+            </label>
+          </div>
+
+          <div :class="['relative group rounded-xl overflow-hidden bg-gray-100 aspect-[21/9] transition-opacity', !form.isBannerVisible ? 'opacity-50 grayscale' : '']">
+            <img
+              :src="form.bannerImage || 'https://via.placeholder.com/1200x500'"
+              class="w-full h-full object-cover"
+              alt="Banner"
+            />
+            <div v-if="isEditing" class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <button
+                class="bg-white/90 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-white transition-colors flex items-center gap-2"
+                @click="$refs.bannerInput.click()"
+              >
+                <Edit class="w-4 h-4" />
+                更換橫幅
+              </button>
+            </div>
+
+            <!-- 隱藏狀態提示 -->
+            <div v-if="!form.isBannerVisible" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div class="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg backdrop-blur-sm">
+                已隱藏
+              </div>
+            </div>
+          </div>
+
+          <p class="mt-2 text-xs text-gray-500 flex items-center gap-2">
+             顯示於首頁輪播，僅限精選合作廠商，建議尺寸 1200x600px。
+             <span v-if="!form.isBannerVisible" class="text-amber-600 font-medium">(此橫幅目前設定為不顯示)</span>
+          </p>
+          <input
+            ref="bannerInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="(e) => handleImageUpload(e, 'bannerImage')"
+          />
+        </div>
       </div>
     </div>
 

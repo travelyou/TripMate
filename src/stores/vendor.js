@@ -14,8 +14,8 @@ export const useVendorStore = defineStore('vendor', () => {
     name: '環遊世界旅行社',
     slogan: '帶您探索世界的每一個角落',
     avatar: 'https://picsum.photos/200?random=vendor',
-    coverImage: 'https://picsum.photos/1200/400?random=travel',
     bannerImage: 'https://picsum.photos/1200/600?random=banner',
+    isBannerVisible: true,
     regionTags: ['日本', '韓國', '東南亞', '歐洲', '美洲'],
     rating: 4.8,
     reviewCount: 328,
@@ -423,6 +423,38 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
+  /**
+   * 📡 API ENDPOINT: POST /api/upload
+   * Firebase Storage: uploadBytes(ref(storage, path), file)
+   * 用途: 上傳圖片並回傳 URL
+   */
+  const uploadVendorImage = async (file, type) => {
+    loading.value = true
+    try {
+      // 🔴 MOCK DATA
+      // 暫時忽略未使用的參數
+      console.log('Uploading file:', file?.name, 'type:', type)
+
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // 模擬回傳 URL (使用假圖)
+      const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
+
+      // 📡 未來實作:
+      // const storageRef = ref(storage, `vendors/${currentVendor.value.id}/${type}/${file.name}`)
+      // await uploadBytes(storageRef, file)
+      // const downloadURL = await getDownloadURL(storageRef)
+      // return downloadURL
+
+      return mockUrl
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     currentVendor,
     vendorPosts,
@@ -443,5 +475,6 @@ export const useVendorStore = defineStore('vendor', () => {
     createPost,
     updatePost,
     deletePost,
+    uploadVendorImage
   }
 })
