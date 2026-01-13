@@ -199,5 +199,4 @@ app.listen(PORT, HOST, () => {
   console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
 })
 
-
 app.use('/api/payments', paymentsRouter)
