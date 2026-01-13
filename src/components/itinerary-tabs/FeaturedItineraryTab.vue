@@ -155,7 +155,7 @@ const clearRating = (id) => {
             v-for="star in 5"
             :key="star"
             type="button"
-            class="p-2 rounded-lg hover:bg-primary-50 transition"
+            class="p-2 rounded-lg transition"
             @click="((ratingDraft = star), (ratingWarning = ''))"
           >
             <StarIcon
