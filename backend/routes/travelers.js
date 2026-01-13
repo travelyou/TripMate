@@ -7,24 +7,6 @@ router.get('/', async (req, res) => {
     console.log('收到獲取旅伴列表請求')
     const { status, location, limit = 20, offset = 0 } = req.query
 
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_schema = 'travelers'
-        AND table_name = 'travelers'
-      )
-    `)
-
-    if (!tableCheck.rows[0].exists) {
-      console.error('❌ travelers.travelers 表不存在！')
-      return res.status(500).json({
-        success: false,
-        message: '資料庫表不存在',
-        error: 'travelers.travelers 表不存在，請檢查資料庫結構',
-      })
-    }
-    console.log('✅ travelers.travelers 表存在')
-
     let query = `
       SELECT
         id,
