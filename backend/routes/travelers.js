@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global require, module */
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
@@ -136,12 +138,60 @@ router.get('/', async (req, res) => {
   }
 })
 
+router.post('/:id/view', async (req, res) => {
+  try {
+    const { id } = req.params
+    const idNum = Number(id)
+
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID 格式錯誤',
+        details: 'id 必須是正整數',
+      })
+    }
+
+    const updateResult = await pool.query(
+      'UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL',
+      [idNum]
+    )
+
+    if (updateResult.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '找不到此旅伴貼文',
+      })
+    }
+
+    res.json({
+      success: true,
+      message: '瀏覽次數已更新',
+    })
+  } catch (error) {
+    console.error('更新瀏覽次數錯誤：', error)
+    res.status(500).json({
+      success: false,
+      message: '更新瀏覽次數失敗',
+      error: error.message,
+    })
+  }
+})
+
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
     const { user_uid } = req.query
 
-    console.log('獲取旅伴詳情，ID:', id)
+    const idNum = Number(id)
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID 格式錯誤',
+        details: 'id 必須是正整數',
+      })
+    }
+
+    console.log('獲取旅伴詳情，ID:', idNum)
 
     const travelerQuery = `
       SELECT
@@ -171,10 +221,10 @@ router.get('/:id', async (req, res) => {
       WHERE id = $1 AND deleted_at IS NULL
     `
 
-    const travelerResult = await pool.query(travelerQuery, [id])
+    const travelerResult = await pool.query(travelerQuery, [idNum])
 
     if (travelerResult.rows.length === 0) {
-      console.log('找不到旅伴 ID:', id)
+      console.log('找不到旅伴 ID:', idNum)
       return res.status(404).json({
         success: false,
         message: '找不到此旅伴貼文',
@@ -186,37 +236,38 @@ router.get('/:id', async (req, res) => {
 
     const itineraryResult = await pool.query(
       'SELECT day_number, date, activities FROM travelers.traveler_itineraries WHERE traveler_id = $1 ORDER BY day_number',
-      [id],
+      [idNum],
     )
 
     const packingResult = await pool.query(
       'SELECT category, items FROM travelers.traveler_packing_lists WHERE traveler_id = $1 ORDER BY id',
-      [id],
+      [idNum],
     )
 
     const commentsResult = await pool.query(
       `SELECT
         id, author_uid, author_name, author_avatar, content,
         likes_count, created_at
-      FROM comments
+      FROM public.comments
       WHERE post_type = 'traveler'
         AND post_id = $1
         AND parent_comment_id IS NULL
+        AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT 50`,
-      [id],
+      [idNum],
     )
 
     let isLiked = false
     if (user_uid) {
       const likeResult = await pool.query(
-        'SELECT id FROM likes WHERE post_type = $1 AND post_id = $2 AND user_uid = $3',
-        ['traveler', id, user_uid],
+        'SELECT id FROM public.likes WHERE post_id = $1 AND author_uid = $2 AND board = $3',
+        [idNum, user_uid, 'traveler'],
       )
       isLiked = likeResult.rows.length > 0
     }
 
-    await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id])
+    await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL', [idNum])
 
     const fullData = {
       ...traveler,

@@ -13,6 +13,7 @@ import {
   Coffee as CoffeeIcon,
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
+  Eye as EyeIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -354,7 +355,7 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
                 <div class="flex items-center text-primary-600 mb-1">
                   <MapPinIcon class="w-4 h-4 mr-1" />
@@ -385,6 +386,14 @@ onMounted(async () => {
                   <span class="text-xs font-bold text-secondary-500">留言</span>
                 </div>
                 <div class="font-bold text-secondary-900">{{ totalCommentCount }}</div>
+              </div>
+
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-600 mb-1">
+                  <EyeIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">瀏覽</span>
+                </div>
+                <div class="font-bold text-secondary-900">{{ localTravelerData.views_count || 0 }}</div>
               </div>
             </div>
           </div>
