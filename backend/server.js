@@ -11,6 +11,7 @@ const likesRouter = require('./routes/likes')
 const usersRouter = require('./routes/users')
 const travelersRoutes = require('./routes/travelers')
 const itinerariesRouter = require('./routes/itineraries')
+const paymentsRouter = require('./routes/payments')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -197,3 +198,6 @@ app.listen(PORT, HOST, () => {
   console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
   console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
 })
+
+
+app.use('/api/payments', paymentsRouter)
