@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global require, process */
 // 必須在最開始就加載環境變數，這樣其他模組才能正確讀取
 require('dotenv').config();
 
@@ -25,8 +27,8 @@ app.get('/', (req, res) => {
       test: '/api/test',
       testDb: '/api/test-db',
       posts: '/api/posts',
-      comments: '/api/posts/:postId/comments'
-    }
+      comments: '/api/posts/:postId/comments',
+    },
   });
 });
 
