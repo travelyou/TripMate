@@ -1,5 +1,5 @@
 <script setup>
-import { Calendar as CalendarIcon, Plus as PlusIcon } from 'lucide-vue-next'
+import { Calendar, Plus, ChevronRight } from 'lucide-vue-next'
 
 defineProps({
   itineraries: {
@@ -12,10 +12,12 @@ defineEmits(['open', 'add'])
 </script>
 
 <template>
-  <div class="bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall">
+  <div
+    class="bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall"
+  >
     <div class="flex items-center mb-6 pb-4 border-b-2 border-secondary-100">
       <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-4">
-        <CalendarIcon class="w-6 h-6 text-primary-600" />
+        <Calendar class="w-6 h-6 text-primary-600" />
       </div>
       <div>
         <h3 class="text-xl font-bold text-secondary-800">行程列表</h3>
@@ -45,20 +47,7 @@ defineEmits(['open', 'add'])
             </div>
           </div>
           <div class="text-secondary-300 group-hover:text-primary-400">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRight class="h-6 w-6" />
           </div>
         </div>
       </div>
@@ -75,7 +64,7 @@ defineEmits(['open', 'add'])
       class="w-full mt-8 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-700 transition flex items-center justify-center shadow-primary-strong active:translate-y-1 active:shadow-none"
       @click="$emit('add')"
     >
-      <PlusIcon class="w-5 h-5 mr-2" />
+      <Plus class="w-5 h-5 mr-2" />
       新增行程
     </button>
   </div>
