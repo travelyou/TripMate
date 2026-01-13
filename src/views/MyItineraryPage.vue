@@ -11,7 +11,7 @@ import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
 const myItineraryStore = useMyItineraryStore()
 
 //  2. 使用 storeToRefs 拿資料，這樣資料變動時畫面才會跟著變
-const { myItineraries } = storeToRefs(myItineraryStore)
+const { myItineraries, featuredItineraries, partnerItineraries } = storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
@@ -22,47 +22,6 @@ const tabs = [
   { id: 'featured', label: '精選行程' },
   { id: 'partner', label: '找旅伴' },
 ]
-
-const featuredItineraries = ref([
-  {
-    id: 101,
-    title: '沖繩海島放鬆之旅',
-    startDate: '2025-03-12',
-    endDate: '2025-03-16',
-    orderNumber: 'TM-20250312001',
-    orderDate: '2025-02-01',
-    status: 'joined',
-    rating: 4,
-  },
-  {
-    id: 102,
-    title: '北海道滑雪體驗',
-    startDate: '2025-01-20',
-    endDate: '2025-01-25',
-    orderNumber: 'TM-20250120008',
-    orderDate: '2024-12-10',
-    status: 'not_joined',
-  },
-])
-
-const partnerItineraries = ref([
-  {
-    id: 201,
-    title: '清邁慢旅行',
-    startDate: '2025-05-05',
-    endDate: '2025-05-12',
-    status: 'joined',
-    comment: '行程節奏剛好，很好相處！',
-    reviewLabel: '超好評',
-  },
-  {
-    id: 202,
-    title: '曼谷美食團',
-    startDate: '2025-07-08',
-    endDate: '2025-07-10',
-    status: 'not_joined',
-  },
-])
 
 // 開啟行程詳情 (編輯)
 const openItineraryDetail = (itinerary) => {
@@ -141,8 +100,15 @@ const handleDeleteItinerary = (id) => {
 }
 
 const handleFeaturedRate = ({ id, rating }) => {
-  const target = featuredItineraries.value.find((item) => item.id === id)
-  if (target) target.rating = rating
+  myItineraryStore.updateFeaturedRating({ id, rating })
+}
+
+const handleFeaturedClear = (id) => {
+  myItineraryStore.clearFeaturedRating(id)
+}
+
+const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
+  myItineraryStore.updatePartnerItinerary({ id, comment, reviewLabel })
 }
 </script>
 
@@ -180,10 +146,12 @@ const handleFeaturedRate = ({ id, rating }) => {
         v-if="activeTab === 'featured'"
         :itineraries="featuredItineraries"
         @rate="handleFeaturedRate"
+        @clear="handleFeaturedClear"
       />
       <FindPartnerTab
         v-if="activeTab === 'partner'"
         :itineraries="partnerItineraries"
+        @update="handlePartnerUpdate"
       />
     </div>
 

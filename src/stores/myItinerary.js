@@ -180,6 +180,52 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     },
   ])
 
+  // 3. 精選行程
+  const featuredItineraries = ref([
+    {
+      id: 101,
+      title: '沖繩海島放鬆之旅',
+      startDate: '2025-03-12',
+      endDate: '2025-03-16',
+      orderNumber: 'TM-20250312001',
+      orderDate: '2025-02-01',
+      status: 'joined',
+      rating: null,
+    },
+    {
+      id: 102,
+      title: '北海道滑雪體驗',
+      startDate: '2025-01-20',
+      endDate: '2025-01-25',
+      orderNumber: 'TM-20250120008',
+      orderDate: '2024-12-10',
+      status: 'not_joined',
+      rating: null,
+    },
+  ])
+
+  // 4. 找旅伴
+  const partnerItineraries = ref([
+    {
+      id: 201,
+      title: '清邁慢旅行',
+      startDate: '2025-05-05',
+      endDate: '2025-05-12',
+      status: 'joined',
+      comment: '行程節奏剛好，很好相處！',
+      reviewLabel: '超好評',
+    },
+    {
+      id: 202,
+      title: '曼谷美食團',
+      startDate: '2025-07-08',
+      endDate: '2025-07-10',
+      status: 'not_joined',
+      comment: '',
+      reviewLabel: '好評',
+    },
+  ])
+
   // 新增行程
   const addItinerary = () => {
     const newId = Date.now()
@@ -221,6 +267,25 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     drafts.value.unshift(newDraft)
   }
 
+  const updateFeaturedRating = ({ id, rating }) => {
+    const target = featuredItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    target.rating = rating
+  }
+
+  const clearFeaturedRating = (id) => {
+    const target = featuredItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    target.rating = null
+  }
+
+  const updatePartnerItinerary = ({ id, comment, reviewLabel }) => {
+    const target = partnerItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    if (comment !== undefined) target.comment = comment
+    if (reviewLabel !== undefined) target.reviewLabel = reviewLabel
+  }
+
   // 儲存行程（新增或更新）
   const saveItinerary = (itineraryData) => {
     if (!itineraryData.id) {
@@ -243,9 +308,14 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   return {
     myItineraries,
     drafts,
+    featuredItineraries,
+    partnerItineraries,
     addItinerary,
     deleteItinerary,
     addDraft,
+    updateFeaturedRating,
+    clearFeaturedRating,
+    updatePartnerItinerary,
     saveItinerary,
   }
 })

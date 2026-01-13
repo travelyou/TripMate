@@ -7,6 +7,8 @@ defineProps({
     required: true,
   },
 })
+
+defineEmits(['update'])
 </script>
 
 <template>
@@ -56,11 +58,28 @@ defineProps({
         </div>
 
         <div v-if="item.status === 'joined'" class="mt-4 pt-3 border-t border-secondary-100">
-          <div class="text-sm text-secondary-600 space-y-1">
-            <div class="font-semibold text-secondary-700">評論</div>
-            <div>{{ item.comment || '—' }}</div>
-            <div class="font-semibold text-secondary-700 mt-2">好評等級</div>
-            <div>{{ item.reviewLabel || '好評' }}</div>
+          <div class="text-sm text-secondary-600 space-y-3">
+            <div>
+              <div class="font-semibold text-secondary-700 mb-1">評論</div>
+              <textarea
+                class="w-full border border-secondary-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                rows="2"
+                :value="item.comment || ''"
+                placeholder="留下你的評論"
+                @input="$emit('update', { id: item.id, comment: $event.target.value })"
+              />
+            </div>
+            <div>
+              <div class="font-semibold text-secondary-700 mb-1">好評等級</div>
+              <select
+                class="w-full border border-secondary-200 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                :value="item.reviewLabel || '好評'"
+                @change="$emit('update', { id: item.id, reviewLabel: $event.target.value })"
+              >
+                <option value="好評">好評</option>
+                <option value="超好評">超好評</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
