@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
         created_at,
         updated_at
       FROM travelers.travelers
-      WHERE 1=1
+      WHERE deleted_at IS NULL
     `
     // ▲▲▲ 修改結束 ▲▲▲
 
@@ -212,7 +212,7 @@ router.get('/:id', async (req, res) => {
         likes_count AS "likes",
         views_count
       FROM travelers.travelers
-      WHERE id = $1
+      WHERE id = $1 AND deleted_at IS NULL
     `
     // ▲▲▲ 修改結束 ▲▲▲
 
@@ -266,7 +266,7 @@ router.get('/:id', async (req, res) => {
     }
 
     // 6. 增加瀏覽數
-    await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1', [id])
+    await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id])
 
     // 7. 組裝完整資料
     const fullData = {
@@ -512,7 +512,7 @@ router.put('/:id', async (req, res) => {
       updateValues.push(id)
 
       if (updateFields.length > 1) {
-        const updateQuery = `UPDATE travelers.travelers SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING id`
+        const updateQuery = `UPDATE travelers.travelers SET ${updateFields.join(', ')} WHERE id = $${paramIndex} AND deleted_at IS NULL RETURNING id`
         const result = await client.query(updateQuery, updateValues)
         if (result.rows.length === 0) {
           await client.query('ROLLBACK')
@@ -564,11 +564,11 @@ router.delete('/:id', async (req, res) => {
 
     const { id } = req.params
     const result = await pool.query(
-      `DELETE FROM travelers.travelers WHERE id = $1 RETURNING id`,
+      `UPDATE travelers.travelers SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
       [id],
     )
     if (result.rows.length === 0)
-      return res.status(404).json({ success: false, message: '找不到此貼文' })
+      return res.status(404).json({ success: false, message: '找不到此貼文或已被刪除' })
     res.json({ success: true, message: '已刪除', data: { id } })
   } catch (error) {
     res.status(500).json({ success: false, message: '刪除失敗', error: error.message })
