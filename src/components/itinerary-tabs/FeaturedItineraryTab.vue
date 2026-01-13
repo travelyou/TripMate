@@ -14,10 +14,12 @@ const emit = defineEmits(['rate', 'clear'])
 const isRatingOpen = ref(false)
 const ratingTarget = ref(null)
 const ratingDraft = ref(0)
+const ratingWarning = ref('')
 
 const openRatingModal = (item) => {
   ratingTarget.value = item
   ratingDraft.value = item.rating || 0
+  ratingWarning.value = ''
   isRatingOpen.value = true
 }
 
@@ -25,10 +27,15 @@ const closeRatingModal = () => {
   isRatingOpen.value = false
   ratingTarget.value = null
   ratingDraft.value = 0
+  ratingWarning.value = ''
 }
 
 const saveRating = () => {
   if (!ratingTarget.value) return
+  if (!ratingDraft.value) {
+    ratingWarning.value = '請先選擇星級，才能送出評價。'
+    return
+  }
   emit('rate', { id: ratingTarget.value.id, rating: ratingDraft.value })
   closeRatingModal()
 }
@@ -149,7 +156,7 @@ const clearRating = (id) => {
             :key="star"
             type="button"
             class="p-2 rounded-lg hover:bg-primary-50 transition"
-            @click="ratingDraft = star"
+            @click="((ratingDraft = star), (ratingWarning = ''))"
           >
             <StarIcon
               class="w-7 h-7 fill-current"
@@ -167,11 +174,19 @@ const clearRating = (id) => {
           </button>
           <button
             type="button"
-            class="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary-700 transition"
+            class="px-4 py-2 rounded-lg font-semibold transition"
+            :class="
+              ratingDraft
+                ? 'bg-primary text-white hover:bg-primary-700'
+                : 'bg-secondary-200 text-secondary-500 cursor-not-allowed'
+            "
             @click="saveRating"
           >
             儲存評價
           </button>
+        </div>
+        <div v-if="ratingWarning" class="mt-3 text-sm text-rose-600">
+          {{ ratingWarning }}
         </div>
       </div>
     </div>

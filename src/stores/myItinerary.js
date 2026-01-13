@@ -234,7 +234,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   const updateFeaturedRating = ({ id, rating }) => {
     const target = featuredItineraries.value.find((item) => item.id === id)
     if (!target) return
-    target.rating = rating
+    target.rating = rating === 0 ? null : rating
   }
 
   const clearFeaturedRating = (id) => {

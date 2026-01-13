@@ -23,9 +23,13 @@ const reviewLabelText = computed(() => ({
 
 const ensureDraft = (item) => {
   if (!drafts.value[item.id]) {
+    const normalizedLabel =
+      item.reviewLabel === 'positive' || item.reviewLabel === 'excellent'
+        ? item.reviewLabel
+        : ''
     drafts.value[item.id] = {
       comment: item.comment || '',
-      reviewLabel: item.reviewLabel || '好評',
+      reviewLabel: normalizedLabel,
     }
   }
   return drafts.value[item.id]
