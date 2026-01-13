@@ -33,7 +33,6 @@ const activeDay = computed(() => {
   return days[activeDayIndex.value] || { activities: [] }
 })
 
-
 const getDayLabel = (index) => {
   const startDateStr = localItinerary.value.startDate
   if (!startDateStr) return `Day ${index + 1}`

@@ -59,7 +59,7 @@ Directory structure:
         │   │   └── ItineraryCard.vue
         │   ├── modals/
         │   │   ├── AddToCollectionModal.vue
-        │   │   ├── ItineraryDetailModal.vue
+        │   │   ├── MyItineraryDetailModal.vue
         │   │   ├── DiscussionDetailModal.vue
         │   │   ├── PostingChoiceModal.vue
         │   │   ├── ShareModal.vue

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { storeToRefs } from 'pinia' //  1. 引入這個確保響應性
 import { Briefcase as BriefcaseIcon } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
-import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
+import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.vue'
 import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
 import FeaturedItineraryTab from '@/components/itinerary-tabs/FeaturedItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
@@ -134,7 +134,7 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
       />
     </div>
 
-    <ItineraryDetailModal
+    <MyItineraryDetailModal
       v-if="isDetailModalOpen"
       :itinerary="selectedItinerary"
       @close="isDetailModalOpen = false"
@@ -143,4 +143,3 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
     />
   </div>
 </template>
-
