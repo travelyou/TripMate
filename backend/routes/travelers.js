@@ -2,19 +2,11 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
-// ============================================
-// GET ALL - 獲取所有旅伴貼文（列表頁用）
-// ============================================
 router.get('/', async (req, res) => {
   try {
     console.log('收到獲取旅伴列表請求')
     const { status, location, limit = 20, offset = 0 } = req.query
 
-    // 確保 search_path 設置正確
-    await pool.query('SET search_path TO public, travelers, discussion')
-    console.log('✅ search_path 已設置')
-
-    // 驗證表是否存在
     const tableCheck = await pool.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables
@@ -33,7 +25,6 @@ router.get('/', async (req, res) => {
     }
     console.log('✅ travelers.travelers 表存在')
 
-    // ▼▼▼ 修改重點：10分鐘內顯示「剛剛」與日期範圍邏輯 ▼▼▼
     let query = `
       SELECT
         id,
@@ -59,12 +50,10 @@ router.get('/', async (req, res) => {
       FROM travelers.travelers
       WHERE deleted_at IS NULL
     `
-    // ▲▲▲ 修改結束 ▲▲▲
 
     const params = []
     let paramIndex = 1
 
-    // 篩選條件
     if (status) {
       query += ` AND status = $${paramIndex}`
       params.push(status)
@@ -87,9 +76,7 @@ router.get('/', async (req, res) => {
 
     console.log('查詢成功，找到', result.rows.length, '筆資料')
 
-    // 處理數據格式
     const formattedData = result.rows.map((row) => {
-      // 處理日期
       const startDate = new Date(row.start_date)
       const endDate = new Date(row.end_date)
       const dateStr =
@@ -109,7 +96,6 @@ router.get('/', async (req, res) => {
               day: '2-digit',
             }).replace(/\//g, '/')}`
 
-      // 處理時間
       const now = new Date()
       const created = new Date(row.created_at)
       const diffSeconds = Math.floor((now - created) / 1000)
@@ -168,20 +154,13 @@ router.get('/', async (req, res) => {
   }
 })
 
-// ============================================
-// GET BY ID - 獲取單個旅伴詳情（含行程、打包清單、留言）
-// ============================================
 router.get('/:id', async (req, res) => {
   try {
-    // 確保 search_path 設置正確
-    await pool.query('SET search_path TO public, travelers, discussion')
-
     const { id } = req.params
     const { user_uid } = req.query
 
     console.log('獲取旅伴詳情，ID:', id)
 
-    // ▼▼▼ 修改重點：詳情頁同步修改 ▼▼▼
     const travelerQuery = `
       SELECT
         id,
@@ -190,19 +169,14 @@ router.get('/:id', async (req, res) => {
         location,
         status,
         tags,
-
-        -- 1. 行程日期
         CASE
           WHEN start_date = end_date THEN TO_CHAR(start_date, 'YYYY/MM/DD')
           ELSE TO_CHAR(start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(end_date, 'YYYY/MM/DD')
         END AS "date",
-
-        -- 2. 發布時間：10分鐘內顯示「剛剛」
         CASE
           WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) < 600 THEN '剛剛'
           ELSE TO_CHAR(created_at, 'YYYY/MM/DD HH24:MI')
         END AS "created_at",
-
         current_people::text || '/' || max_people::text AS "people",
         banner_image AS "image",
         author_uid,
@@ -214,7 +188,6 @@ router.get('/:id', async (req, res) => {
       FROM travelers.travelers
       WHERE id = $1 AND deleted_at IS NULL
     `
-    // ▲▲▲ 修改結束 ▲▲▲
 
     const travelerResult = await pool.query(travelerQuery, [id])
 
@@ -229,19 +202,16 @@ router.get('/:id', async (req, res) => {
     const traveler = travelerResult.rows[0]
     console.log('找到旅伴:', traveler.title)
 
-    // 2. 獲取行程規劃
     const itineraryResult = await pool.query(
       'SELECT day_number, date, activities FROM travelers.traveler_itineraries WHERE traveler_id = $1 ORDER BY day_number',
       [id],
     )
 
-    // 3. 獲取打包清單
     const packingResult = await pool.query(
       'SELECT category, items FROM travelers.traveler_packing_lists WHERE traveler_id = $1 ORDER BY id',
       [id],
     )
 
-    // 4. 獲取留言（簡化版）
     const commentsResult = await pool.query(
       `SELECT
         id, author_uid, author_name, author_avatar, content,
@@ -255,7 +225,6 @@ router.get('/:id', async (req, res) => {
       [id],
     )
 
-    // 5. 檢查是否按讚
     let isLiked = false
     if (user_uid) {
       const likeResult = await pool.query(
@@ -265,10 +234,8 @@ router.get('/:id', async (req, res) => {
       isLiked = likeResult.rows.length > 0
     }
 
-    // 6. 增加瀏覽數
     await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id])
 
-    // 7. 組裝完整資料
     const fullData = {
       ...traveler,
       itinerary: {
@@ -310,9 +277,6 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// ============================================
-// CREATE - 建立旅伴貼文 (POST)
-// ============================================
 router.post('/', async (req, res) => {
   try {
     console.log('🟢 [Backend Travelers POST] ========== 開始 ==========')
@@ -335,7 +299,6 @@ router.post('/', async (req, res) => {
       packingList,
     } = req.body
 
-    // 驗證必填欄位
     if (!title || !content || !location || !start_date || !end_date || !author_uid) {
       console.log('❌ [Backend Travelers POST] 缺少必填欄位')
       return res.status(400).json({
@@ -357,8 +320,6 @@ router.post('/', async (req, res) => {
 
     const client = await pool.connect()
     try {
-      // 確保 search_path 設置正確
-      await client.query('SET search_path TO public, travelers, discussion')
       await client.query('BEGIN')
       console.log('🟢 [Backend Travelers POST] 開始資料庫事務')
 
@@ -458,14 +419,8 @@ router.post('/', async (req, res) => {
   }
 })
 
-// ============================================
-// UPDATE - 更新旅伴貼文 (PUT)
-// ============================================
 router.put('/:id', async (req, res) => {
   try {
-    // 確保 search_path 設置正確
-    await pool.query('SET search_path TO public, travelers, discussion')
-
     const { id } = req.params
     const {
       title,
@@ -554,14 +509,8 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-// ============================================
-// DELETE - 刪除旅伴貼文
-// ============================================
 router.delete('/:id', async (req, res) => {
   try {
-    // 確保 search_path 設置正確
-    await pool.query('SET search_path TO public, travelers, discussion')
-
     const { id } = req.params
     const result = await pool.query(
       `UPDATE travelers.travelers SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
