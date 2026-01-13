@@ -13,6 +13,7 @@ const emit = defineEmits(['update'])
 
 const isReviewOpen = ref(false)
 const reviewTarget = ref(null)
+const reviewDraft = ref(null)
 const drafts = ref({})
 const reviewWarning = ref('')
 
@@ -37,6 +38,7 @@ const openReviewModal = (item) => {
   reviewTarget.value = item
   const draft = ensureDraft(item)
   if (!draft.reviewLabel) draft.reviewLabel = 'positive'
+  reviewDraft.value = { ...draft }
   reviewWarning.value = ''
   isReviewOpen.value = true
 }
@@ -44,12 +46,13 @@ const openReviewModal = (item) => {
 const closeReviewModal = () => {
   isReviewOpen.value = false
   reviewTarget.value = null
+  reviewDraft.value = null
   reviewWarning.value = ''
 }
 
 const submitReview = () => {
-  if (!reviewTarget.value) return
-  const draft = ensureDraft(reviewTarget.value)
+  if (!reviewTarget.value || !reviewDraft.value) return
+  const draft = reviewDraft.value
   if (!draft.comment || !draft.comment.trim()) {
     reviewWarning.value = '未輸入評論，無法送出。'
     return
@@ -157,19 +160,18 @@ const getReviewLabel = (value) => reviewLabelText.value[value] || ''
           <div>
             <div class="font-semibold text-secondary-700 mb-1">評論</div>
             <textarea
+              v-model="reviewDraft.comment"
               class="w-full border border-secondary-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
               rows="3"
               placeholder="留下你的評論"
-              :value="ensureDraft(reviewTarget || {}).comment"
-              @input="ensureDraft(reviewTarget || {}).comment = $event.target.value"
+              @input="reviewWarning = ''"
             />
           </div>
           <div>
             <div class="font-semibold text-secondary-700 mb-1">好評等級</div>
             <select
+              v-model="reviewDraft.reviewLabel"
               class="w-full border border-secondary-200 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
-              :value="ensureDraft(reviewTarget || {}).reviewLabel"
-              @change="ensureDraft(reviewTarget || {}).reviewLabel = $event.target.value"
             >
               <option value="positive">好評</option>
               <option value="excellent">超好評</option>
