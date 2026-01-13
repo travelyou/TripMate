@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMyItineraryStore = defineStore('myItinerary', () => {
@@ -171,6 +171,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       orderDate: '2025-02-01',
       status: 'joined',
       rating: null,
+      comment: '',
     },
     {
       id: 102,
@@ -181,6 +182,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       orderDate: '2024-12-10',
       status: 'not_joined',
       rating: null,
+      comment: '',
     },
   ])
 
@@ -193,7 +195,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       endDate: '2025-05-12',
       status: 'joined',
       comment: '',
-      reviewLabel: 'excellent',
+      reviewLabel: 'super_like',
     },
     {
       id: 202,
@@ -202,7 +204,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       endDate: '2025-07-10',
       status: 'not_joined',
       comment: '',
-      reviewLabel: 'positive',
+      reviewLabel: 'like',
     },
   ])
 
@@ -231,16 +233,18 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
   }
 
-  const updateFeaturedRating = ({ id, rating }) => {
+  const updateFeaturedRating = ({ id, rating, comment }) => {
     const target = featuredItineraries.value.find((item) => item.id === id)
     if (!target) return
     target.rating = rating === 0 ? null : rating
+    if (comment !== undefined) target.comment = comment
   }
 
   const clearFeaturedRating = (id) => {
     const target = featuredItineraries.value.find((item) => item.id === id)
     if (!target) return
     target.rating = null
+    target.comment = ''
   }
 
   const updatePartnerItinerary = ({ id, comment, reviewLabel }) => {
@@ -281,3 +285,4 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     saveItinerary,
   }
 })
+

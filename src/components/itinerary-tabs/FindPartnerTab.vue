@@ -1,6 +1,6 @@
-<script setup>
-import { ref, computed } from 'vue'
-import { Calendar as CalendarIcon } from 'lucide-vue-next'
+﻿<script setup>
+import { ref } from 'vue'
+import { Calendar as CalendarIcon, Heart, ThumbsUp } from 'lucide-vue-next'
 
 defineProps({
   itineraries: {
@@ -17,15 +17,10 @@ const reviewDraft = ref(null)
 const drafts = ref({})
 const reviewWarning = ref('')
 
-const reviewLabelText = computed(() => ({
-  positive: '好評',
-  excellent: '超好評',
-}))
-
 const ensureDraft = (item) => {
   if (!drafts.value[item.id]) {
     const normalizedLabel =
-      item.reviewLabel === 'positive' || item.reviewLabel === 'excellent' ? item.reviewLabel : ''
+      item.reviewLabel === 'like' || item.reviewLabel === 'super_like' ? item.reviewLabel : ''
     drafts.value[item.id] = {
       comment: item.comment || '',
       reviewLabel: normalizedLabel,
@@ -37,7 +32,10 @@ const ensureDraft = (item) => {
 const openReviewModal = (item) => {
   reviewTarget.value = item
   const draft = ensureDraft(item)
-  if (!draft.reviewLabel) draft.reviewLabel = 'positive'
+  draft.comment = item.comment || ''
+  const normalizedLabel =
+    item.reviewLabel === 'like' || item.reviewLabel === 'super_like' ? item.reviewLabel : ''
+  draft.reviewLabel = normalizedLabel || draft.reviewLabel || 'like'
   reviewDraft.value = { ...draft }
   reviewWarning.value = ''
   isReviewOpen.value = true
@@ -62,10 +60,12 @@ const submitReview = () => {
     comment: draft.comment.trim(),
     reviewLabel: draft.reviewLabel,
   })
+  drafts.value[reviewTarget.value.id] = {
+    comment: draft.comment.trim(),
+    reviewLabel: draft.reviewLabel,
+  }
   closeReviewModal()
 }
-
-const getReviewLabel = (value) => reviewLabelText.value[value] || ''
 </script>
 
 <template>
@@ -119,14 +119,32 @@ const getReviewLabel = (value) => reviewLabelText.value[value] || ''
         </div>
 
         <div v-if="item.status === 'joined'" class="mt-4 pt-3 border-t border-secondary-100">
-          <div class="text-sm text-secondary-600 space-y-2">
-            <div class="font-semibold text-secondary-700">評論</div>
-            <div v-if="item.comment" class="text-secondary-600">
-              {{ item.comment }}
-            </div>
-            <div v-else class="text-secondary-400">尚未評價</div>
-            <div v-if="item.comment" class="text-secondary-500">
-              {{ getReviewLabel(item.reviewLabel) }}
+          <div
+            class="text-sm text-secondary-600 space-y-5 flex flex-col sm:flex-row sm:justify-between sm:items-center"
+          >
+            <div class="space-y-2">
+              <div class="text-base font-semibold text-secondary-700">評論</div>
+              <div v-if="item.comment" class="text-secondary-600">
+                {{ item.comment }}
+              </div>
+              <div v-else class="text-secondary-400">尚未評論</div>
+              <div v-if="item.comment" class="text-secondary-500">
+                <span
+                  v-if="item.reviewLabel === 'super_like'"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-600 border border-rose-200"
+                >
+                  <Heart class="w-3 h-3 fill-current" />
+                  超讚
+                </span>
+                <span
+                  v-else-if="item.reviewLabel === 'like'"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-600 border border-blue-200"
+                >
+                  <ThumbsUp class="w-3 h-3 fill-current" />
+                  讚
+                </span>
+                <span v-else class="text-xs text-secondary-400">未標籤</span>
+              </div>
             </div>
             <button
               type="button"
@@ -168,13 +186,13 @@ const getReviewLabel = (value) => reviewLabelText.value[value] || ''
             />
           </div>
           <div>
-            <div class="font-semibold text-secondary-700 mb-1">好評等級</div>
+            <div class="font-semibold text-secondary-700 mb-1">給個鼓勵</div>
             <select
               v-model="reviewDraft.reviewLabel"
               class="w-full border border-secondary-200 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
             >
-              <option value="positive">好評</option>
-              <option value="excellent">超好評</option>
+              <option value="like">讚</option>
+              <option value="super_like">超讚</option>
             </select>
           </div>
         </div>

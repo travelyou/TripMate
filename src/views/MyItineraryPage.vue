@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia' //  1. 引入這個確保響應性
 import { Briefcase as BriefcaseIcon } from 'lucide-vue-next'
@@ -74,8 +74,8 @@ const handleDeleteItinerary = (id) => {
   }
 }
 
-const handleFeaturedRate = ({ id, rating }) => {
-  myItineraryStore.updateFeaturedRating({ id, rating })
+const handleFeaturedRate = ({ id, rating, comment }) => {
+  myItineraryStore.updateFeaturedRating({ id, rating, comment })
 }
 
 const handleFeaturedClear = (id) => {
@@ -143,3 +143,4 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
     />
   </div>
 </template>
+

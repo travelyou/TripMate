@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref } from 'vue'
 import { Calendar as CalendarIcon, Star as StarIcon } from 'lucide-vue-next'
 
@@ -14,11 +14,13 @@ const emit = defineEmits(['rate', 'clear'])
 const isRatingOpen = ref(false)
 const ratingTarget = ref(null)
 const ratingDraft = ref(0)
+const commentDraft = ref('')
 const ratingWarning = ref('')
 
 const openRatingModal = (item) => {
   ratingTarget.value = item
   ratingDraft.value = item.rating || 0
+  commentDraft.value = item.comment || ''
   ratingWarning.value = ''
   isRatingOpen.value = true
 }
@@ -27,6 +29,7 @@ const closeRatingModal = () => {
   isRatingOpen.value = false
   ratingTarget.value = null
   ratingDraft.value = 0
+  commentDraft.value = ''
   ratingWarning.value = ''
 }
 
@@ -36,7 +39,11 @@ const saveRating = () => {
     ratingWarning.value = '請先選擇星級，才能送出評價。'
     return
   }
-  emit('rate', { id: ratingTarget.value.id, rating: ratingDraft.value })
+  emit('rate', {
+    id: ratingTarget.value.id,
+    rating: ratingDraft.value,
+    comment: commentDraft.value.trim(),
+  })
   closeRatingModal()
 }
 
@@ -102,33 +109,43 @@ const clearRating = (id) => {
         </div>
 
         <div v-if="item.status === 'joined'" class="mt-4 pt-3 border-t border-secondary-100">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div class="text-sm text-secondary-500 flex items-center gap-1">
-              <template v-if="item.rating">
-                <StarIcon
-                  v-for="star in 5"
-                  :key="star"
-                  class="w-4 h-4 fill-current"
-                  :class="star <= item.rating ? 'text-amber-400' : 'text-secondary-300'"
-                />
-              </template>
-              <span v-else>尚未評價</span>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-sm text-secondary-600 space-y-2">
+              <div class="text-secondary-500 flex items-center gap-1">
+                <template v-if="item.rating">
+                  <StarIcon
+                    v-for="star in 5"
+                    :key="star"
+                    class="w-4 h-4 fill-current"
+                    :class="star <= item.rating ? 'text-amber-400' : 'text-secondary-300'"
+                  />
+                </template>
+              </div>
+              <div>
+                <div class="font-semibold text-secondary-700">評論</div>
+                <div v-if="item.comment" class="mt-1 text-secondary-600">
+                  {{ item.comment }}
+                </div>
+                <div v-else class="mt-1 text-secondary-400">尚未評論</div>
+              </div>
             </div>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-primary text-primary font-semibold hover:bg-primary-50 transition"
-              @click="openRatingModal(item)"
-            >
-              給評價
-            </button>
-            <button
-              v-if="item.rating"
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-accent-600 text-accent-600 font-semibold transition"
-              @click="clearRating(item.id)"
-            >
-              取消評價
-            </button>
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-primary text-primary font-semibold hover:bg-primary-50 transition"
+                @click="openRatingModal(item)"
+              >
+                {{ item.rating ? '修改評價' : '給評價' }}
+              </button>
+              <button
+                v-if="item.rating"
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-accent-600 text-accent-600 font-semibold transition"
+                @click="clearRating(item.id)"
+              >
+                取消評價
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -150,19 +167,30 @@ const clearRating = (id) => {
         <div class="text-sm text-secondary-500 mb-4">
           {{ ratingTarget?.title || '行程' }}
         </div>
-        <div class="flex items-center gap-2 mb-6">
-          <button
-            v-for="star in 5"
-            :key="star"
-            type="button"
-            class="p-2 rounded-lg transition"
-            @click="((ratingDraft = star), (ratingWarning = ''))"
-          >
-            <StarIcon
-              class="w-7 h-7 fill-current"
-              :class="star <= ratingDraft ? 'text-amber-400' : 'text-secondary-300'"
+        <div class="space-y-4 mb-6">
+          <div class="flex items-center gap-2">
+            <button
+              v-for="star in 5"
+              :key="star"
+              type="button"
+              class="p-2 rounded-lg transition"
+              @click="((ratingDraft = star), (ratingWarning = ''))"
+            >
+              <StarIcon
+                class="w-7 h-7 fill-current"
+                :class="star <= ratingDraft ? 'text-amber-400' : 'text-secondary-300'"
+              />
+            </button>
+          </div>
+          <div>
+            <div class="font-semibold text-secondary-700 mb-1">評論</div>
+            <textarea
+              v-model="commentDraft"
+              class="w-full border border-secondary-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+              rows="3"
+              placeholder="留下你的評論"
             />
-          </button>
+          </div>
         </div>
         <div class="flex justify-end gap-3">
           <button
