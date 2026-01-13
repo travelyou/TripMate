@@ -49,20 +49,6 @@ const openAddItineraryModal = () => {
   isDetailModalOpen.value = true
 }
 
-// 處理「暫存草稿」
-const handleSaveDraft = (draftItinerary) => {
-  // 呼叫 Store 裡面的 addDraft (這是我們上一步新增的功能)
-  myItineraryStore.addDraft({
-    type: 'itinerary',
-    typeLabel: '我的行程',
-    title: draftItinerary.title || '(未命名行程)',
-    content: `日期: ${draftItinerary.startDate || '?'} ~ ${draftItinerary.endDate || '?'}`,
-    rawItinerary: draftItinerary, // 把整包資料存起來
-  })
-
-  isDetailModalOpen.value = false
-}
-
 // 處理儲存 (發布/更新行程)
 const handleSaveItinerary = (updatedItinerary) => {
   if (!updatedItinerary.title.trim()) updatedItinerary.title = '新旅程'
@@ -76,17 +62,6 @@ const handleSaveItinerary = (updatedItinerary) => {
   } else {
     // 如果是新的，就放到最前面
     myItineraryStore.myItineraries.unshift(updatedItinerary)
-  }
-
-  // 2. 從草稿夾移除 (如果這個行程原本是草稿)
-  // (這裡簡單過濾掉 id 相同的草稿)
-  const draftIndex = myItineraryStore.drafts.findIndex((d) =>
-    (d.data && d.data.id === updatedItinerary.id) ||
-    (d.rawItinerary && d.rawItinerary.id === updatedItinerary.id)
-  )
-
-  if (draftIndex !== -1) {
-    myItineraryStore.drafts.splice(draftIndex, 1)
   }
 
   isDetailModalOpen.value = false
@@ -113,7 +88,7 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="p-4 lg:mx-12">
     <div class="grid grid-cols-1 gap-6 items-start pt-4">
       <div class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center">
         <h1 class="text-2xl font-black text-secondary-50 flex items-center gap-3">
@@ -160,7 +135,6 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
       :itinerary="selectedItinerary"
       @close="isDetailModalOpen = false"
       @save="handleSaveItinerary"
-      @save-draft="handleSaveDraft"
       @delete="handleDeleteItinerary"
     />
   </div>

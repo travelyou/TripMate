@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMyItineraryStore = defineStore('myItinerary', () => {
-  // 1. 我的行程詳細數據
+  // 1. 我的行程
   const myItineraries = ref([
     {
       id: 1,
@@ -160,27 +160,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     },
   ])
 
-  // 2. 草稿夾數據
-  const drafts = ref([
-    {
-      id: 101,
-      type: 'discussion',
-      typeLabel: '討論區',
-      saveTime: '2024-12-05 14:30',
-      title: '詢問日本超商問題',
-      content: '下個月要去日本東京自由行，想在那邊買大研特享...',
-    },
-    {
-      id: 102,
-      type: 'traveler',
-      typeLabel: '找旅伴',
-      saveTime: '2024-12-04 10:12',
-      title: '徵求春天北海道旅伴',
-      content: '計畫明年4月去北海道賞櫻，想找志同道合的旅伴...',
-    },
-  ])
-
-  // 3. 精選行程
+  // 2. 精選行程
   const featuredItineraries = ref([
     {
       id: 101,
@@ -204,7 +184,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     },
   ])
 
-  // 4. 找旅伴
+  // 3. 找旅伴
   const partnerItineraries = ref([
     {
       id: 201,
@@ -212,8 +192,8 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       startDate: '2025-05-05',
       endDate: '2025-05-12',
       status: 'joined',
-      comment: '行程節奏剛好，很好相處！',
-      reviewLabel: '超好評',
+      comment: '',
+      reviewLabel: 'excellent',
     },
     {
       id: 202,
@@ -222,7 +202,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       endDate: '2025-07-10',
       status: 'not_joined',
       comment: '',
-      reviewLabel: '好評',
+      reviewLabel: 'positive',
     },
   ])
 
@@ -249,22 +229,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   // 刪除行程
   const deleteItinerary = (id) => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
-  }
-
-  // 新增草稿
-  const addDraft = (draftData) => {
-    const newDraft = {
-      id: Date.now(),
-      saveTime: new Date().toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      ...draftData,
-    }
-    drafts.value.unshift(newDraft)
   }
 
   const updateFeaturedRating = ({ id, rating }) => {
@@ -307,12 +271,10 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
 
   return {
     myItineraries,
-    drafts,
     featuredItineraries,
     partnerItineraries,
     addItinerary,
     deleteItinerary,
-    addDraft,
     updateFeaturedRating,
     clearFeaturedRating,
     updatePartnerItinerary,
