@@ -1,18 +1,37 @@
 ﻿<script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
-import { useTravelersStore } from '@/stores/travelers'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
-import PostingChoiceModal from '@/components/modals/PostingChoiceModal.vue'
+import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
-
-const travelersStore = useTravelersStore()
+import { getTravelers } from '@/api/travelers'
 
 const isPostingModalOpen = ref(false)
-
 const isDetailModalOpen = ref(false)
 const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
+const travelers = ref([])
+const isLoading = ref(false)
+const filterOptions = ref(['全部', '招募中', '已額滿'])
+const activeFilter = ref('全部')
+
+const loadTravelers = async () => {
+  isLoading.value = true
+  try {
+    const filters = {}
+    if (activeFilter.value !== '全部') {
+      filters.status = activeFilter.value
+    }
+    const response = await getTravelers(filters)
+    if (response.success) {
+      travelers.value = response.data
+    }
+  } catch (error) {
+    console.error(error)
+  } finally {
+    isLoading.value = false
+  }
+}
 
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler
@@ -26,8 +45,24 @@ const closeTravelerDetail = () => {
   shouldScrollToComments.value = false
 }
 
-const filterOptions = ref(['全部', '招募中', '已額滿', '單人遊', '團體遊'])
-const activeFilter = ref('全部')
+const handleFilterChange = (filter) => {
+  activeFilter.value = filter
+  loadTravelers()
+}
+
+const handleTravelerUpdated = () => {
+  loadTravelers()
+}
+
+// 處理發文成功
+const handlePostSuccess = () => {
+  isPostingModalOpen.value = false
+  loadTravelers()
+}
+
+onMounted(() => {
+  loadTravelers()
+})
 </script>
 
 <template>
@@ -49,7 +84,9 @@ const activeFilter = ref('全部')
         </div>
       </div>
 
-      <div class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl">
+      <div
+        class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
+      >
         <div class="flex flex-wrap gap-2 text-sm">
           <button
             v-for="filter in filterOptions"
@@ -60,33 +97,53 @@ const activeFilter = ref('全部')
                 ? 'bg-primary text-secondary-50'
                 : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
             ]"
-            @click="activeFilter = filter"
+            @click="handleFilterChange(filter)"
           >
             {{ filter }}
           </button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- 🟢 更新點擊事件 -->
+      <div v-if="isLoading" class="text-center py-20">
+        <div
+          class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
+        ></div>
+      </div>
+
+      <div v-else-if="travelers.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <TravelerCard
-          v-for="traveler in travelersStore.recommendations"
+          v-for="traveler in travelers"
           :key="traveler.id"
           :traveler="traveler"
           @click="openTravelerDetail(traveler, false)"
         />
       </div>
+
+      <div v-else class="text-center py-20">
+        <UsersIcon class="w-16 h-16 mx-auto text-gray-300 mb-4" />
+        <p class="text-gray-500 text-lg mb-2">目前沒有符合條件的旅伴招募</p>
+        <button
+          class="bg-green-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-md mt-4"
+          @click="isPostingModalOpen = true"
+        >
+          <PlusIcon class="w-5 h-5 inline mr-2" />
+          發起招募
+        </button>
+      </div>
     </div>
   </div>
 
-  <PostingChoiceModal v-if="isPostingModalOpen" @close="isPostingModalOpen = false" />
+  <TravelerPostModal
+    v-if="isPostingModalOpen"
+    @close="isPostingModalOpen = false"
+    @success="handlePostSuccess"
+  />
 
-  <!-- 🟢 使用新的 TravelerDetailModal -->
   <TravelerDetailModal
     v-if="isDetailModalOpen"
     :traveler="selectedTraveler"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeTravelerDetail"
+    @traveler-updated="handleTravelerUpdated"
   />
 </template>
-

@@ -21,7 +21,7 @@ defineEmits(['open-detail'])
         @click="$emit('open-detail', trip)"
       />
     </div>
-    <div v-else class="text-center py-20 text-gray-400">
+    <div v-else class="text-center py-20 text-secondary-400">
       <p>還沒有發布過旅遊揪團喔！</p>
     </div>
   </div>

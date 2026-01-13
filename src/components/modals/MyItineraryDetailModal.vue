@@ -13,23 +13,12 @@ import {
   FileText as FileTextIcon,
 } from 'lucide-vue-next'
 
-const props = defineProps({
-  itinerary: {
-    type: Object,
-    required: true,
-  },
-})
-
+const props = defineProps({ itinerary: { type: Object, required: true } })
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
-
 const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
-
 const activeDayIndex = ref(0)
 const activeDay = computed(() => {
-  // 1. 先把 days 拿出來，如果是 undefined 就當作空陣列 (不要用 = 去賦值修改它)
   const days = localItinerary.value.days || []
-
-  // 2. 安全地回傳當天的內容，如果找不到就回傳空活動
   return days[activeDayIndex.value] || { activities: [] }
 })
 
@@ -39,11 +28,8 @@ const getDayLabel = (index) => {
   const [year, month, day] = startDateStr.split('-').map(Number)
   const date = new Date(year, month - 1, day)
   date.setDate(date.getDate() + index)
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${m}/${d}`
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
 }
-
 const getIconComponent = (iconName) => {
   switch (iconName) {
     case 'camera':
@@ -56,107 +42,77 @@ const getIconComponent = (iconName) => {
       return MapIcon
   }
 }
-
 const addDay = () => {
   if (!localItinerary.value.days) localItinerary.value.days = []
-  const nextDayNum = localItinerary.value.days.length + 1
   localItinerary.value.days.push({
-    day: nextDayNum,
+    day: localItinerary.value.days.length + 1,
     date: '',
     activities: [],
   })
   activeDayIndex.value = localItinerary.value.days.length - 1
 }
-
-const deleteItem = (categoryIndex, itemIndex) => {
+const deleteItem = (categoryIndex, itemIndex) =>
   localItinerary.value.packingList[categoryIndex].items.splice(itemIndex, 1)
-}
-
-const addItem = (categoryIndex) => {
+const addItem = (categoryIndex) =>
   localItinerary.value.packingList[categoryIndex].items.push({
     id: Date.now(),
     name: '新物品',
     checked: false,
   })
-}
-
-const addCategory = () => {
-  localItinerary.value.packingList.push({
-    category: '新分類',
-    items: [],
-  })
-}
-
-const deleteCategory = (index) => {
-  localItinerary.value.packingList.splice(index, 1)
-}
-
-const deleteActivity = (actIndex) => {
-  if (activeDay.value.activities) {
-    activeDay.value.activities.splice(actIndex, 1)
-  }
-}
-
+const addCategory = () => localItinerary.value.packingList.push({ category: '新分類', items: [] })
+const deleteCategory = (index) => localItinerary.value.packingList.splice(index, 1)
+const deleteActivity = (actIndex) => activeDay.value.activities.splice(actIndex, 1)
 const addActivity = () => {
   if (!activeDay.value.activities) activeDay.value.activities = []
   activeDay.value.activities.push({
     id: Date.now(),
     time: '09:00',
     icon: 'map-pin',
-    title: '新活動',
-    desc: '描述你的活動...',
+    title: '',
+    desc: '',
   })
 }
-
-const handleSave = () => {
-  emit('save', localItinerary.value)
-}
-
-const handleSaveDraft = () => {
-  emit('save-draft', localItinerary.value)
-}
-
+const handleSave = () => emit('save', localItinerary.value)
+const handleSaveDraft = () => emit('save-draft', localItinerary.value)
 const handleDelete = () => {
-  if (confirm('確定要刪除這個行程嗎？')) {
-    emit('delete', localItinerary.value.id)
-  }
+  if (confirm('確定要刪除？')) emit('delete', localItinerary.value.id)
 }
 </script>
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 z-[200] flex justify-center items-center p-4"
+    class="fixed inset-0 bg-black/60 z-[200] flex justify-center items-center p-4 backdrop-blur-sm"
     @click.self="emit('close')"
   >
     <div
-      class="bg-[#fffef7] w-full max-w-6xl max-h-[90vh] flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] overflow-hidden relative itinerary-detail"
+      class="bg-gray-50 w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
     >
-      <div class="p-4 border-b-2 border-gray-200 flex justify-between items-start bg-white z-10">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-start bg-white">
         <div class="flex-1">
-          <div class="flex items-center space-x-2 mb-3">
+          <div class="flex items-center space-x-2 mb-2">
             <MapIcon class="w-6 h-6 text-indigo-600" />
             <input
               v-model="localItinerary.title"
-              class="text-2xl font-black text-indigo-600 bg-transparent border-b-2 border-transparent focus:border-indigo-400 focus:outline-none w-full"
+              class="text-2xl font-bold text-gray-800 bg-transparent focus:outline-none w-full placeholder-gray-300"
               placeholder="請輸入行程標題"
             />
           </div>
-          <div class="flex items-center space-x-2 text-sm">
+          <div class="flex items-center space-x-2 text-sm text-gray-500">
             <input
               v-model="localItinerary.startDate"
               type="date"
-              class="border border-gray-300 rounded px-2 py-1 text-gray-600 font-bold"
+              class="bg-transparent hover:bg-gray-100 rounded px-1"
             />
-            <span class="text-gray-400">-</span>
+            <span>-</span>
             <input
               v-model="localItinerary.endDate"
               type="date"
-              class="border border-gray-300 rounded px-2 py-1 text-gray-600 font-bold"
+              class="bg-transparent hover:bg-gray-100 rounded px-1"
             />
           </div>
         </div>
         <button
-          class="border-2 border-gray-800 p-1 hover:bg-gray-100 transition"
+          class="p-2 hover:bg-gray-100 rounded-full transition text-gray-400 hover:text-gray-600"
           @click="emit('close')"
         >
           <XIcon class="w-6 h-6" />
@@ -164,162 +120,130 @@ const handleDelete = () => {
       </div>
 
       <div class="flex-1 flex overflow-hidden">
-        <div class="w-2/3 flex flex-col border-r-2 border-gray-200 bg-gray-50/50">
-          <div
-            class="flex overflow-x-auto p-4 space-x-2 border-b border-gray-200 bg-white items-center"
-          >
+        <div class="w-2/3 flex flex-col border-r border-gray-200 bg-gray-50">
+          <div class="flex overflow-x-auto p-4 space-x-2 bg-white border-b border-gray-100">
             <button
               v-for="(day, index) in localItinerary.days"
               :key="index"
               :class="[
-                'px-6 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
+                'px-4 py-2 rounded-lg font-bold transition whitespace-nowrap text-sm',
                 activeDayIndex === index
-                  ? 'bg-indigo-600 text-white border-indigo-700 shadow-md translate-y-1'
-                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
               ]"
               @click="activeDayIndex = index"
             >
               {{ getDayLabel(index) }}
             </button>
             <button
-              class="px-3 py-2 text-gray-400 hover:text-indigo-600 border-2 border-dashed border-gray-300 rounded hover:border-indigo-300 transition flex items-center shrink-0 bg-white"
-              title="新增天數"
+              class="px-3 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
               @click="addDay"
             >
-              <PlusIcon class="w-5 h-5" />
+              <PlusIcon class="w-4 h-4" />
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-6 space-y-6">
-            <div v-if="activeDay && activeDay.activities && activeDay.activities.length > 0">
+          <div class="flex-1 overflow-y-auto p-6 space-y-4">
+            <div v-if="activeDay.activities?.length > 0">
               <div
                 v-for="(activity, index) in activeDay.activities"
                 :key="activity.id"
-                class="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-sm relative group mb-4"
+                class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 relative group mb-4"
               >
-                <button
-                  class="absolute right-2 top-2 text-gray-300 hover:text-red-500 transition"
-                  @click="deleteActivity(index)"
-                >
-                  <TrashIcon class="w-4 h-4" />
-                </button>
                 <div class="flex gap-4">
-                  <div class="w-40 shrink-0">
-                    <label
-                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block"
-                      >Time</label
-                    >
+                  <div
+                    class="w-24 shrink-0 border-r border-gray-100 pr-4 flex flex-col justify-center"
+                  >
                     <input
                       v-model="activity.time"
                       type="time"
-                      class="block w-full text-lg font-bold text-gray-800 bg-gray-50 border-b-2 border-gray-200 focus:border-indigo-500 focus:outline-none px-2 py-1 rounded-t transition"
+                      class="text-xl font-bold text-indigo-600 bg-transparent focus:outline-none w-full"
                     />
-                  </div>
-                  <div class="w-32 shrink-0">
-                    <label
-                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block"
-                      >Icon</label
-                    >
-                    <div
-                      class="flex items-center space-x-2 border-b-2 border-gray-200 bg-gray-50 px-2 py-1 rounded-t focus-within:border-indigo-500 transition"
-                    >
-                      <component
-                        :is="getIconComponent(activity.icon)"
-                        class="w-5 h-5 text-indigo-500 shrink-0"
-                      />
-                      <input
-                        v-model="activity.icon"
-                        class="w-full text-sm bg-transparent focus:outline-none text-gray-600 font-medium"
-                        placeholder="icon name"
-                      />
+                    <div class="mt-2 flex items-center text-gray-400">
+                      <component :is="getIconComponent(activity.icon)" class="w-4 h-4 mr-1" />
+                      <span class="text-xs">Icon</span>
                     </div>
                   </div>
-                </div>
-                <div class="mt-4 space-y-2">
-                  <input
-                    v-model="activity.title"
-                    class="w-full text-xl font-bold text-gray-800 border-b border-gray-200 focus:border-indigo-500 focus:outline-none py-1"
-                    placeholder="活動標題"
-                  />
-                  <textarea
-                    v-model="activity.desc"
-                    class="w-full text-sm text-gray-600 bg-gray-50 p-2 rounded border border-transparent focus:border-indigo-200 focus:outline-none resize-none"
-                    rows="2"
-                    placeholder="活動備註..."
-                  ></textarea>
+                  <div class="flex-1">
+                    <input
+                      v-model="activity.title"
+                      class="w-full text-lg font-bold text-gray-800 focus:outline-none mb-1 placeholder-gray-300"
+                      placeholder="活動標題"
+                    />
+                    <textarea
+                      v-model="activity.desc"
+                      class="w-full text-sm text-gray-500 bg-transparent resize-none focus:outline-none"
+                      rows="2"
+                      placeholder="備註..."
+                    ></textarea>
+                  </div>
+                  <button
+                    class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                    @click="deleteActivity(index)"
+                  >
+                    <TrashIcon class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
-            <div v-else class="text-center text-gray-400 py-10">這一天還沒有安排活動。</div>
+            <div v-else class="text-center text-gray-400 py-10">尚無活動</div>
             <button
-              class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 font-bold py-3 rounded-xl hover:bg-indigo-50 transition flex items-center justify-center"
+              class="w-full py-3 border border-dashed border-indigo-200 text-indigo-500 rounded-xl hover:bg-indigo-50 transition font-bold"
               @click="addActivity"
             >
-              <PlusIcon class="w-5 h-5 mr-2" /> 新增活動
+              + 新增活動
             </button>
           </div>
         </div>
 
-        <div class="w-1/3 flex flex-col bg-[#fffef7]">
-          <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
-            <h3 class="font-black text-lg text-gray-800 flex items-center">
-              <CheckSquareIcon class="w-5 h-5 mr-2 text-green-500" />
-              所需物品
+        <div class="w-1/3 flex flex-col bg-white">
+          <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-bold text-gray-700 flex items-center">
+              <CheckSquareIcon class="w-5 h-5 mr-2 text-indigo-500" /> 物品清單
             </h3>
             <button
-              class="text-green-600 border border-green-600 rounded p-0.5 hover:bg-green-50"
+              class="text-indigo-600 bg-indigo-50 p-1 rounded hover:bg-indigo-100 transition"
               @click="addCategory"
             >
               <PlusIcon class="w-4 h-4" />
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-6">
+          <div class="flex-1 overflow-y-auto p-4 space-y-4">
             <div
               v-for="(cat, catIndex) in localItinerary.packingList"
               :key="catIndex"
-              class="relative"
+              class="bg-gray-50 rounded-xl p-3"
             >
               <div class="flex justify-between items-center mb-2">
                 <input
                   v-model="cat.category"
-                  class="font-bold text-gray-700 bg-transparent focus:outline-none hover:bg-gray-100 px-1 rounded"
+                  class="font-bold text-gray-700 bg-transparent focus:outline-none text-sm"
+                  placeholder="分類名稱"
                 />
-                <button class="text-gray-300 hover:text-red-500" @click="deleteCategory(catIndex)">
+                <button class="text-gray-400 hover:text-red-500" @click="deleteCategory(catIndex)">
                   <TrashIcon class="w-3 h-3" />
                 </button>
               </div>
-              <div
-                class="border-2 border-gray-800 bg-white rounded-lg overflow-hidden shadow-[4px_4px_0px_0px_rgba(31,41,55,0.1)]"
-              >
+              <div class="space-y-1">
                 <div
                   v-for="(item, itemIndex) in cat.items"
                   :key="item.id"
-                  class="flex items-center p-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 group"
+                  class="flex items-center group"
                 >
-                  <input
-                    v-model="item.checked"
-                    type="checkbox"
-                    class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mr-2 accent-indigo-600"
-                  />
+                  <input v-model="item.checked" type="checkbox" class="accent-indigo-600 mr-2" />
                   <input
                     v-model="item.name"
-                    :class="[
-                      'flex-1 bg-transparent focus:outline-none text-sm',
-                      item.checked ? 'text-gray-400 line-through' : 'text-gray-700',
-                    ]"
+                    class="flex-1 bg-transparent text-sm focus:outline-none text-gray-600"
                   />
                   <button
-                    class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                    class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"
                     @click="deleteItem(catIndex, itemIndex)"
                   >
-                    <XIcon class="w-4 h-4" />
+                    <XIcon class="w-3 h-3" />
                   </button>
                 </div>
-                <button
-                  class="w-full text-xs text-indigo-500 font-bold p-2 bg-indigo-50 hover:bg-indigo-100 transition flex items-center justify-center border-t border-indigo-100"
-                  @click="addItem(catIndex)"
-                >
-                  <PlusIcon class="w-3 h-3 mr-1" /> 新增物品
+                <button class="text-xs text-indigo-500 font-bold mt-2" @click="addItem(catIndex)">
+                  + 新增物品
                 </button>
               </div>
             </div>
@@ -327,44 +251,26 @@ const handleDelete = () => {
         </div>
       </div>
 
-      <div class="p-4 border-t border-gray-200 bg-white flex justify-end space-x-4">
+      <div class="p-4 border-t border-gray-200 bg-white flex justify-end gap-3">
         <button
-          class="flex items-center px-4 py-2 text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 rounded-lg transition border-2 border-indigo-200 mr-auto"
+          class="px-4 py-2 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition mr-auto flex items-center"
           @click="handleSaveDraft"
         >
-          <FileTextIcon class="w-5 h-5 mr-2" /> 暫存草稿
+          <FileTextIcon class="w-4 h-4 mr-2" /> 草稿
         </button>
-
         <button
-          class="flex items-center px-4 py-2 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-lg transition"
+          class="px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-lg transition"
           @click="handleDelete"
         >
-          <TrashIcon class="w-5 h-5 mr-2" /> 刪除
+          刪除
         </button>
         <button
-          class="flex items-center px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md transition"
+          class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md flex items-center"
           @click="handleSave"
         >
-          <SaveIcon class="w-5 h-5 mr-2" /> 儲存
+          <SaveIcon class="w-4 h-4 mr-2" /> 儲存
         </button>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-</style>
