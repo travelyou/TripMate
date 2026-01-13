@@ -65,7 +65,7 @@ const clearRating = (id) => {
         :key="item.id"
         class="border-2 border-secondary-200 rounded-lg p-4 hover:shadow-md transition"
       >
-        <div class="flex justify-between items-start gap-4">
+        <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
           <div class="flex-1">
             <h4 class="font-bold text-lg text-secondary-800 mb-1">
               {{ item.title }}
@@ -86,7 +86,7 @@ const clearRating = (id) => {
             </div>
           </div>
 
-          <div class="text-right min-w-[120px]">
+          <div class="text-left sm:text-right sm:min-w-[120px]">
             <div class="text-xs text-secondary-400 mb-2">狀態</div>
             <div
               class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
@@ -102,7 +102,7 @@ const clearRating = (id) => {
         </div>
 
         <div v-if="item.status === 'joined'" class="mt-4 pt-3 border-t border-secondary-100">
-          <div class="flex items-center gap-3">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div class="text-sm text-secondary-500 flex items-center gap-1">
               <template v-if="item.rating">
                 <StarIcon

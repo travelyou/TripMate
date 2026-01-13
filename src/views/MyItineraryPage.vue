@@ -98,7 +98,7 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
       </div>
 
       <div class="bg-white rounded-xl border-4 border-primary shadow-primary-tall p-2">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="grid grid-cols-3 gap-2">
           <button
             v-for="tab in tabs"
             :key="tab.id"
