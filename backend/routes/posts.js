@@ -3,30 +3,38 @@ const router = express.Router();
 const pool = require('../database/connection');
 
 // GET /api/posts - 獲取所有貼文（支援分頁）
+// 注意：討論區貼文存儲在 travelers 表中，通過 likes 表的 board='discussion' 區分
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    // 查詢貼文，包含按讚數和留言數（用戶資訊從 Firestore 獲取）
+    // 查詢討論區貼文（從 travelers 表，通過 likes 表的 board='discussion' 篩選）
+    // 注意：排除 author_uid='system' 的系統標記記錄
     const postsQuery = `
-      SELECT 
-        p.*,
-        COALESCE(COUNT(DISTINCT pl.id), 0) as likes_count,
+      SELECT
+        t.*,
+        COALESCE(COUNT(DISTINCT CASE WHEN l.author_uid != 'system' THEN l.id END), 0) as likes_count,
         COALESCE(COUNT(DISTINCT c.id), 0) as comments_count
-      FROM posts p
-      LEFT JOIN post_likes pl ON p.id = pl.post_id
-      LEFT JOIN comments c ON p.id = c.post_id
-      GROUP BY p.id
-      ORDER BY p.created_at DESC
+      FROM travelers t
+      INNER JOIN likes l ON t.id = l.post_id AND l.board = 'discussion'
+      LEFT JOIN comments c ON t.id = c.post_id
+      WHERE t.deleted_at IS NULL
+      GROUP BY t.id
+      ORDER BY t.created_at DESC
       LIMIT $1 OFFSET $2
     `;
 
     const postsResult = await pool.query(postsQuery, [limit, offset]);
 
     // 查詢總數
-    const countResult = await pool.query('SELECT COUNT(*) FROM posts');
-    const total = parseInt(countResult.rows[0].count);
+    const countResult = await pool.query(`
+      SELECT COUNT(DISTINCT t.id) as total
+      FROM travelers t
+      INNER JOIN likes l ON t.id = l.post_id AND l.board = 'discussion'
+      WHERE t.deleted_at IS NULL
+    `);
+    const total = parseInt(countResult.rows[0].total);
 
     // 處理結果，將 counts 轉換為數字
     const posts = postsResult.rows.map(post => ({
@@ -64,17 +72,25 @@ router.get('/:id', async (req, res) => {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'id 必須是正整數' });
     }
 
-    // 獲取貼文，包含按讚數和留言數（用戶資訊從 Firestore 獲取）
+    // 獲取討論區貼文，包含按讚數和留言數
+    // 注意：排除 author_uid='system' 的系統標記記錄
     const postQuery = `
-      SELECT 
-        p.*,
-        COALESCE(COUNT(DISTINCT pl.id), 0) as likes_count,
+      SELECT
+        t.*,
+        COALESCE(COUNT(DISTINCT CASE WHEN l.author_uid != 'system' THEN l.id END), 0) as likes_count,
         COALESCE(COUNT(DISTINCT c.id), 0) as comments_count
-      FROM posts p
-      LEFT JOIN post_likes pl ON p.id = pl.post_id
-      LEFT JOIN comments c ON p.id = c.post_id
-      WHERE p.id = $1
-      GROUP BY p.id
+      FROM travelers t
+      LEFT JOIN likes l ON t.id = l.post_id AND l.board = 'discussion'
+      LEFT JOIN comments c ON t.id = c.post_id
+      WHERE t.id = $1
+        AND t.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM likes
+          WHERE post_id = t.id
+          AND board = 'discussion'
+          LIMIT 1
+        )
+      GROUP BY t.id
     `;
 
     const postResult = await pool.query(postQuery, [idNum]);
@@ -102,7 +118,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/posts - 創建新貼文
+// POST /api/posts - 創建新貼文（討論區貼文）
 router.post('/', async (req, res) => {
   try {
     const {
@@ -114,7 +130,7 @@ router.post('/', async (req, res) => {
       tags = [],
     } = req.body;
 
-    console.log('收到創建貼文請求：', {
+    console.log('收到創建討論區貼文請求：', {
       author_uid,
       board,
       title: title?.substring(0, 50),
@@ -139,28 +155,47 @@ router.post('/', async (req, res) => {
     // 確保 tags 和 image_urls 是陣列
     const tagsArray = Array.isArray(tags) ? tags : [];
     const imageUrlsArray = Array.isArray(image_urls) ? image_urls : [];
+    const bannerImage = imageUrlsArray.length > 0 ? imageUrlsArray[0] : null;
 
-    // 插入貼文
+    // 插入到 travelers 表（討論區貼文也存儲在這裡）
     const insertPostQuery = `
-      INSERT INTO posts (
-        author_uid, board, title, content, tags, image_urls
+      INSERT INTO travelers (
+        author_uid, title, content, banner_image, tags,
+        author_name, author_avatar, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
     const postResult = await pool.query(insertPostQuery, [
       author_uid,
-      board,
       title,
       content,
+      bannerImage,
       tagsArray,
-      imageUrlsArray,
+      null, // author_name (從 Firestore 獲取)
+      null, // author_avatar (從 Firestore 獲取)
+      'open',
     ]);
 
     const newPost = postResult.rows[0];
 
-    console.log('貼文創建成功，ID：', newPost.id);
+    // 在 likes 表中創建一條系統標記記錄，標記這是討論區貼文
+    // 使用特殊的 author_uid 'system' 來區分這是類型標記而不是按讚記錄
+    // 實際按讚時會創建新的 likes 記錄（author_uid 是真實用戶）
+    try {
+      await pool.query(
+        `INSERT INTO likes (post_id, author_uid, board)
+         VALUES ($1, 'system', 'discussion')
+         ON CONFLICT DO NOTHING`,
+        [newPost.id]
+      );
+    } catch (likeError) {
+      // 如果創建標記失敗，記錄錯誤但不影響貼文創建
+      console.warn('創建討論區標記失敗（不影響貼文創建）：', likeError.message);
+    }
+
+    console.log('討論區貼文創建成功，ID：', newPost.id);
 
     res.status(201).json(newPost);
   } catch (error) {
@@ -186,19 +221,34 @@ router.put('/:id', async (req, res) => {
     }
     const { title, content, image_urls, tags } = req.body;
 
-    // 檢查貼文是否存在
-    const checkResult = await pool.query('SELECT id FROM posts WHERE id = $1', [idNum]);
+    // 檢查貼文是否存在且是討論區貼文
+    const checkResult = await pool.query(`
+      SELECT t.id
+      FROM travelers t
+      WHERE t.id = $1
+        AND t.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM likes
+          WHERE post_id = t.id
+          AND board = 'discussion'
+          LIMIT 1
+        )
+    `, [idNum]);
+
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
 
     // 更新貼文
+    const imageUrlsArray = Array.isArray(image_urls) ? image_urls : [];
+    const bannerImage = imageUrlsArray.length > 0 ? imageUrlsArray[0] : null;
+
     const updateQuery = `
-      UPDATE posts
+      UPDATE travelers
       SET title = COALESCE($1, title),
           content = COALESCE($2, content),
           tags = COALESCE($3, tags),
-          image_urls = COALESCE($4, image_urls),
+          banner_image = COALESCE($4, banner_image),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $5
       RETURNING *
@@ -208,7 +258,7 @@ router.put('/:id', async (req, res) => {
       title || null,
       content || null,
       tags || null,
-      image_urls || null,
+      bannerImage,
       idNum
     ]);
     const updatedPost = result.rows[0];
@@ -219,7 +269,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/posts/:id - 刪除貼文
+// DELETE /api/posts/:id - 刪除貼文（軟刪除）
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -228,14 +278,29 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'id 必須是正整數' });
     }
 
-    // 檢查貼文是否存在
-    const checkResult = await pool.query('SELECT id FROM posts WHERE id = $1', [idNum]);
+    // 檢查貼文是否存在且是討論區貼文
+    const checkResult = await pool.query(`
+      SELECT t.id
+      FROM travelers t
+      WHERE t.id = $1
+        AND t.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM likes
+          WHERE post_id = t.id
+          AND board = 'discussion'
+          LIMIT 1
+        )
+    `, [idNum]);
+
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: '貼文不存在' });
     }
 
-    // 刪除貼文（CASCADE 會自動刪除相關的標籤、留言、點讚）
-    await pool.query('DELETE FROM posts WHERE id = $1', [idNum]);
+    // 軟刪除貼文
+    await pool.query(
+      'UPDATE travelers SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [idNum]
+    );
 
     res.json({ message: '貼文已刪除' });
   } catch (error) {
