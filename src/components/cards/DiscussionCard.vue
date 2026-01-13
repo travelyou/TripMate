@@ -1,7 +1,11 @@
 <script setup>
-import { computed } from 'vue'
-import { useUserStore } from '@/stores/user'
+import { computed, ref, onMounted } from 'vue'
+import { onAuthStateChanged } from 'firebase/auth'
 import { Heart, MessageCircle, Repeat2, Bookmark } from 'lucide-vue-next'
+
+import { useUserStore } from '@/stores/user'
+import { toggleLike, getLikesInfo } from '@/api/likes'
+import { auth } from '@/firebase/config'
 
 const props = defineProps({
   post: {
@@ -13,10 +17,13 @@ const props = defineProps({
 const emit = defineEmits(['click', 'like', 'comment', 'share'])
 const userStore = useUserStore()
 
-// 準備資料格式 (確保 type 正確)
+const currentUserUid = ref(null)
+const isLiked = ref(false)
+const likesCount = ref(props.post.likes || 0)
+
 const itemData = computed(() => ({
   id: props.post.id,
-  type: 'discussion', // 強制標記為 discussion
+  type: 'discussion',
   title: props.post.title,
   image: props.post.image,
   author: props.post.author,
@@ -24,9 +31,64 @@ const itemData = computed(() => ({
   content: props.post.content,
   time: props.post.time,
   tags: props.post.tags,
-  likes: props.post.likes,
+  likes: likesCount.value,
   comments: props.post.comments,
 }))
+
+const loadLikesInfo = async () => {
+  if (!props.post?.id || !currentUserUid.value) return
+
+  try {
+    const info = await getLikesInfo(props.post.id, currentUserUid.value)
+    isLiked.value = info.isLiked
+    likesCount.value = info.likesCount || props.post.likes || 0
+  } catch (error) {
+    console.error('載入按讚狀態失敗：', error)
+  }
+}
+
+// 處理按讚
+const handlePostLike = async () => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+
+  try {
+    const result = await toggleLike(props.post.id, currentUserUid.value)
+    isLiked.value = result.liked
+    likesCount.value = result.likesCount
+
+    emit('like', {
+      ...props.post,
+      isLiked: result.liked,
+      likes: result.likesCount,
+    })
+  } catch (error) {
+    console.error('按讚操作失敗：', error)
+    alert('按讚操作失敗，請稍後再試')
+  }
+}
+
+// 監聽 Firebase 認證狀態
+onAuthStateChanged(auth, async (user) => {
+  currentUserUid.value = user ? user.uid : null
+
+  if (currentUserUid.value && props.post?.id) {
+    await loadLikesInfo()
+  } else {
+    isLiked.value = false
+  }
+})
+
+// 組件掛載時載入按讚狀態
+onMounted(async () => {
+  const firebaseUser = auth.currentUser
+  if (firebaseUser && !currentUserUid.value) {
+    currentUserUid.value = firebaseUser.uid
+    await loadLikesInfo()
+  }
+})
 </script>
 
 <template>
@@ -38,6 +100,7 @@ const itemData = computed(() => ({
       <img
         :src="post.avatar"
         class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+        alt="作者頭像"
       />
       <div>
         <div class="flex items-center space-x-2">
@@ -68,6 +131,7 @@ const itemData = computed(() => ({
       <img
         :src="post.image"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
+        alt="貼文圖片"
       />
     </div>
 
@@ -87,25 +151,26 @@ const itemData = computed(() => ({
     <div class="flex items-center text-gray-400 text-sm pt-1">
       <button
         class="flex items-center space-x-1 transition mr-6 group"
-        :class="userStore.isFavorite(itemData) ? 'text-red-500' : 'hover:text-red-500'"
-        @click.stop="userStore.toggleFavorite(itemData)"
+        :class="isLiked ? 'text-red-500' : 'hover:text-red-500'"
+        @click.stop="handlePostLike"
       >
         <Heart
           class="w-4 h-4 transition-transform group-active:scale-125"
-          :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+          :class="{ 'fill-current': isLiked }"
         />
-        <span>{{ (post.likes || 0) + (userStore.isFavorite(itemData) ? 1 : 0) }}</span>
+        <span>{{ likesCount }}</span>
       </button>
 
       <button
         class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6"
         @click.stop="$emit('comment', post)"
       >
-        <MessageCircle class="w-4 h-4" /> <span>{{ post.comments }}</span>
+        <MessageCircle class="w-4 h-4" />
+        <span>{{ post.comments }}</span>
       </button>
 
       <button
-        class="flex items-center space-x-1 transition group"
+        class="flex items-center space-x-1 transition mr-6 group"
         :class="userStore.isCollected(itemData) ? 'text-yellow-500' : 'hover:text-yellow-600'"
         @click.stop="
           userStore.isCollected(itemData)
