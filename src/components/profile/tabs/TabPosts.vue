@@ -22,7 +22,7 @@ defineEmits(['open-detail', 'open-comment'])
         @comment="$emit('open-comment', post)"
       />
     </div>
-    <div v-else class="text-center py-20 text-gray-400">
+    <div v-else class="text-center py-20 text-secondary-400">
       <p>還沒有發布過心得文章喔！</p>
     </div>
   </div>
