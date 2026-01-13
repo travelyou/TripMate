@@ -5,7 +5,6 @@ import {
   ArrowLeft as ArrowLeftIcon,
   Image as ImageIcon,
   Hash as HashIcon,
-  Send as SendIcon,
   Plus as PlusIcon,
   Trash2 as TrashIcon,
   MapPin as MapPinIcon,
@@ -17,8 +16,6 @@ import {
   MessageCircle as MessageCircleIcon,
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
-  Coffee as CoffeeIcon,
-  Camera as CameraIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
@@ -33,7 +30,6 @@ const myItineraryStore = useMyItineraryStore()
 const currentStep = ref('basic')
 const formError = ref('')
 
-// 預覽頁面的 Tab 狀態
 const previewActiveTab = ref('itinerary')
 
 const postData = ref({
@@ -52,7 +48,12 @@ const postData = ref({
 
 const bannerPreview = ref('')
 const bannerFileInput = ref(null)
-const bannerFile = ref(null) // 保存原始 File 對象
+const bannerFile = ref(null)
+const uploadProgress = ref(0)
+const isUploading = ref(false)
+const submitProgress = ref(0)
+const isSubmitting = ref(false)
+const submitStatus = ref('')
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 const suggestedTags = [
@@ -78,29 +79,6 @@ const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, date: '', activities: [] }
 })
 
-const getIconComponent = (iconName) => {
-  switch (iconName) {
-    case 'camera':
-      return CameraIcon
-    case 'coffee':
-      return CoffeeIcon
-    case 'map-pin':
-      return MapPinIcon
-    default:
-      return MapIcon
-  }
-}
-
-const getDayLabel = (index) => {
-  const startDateStr = postData.value.start_date
-  if (!startDateStr) return `Day ${index + 1}`
-  const date = new Date(startDateStr)
-  date.setDate(date.getDate() + index)
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${m}/${d}`
-}
-
 const validateBasic = () => {
   formError.value = ''
   if (!postData.value.title.trim()) return '請輸入標題'
@@ -123,12 +101,10 @@ const handleBannerSelect = (event) => {
     alert('圖片大小不能超過 5MB')
     return
   }
-  // 保存原始 File 對象
   bannerFile.value = file
   const reader = new FileReader()
   reader.onload = (e) => {
     bannerPreview.value = e.target.result
-    // 不保存到 postData，只用於預覽
   }
   reader.readAsDataURL(file)
 }
@@ -136,7 +112,6 @@ const handleBannerSelect = (event) => {
 const removeBanner = () => {
   bannerPreview.value = ''
   bannerFile.value = null
-  // 不需要清除 postData.value.banner_image
 }
 
 const addDay = () => {
@@ -158,21 +133,6 @@ const addDay = () => {
 
   if (nextDate) {
     postData.value.end_date = nextDate
-  }
-}
-
-const removeDay = (index) => {
-  if (postData.value.itinerary.days.length === 1) return
-  postData.value.itinerary.days.splice(index, 1)
-  postData.value.itinerary.days.forEach((day, i) => {
-    day.day = i + 1
-  })
-  if (activeDayIndex.value >= postData.value.itinerary.days.length) {
-    activeDayIndex.value = postData.value.itinerary.days.length - 1
-  }
-  const lastDay = postData.value.itinerary.days[postData.value.itinerary.days.length - 1]
-  if (lastDay && lastDay.date) {
-    postData.value.end_date = lastDay.date
   }
 }
 
@@ -253,31 +213,27 @@ const prevStep = () => {
 }
 
 const handleSaveDraft = () => {
-  // 即使欄位沒填完，只要有標題建議就可以存
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
 
-  // 建立草稿物件
   const draftData = {
-    id: Date.now(), // 暫時 ID
-    type: 'traveler', // 標記為找旅伴類型
-    typeLabel: '找旅伴', // 顯示在卡片上的標籤
+    id: Date.now(),
+    type: 'traveler',
+    typeLabel: '找旅伴',
     title: postData.value.title,
     content: postData.value.content || '無內容',
     saveTime: new Date().toISOString(),
-    data: JSON.parse(JSON.stringify(postData.value)), // 深拷貝當前表單資料
+    data: JSON.parse(JSON.stringify(postData.value)),
   }
 
-  // 存入 Store
   myItineraryStore.addDraft(draftData)
 
   alert('📦 已儲存至「我的行程」草稿夾！')
   emit('close')
 }
 
-// 確認發布 (維持原樣，送後端)
 const handleFinalSubmit = async () => {
   const error = validateBasic()
   if (error) {
@@ -290,24 +246,55 @@ const handleFinalSubmit = async () => {
     return
   }
 
+  isSubmitting.value = true
+  submitProgress.value = 0
+  submitStatus.value = '準備中...'
+
   try {
-    // 如果有選擇 banner 圖片，先上傳到 Firebase Storage
-    let bannerImageUrl = 'https://picsum.photos/1200/400' // 預設圖片
+    let bannerImageUrl = 'https://picsum.photos/1200/400'
 
     if (bannerFile.value) {
       try {
+        isUploading.value = true
+        uploadProgress.value = 0
+        submitProgress.value = 10
+        submitStatus.value = '正在上傳圖片...'
         console.log('📤 [旅伴發文] 開始上傳 banner 圖片...')
-        bannerImageUrl = await uploadImage(bannerFile.value, 'travelers')
+        bannerImageUrl = await uploadImage(
+          bannerFile.value,
+          'travelers',
+          (progress) => {
+            uploadProgress.value = progress
+            submitProgress.value = 10 + Math.floor((progress / 100) * 50)
+            submitStatus.value = `正在上傳圖片... ${progress}%`
+            console.log(`📤 [旅伴發文] 上傳進度: ${progress}%`)
+          }
+        )
         console.log('✅ [旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
+        uploadProgress.value = 100
+        submitProgress.value = 60
+        submitStatus.value = '圖片上傳完成'
       } catch (error) {
         console.error('❌ [旅伴發文] Banner 圖片上傳失敗：', error)
+        isUploading.value = false
+        uploadProgress.value = 0
         const shouldContinue = confirm(
           'Banner 圖片上傳失敗：' + error.message + '\n\n是否要繼續發布（使用預設圖片）？'
         )
         if (!shouldContinue) {
+          isSubmitting.value = false
+          submitProgress.value = 0
+          submitStatus.value = ''
           return
         }
+        submitProgress.value = 60
+        submitStatus.value = '使用預設圖片'
+      } finally {
+        isUploading.value = false
       }
+    } else {
+      submitProgress.value = 60
+      submitStatus.value = '準備提交...'
     }
 
     const payload = {
@@ -321,7 +308,7 @@ const handleFinalSubmit = async () => {
       itinerary: postData.value.itinerary,
       packingList: postData.value.packingList,
       status: '招募中',
-      banner_image: bannerImageUrl, // 使用上傳後的 URL
+      banner_image: bannerImageUrl,
       author_uid: auth.currentUser.uid,
       author_name: userStore.currentUser?.displayName || '匿名',
       author_avatar:
@@ -330,6 +317,8 @@ const handleFinalSubmit = async () => {
       spirit_animal: userStore.currentUser?.spiritAnimal || '🦁 樂天派',
     }
 
+    submitProgress.value = 70
+    submitStatus.value = '正在提交貼文...'
     console.log('📤 [旅伴發文] 提交 payload:', {
       title: payload.title,
       hasBanner: !!payload.banner_image,
@@ -338,16 +327,25 @@ const handleFinalSubmit = async () => {
 
     const response = await createTraveler(payload)
 
+    submitProgress.value = 100
+    submitStatus.value = '發布成功！'
+
     if (response.success) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
       alert('✨ 旅伴招募發布成功！')
-      emit('success')
-      emit('close')
+      window.location.reload()
     } else {
       formError.value = '發布失敗：' + (response.message || '請稍後再試')
+      isSubmitting.value = false
+      submitProgress.value = 0
+      submitStatus.value = ''
     }
   } catch (error) {
     console.error(error)
     formError.value = '發布失敗，發生未知錯誤'
+    isSubmitting.value = false
+    submitProgress.value = 0
+    submitStatus.value = ''
   }
 }
 
@@ -484,15 +482,29 @@ if (postData.value.itinerary.days.length === 0) {
             >
               <img :src="bannerPreview" alt="Banner" class="w-full h-full object-cover" />
               <button
+                v-if="!isUploading"
                 class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full p-1 transition"
                 @click="removeBanner"
               >
                 <XIcon class="w-5 h-5" />
               </button>
+              <div
+                v-if="isUploading"
+                class="absolute inset-0 bg-black/50 flex flex-col items-center justify-center"
+              >
+                <div class="w-3/4 bg-gray-200 rounded-full h-2.5 mb-2">
+                  <div
+                    class="bg-primary-600 h-2.5 rounded-full transition-all duration-300"
+                    :style="{ width: uploadProgress + '%' }"
+                  ></div>
+                </div>
+                <span class="text-white text-sm font-bold">{{ uploadProgress }}%</span>
+              </div>
             </div>
             <button
               v-else
-              class="w-full py-8 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-green-500 hover:text-green-600 transition flex flex-col items-center justify-center gap-2"
+              :disabled="isUploading"
+              class="w-full py-8 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-green-500 hover:text-green-600 transition flex flex-col items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="triggerBannerSelect"
             >
               <ImageIcon class="w-8 h-8 opacity-50" /> 點擊上傳 Banner 圖片
@@ -502,6 +514,7 @@ if (postData.value.itinerary.days.length === 0) {
               type="file"
               accept="image/*"
               class="hidden"
+              :disabled="isUploading"
               @change="handleBannerSelect"
             />
           </div>
@@ -664,8 +677,8 @@ if (postData.value.itinerary.days.length === 0) {
             <button
               v-for="tag in filteredTags"
               :key="tag"
-              @click="addTag(tag)"
               class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-gray-200"
+              @click="addTag(tag)"
             >
               #{{ tag }}
             </button>
@@ -842,8 +855,8 @@ if (postData.value.itinerary.days.length === 0) {
                 </button>
               </div>
               <div
-                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
                 v-if="currentDay"
+                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
               >
                 <h4 class="font-bold text-gray-700 mb-3">
                   Day {{ currentDay.day }} - {{ currentDay.date }}
@@ -890,10 +903,23 @@ if (postData.value.itinerary.days.length === 0) {
       <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
         <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
 
+        <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div
+            class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+            :style="{ width: submitProgress + '%' }"
+          >
+            <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
+          </div>
+        </div>
+        <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
+          {{ submitStatus }}
+        </p>
+
         <div class="flex gap-3">
           <button
             type="button"
-            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition"
+            :disabled="isSubmitting"
+            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
             @click="handleSaveDraft"
           >
             <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
@@ -902,17 +928,20 @@ if (postData.value.itinerary.days.length === 0) {
           <template v-if="currentStep === 'preview'">
             <button
               type="button"
-              class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
               type="button"
-              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleFinalSubmit"
             >
-              確認發布
+              <span v-if="!isSubmitting">確認發布</span>
+              <span v-else>發布中...</span>
             </button>
           </template>
 
