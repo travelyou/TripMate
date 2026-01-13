@@ -289,7 +289,7 @@ router.get('/:id', async (req, res) => {
         avatar: comment.author_avatar,
         content: comment.content,
         likes: comment.likes_count,
-        time: formatTime(comment.created_at),
+        time: comment.created_at,
         isLiked: false,
         replies: [],
       })),
@@ -556,16 +556,5 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ success: false, message: '刪除失敗', error: error.message })
   }
 })
-
-function formatTime(timestamp) {
-  const now = new Date()
-  const time = new Date(timestamp)
-  const diff = Math.floor((now - time) / 1000)
-  if (diff < 60) return '剛剛'
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分鐘前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小時前`
-  if (diff < 604800) return `${Math.floor(diff / 86400)} 天前`
-  return time.toLocaleDateString('zh-TW')
-}
 
 module.exports = router
