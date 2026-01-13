@@ -42,7 +42,7 @@ router.post('/', async (req, res) => {
     } else if (board === 'traveler') {
       const postCheckQuery = `
         SELECT id FROM travelers.travelers
-        WHERE id = $1
+        WHERE id = $1 AND deleted_at IS NULL
       `
       const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
       postExists = postCheckResult.rows.length > 0
@@ -108,9 +108,15 @@ router.post('/', async (req, res) => {
     })
   } catch (error) {
     console.error('❌ [Backend Likes POST] 錯誤:', error)
+    console.error('❌ [Backend Likes POST] 錯誤堆疊:', error.stack)
+    console.error('❌ [Backend Likes POST] 錯誤代碼:', error.code)
+    console.error('❌ [Backend Likes POST] 錯誤詳情:', error.detail)
+    console.error('❌ [Backend Likes POST] 請求 Body:', req.body)
     res.status(500).json({
       error: '按讚操作失敗',
       details: error?.message || String(error),
+      code: error?.code,
+      detail: error?.detail,
     })
   }
 })
