@@ -123,6 +123,10 @@ const validateForm = () => {
 }
 
 const nextStep = () => {
+  if (isUploading.value || isSubmitting.value) {
+    return
+  }
+
   if (currentStep.value === 'edit') {
     if (!validateForm()) return
     currentStep.value = 'tags'
@@ -287,6 +291,10 @@ const handleSaveDraft = () => {
 }
 
 const handleFinalSubmit = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
   console.log('🚀 [發文] ========== 開始發文流程 ==========')
   console.log('🚀 [發文 Step 0] 當前步驟:', currentStep.value)
 
@@ -303,7 +311,6 @@ const handleFinalSubmit = async () => {
   }
   console.log('✅ [發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
 
-  // 初始化提交狀態
   isSubmitting.value = true
   submitProgress.value = 0
   submitStatus.value = '準備中...'
@@ -731,7 +738,8 @@ const handleFinalSubmit = async () => {
 
           <button
             v-else
-            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md"
+            :disabled="isUploading || isSubmitting"
+            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             @click="nextStep"
           >
             下一步

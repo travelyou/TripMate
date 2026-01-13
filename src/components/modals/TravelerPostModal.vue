@@ -167,6 +167,10 @@ const addTag = (tagText) => {
 const removeTag = (index) => postData.value.tags.splice(index, 1)
 
 const nextStep = () => {
+  if (isUploading.value || isSubmitting.value) {
+    return
+  }
+
   if (currentStep.value === 'basic') {
     const error = validateBasic()
     if (error) {
@@ -235,6 +239,10 @@ const handleSaveDraft = () => {
 }
 
 const handleFinalSubmit = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
   const error = validateBasic()
   if (error) {
     formError.value = error
@@ -948,7 +956,8 @@ if (postData.value.itinerary.days.length === 0) {
           <button
             v-else
             type="button"
-            class="flex-1 py-3 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold transition shadow-md"
+            :disabled="isUploading || isSubmitting"
+            class="flex-1 py-3 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             @click="nextStep"
           >
             下一步
