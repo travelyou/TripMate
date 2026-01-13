@@ -19,6 +19,15 @@ router.post('/', async (req, res) => {
       })
     }
 
+    const postIdNum = Number(post_id)
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      console.log('❌ [Backend Likes POST] post_id 格式錯誤:', post_id)
+      return res.status(400).json({
+        error: 'post_id 格式錯誤',
+        details: 'post_id 必須是正整數',
+      })
+    }
+
     console.log('🔵 [Backend Likes POST] 檢查是否已按讚')
 
     // 檢查是否已經按讚
@@ -26,7 +35,7 @@ router.post('/', async (req, res) => {
       SELECT id FROM public.likes
       WHERE post_id = $1 AND author_uid = $2 AND board = $3
     `
-    const checkResult = await pool.query(checkQuery, [post_id, author_uid, board])
+    const checkResult = await pool.query(checkQuery, [postIdNum, author_uid, board])
 
     let liked = false
     let likesCount = 0
@@ -38,7 +47,7 @@ router.post('/', async (req, res) => {
         DELETE FROM public.likes
         WHERE post_id = $1 AND author_uid = $2 AND board = $3
       `
-      await pool.query(deleteQuery, [post_id, author_uid, board])
+      await pool.query(deleteQuery, [postIdNum, author_uid, board])
       liked = false
     } else {
       // 尚未按讚，新增按讚
@@ -47,7 +56,7 @@ router.post('/', async (req, res) => {
         INSERT INTO public.likes (post_id, author_uid, board, created_at)
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
       `
-      await pool.query(insertQuery, [post_id, author_uid, board])
+      await pool.query(insertQuery, [postIdNum, author_uid, board])
       liked = true
     }
 
@@ -57,7 +66,7 @@ router.post('/', async (req, res) => {
       SELECT COUNT(*) as count FROM public.likes
       WHERE post_id = $1 AND board = $2
     `
-    const countResult = await pool.query(countQuery, [post_id, board])
+    const countResult = await pool.query(countQuery, [postIdNum, board])
     likesCount = parseInt(countResult.rows[0].count) || 0
 
     console.log('✅ [Backend Likes POST] 成功，liked:', liked, 'count:', likesCount)
