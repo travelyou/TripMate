@@ -149,7 +149,7 @@ const handleLike = async () => {
   }
 
   try {
-    const result = await toggleLike(props.traveler.id, currentUserUid.value)
+    const result = await toggleLike(props.traveler.id, currentUserUid.value, 'traveler')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {

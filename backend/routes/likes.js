@@ -30,6 +30,37 @@ router.post('/', async (req, res) => {
 
     console.log('🔵 [Backend Likes POST] 檢查是否已按讚')
 
+    // 驗證 post_id 是否存在於對應的表中
+    let postExists = false
+    if (board === 'discussion') {
+      const postCheckQuery = `
+        SELECT id FROM discussion.discussion
+        WHERE id = $1 AND deleted_at IS NULL
+      `
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
+      postExists = postCheckResult.rows.length > 0
+    } else if (board === 'traveler') {
+      const postCheckQuery = `
+        SELECT id FROM travelers.travelers
+        WHERE id = $1
+      `
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
+      postExists = postCheckResult.rows.length > 0
+    } else {
+      return res.status(400).json({
+        error: '不支援的 board 類型',
+        details: `board 必須是 'discussion' 或 'traveler'`,
+      })
+    }
+
+    if (!postExists) {
+      console.log('❌ [Backend Likes POST] 貼文不存在:', { post_id: postIdNum, board })
+      return res.status(404).json({
+        error: '貼文不存在',
+        details: `找不到 ID 為 ${postIdNum} 的 ${board} 貼文`,
+      })
+    }
+
     // 檢查是否已經按讚
     const checkQuery = `
       SELECT id FROM public.likes
