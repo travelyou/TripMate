@@ -12,6 +12,7 @@ const usersRouter = require('./routes/users')
 const travelersRoutes = require('./routes/travelers')
 const itinerariesRouter = require('./routes/itineraries')
 const paymentsRouter = require('./routes/payments')
+const ordersRouter = require('./routes/orders')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -140,6 +141,13 @@ app.use('/api/likes', likesRouter)
 app.use('/api/travelers', travelersRoutes)
 app.use('/api/itineraries', itinerariesRouter)
 app.use('/api/users', usersRouter)
+
+
+// 付款路由
+app.use('/api/payments', paymentsRouter)
+
+// 訂單路由
+app.use('/api/orders', ordersRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
 
@@ -198,5 +206,3 @@ app.listen(PORT, HOST, () => {
   console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
   console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
 })
-
-app.use('/api/payments', paymentsRouter)
