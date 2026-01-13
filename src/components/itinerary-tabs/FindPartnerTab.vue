@@ -9,7 +9,7 @@ defineProps({
   },
 })
 
-defineEmits(['update'])
+const emit = defineEmits(['update'])
 
 const isReviewOpen = ref(false)
 const reviewTarget = ref(null)
@@ -24,9 +24,7 @@ const reviewLabelText = computed(() => ({
 const ensureDraft = (item) => {
   if (!drafts.value[item.id]) {
     const normalizedLabel =
-      item.reviewLabel === 'positive' || item.reviewLabel === 'excellent'
-        ? item.reviewLabel
-        : ''
+      item.reviewLabel === 'positive' || item.reviewLabel === 'excellent' ? item.reviewLabel : ''
     drafts.value[item.id] = {
       comment: item.comment || '',
       reviewLabel: normalizedLabel,
@@ -49,7 +47,7 @@ const closeReviewModal = () => {
   reviewWarning.value = ''
 }
 
-const submitReview = (emit) => {
+const submitReview = () => {
   if (!reviewTarget.value) return
   const draft = ensureDraft(reviewTarget.value)
   if (!draft.comment || !draft.comment.trim()) {
@@ -68,7 +66,9 @@ const getReviewLabel = (value) => reviewLabelText.value[value] || ''
 </script>
 
 <template>
-  <div class="bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall">
+  <div
+    class="bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall"
+  >
     <div class="flex items-center mb-6 pb-4 border-b-2 border-secondary-100">
       <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-4">
         <CalendarIcon class="w-6 h-6 text-primary-600" />
@@ -104,9 +104,11 @@ const getReviewLabel = (value) => reviewLabelText.value[value] || ''
             <div class="text-xs text-secondary-400 mb-2">狀態</div>
             <div
               class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
-              :class="item.status === 'joined'
-                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                : 'bg-secondary-100 text-secondary-600 border border-secondary-200'"
+              :class="
+                item.status === 'joined'
+                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  : 'bg-secondary-100 text-secondary-600 border border-secondary-200'
+              "
             >
               {{ item.status === 'joined' ? '已參加' : '未參加' }}
             </div>
@@ -188,7 +190,7 @@ const getReviewLabel = (value) => reviewLabelText.value[value] || ''
           <button
             type="button"
             class="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary-700 transition"
-            @click="submitReview($emit)"
+            @click="submitReview"
           >
             送出
           </button>
