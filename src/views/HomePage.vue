@@ -60,7 +60,7 @@ const handlePostLike = async (post) => {
   }
 
   try {
-    const result = await toggleLike(post.id, currentUserUid.value)
+    const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
@@ -79,7 +79,7 @@ onMounted(async () => {
         discussionsStore.discussions.map(async (post) => {
           try {
             const { getLikesInfo } = await import('@/api/likes')
-            const info = await getLikesInfo(post.id, currentUserUid.value)
+            const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
             post.isLiked = info.isLiked
           } catch (error) {
             console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)

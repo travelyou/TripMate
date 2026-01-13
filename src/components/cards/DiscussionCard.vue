@@ -25,7 +25,8 @@ const itemData = computed(() => ({
   id: props.post.id,
   type: 'discussion',
   title: props.post.title,
-  image: props.post.image,
+  image: props.post.banner, // 使用 banner 作為主圖
+  banner: props.post.banner,
   author: props.post.author,
   avatar: props.post.avatar,
   content: props.post.content,
@@ -39,7 +40,7 @@ const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
 
   try {
-    const info = await getLikesInfo(props.post.id, currentUserUid.value)
+    const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount || props.post.likes || 0
   } catch (error) {
@@ -55,7 +56,7 @@ const handlePostLike = async () => {
   }
 
   try {
-    const result = await toggleLike(props.post.id, currentUserUid.value)
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
 
@@ -125,16 +126,32 @@ onMounted(async () => {
     </p>
 
     <div
-      v-if="post.image"
+      v-if="post.banner"
       class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100"
     >
       <img
-        :src="post.image"
+        :src="post.banner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
-        alt="貼文圖片"
+        alt="討論封面"
       />
     </div>
 
+    <div
+      v-if="post.image_urls && post.image_urls.length > 0"
+      class="grid gap-2 mb-4"
+      :class="{
+        'grid-cols-1': post.image_urls.length === 1,
+        'grid-cols-2': post.image_urls.length >= 2,
+      }"
+    >
+      <img
+        v-for="(url, idx) in post.image_urls.slice(0, 4)"
+        :key="idx"
+        :src="url"
+        class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
+        :alt="`圖片 ${idx + 1}`"
+      />
+    </div>
     <div
       v-if="post.tags && post.tags.length"
       class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3"
