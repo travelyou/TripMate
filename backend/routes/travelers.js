@@ -313,7 +313,16 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     console.log('🟢 [Backend Travelers POST] ========== 開始 ==========')
-    console.log('🟢 [Backend Travelers POST] 收到請求 Body:', JSON.stringify(req.body, null, 2))
+    const bodySize = JSON.stringify(req.body).length
+    const bodySizeMB = (bodySize / 1024 / 1024).toFixed(2)
+    console.log('📊 [Backend Travelers POST] Body 大小:', bodySizeMB, 'MB')
+    console.log('🟢 [Backend Travelers POST] 收到請求 Body (摘要):', {
+      title: req.body.title,
+      contentLength: req.body.content?.length || 0,
+      itineraryDays: req.body.itinerary?.days?.length || 0,
+      packingListCount: req.body.packingList?.length || 0,
+      tagsCount: req.body.tags?.length || 0,
+    })
 
     const {
       title,

@@ -22,6 +22,7 @@ import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
+import { compressImage } from '@/utils/imageCompress'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -94,19 +95,41 @@ const validateBasic = () => {
 
 const triggerBannerSelect = () => bannerFileInput.value?.click()
 
-const handleBannerSelect = (event) => {
+const handleBannerSelect = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
-  if (file.size > 5 * 1024 * 1024) {
-    alert('圖片大小不能超過 5MB')
+
+  if (file.size > 10 * 1024 * 1024) {
+    alert('圖片大小不能超過 10MB')
     return
   }
-  bannerFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    bannerPreview.value = e.target.result
+
+  try {
+    isUploading.value = true
+    uploadProgress.value = 0
+
+    const compressedFile = await compressImage(file, {
+      maxWidth: 1920,
+      maxHeight: 1920,
+      quality: 0.8,
+      maxSizeMB: 2,
+    })
+
+    bannerFile.value = compressedFile
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      bannerPreview.value = e.target.result
+    }
+    reader.readAsDataURL(compressedFile)
+
+    isUploading.value = false
+    uploadProgress.value = 0
+  } catch (error) {
+    console.error('圖片壓縮失敗：', error)
+    alert('圖片處理失敗：' + error.message)
+    isUploading.value = false
+    uploadProgress.value = 0
   }
-  reader.readAsDataURL(file)
 }
 
 const removeBanner = () => {
@@ -325,15 +348,73 @@ const handleFinalSubmit = async () => {
       spirit_animal: userStore.currentUser?.spiritAnimal || '🦁 樂天派',
     }
 
+    // 清理和优化数据
+    const optimizedPayload = {
+      title: payload.title.trim(),
+      content: payload.content.trim(),
+      location: payload.location.trim(),
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      max_people: payload.max_people,
+      tags: payload.tags || [],
+      status: payload.status,
+      banner_image: payload.banner_image,
+      author_uid: payload.author_uid,
+      author_name: payload.author_name,
+      author_avatar: payload.author_avatar,
+      spirit_animal: payload.spirit_animal,
+      itinerary: payload.itinerary?.days
+        ? {
+            days: payload.itinerary.days.map((day) => ({
+              day: day.day || day.day_number,
+              date: day.date || '',
+              activities: (day.activities || []).map((act) => ({
+                time: act.time || '',
+                title: (act.title || '').trim(),
+                desc: (act.desc || '').trim(),
+              })),
+            })),
+          }
+        : { days: [] },
+      packingList: (payload.packingList || []).map((pack) => ({
+        category: (pack.category || '').trim(),
+        items: (pack.items || []).map((item) => ({
+          name: (item.name || '').trim(),
+        })),
+      })),
+    }
+
+    const payloadSize = JSON.stringify(optimizedPayload).length
+    const payloadSizeMB = (payloadSize / 1024 / 1024).toFixed(2)
+    const payloadSizeKB = (payloadSize / 1024).toFixed(2)
+    console.log('📊 [旅伴發文] Payload 大小:', payloadSizeMB, 'MB (', payloadSizeKB, 'KB)')
+    console.log('📊 [旅伴發文] Payload 詳細:', {
+      title: optimizedPayload.title,
+      contentLength: optimizedPayload.content?.length || 0,
+      itineraryDays: optimizedPayload.itinerary?.days?.length || 0,
+      packingListCount: optimizedPayload.packingList?.length || 0,
+      tagsCount: optimizedPayload.tags?.length || 0,
+      hasBanner: !!optimizedPayload.banner_image,
+    })
+
+    // Zeabur 通常限制为 1MB，我们设置为 900KB 作为安全边界
+    if (payloadSize > 900 * 1024) {
+      formError.value = `資料太大（${payloadSizeKB}KB），請減少行程天數、打包清單項目或內容長度`
+      isSubmitting.value = false
+      submitProgress.value = 0
+      submitStatus.value = ''
+      return
+    }
+
     submitProgress.value = 70
     submitStatus.value = '正在提交貼文...'
     console.log('📤 [旅伴發文] 提交 payload:', {
-      title: payload.title,
-      hasBanner: !!payload.banner_image,
-      bannerUrl: payload.banner_image,
+      title: optimizedPayload.title,
+      hasBanner: !!optimizedPayload.banner_image,
+      bannerUrl: optimizedPayload.banner_image,
     })
 
-    const response = await createTraveler(payload)
+    const response = await createTraveler(optimizedPayload)
 
     submitProgress.value = 100
     submitStatus.value = '發布成功！'

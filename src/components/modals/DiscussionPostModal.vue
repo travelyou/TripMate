@@ -17,6 +17,7 @@ import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createPost } from '@/api/discussions'
 import { uploadImage, uploadMultipleImages } from '@/api/storage'
+import { compressImage } from '@/utils/imageCompress'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -167,8 +168,8 @@ const handleImageSelect = async (event) => {
       continue
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert(`${file.name} 檔案太大，請選擇小於 5MB 的圖片`)
+    if (file.size > 10 * 1024 * 1024) {
+      alert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
       console.log('❌ [圖片上傳] 檔案過大:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB')
       continue
     }
@@ -192,17 +193,26 @@ const handleImageSelect = async (event) => {
       const file = validFiles[i]
       const fileIndex = imageFiles.value.length + i
 
+      // 壓縮圖片
+      submitStatus.value = `正在處理圖片 ${i + 1}/${validFiles.length}...`
+      const compressedFile = await compressImage(file, {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.8,
+        maxSizeMB: 2,
+      })
+
       // 先顯示預覽
       const reader = new FileReader()
       reader.onload = (e) => {
         imagePreviews.value.push(e.target.result)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(compressedFile)
 
-      // 上傳圖片
+      // 上傳圖片（使用壓縮後的文件）
       submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}...`
       const imageUrl = await uploadImage(
-        file,
+        compressedFile,
         'discussions',
         (progress) => {
           // 計算整體進度：已完成的文件 + 當前文件進度
@@ -213,8 +223,8 @@ const handleImageSelect = async (event) => {
         }
       )
 
-      // 保存上傳後的 URL 和原始文件
-      imageFiles.value.push(file)
+      // 保存上傳後的 URL 和原始文件（保存壓縮後的文件）
+      imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
       console.log(`✅ [圖片上傳] 第 ${i + 1} 張圖片上傳成功:`, imageUrl)
     }
@@ -317,23 +327,23 @@ const handleFinalSubmit = async () => {
 
   try {
     console.log('🚀 [發文 Step 2] 開始上傳圖片到 Firebase Storage')
-    
+
     // 上傳圖片到 Firebase Storage
     let bannerUrl = null
     let imageUrls = []
-    
+
     // 使用已上傳的圖片 URL（在選擇時已上傳）
     if (uploadedImageUrls.value.length > 0) {
       submitProgress.value = 60
       submitStatus.value = '圖片已準備完成'
-      
+
       // 第一張作為 banner
       bannerUrl = uploadedImageUrls.value[0]
       // 其餘作為 image_urls
       if (uploadedImageUrls.value.length > 1) {
         imageUrls = uploadedImageUrls.value.slice(1)
       }
-      
+
       console.log('✅ [發文 Step 2] 使用已上傳的圖片:', { bannerUrl, imageUrls })
     } else {
       submitProgress.value = 60
@@ -387,7 +397,7 @@ const handleFinalSubmit = async () => {
     console.error('❌ [發文 Error] ========== 發文失敗 ==========')
     console.error('❌ [發文 Error] 錯誤訊息:', error.message)
     console.error('❌ [發文 Error] 完整錯誤:', error)
-    
+
     isSubmitting.value = false
     submitProgress.value = 0
     submitStatus.value = ''
