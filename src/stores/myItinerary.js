@@ -1,8 +1,8 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMyItineraryStore = defineStore('myItinerary', () => {
-  // 1. 我的行程詳細數據
+  // 1. 我的行程
   const myItineraries = ref([
     {
       id: 1,
@@ -160,23 +160,51 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     },
   ])
 
-  // 2. 草稿夾數據
-  const drafts = ref([
+  // 2. 精選行程
+  const featuredItineraries = ref([
     {
       id: 101,
-      type: 'discussion',
-      typeLabel: '討論區',
-      saveTime: '2024-12-05 14:30',
-      title: '詢問日本超商問題',
-      content: '下個月要去日本東京自由行，想在那邊買大研特享...',
+      title: '沖繩海島放鬆之旅',
+      startDate: '2025-03-12',
+      endDate: '2025-03-16',
+      orderNumber: 'TM-20250312001',
+      orderDate: '2025-02-01',
+      status: 'joined',
+      rating: null,
+      comment: '',
     },
     {
       id: 102,
-      type: 'traveler',
-      typeLabel: '找旅伴',
-      saveTime: '2024-12-04 10:12',
-      title: '徵求春天北海道旅伴',
-      content: '計畫明年4月去北海道賞櫻，想找志同道合的旅伴...',
+      title: '北海道滑雪體驗',
+      startDate: '2025-01-20',
+      endDate: '2025-01-25',
+      orderNumber: 'TM-20250120008',
+      orderDate: '2024-12-10',
+      status: 'not_joined',
+      rating: null,
+      comment: '',
+    },
+  ])
+
+  // 3. 找旅伴
+  const partnerItineraries = ref([
+    {
+      id: 201,
+      title: '清邁慢旅行',
+      startDate: '2025-05-05',
+      endDate: '2025-05-12',
+      status: 'joined',
+      comment: '',
+      reviewLabel: 'super_like',
+    },
+    {
+      id: 202,
+      title: '曼谷美食團',
+      startDate: '2025-07-08',
+      endDate: '2025-07-10',
+      status: 'not_joined',
+      comment: '',
+      reviewLabel: 'like',
     },
   ])
 
@@ -205,20 +233,25 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
   }
 
-  // 新增草稿
-  const addDraft = (draftData) => {
-    const newDraft = {
-      id: Date.now(),
-      saveTime: new Date().toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      ...draftData,
-    }
-    drafts.value.unshift(newDraft)
+  const updateFeaturedRating = ({ id, rating, comment }) => {
+    const target = featuredItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    target.rating = rating === 0 ? null : rating
+    if (comment !== undefined) target.comment = comment
+  }
+
+  const clearFeaturedRating = (id) => {
+    const target = featuredItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    target.rating = null
+    target.comment = ''
+  }
+
+  const updatePartnerItinerary = ({ id, comment, reviewLabel }) => {
+    const target = partnerItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    if (comment !== undefined) target.comment = comment
+    if (reviewLabel !== undefined) target.reviewLabel = reviewLabel
   }
 
   // 儲存行程（新增或更新）
@@ -242,10 +275,14 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
 
   return {
     myItineraries,
-    drafts,
+    featuredItineraries,
+    partnerItineraries,
     addItinerary,
     deleteItinerary,
-    addDraft,
+    updateFeaturedRating,
+    clearFeaturedRating,
+    updatePartnerItinerary,
     saveItinerary,
   }
 })
+
