@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -46,6 +46,7 @@ const errors = ref({
   category: '',
   title: '',
   content: '',
+  tags: '',
 })
 
 const tagSearch = ref('')
@@ -80,12 +81,12 @@ const filteredTags = computed(() => {
 })
 
 const clearAllErrors = () => {
-  errors.value = { category: '', title: '', content: '' }
+  errors.value = { category: '', title: '', content: '', tags: '' }
   formError.value = ''
 }
 
 const validateForm = () => {
-  console.log('🔍 [Step 1] 開始驗證表單')
+  console.log('[Step 1] 開始驗證表單')
   clearAllErrors()
   let isValid = true
 
@@ -97,18 +98,28 @@ const validateForm = () => {
     console.log('[Step 1.1] 分類驗證通過:', postData.value.category)
   }
 
+  // 驗證標題
   if (!postData.value.title || postData.value.title.trim() === '') {
     errors.value.title = '請輸入標題'
     isValid = false
     console.log('[Step 1.2] 標題驗證失敗')
+  } else if (postData.value.title.trim().length > 35) {
+    errors.value.title = `標題不能超過 35 字（目前 ${postData.value.title.trim().length} 字）`
+    isValid = false
+    console.log('[Step 1.2] 標題驗證失敗：超過字數限制')
   } else {
     console.log('[Step 1.2] 標題驗證通過:', postData.value.title.substring(0, 50))
   }
 
+  // 驗證內容
   if (!postData.value.content || postData.value.content.trim() === '') {
     errors.value.content = '請輸入內容'
     isValid = false
     console.log('[Step 1.3] 內容驗證失敗')
+  } else if (postData.value.content.trim().length > 5000) {
+    errors.value.content = `內容不能超過 5000 字（目前 ${postData.value.content.trim().length} 字）`
+    isValid = false
+    console.log('[Step 1.3] 內容驗證失敗：超過字數限制')
   } else {
     console.log('[Step 1.3] 內容驗證通過，內容長度:', postData.value.content.length)
   }
@@ -123,6 +134,28 @@ const validateForm = () => {
   return isValid
 }
 
+const validateTags = () => {
+  errors.value.tags = ''
+  if (!postData.value.tags || postData.value.tags.length === 0) {
+    return ''
+  }
+
+  if (postData.value.tags.length > 5) {
+    errors.value.tags = `標籤數量不能超過 5 個（目前 ${postData.value.tags.length} 個）`
+    return errors.value.tags
+  }
+
+  for (let i = 0; i < postData.value.tags.length; i++) {
+    const tag = postData.value.tags[i]
+    if (tag && tag.trim().length > 30) {
+      errors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字（目前 ${tag.trim().length} 字）`
+      return errors.value.tags
+    }
+  }
+
+  return ''
+}
+
 const nextStep = () => {
   if (isUploading.value || isSubmitting.value) {
     return
@@ -133,6 +166,11 @@ const nextStep = () => {
     currentStep.value = 'tags'
     formError.value = ''
   } else if (currentStep.value === 'tags') {
+    const error = validateTags()
+    if (error) {
+      formError.value = error
+      return
+    }
     currentStep.value = 'preview'
   }
 }
@@ -147,12 +185,24 @@ const prevStep = () => {
 }
 
 const triggerFileSelect = () => {
+  // 如果已經達到上限或正在上傳，不觸發文件選擇
+  if (imagePreviews.value.length >= 5 || isUploading.value) {
+    return
+  }
   fileInputRef.value?.click()
 }
 
 const handleImageSelect = async (event) => {
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
+
+  // 如果已經達到上限，直接返回
+  if (imagePreviews.value.length >= 5) {
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
+    }
+    return
+  }
 
   console.log('[圖片上傳] 選擇了', files.length, '張圖片')
 
@@ -256,18 +306,65 @@ const removeImage = (index) => {
 
 const addTag = (tagText) => {
   const cleanTag = tagText.replace(/^#/, '').trim()
-  if (cleanTag && !postData.value.tags.includes(cleanTag)) {
-    postData.value.tags.push(cleanTag)
-    console.log('[標籤新增]', cleanTag, '，目前標籤數:', postData.value.tags.length)
+  if (!cleanTag) {
+    tagSearch.value = ''
+    return
   }
+
+  if (cleanTag.length > 30) {
+    errors.value.tags = `標籤不能超過 30 字（目前 ${cleanTag.length} 字）`
+    return
+  }
+
+  if (postData.value.tags.length >= 5) {
+    errors.value.tags = '標籤數量不能超過 5 個'
+    return
+  }
+
+  if (postData.value.tags.includes(cleanTag)) {
+    tagSearch.value = ''
+    return
+  }
+
+  errors.value.tags = ''
+  postData.value.tags.push(cleanTag)
+  console.log('[標籤新增]', cleanTag, '，目前標籤數:', postData.value.tags.length)
   tagSearch.value = ''
 }
 
 const removeTag = (index) => {
   const removedTag = postData.value.tags[index]
   postData.value.tags.splice(index, 1)
+  errors.value.tags = ''
   console.log('[標籤移除]', removedTag, '，剩餘標籤數:', postData.value.tags.length)
 }
+
+watch(
+  () => postData.value.title,
+  () => {
+    if (errors.value.title) {
+      errors.value.title = ''
+    }
+  }
+)
+
+watch(
+  () => tagSearch.value,
+  () => {
+    if (errors.value.tags) {
+      errors.value.tags = ''
+    }
+  }
+)
+
+watch(
+  () => postData.value.content,
+  () => {
+    if (errors.value.content) {
+      errors.value.content = ''
+    }
+  }
+)
 
 const handleSaveDraft = () => {
   console.log('[草稿儲存] 開始儲存草稿')
@@ -574,32 +671,59 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">
-              標題 <span class="text-red-500">*</span>
-            </label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-bold text-gray-700">
+                標題 <span class="text-red-500">*</span>
+              </label>
+              <span
+                :class="[
+                  'text-xs',
+                  postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
+                ]"
+              >
+                {{ postData.title.trim().length }}/35
+              </span>
+            </div>
             <input
               v-model="postData.title"
               type="text"
               placeholder="輸入一個吸引人的標題..."
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
-              :class="{ 'border-red-500': errors.title }"
-              maxlength="100"
+              :class="[
+                'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                errors.title
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="35"
             />
-            <p v-if="errors.title" class="text-red-500 text-xs mt-1">{{ errors.title }}</p>
+            <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">
-              內容 <span class="text-red-500">*</span>
-            </label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-bold text-gray-700">內容</label>
+              <span
+                :class="[
+                  'text-xs',
+                  postData.content.trim().length > 5000 ? 'text-red-500 font-bold' : 'text-gray-400',
+                ]"
+              >
+                {{ postData.content.trim().length }}/5000
+              </span>
+            </div>
             <textarea
               v-model="postData.content"
               placeholder="分享你的旅遊經驗或提出問題..."
               rows="8"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none resize-none transition"
-              :class="{ 'border-red-500': errors.content }"
+              :class="[
+                'w-full p-3 border-2 rounded-xl focus:outline-none resize-none transition',
+                errors.content
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="5000"
             ></textarea>
-            <p v-if="errors.content" class="text-red-500 text-xs mt-1">{{ errors.content }}</p>
+            <p v-if="errors.content" class="mt-1 text-sm text-red-500">{{ errors.content }}</p>
           </div>
 
           <div v-if="imagePreviews.length > 0" class="space-y-2">
@@ -636,13 +760,14 @@ onMounted(() => {
           </p>
 
           <button
-            :disabled="isUploading"
+            :disabled="isUploading || imagePreviews.length >= 5"
             class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="triggerFileSelect"
           >
             <ImageIcon class="w-6 h-6" />
-            <span v-if="!isUploading">點擊上傳圖片</span>
-            <span v-else>上傳中...</span>
+            <span v-if="!isUploading && imagePreviews.length < 5">點擊上傳圖片（可多選，最多 5 張）</span>
+            <span v-else-if="isUploading">上傳中...</span>
+            <span v-else>已達上限（5 張）</span>
           </button>
           <input
             ref="fileInputRef"
@@ -650,7 +775,7 @@ onMounted(() => {
             accept="image/*"
             multiple
             class="hidden"
-            :disabled="isUploading"
+            :disabled="isUploading || imagePreviews.length >= 5"
             @change="handleImageSelect"
           />
         </div>
@@ -660,11 +785,36 @@ onMounted(() => {
             <input
               v-model="tagSearch"
               type="text"
-              placeholder="搜尋或建立新標籤..."
-              class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition"
+              placeholder="輸入標籤..."
+              :class="[
+                'w-full pl-10 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none',
+                tagSearch && tagSearch.trim().length > 30
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="30"
               @keyup.enter="addTag(tagSearch)"
             />
             <HashIcon class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+            <div class="absolute right-3 top-3.5">
+              <span
+                :class="[
+                  'text-xs',
+                  tagSearch && tagSearch.trim().length > 30
+                    ? 'text-red-500 font-bold'
+                    : 'text-gray-400',
+                ]"
+              >
+                {{ (tagSearch || '').length }}/30
+              </span>
+            </div>
+            <p v-if="tagSearch && tagSearch.trim().length > 30" class="text-xs text-red-500 mt-1">
+              標籤不能超過 30 字
+            </p>
+          </div>
+          <div class="mb-2">
+            <span class="text-xs text-gray-500">已選擇 {{ postData.tags.length }}/5 個標籤</span>
+            <p v-if="errors.tags" class="text-xs text-red-500 mt-1">{{ errors.tags }}</p>
           </div>
 
           <div v-if="postData.tags.length > 0">
