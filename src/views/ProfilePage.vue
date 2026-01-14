@@ -14,11 +14,14 @@ import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
 import TabVisitedPlaces from '@/components/profile/tabs/TabVisitedPlaces.vue'
 import TabPosts from '@/components/profile/tabs/TabPosts.vue'
 import TabReviews from '@/components/profile/tabs/TabReviews.vue'
+import TabDrafts from '@/components/profile/tabs/TabDrafts.vue' // 引入新建立的草稿分頁組件
+import { useRouter } from 'vue-router' // 引入路由器，用於跳轉頁面
 
 // Store setup
 const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
 const itineraryStore = useItineraryStore()
+const router = useRouter() // 初始化路由器
 
 const user = computed(() => userStore.currentUser)
 const isCurrentUser = true // In real app, check if route param ID matches current user ID
@@ -30,6 +33,7 @@ const tabs = [
   { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
   { k: 'posts', l: '貼文', s: '貼文' },
   { k: 'reviews', l: '好評', s: '好評' },
+  { k: 'drafts', l: '草稿夾', s: '草稿' }, // 在 Tabs 列表新增草稿分頁
 ]
 
 // Modal State
@@ -101,6 +105,22 @@ const handleSaveProfile = (formData) => {
   userStore.hiddenStamps = hiddenStamps
 
   isEditingProfile.value = false
+}
+
+/**
+ * 處理從 TabDrafts 分頁傳來的 'select-draft' 事件
+ * @param {Object} draft - 使用者選中的草稿
+ */
+const handleSelectDraft = (draft) => {
+  // 如果是行程相關的草稿
+  if (draft.type === 'my_itinerary' || draft.type === 'itinerary') {
+    // 跳轉到「我的行程」頁面，並透過 Query Parameter (查詢參數) 傳遞草稿 ID
+    // 這樣目標頁面就可以知道要自動開啟哪一個草稿
+    router.push({ path: '/my-itinerary', query: { openDraft: draft.id } })
+  } else {
+    // 其他類型的草稿暫時只跳出提示
+    alert(`這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`)
+  }
 }
 
 const handleAddPlace = ({ type, name, date, icon }) => {
@@ -203,6 +223,12 @@ onMounted(() => {
             :reviews="activeTabsData.reviews"
             :user="user"
             @open-post="openDetail({ id: $event, title: 'Mock Post', content: 'Loading...' })"
+          />
+
+          <!-- 草稿分頁內容：監聽選中草稿事件 -->
+          <TabDrafts
+            v-if="activeTab === 'drafts'"
+            @select-draft="handleSelectDraft"
           />
         </div>
       </div>
