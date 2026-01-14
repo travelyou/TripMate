@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -16,7 +16,7 @@ import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createPost } from '@/api/discussions'
-import { uploadImage, uploadMultipleImages } from '@/api/storage'
+import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 
 const emit = defineEmits(['close', 'success'])
@@ -92,32 +92,32 @@ const validateForm = () => {
   if (!postData.value.category || postData.value.category.trim() === '') {
     errors.value.category = '請選擇分類'
     isValid = false
-    console.log('❌ [Step 1.1] 分類驗證失敗')
+    console.log('[Step 1.1] 分類驗證失敗')
   } else {
-    console.log('✅ [Step 1.1] 分類驗證通過:', postData.value.category)
+    console.log('[Step 1.1] 分類驗證通過:', postData.value.category)
   }
 
   if (!postData.value.title || postData.value.title.trim() === '') {
     errors.value.title = '請輸入標題'
     isValid = false
-    console.log('❌ [Step 1.2] 標題驗證失敗')
+    console.log('[Step 1.2] 標題驗證失敗')
   } else {
-    console.log('✅ [Step 1.2] 標題驗證通過:', postData.value.title.substring(0, 50))
+    console.log('[Step 1.2] 標題驗證通過:', postData.value.title.substring(0, 50))
   }
 
   if (!postData.value.content || postData.value.content.trim() === '') {
     errors.value.content = '請輸入內容'
     isValid = false
-    console.log('❌ [Step 1.3] 內容驗證失敗')
+    console.log('[Step 1.3] 內容驗證失敗')
   } else {
-    console.log('✅ [Step 1.3] 內容驗證通過，內容長度:', postData.value.content.length)
+    console.log('[Step 1.3] 內容驗證通過，內容長度:', postData.value.content.length)
   }
 
   if (!isValid) {
     formError.value = '請檢查紅色必填欄位'
-    console.log('❌ [Step 1] 表單驗證失敗')
+    console.log('[Step 1] 表單驗證失敗')
   } else {
-    console.log('✅ [Step 1] 表單驗證通過')
+    console.log('[Step 1] 表單驗證通過')
   }
 
   return isValid
@@ -154,7 +154,7 @@ const handleImageSelect = async (event) => {
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
 
-  console.log('📷 [圖片上傳] 選擇了', files.length, '張圖片')
+  console.log('[圖片上傳] 選擇了', files.length, '張圖片')
 
   const remainingSlots = 5 - imagePreviews.value.length
   const filesToAdd = files.slice(0, remainingSlots)
@@ -164,13 +164,13 @@ const handleImageSelect = async (event) => {
   for (const file of filesToAdd) {
     if (!file.type.startsWith('image/')) {
       alert(`${file.name} 不是有效的圖片`)
-      console.log('❌ [圖片上傳] 檔案類型無效:', file.name, file.type)
+      console.log('[圖片上傳] 檔案類型無效:', file.name, file.type)
       continue
     }
 
     if (file.size > 10 * 1024 * 1024) {
       alert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
-      console.log('❌ [圖片上傳] 檔案過大:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB')
+      console.log('[圖片上傳] 檔案過大:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB')
       continue
     }
 
@@ -191,7 +191,6 @@ const handleImageSelect = async (event) => {
   try {
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i]
-      const fileIndex = imageFiles.value.length + i
 
       // 壓縮圖片
       submitStatus.value = `正在處理圖片 ${i + 1}/${validFiles.length}...`
@@ -226,7 +225,7 @@ const handleImageSelect = async (event) => {
       // 保存上傳後的 URL 和原始文件（保存壓縮後的文件）
       imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
-      console.log(`✅ [圖片上傳] 第 ${i + 1} 張圖片上傳成功:`, imageUrl)
+      console.log(`[圖片上傳] 第 ${i + 1} 張圖片上傳成功:`, imageUrl)
     }
 
     uploadProgress.value = 100
@@ -234,7 +233,7 @@ const handleImageSelect = async (event) => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     submitStatus.value = ''
   } catch (error) {
-    console.error('❌ [圖片上傳] 上傳失敗：', error)
+    console.error('[圖片上傳] 上傳失敗：', error)
     alert('圖片上傳失敗：' + error.message)
     // 移除失敗的預覽
     imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
@@ -249,7 +248,7 @@ const handleImageSelect = async (event) => {
 }
 
 const removeImage = (index) => {
-  console.log('🗑️ [圖片移除] 移除第', index + 1, '張圖片')
+  console.log('[圖片移除] 移除第', index + 1, '張圖片')
   imagePreviews.value.splice(index, 1)
   imageFiles.value.splice(index, 1) // 同時移除對應的 File 對象
   uploadedImageUrls.value.splice(index, 1) // 同時移除對應的 URL
@@ -259,7 +258,7 @@ const addTag = (tagText) => {
   const cleanTag = tagText.replace(/^#/, '').trim()
   if (cleanTag && !postData.value.tags.includes(cleanTag)) {
     postData.value.tags.push(cleanTag)
-    console.log('🏷️ [標籤新增]', cleanTag, '，目前標籤數:', postData.value.tags.length)
+    console.log('[標籤新增]', cleanTag, '，目前標籤數:', postData.value.tags.length)
   }
   tagSearch.value = ''
 }
@@ -267,15 +266,15 @@ const addTag = (tagText) => {
 const removeTag = (index) => {
   const removedTag = postData.value.tags[index]
   postData.value.tags.splice(index, 1)
-  console.log('🗑️ [標籤移除]', removedTag, '，剩餘標籤數:', postData.value.tags.length)
+  console.log('[標籤移除]', removedTag, '，剩餘標籤數:', postData.value.tags.length)
 }
 
 const handleSaveDraft = () => {
-  console.log('💾 [草稿儲存] 開始儲存草稿')
+  console.log('[草稿儲存] 開始儲存草稿')
 
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
-    console.log('❌ [草稿儲存] 標題為空，無法儲存')
+    console.log('[草稿儲存] 標題為空，無法儲存')
     return
   }
 
@@ -295,56 +294,55 @@ const handleSaveDraft = () => {
   }
 
   myItineraryStore.addDraft(draftData)
-  console.log('✅ [草稿儲存] 草稿儲存成功，ID:', draftData.id)
-  alert('📦 已儲存至「我的行程」草稿夾！')
+  console.log('[草稿儲存] 草稿儲存成功，ID:', draftData.id)
+  alert('已儲存至「我的行程」草稿夾！')
   emit('close')
 }
 
-let isMouseDownOnBackdrop = false
-let hasTextSelection = false
+const hasContent = computed(() => {
+  return (
+    postData.value.title.trim() ||
+    postData.value.content.trim() ||
+    postData.value.tags.length > 0 ||
+    uploadedImageUrls.value.length > 0 ||
+    imagePreviews.value.length > 0
+  )
+})
 
-const handleBackdropMouseDown = (event) => {
-  const selection = window.getSelection()
-  hasTextSelection = selection && selection.toString().length > 0
-  
-  if (!hasTextSelection) {
-    isMouseDownOnBackdrop = true
-  }
-}
-
-const handleBackdropMouseUp = (event) => {
-  if (isMouseDownOnBackdrop) {
-    const selection = window.getSelection()
-    const hasSelection = selection && selection.toString().length > 0
-    
-    if (!hasSelection) {
+const handleClose = () => {
+  if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
+    const shouldClose = confirm('貼文正在提交中，確定要關閉嗎？')
+    if (shouldClose) {
+      sessionStorage.removeItem('is_submitting_discussion_post')
+      sessionStorage.removeItem('submit_start_time')
       emit('close')
     }
-    
-    isMouseDownOnBackdrop = false
-    hasTextSelection = false
+    return
+  }
+
+  if (hasContent.value) {
+    const shouldSave = confirm('您有未完成的內容，是否要儲存到草稿夾？\n\n點擊「確定」儲存草稿並關閉\n點擊「取消」僅關閉不儲存')
+    if (shouldSave) {
+      if (postData.value.title.trim()) {
+        handleSaveDraft()
+      } else {
+        alert('請至少輸入標題才能儲存草稿')
+        const stillClose = confirm('是否仍要關閉？')
+        if (stillClose) {
+          emit('close')
+        }
+      }
+    } else {
+      const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
+      if (confirmClose) {
+        emit('close')
+      }
+    }
+  } else {
+    emit('close')
   }
 }
 
-const handleGlobalMouseUp = (event) => {
-  const selection = window.getSelection()
-  const hasSelection = selection && selection.toString().length > 0
-  
-  if (hasSelection) {
-    hasTextSelection = true
-  }
-  
-  if (isMouseDownOnBackdrop && !hasSelection) {
-    const target = event.target
-    const modalContent = document.querySelector('.modal-content-container')
-    
-    if (modalContent && !modalContent.contains(target)) {
-      emit('close')
-    }
-    
-    isMouseDownOnBackdrop = false
-  }
-}
 
 const executeSubmit = async () => {
   isSubmitting.value = true
@@ -352,8 +350,8 @@ const executeSubmit = async () => {
   submitStatus.value = '準備中...'
 
   try {
-    console.log('🚀 [發文] ========== 開始發文流程 ==========')
-    console.log('🚀 [發文 Step 2] 開始上傳圖片到 Firebase Storage')
+    console.log('[發文] ========== 開始發文流程 ==========')
+    console.log('[發文 Step 2] 開始上傳圖片到 Firebase Storage')
 
     // 上傳圖片到 Firebase Storage
     let bannerUrl = null
@@ -371,13 +369,13 @@ const executeSubmit = async () => {
         imageUrls = uploadedImageUrls.value.slice(1)
       }
 
-      console.log('✅ [發文 Step 2] 使用已上傳的圖片:', { bannerUrl, imageUrls })
+      console.log('[發文 Step 2] 使用已上傳的圖片:', { bannerUrl, imageUrls })
     } else {
       submitProgress.value = 60
       submitStatus.value = '準備提交...'
     }
 
-    console.log('🚀 [發文 Step 3] 準備 payload')
+    console.log('[發文 Step 3] 準備 payload')
     const payload = {
       board: 'discussion',
       category: postData.value.category,
@@ -389,8 +387,8 @@ const executeSubmit = async () => {
       author_uid: auth.currentUser.uid,
     }
 
-    console.log('✅ [發文 Step 3] Payload 準備完成')
-    console.log('📊 [發文 Payload] 詳細資料:', {
+    console.log('[發文 Step 3] Payload 準備完成')
+    console.log('[發文 Payload] 詳細資料:', {
       board: payload.board,
       category: payload.category,
       titleLength: payload.title.length,
@@ -403,34 +401,34 @@ const executeSubmit = async () => {
 
     submitProgress.value = 70
     submitStatus.value = '正在提交貼文...'
-    console.log('🚀 [發文 Step 4] 調用 createPost API')
+    console.log('[發文 Step 4] 調用 createPost API')
     const response = await createPost(payload)
 
-    console.log('✅ [發文 Step 4] API 回應成功')
-    console.log('📊 [發文 Response]', response)
+    console.log('[發文 Step 4] API 回應成功')
+    console.log('[發文 Response]', response)
 
     submitProgress.value = 100
     submitStatus.value = '發布成功！'
 
     if (response) {
-      console.log('✅ [發文 Step 5] 發文成功！')
+      console.log('[發文 Step 5] 發文成功！')
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
-      
+
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('發文成功！', {
           body: '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
       } else {
-        alert('✨ 發文成功！')
+        alert('發文成功！')
       }
       window.location.reload()
     }
   } catch (error) {
-    console.error('❌ [發文 Error] ========== 發文失敗 ==========')
-    console.error('❌ [發文 Error] 錯誤訊息:', error.message)
-    console.error('❌ [發文 Error] 完整錯誤:', error)
+    console.error('[發文 Error] ========== 發文失敗 ==========')
+    console.error('[發文 Error] 錯誤訊息:', error.message)
+    console.error('[發文 Error] 完整錯誤:', error)
 
     sessionStorage.removeItem('is_submitting_discussion_post')
     sessionStorage.removeItem('submit_start_time')
@@ -440,12 +438,12 @@ const executeSubmit = async () => {
     submitStatus.value = ''
 
     if (error.response) {
-      console.error('❌ [發文 Error] HTTP 狀態:', error.response.status)
-      console.error('❌ [發文 Error] 回應資料:', error.response.data)
+      console.error('[發文 Error] HTTP 狀態:', error.response.status)
+      console.error('[發文 Error] 回應資料:', error.response.data)
     }
 
     const errorMessage = '發文失敗：' + (error.message || '請稍後再試')
-    
+
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('發文失敗', {
         body: errorMessage,
@@ -462,21 +460,21 @@ const handleFinalSubmit = async () => {
     return
   }
 
-  console.log('🚀 [發文] ========== 開始發文流程 ==========')
-  console.log('🚀 [發文 Step 0] 當前步驟:', currentStep.value)
+  console.log('[發文] ========== 開始發文流程 ==========')
+  console.log('[發文 Step 0] 當前步驟:', currentStep.value)
 
   if (!validateForm()) {
-    console.log('❌ [發文 Step 0] 表單驗證失敗，停止發文')
+    console.log('[發文 Step 0] 表單驗證失敗，停止發文')
     return
   }
 
-  console.log('🚀 [發文 Step 1] 檢查用戶登入狀態')
+  console.log('[發文 Step 1] 檢查用戶登入狀態')
   if (!auth.currentUser) {
     formError.value = '請先登入'
-    console.log('❌ [發文 Step 1] 用戶未登入')
+    console.log('[發文 Step 1] 用戶未登入')
     return
   }
-  console.log('✅ [發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
+  console.log('[發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
 
   // 立即關閉模態框
   emit('close')
@@ -490,8 +488,6 @@ const handleFinalSubmit = async () => {
 }
 
 onMounted(() => {
-  document.addEventListener('mouseup', handleGlobalMouseUp)
-  
   // 監聽頁面卸載事件，提示用戶
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
@@ -500,23 +496,17 @@ onMounted(() => {
       return e.returnValue
     }
   })
-  
+
   // 請求通知權限
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mouseup', handleGlobalMouseUp)
 })
 </script>
 
 <template>
   <div
     class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
-    @mousedown.self="handleBackdropMouseDown"
-    @mouseup.self="handleBackdropMouseUp"
   >
     <div
       :class="[
@@ -537,7 +527,7 @@ onUnmounted(() => {
             {{ currentStep === 'preview' ? '預覽文章' : '發起討論' }}
           </h2>
         </div>
-        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="emit('close')">
+        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
           <XIcon class="w-6 h-6 text-gray-500" />
         </button>
       </div>

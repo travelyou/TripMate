@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -309,10 +309,10 @@ const handleBannerSelect = async (event) => {
     })
 
     bannerFile.value = compressedFile
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    bannerPreview.value = e.target.result
-  }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      bannerPreview.value = e.target.result
+    }
     reader.readAsDataURL(compressedFile)
 
     isUploading.value = false
@@ -429,51 +429,6 @@ const addTag = (tagText) => {
 }
 const removeTag = (index) => postData.value.tags.splice(index, 1)
 
-let isMouseDownOnBackdrop = false
-let hasTextSelection = false
-
-const handleBackdropMouseDown = (event) => {
-  const selection = window.getSelection()
-  hasTextSelection = selection && selection.toString().length > 0
-  
-  if (!hasTextSelection) {
-    isMouseDownOnBackdrop = true
-  }
-}
-
-const handleBackdropMouseUp = (event) => {
-  if (isMouseDownOnBackdrop) {
-    const selection = window.getSelection()
-    const hasSelection = selection && selection.toString().length > 0
-    
-    if (!hasSelection) {
-      emit('close')
-    }
-    
-    isMouseDownOnBackdrop = false
-    hasTextSelection = false
-  }
-}
-
-const handleGlobalMouseUp = (event) => {
-  const selection = window.getSelection()
-  const hasSelection = selection && selection.toString().length > 0
-  
-  if (hasSelection) {
-    hasTextSelection = true
-  }
-  
-  if (isMouseDownOnBackdrop && !hasSelection) {
-    const target = event.target
-    const modalContent = document.querySelector('.modal-content-container')
-    
-    if (modalContent && !modalContent.contains(target)) {
-      emit('close')
-    }
-    
-    isMouseDownOnBackdrop = false
-  }
-}
 
 const validateItinerary = () => {
   fieldErrors.value.itinerary = ''
@@ -650,6 +605,52 @@ const handleSaveDraft = () => {
   emit('close')
 }
 
+const hasContent = computed(() => {
+  return (
+    postData.value.title.trim() ||
+    postData.value.content.trim() ||
+    postData.value.location.trim() ||
+    postData.value.itinerary.days.length > 0 ||
+    postData.value.packingList.length > 0 ||
+    postData.value.tags.length > 0 ||
+    bannerFile.value
+  )
+})
+
+const handleClose = () => {
+  if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
+    const shouldClose = confirm('貼文正在提交中，確定要關閉嗎？')
+    if (shouldClose) {
+      sessionStorage.removeItem('is_submitting_traveler_post')
+      sessionStorage.removeItem('submit_start_time')
+      emit('close')
+    }
+    return
+  }
+
+  if (hasContent.value) {
+    const shouldSave = confirm('您有未完成的內容，是否要儲存到草稿夾？\n\n點擊「確定」儲存草稿並關閉\n點擊「取消」僅關閉不儲存')
+    if (shouldSave) {
+      if (postData.value.title.trim()) {
+        handleSaveDraft()
+      } else {
+        alert('請至少輸入標題才能儲存草稿')
+        const stillClose = confirm('是否仍要關閉？')
+        if (stillClose) {
+          emit('close')
+        }
+      }
+    } else {
+      const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
+      if (confirmClose) {
+        emit('close')
+      }
+    }
+  } else {
+    emit('close')
+  }
+}
+
 const executeSubmit = async () => {
   isSubmitting.value = true
   submitProgress.value = 0
@@ -813,7 +814,7 @@ const executeSubmit = async () => {
     if (response.success) {
       sessionStorage.removeItem('is_submitting_traveler_post')
       sessionStorage.removeItem('submit_start_time')
-      
+
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('旅伴招募發布成功！', {
           body: '您的貼文已成功發布',
@@ -827,7 +828,7 @@ const executeSubmit = async () => {
       sessionStorage.removeItem('is_submitting_traveler_post')
       sessionStorage.removeItem('submit_start_time')
       const errorMessage = '發布失敗：' + (response.message || '請稍後再試')
-      
+
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('發布失敗', {
           body: errorMessage,
@@ -836,7 +837,7 @@ const executeSubmit = async () => {
       } else {
         alert(errorMessage)
       }
-      
+
       isSubmitting.value = false
       submitProgress.value = 0
       submitStatus.value = ''
@@ -853,11 +854,11 @@ const executeSubmit = async () => {
 
     sessionStorage.removeItem('is_submitting_traveler_post')
     sessionStorage.removeItem('submit_start_time')
-    
+
     const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || '發布失敗，發生未知錯誤'
     const errorDetail = error.response?.data?.detail || error.response?.data?.code || ''
     const fullErrorMessage = errorDetail ? `${errorMessage} (${errorDetail})` : errorMessage
-    
+
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('發布失敗', {
         body: fullErrorMessage,
@@ -866,7 +867,7 @@ const executeSubmit = async () => {
     } else {
       alert(fullErrorMessage)
     }
-    
+
     isSubmitting.value = false
     submitProgress.value = 0
     submitStatus.value = ''
@@ -905,8 +906,6 @@ if (postData.value.itinerary.days.length === 0) {
 }
 
 onMounted(() => {
-  document.addEventListener('mouseup', handleGlobalMouseUp)
-  
   // 監聽頁面卸載事件，提示用戶
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
@@ -915,23 +914,17 @@ onMounted(() => {
       return e.returnValue
     }
   })
-  
+
   // 請求通知權限
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mouseup', handleGlobalMouseUp)
 })
 </script>
 
 <template>
   <div
     class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
-    @mousedown.self="handleBackdropMouseDown"
-    @mouseup.self="handleBackdropMouseUp"
   >
     <div
       :class="[
@@ -952,7 +945,7 @@ onUnmounted(() => {
             {{ currentStep === 'preview' ? '預覽招募貼文' : '找旅伴招募' }}
           </h2>
         </div>
-        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="emit('close')">
+        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
           <XIcon class="w-6 h-6 text-gray-500" />
         </button>
       </div>
