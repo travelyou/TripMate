@@ -98,9 +98,10 @@ router.get('/', async (req, res) => {
       })
     }
 
-    const errorDetails = error.name === 'AggregateError' && error.errors
-      ? error.errors.map(e => e.message || String(e)).join('; ')
-      : error?.message || String(error)
+    const errorDetails =
+      error.name === 'AggregateError' && error.errors
+        ? error.errors.map((e) => e.message || String(e)).join('; ')
+        : error?.message || String(error)
 
     res.status(500).json({
       error: '獲取討論失敗',
@@ -255,7 +256,7 @@ router.get('/:id', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
-      WHERE d.id =  AND d.deleted_at IS NULL
+      WHERE d.id = $1 AND d.deleted_at IS NULL
 `
 
     console.log('🔵 [Backend GET /:id] 執行查詢')
