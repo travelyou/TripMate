@@ -140,6 +140,7 @@ app.use('/api/travelers', travelersRoutes)
 app.use('/api/itineraries', itinerariesRouter)
 app.use('/api/users', usersRouter)
 app.use('/discussions', discussionsRouter)
+app.use('/api/vendors', require('./routes/vendors'))
 
 // 全域錯誤處理中間件
 // 處理請求體過大的錯誤
