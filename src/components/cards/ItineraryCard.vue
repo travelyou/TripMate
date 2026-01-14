@@ -16,18 +16,6 @@ const props = defineProps({
   itinerary: {
     type: Object,
     required: true,
-    // 設定預設值以防後端資料缺漏
-    default: () => ({
-      id: 0,
-      title: '未命名行程',
-      price: 0,
-      agencyName: '',
-      coverImage: '',
-      destinations: [],
-      durationDays: 1,
-      likes: 0,
-      totalSaves: 0,
-    }),
   },
 })
 
@@ -37,7 +25,7 @@ const emit = defineEmits(['open-detail', 'open-share'])
 // 統一資料格式給 Store 使用 (收藏/按讚)
 const itemData = computed(() => ({
   id: props.itinerary.id,
-  type: 'itinerary', // 區分這是精選行程
+  type: 'itinerary',
   title: props.itinerary.title,
   coverImage: props.itinerary.coverImage,
   price: props.itinerary.price,
@@ -49,7 +37,7 @@ const formatPrice = (price) => {
 }
 
 const displayLocation = computed(() => {
-  const dest = props.itinerary.destinations
+  const dest = props.itinerary.destinations || props.itinerary.location
   if (Array.isArray(dest)) {
     return dest.join('、')
   }

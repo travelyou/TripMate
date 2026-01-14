@@ -3,42 +3,38 @@ import { ref, computed } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
-  Image as ImageIcon,
-  Hash as HashIcon,
   Plus as PlusIcon,
   Trash2 as TrashIcon,
   DollarSign as DollarSignIcon,
   Building as BuildingIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-// 假設你有一個 API 用來新增精選行程
-// import { createFeaturedItinerary } from '@/api/featured'
+// 這裡必須從 API 引入建立行程的 function
+import { createItinerary } from '@/api/itinerary'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 
 const currentStep = ref('basic')
 const formError = ref('')
+const isSubmitting = ref(false)
 
 // 表單資料結構
 const postData = ref({
   title: '',
-  description: '', // 對應精選行程的介紹
+  description: '',
   price: null,
   agencyName: '',
-  location: '', // 主要目的地
-  durationDays: 1, // 總天數
+  location: '',
+  durationDays: 1,
   coverImage: '',
   tags: [],
-  itinerary: { days: [] }, // 對應 itinerary_days 表
-  packingList: [], // 對應 itinerary_packing_lists 表
+  itinerary: { days: [] },
+  packingList: [],
 })
 
-const bannerPreview = ref('')
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
-
-// ... (大部分邏輯與 TravelerPostModal 相似，但針對欄位做調整) ...
 
 // 驗證
 const validateBasic = () => {
@@ -53,7 +49,7 @@ const addDay = () => {
   const dayNumber = postData.value.itinerary.days.length + 1
   postData.value.itinerary.days.push({ day: dayNumber, activities: [] })
   activeDayIndex.value = postData.value.itinerary.days.length - 1
-  postData.value.durationDays = postData.value.itinerary.days.length // 自動更新總天數
+  postData.value.durationDays = postData.value.itinerary.days.length
 }
 
 const currentDay = computed(() => {
@@ -88,7 +84,6 @@ const nextStep = () => {
       formError.value = error
       return
     }
-    // 如果行程天數為空，自動初始化
     if (postData.value.itinerary.days.length === 0) {
       for (let i = 0; i < postData.value.durationDays; i++) {
         postData.value.itinerary.days.push({ day: i + 1, activities: [] })
@@ -109,17 +104,23 @@ const prevStep = () => {
 }
 
 const handleFinalSubmit = async () => {
+  isSubmitting.value = true
+  formError.value = ''
   try {
-    console.log('Submitting:', postData.value)
-    // const res = await createFeaturedItinerary(postData.value)
-    // if(res.success) { ... }
+    // 呼叫後端 API
+    const res = await createItinerary(postData.value)
 
-    alert('精選行程發布模擬成功！(請串接後端 API)')
-    emit('success')
-    emit('close')
+    if (res.success) {
+      emit('success')
+      emit('close')
+    } else {
+      formError.value = res.message || '發布失敗'
+    }
   } catch (e) {
     console.error(e)
-    formError.value = '發布失敗'
+    formError.value = '伺服器錯誤，請稍後再試'
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -225,6 +226,15 @@ if (postData.value.itinerary.days.length === 0) {
           </div>
 
           <div>
+            <label class="block font-bold text-gray-700 mb-2">封面圖片網址</label>
+            <input
+              v-model="postData.coverImage"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 outline-none"
+              placeholder="https://..."
+            />
+          </div>
+
+          <div>
             <label class="block font-bold text-gray-700 mb-2">行程介紹</label>
             <textarea
               v-model="postData.description"
@@ -320,9 +330,7 @@ if (postData.value.itinerary.days.length === 0) {
 
         <div v-else-if="currentStep === 'packing'">
           <div class="text-center text-gray-400 py-10">
-            (此處邏輯與 TravelerPostModal 打包清單相同，省略以節省篇幅)
-            <br />
-            請在此實作新增 Category 與 Items 的介面
+            (此範例暫略過打包清單 UI，發布時會傳送空陣列)
           </div>
         </div>
 
@@ -343,9 +351,10 @@ if (postData.value.itinerary.days.length === 0) {
         <button
           v-if="currentStep === 'preview'"
           @click="handleFinalSubmit"
-          class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700"
+          :disabled="isSubmitting"
+          class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
         >
-          確認發布
+          {{ isSubmitting ? '發布中...' : '確認發布' }}
         </button>
         <button
           v-else

@@ -1,8 +1,7 @@
 ﻿<script setup>
 import { ref, onMounted } from 'vue'
 import { Map as MapIcon, Plus as PlusIcon } from 'lucide-vue-next'
-import { useItineraryStore } from '@/stores/itinerary' // 請確認這裡 store 名稱是否已改為 itinerary
-import { useUserStore } from '@/stores/user'
+import { useItineraryStore } from '@/stores/itinerary'
 
 import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
@@ -10,7 +9,6 @@ import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 
 const itinerariesStore = useItineraryStore()
-const userStore = useUserStore()
 
 // --- 模態框狀態管理 ---
 const isDetailModalOpen = ref(false)
@@ -56,7 +54,6 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// ★★★ 修正點：定義一個函數來處理成功發布，而不是在 template 裡寫註解 ★★★
 const handlePostSuccess = async () => {
   // 發布成功後，重新抓取列表資料
   await itinerariesStore.fetchItineraries()
@@ -111,6 +108,12 @@ onMounted(() => {
       <div v-if="itinerariesStore.loading" class="text-center py-10 text-gray-500">載入中...</div>
       <div v-else-if="itinerariesStore.error" class="text-center py-10 text-red-500">
         {{ itinerariesStore.error }}
+      </div>
+      <div
+        v-else-if="itinerariesStore.itineraries.length === 0"
+        class="text-center py-10 text-gray-500"
+      >
+        目前沒有行程資料
       </div>
       <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <ItineraryCard

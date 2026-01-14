@@ -11,41 +11,19 @@ export const useItineraryStore = defineStore('itinerary', () => {
   // 初始化載入列表
   const fetchItineraries = async (filters = {}) => {
     loading.value = true
+    error.value = null
     try {
       const response = await getItineraries(filters)
       if (response.success) {
         itineraries.value = response.data
       } else {
-        // 如果後端還沒好，這裡可以塞入一些假資料避免頁面空白
-        itineraries.value = [
-          {
-            id: 1,
-            title: '北海道雪祭五日遊',
-            price: 32000,
-            agencyName: '北國旅遊',
-            durationDays: 5,
-            coverImage: 'https://picsum.photos/id/11/800/600',
-            destinations: ['札幌', '小樽'],
-            tags: ['雪景', '滑雪'],
-            likes: 10,
-            totalSaves: 5,
-          },
-          {
-            id: 2,
-            title: '曼谷自由行',
-            price: 15000,
-            agencyName: '自由行專家',
-            durationDays: 4,
-            coverImage: 'https://picsum.photos/id/22/800/600',
-            destinations: ['曼谷'],
-            tags: ['購物', '按摩'],
-            likes: 25,
-            totalSaves: 12,
-          },
-        ]
+        itineraries.value = [] // 若失敗則清空，不使用假資料
+        console.warn('API 回傳失敗:', response)
       }
     } catch (err) {
-      error.value = err.message
+      console.error('Fetch error:', err)
+      error.value = '無法載入行程資料，請稍後再試'
+      itineraries.value = []
     } finally {
       loading.value = false
     }
@@ -62,6 +40,7 @@ export const useItineraryStore = defineStore('itinerary', () => {
       }
     } catch (err) {
       console.error(err)
+      error.value = '載入詳細資料失敗'
     } finally {
       loading.value = false
     }

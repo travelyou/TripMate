@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   X as XIcon,
   Heart as HeartIcon,
@@ -13,14 +13,11 @@ import {
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
   DollarSign as DollarSignIcon,
-  Building as BuildingIcon, // 新增：旅行社圖示
+  Building as BuildingIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { auth } from '@/firebase/config'
-import { formatTime } from '@/utils/time'
-// 假設你有這些 API，如果沒有請依照 travelers.js 的模式建立
-// import { getItineraryById } from '@/api/featured'
+import { getItineraryById } from '@/api/itinerary'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -39,11 +36,14 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const activeTab = ref('itinerary')
+// 初始資料使用列表傳進來的基本資訊，詳細資訊等待 API 補完
 const localItineraryData = ref({ ...props.itinerary })
 const activeDayIndex = ref(0)
+const isLoadingDetails = ref(false)
 
-// 模擬後端回傳的完整資料結構 (對應你的 CSV)
+// 整合資料結構
 const itineraryDetails = computed(() => {
+  // 如果後端回傳結構在 itinerary 物件下
   if (localItineraryData.value.itinerary && localItineraryData.value.itinerary.days) {
     return {
       days: localItineraryData.value.itinerary.days,
@@ -59,22 +59,21 @@ const activeDay = computed(() => {
   return itineraryDetails.value.days[activeDayIndex.value] || { activities: [] }
 })
 
-// 這裡應該呼叫後端 API 獲取詳細資料 (包含 itinerary_days 和 packing_lists)
+// 呼叫後端 API 獲取詳細資料
 const fetchFullItineraryDetails = async () => {
-  try {
-    // 模擬 API 請求
-    // const response = await getItineraryById(props.itinerary.id)
-    // if (response.success) {
-    //   localItineraryData.value = { ...localItineraryData.value, ...response.data }
-    // }
+  if (!props.itinerary.id) return
 
-    // 暫時 Mock 資料讓你看效果 (實際上要串接你的 Neon DB)
-    if (!localItineraryData.value.itinerary) {
-      // 如果 props 沒傳細節，這裡填補 Mock
-      console.log('Fetching details for:', props.itinerary.id)
+  isLoadingDetails.value = true
+  try {
+    const response = await getItineraryById(props.itinerary.id)
+    if (response.success) {
+      // 合併後端回傳的完整資料 (包含 itinerary_days 和 packing_lists)
+      localItineraryData.value = { ...localItineraryData.value, ...response.data }
     }
   } catch (error) {
     console.error('抓取詳細資料失敗:', error)
+  } finally {
+    isLoadingDetails.value = false
   }
 }
 
@@ -91,14 +90,9 @@ const getIconComponent = (iconName) => {
   }
 }
 
-const getDayLabel = (index) => {
-  // 簡單處理日期顯示
-  return `Day ${index + 1}`
-}
-
 const formatPrice = (price) => {
   if (!price) return '洽詢'
-  return `NT$ ${price.toLocaleString()}`
+  return `NT$ ${Number(price).toLocaleString()}`
 }
 
 onMounted(async () => {
@@ -166,9 +160,9 @@ onMounted(async () => {
               </div>
               <div class="font-bold text-secondary-900 truncate">
                 {{
-                  localItineraryData.destinations
+                  Array.isArray(localItineraryData.destinations)
                     ? localItineraryData.destinations.join(',')
-                    : '多個地點'
+                    : localItineraryData.destinations || localItineraryData.location || '多個地點'
                 }}
               </div>
             </div>
@@ -271,7 +265,10 @@ onMounted(async () => {
           </div>
 
           <div v-if="activeTab === 'itinerary'" class="space-y-6">
-            <div v-if="itineraryDetails.days && itineraryDetails.days.length > 0">
+            <div v-if="isLoadingDetails" class="text-center py-10 text-primary-600">
+              正在載入詳細行程...
+            </div>
+            <div v-else-if="itineraryDetails.days && itineraryDetails.days.length > 0">
               <div class="flex overflow-x-auto space-x-2 pb-2">
                 <button
                   v-for="(day, index) in itineraryDetails.days"

@@ -1,6 +1,6 @@
 /* eslint-env node */
 /* global require, process */
-require('dotenv').config();
+require('dotenv').config()
 
 const express = require('express')
 const cors = require('cors')
@@ -10,6 +10,7 @@ const commentsRouter = require('./routes/comments')
 const likesRouter = require('./routes/likes')
 const usersRouter = require('./routes/users')
 const travelersRoutes = require('./routes/travelers')
+const itinerariesRouter = require('./routes/itineraries')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -110,7 +111,7 @@ app.get('/api/test-cors', (req, res) => {
   res.json({
     message: 'CORS 測試成功！',
     origin: req.headers.origin || 'none',
-    allowedOrigins: allowedOrigins
+    allowedOrigins: allowedOrigins,
   })
 })
 
@@ -129,28 +130,17 @@ app.get('/api/test-db', async (req, res) => {
   }
 })
 
-// 使用討論區路由
+// 使用路由
 app.use('/api/discussions', discussionsRouter)
-// 相容：舊版前端 API 叫 posts，實際上對應 discussion list
 app.use('/api/posts', discussionsRouter)
-
-// 使用留言路由
 app.use('/api', commentsRouter)
-
-// 使用按讚路由
 app.use('/api/likes', likesRouter)
-
-// 使用旅伴路由
 app.use('/api/travelers', travelersRoutes)
-
-// 使用用戶路由
+app.use('/api/itineraries', itinerariesRouter)
 app.use('/api/users', usersRouter)
-
-// 相容：若部署環境沒有 /api 前綴（或你想支援兩種路徑），也提供 /discussions
 app.use('/discussions', discussionsRouter)
 
-// 全域錯誤處理中間件（確保 CORS 標頭在錯誤時也會被發送）
-// eslint-disable-next-line no-unused-vars
+// 全域錯誤處理中間件
 app.use((err, req, res, next) => {
   console.error('錯誤:', err.message)
 
