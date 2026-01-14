@@ -60,7 +60,7 @@ const totalCommentCount = computed(() => {
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
   try {
-    const info = await getLikesInfo(props.post.id, currentUserUid.value)
+    const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
   } catch (error) {

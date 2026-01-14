@@ -8,20 +8,45 @@ const pool = require('../database/connection');
 router.get('/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
+    const { board } = req.query;
     const postIdNum = Number(postId);
     if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' });
     }
 
+    // 確定 post_type，如果沒有提供 board，默認為 'discussion'
+    const postType = board === 'traveler' ? 'traveler' : 'discussion';
+
     // 檢查貼文是否存在
-    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postIdNum]);
-    if (postCheck.rows.length === 0) {
-      return res.status(404).json({ error: '貼文不存在' });
+    let postExists = false;
+    if (postType === 'discussion') {
+      const postCheckQuery = `
+        SELECT id FROM discussion.discussion
+        WHERE id = $1 AND deleted_at IS NULL
+      `;
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum]);
+      postExists = postCheckResult.rows.length > 0;
+    } else if (postType === 'traveler') {
+      const postCheckQuery = `
+        SELECT id FROM travelers.travelers
+        WHERE id = $1 AND deleted_at IS NULL
+      `;
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum]);
+      postExists = postCheckResult.rows.length > 0;
+    }
+
+    if (!postExists) {
+      return res.status(404).json({
+        error: '貼文不存在',
+        details: `找不到 ID 為 ${postIdNum} 的 ${postType} 貼文`,
+      });
     }
 
     const commentsResult = await pool.query(
-      'SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC',
-      [postIdNum]
+      `SELECT * FROM public.comments 
+       WHERE post_id = $1 AND post_type = $2 AND deleted_at IS NULL
+       ORDER BY created_at ASC`,
+      [postIdNum, postType]
     );
 
     res.json({
@@ -43,7 +68,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
     if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' });
     }
-    const { author_uid, content } = req.body;
+    const { author_uid, content, board, author_name, author_avatar } = req.body;
 
     // 驗證必填欄位
     if (!author_uid || !content) {
@@ -53,20 +78,49 @@ router.post('/posts/:postId/comments', async (req, res) => {
       });
     }
 
+    // 確定 post_type，如果沒有提供 board，默認為 'discussion'
+    const postType = board === 'traveler' ? 'traveler' : 'discussion';
+
     // 檢查貼文是否存在
-    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postIdNum]);
-    if (postCheck.rows.length === 0) {
-      return res.status(404).json({ error: '貼文不存在' });
+    let postExists = false;
+    if (postType === 'discussion') {
+      const postCheckQuery = `
+        SELECT id FROM discussion.discussion
+        WHERE id = $1 AND deleted_at IS NULL
+      `;
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum]);
+      postExists = postCheckResult.rows.length > 0;
+    } else if (postType === 'traveler') {
+      const postCheckQuery = `
+        SELECT id FROM travelers.travelers
+        WHERE id = $1 AND deleted_at IS NULL
+      `;
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum]);
+      postExists = postCheckResult.rows.length > 0;
     }
 
-    // 插入留言
+    if (!postExists) {
+      return res.status(404).json({
+        error: '貼文不存在',
+        details: `找不到 ID 為 ${postIdNum} 的 ${postType} 貼文`,
+      });
+    }
+
+    // 插入留言（包含所有必需字段）
     const insertCommentQuery = `
-      INSERT INTO comments (post_id, author_uid, content)
-      VALUES ($1, $2, $3)
+      INSERT INTO public.comments (post_id, post_type, author_uid, author_name, author_avatar, content, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
-    const result = await pool.query(insertCommentQuery, [postIdNum, author_uid, content]);
+    const result = await pool.query(insertCommentQuery, [
+      postIdNum,
+      postType,
+      author_uid,
+      author_name || '匿名用戶',
+      author_avatar || null,
+      content,
+    ]);
     const newComment = result.rows[0];
 
     res.status(201).json(newComment);

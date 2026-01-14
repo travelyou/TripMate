@@ -84,7 +84,8 @@ app.use((req, res, next) => {
   next()
 })
 
-app.use(express.json())
+app.use(express.json({ limit: '20mb' }))
+app.use(express.urlencoded({ extended: true, limit: '20mb' }))
 
 // 根路徑處理
 app.get('/', (req, res) => {
@@ -141,14 +142,25 @@ app.use('/api/users', usersRouter)
 app.use('/discussions', discussionsRouter)
 
 // 全域錯誤處理中間件
+// 處理請求體過大的錯誤
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error('錯誤:', err.message)
-
   // 確保 CORS 標頭在錯誤回應中也被設置
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
+
+  // 處理請求體過大的錯誤
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    console.error('❌ 請求體過大:', err.message)
+    return res.status(413).json({
+      success: false,
+      error: '請求體過大',
+      message: '請求資料太大，請減少行程天數、打包清單項目或內容長度',
+      limit: '1MB',
+    })
   }
 
   if (err.message && err.message.includes('CORS')) {
@@ -158,6 +170,7 @@ app.use((err, req, res, next) => {
     })
   }
 
+  console.error('錯誤:', err.message)
   res.status(err.status || 500).json({
     error: err.message || '伺服器內部錯誤',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),

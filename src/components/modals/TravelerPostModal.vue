@@ -5,7 +5,6 @@ import {
   ArrowLeft as ArrowLeftIcon,
   Image as ImageIcon,
   Hash as HashIcon,
-  Send as SendIcon,
   Plus as PlusIcon,
   Trash2 as TrashIcon,
   MapPin as MapPinIcon,
@@ -17,13 +16,13 @@ import {
   MessageCircle as MessageCircleIcon,
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
-  Coffee as CoffeeIcon,
-  Camera as CameraIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createTraveler } from '@/api/travelers'
+import { uploadImage } from '@/api/storage'
+import { compressImage } from '@/utils/imageCompress'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -32,7 +31,6 @@ const myItineraryStore = useMyItineraryStore()
 const currentStep = ref('basic')
 const formError = ref('')
 
-// 預覽頁面的 Tab 狀態
 const previewActiveTab = ref('itinerary')
 
 const postData = ref({
@@ -51,6 +49,12 @@ const postData = ref({
 
 const bannerPreview = ref('')
 const bannerFileInput = ref(null)
+const bannerFile = ref(null)
+const uploadProgress = ref(0)
+const isUploading = ref(false)
+const submitProgress = ref(0)
+const isSubmitting = ref(false)
+const submitStatus = ref('')
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 const suggestedTags = [
@@ -76,29 +80,6 @@ const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, date: '', activities: [] }
 })
 
-const getIconComponent = (iconName) => {
-  switch (iconName) {
-    case 'camera':
-      return CameraIcon
-    case 'coffee':
-      return CoffeeIcon
-    case 'map-pin':
-      return MapPinIcon
-    default:
-      return MapIcon
-  }
-}
-
-const getDayLabel = (index) => {
-  const startDateStr = postData.value.start_date
-  if (!startDateStr) return `Day ${index + 1}`
-  const date = new Date(startDateStr)
-  date.setDate(date.getDate() + index)
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${m}/${d}`
-}
-
 const validateBasic = () => {
   formError.value = ''
   if (!postData.value.title.trim()) return '請輸入標題'
@@ -114,24 +95,46 @@ const validateBasic = () => {
 
 const triggerBannerSelect = () => bannerFileInput.value?.click()
 
-const handleBannerSelect = (event) => {
+const handleBannerSelect = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
-  if (file.size > 5 * 1024 * 1024) {
-    alert('圖片大小不能超過 5MB')
+
+  if (file.size > 10 * 1024 * 1024) {
+    alert('圖片大小不能超過 10MB')
     return
   }
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    bannerPreview.value = e.target.result
-    // 不保存到 postData，只用於預覽
+
+  try {
+    isUploading.value = true
+    uploadProgress.value = 0
+
+    const compressedFile = await compressImage(file, {
+      maxWidth: 1920,
+      maxHeight: 1920,
+      quality: 0.8,
+      maxSizeMB: 2,
+    })
+
+    bannerFile.value = compressedFile
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      bannerPreview.value = e.target.result
+    }
+    reader.readAsDataURL(compressedFile)
+
+    isUploading.value = false
+    uploadProgress.value = 0
+  } catch (error) {
+    console.error('圖片壓縮失敗：', error)
+    alert('圖片處理失敗：' + error.message)
+    isUploading.value = false
+    uploadProgress.value = 0
   }
-  reader.readAsDataURL(file)
 }
 
 const removeBanner = () => {
   bannerPreview.value = ''
-  // 不需要清除 postData.value.banner_image
+  bannerFile.value = null
 }
 
 const addDay = () => {
@@ -153,21 +156,6 @@ const addDay = () => {
 
   if (nextDate) {
     postData.value.end_date = nextDate
-  }
-}
-
-const removeDay = (index) => {
-  if (postData.value.itinerary.days.length === 1) return
-  postData.value.itinerary.days.splice(index, 1)
-  postData.value.itinerary.days.forEach((day, i) => {
-    day.day = i + 1
-  })
-  if (activeDayIndex.value >= postData.value.itinerary.days.length) {
-    activeDayIndex.value = postData.value.itinerary.days.length - 1
-  }
-  const lastDay = postData.value.itinerary.days[postData.value.itinerary.days.length - 1]
-  if (lastDay && lastDay.date) {
-    postData.value.end_date = lastDay.date
   }
 }
 
@@ -202,6 +190,10 @@ const addTag = (tagText) => {
 const removeTag = (index) => postData.value.tags.splice(index, 1)
 
 const nextStep = () => {
+  if (isUploading.value || isSubmitting.value) {
+    return
+  }
+
   if (currentStep.value === 'basic') {
     const error = validateBasic()
     if (error) {
@@ -248,32 +240,32 @@ const prevStep = () => {
 }
 
 const handleSaveDraft = () => {
-  // 即使欄位沒填完，只要有標題建議就可以存
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
 
-  // 建立草稿物件
   const draftData = {
-    id: Date.now(), // 暫時 ID
-    type: 'traveler', // 標記為找旅伴類型
-    typeLabel: '找旅伴', // 顯示在卡片上的標籤
+    id: Date.now(),
+    type: 'traveler',
+    typeLabel: '找旅伴',
     title: postData.value.title,
     content: postData.value.content || '無內容',
     saveTime: new Date().toISOString(),
-    data: JSON.parse(JSON.stringify(postData.value)), // 深拷貝當前表單資料
+    data: JSON.parse(JSON.stringify(postData.value)),
   }
 
-  // 存入 Store
   myItineraryStore.addDraft(draftData)
 
   alert('📦 已儲存至「我的行程」草稿夾！')
   emit('close')
 }
 
-// 確認發布 (維持原樣，送後端)
 const handleFinalSubmit = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
   const error = validateBasic()
   if (error) {
     formError.value = error
@@ -285,7 +277,57 @@ const handleFinalSubmit = async () => {
     return
   }
 
+  isSubmitting.value = true
+  submitProgress.value = 0
+  submitStatus.value = '準備中...'
+
   try {
+    let bannerImageUrl = 'https://picsum.photos/1200/400'
+
+    if (bannerFile.value) {
+      try {
+        isUploading.value = true
+        uploadProgress.value = 0
+        submitProgress.value = 10
+        submitStatus.value = '正在上傳圖片...'
+        console.log('📤 [旅伴發文] 開始上傳 banner 圖片...')
+        bannerImageUrl = await uploadImage(
+          bannerFile.value,
+          'travelers',
+          (progress) => {
+            uploadProgress.value = progress
+            submitProgress.value = 10 + Math.floor((progress / 100) * 50)
+            submitStatus.value = `正在上傳圖片... ${progress}%`
+            console.log(`📤 [旅伴發文] 上傳進度: ${progress}%`)
+          }
+        )
+        console.log('✅ [旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
+        uploadProgress.value = 100
+        submitProgress.value = 60
+        submitStatus.value = '圖片上傳完成'
+      } catch (error) {
+        console.error('❌ [旅伴發文] Banner 圖片上傳失敗：', error)
+        isUploading.value = false
+        uploadProgress.value = 0
+        const shouldContinue = confirm(
+          'Banner 圖片上傳失敗：' + error.message + '\n\n是否要繼續發布（使用預設圖片）？'
+        )
+        if (!shouldContinue) {
+          isSubmitting.value = false
+          submitProgress.value = 0
+          submitStatus.value = ''
+          return
+        }
+        submitProgress.value = 60
+        submitStatus.value = '使用預設圖片'
+      } finally {
+        isUploading.value = false
+      }
+    } else {
+      submitProgress.value = 60
+      submitStatus.value = '準備提交...'
+    }
+
     const payload = {
       title: postData.value.title,
       content: postData.value.content,
@@ -297,7 +339,7 @@ const handleFinalSubmit = async () => {
       itinerary: postData.value.itinerary,
       packingList: postData.value.packingList,
       status: '招募中',
-      banner_image: 'https://picsum.photos/1200/400', // 只用預設圖片
+      banner_image: bannerImageUrl,
       author_uid: auth.currentUser.uid,
       author_name: userStore.currentUser?.displayName || '匿名',
       author_avatar:
@@ -306,18 +348,93 @@ const handleFinalSubmit = async () => {
       spirit_animal: userStore.currentUser?.spiritAnimal || '🦁 樂天派',
     }
 
-    const response = await createTraveler(payload)
+    // 清理和优化数据
+    const optimizedPayload = {
+      title: payload.title.trim(),
+      content: payload.content.trim(),
+      location: payload.location.trim(),
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      max_people: payload.max_people,
+      tags: payload.tags || [],
+      status: payload.status,
+      banner_image: payload.banner_image,
+      author_uid: payload.author_uid,
+      author_name: payload.author_name,
+      author_avatar: payload.author_avatar,
+      spirit_animal: payload.spirit_animal,
+      itinerary: payload.itinerary?.days
+        ? {
+            days: payload.itinerary.days.map((day) => ({
+              day: day.day || day.day_number,
+              date: day.date || '',
+              activities: (day.activities || []).map((act) => ({
+                time: act.time || '',
+                title: (act.title || '').trim(),
+                desc: (act.desc || '').trim(),
+              })),
+            })),
+          }
+        : { days: [] },
+      packingList: (payload.packingList || []).map((pack) => ({
+        category: (pack.category || '').trim(),
+        items: (pack.items || []).map((item) => ({
+          name: (item.name || '').trim(),
+        })),
+      })),
+    }
+
+    const payloadSize = JSON.stringify(optimizedPayload).length
+    const payloadSizeMB = (payloadSize / 1024 / 1024).toFixed(2)
+    const payloadSizeKB = (payloadSize / 1024).toFixed(2)
+    console.log('📊 [旅伴發文] Payload 大小:', payloadSizeMB, 'MB (', payloadSizeKB, 'KB)')
+    console.log('📊 [旅伴發文] Payload 詳細:', {
+      title: optimizedPayload.title,
+      contentLength: optimizedPayload.content?.length || 0,
+      itineraryDays: optimizedPayload.itinerary?.days?.length || 0,
+      packingListCount: optimizedPayload.packingList?.length || 0,
+      tagsCount: optimizedPayload.tags?.length || 0,
+      hasBanner: !!optimizedPayload.banner_image,
+    })
+
+    // Zeabur 通常限制为 1MB，我们设置为 900KB 作为安全边界
+    if (payloadSize > 900 * 1024) {
+      formError.value = `資料太大（${payloadSizeKB}KB），請減少行程天數、打包清單項目或內容長度`
+      isSubmitting.value = false
+      submitProgress.value = 0
+      submitStatus.value = ''
+      return
+    }
+
+    submitProgress.value = 70
+    submitStatus.value = '正在提交貼文...'
+    console.log('📤 [旅伴發文] 提交 payload:', {
+      title: optimizedPayload.title,
+      hasBanner: !!optimizedPayload.banner_image,
+      bannerUrl: optimizedPayload.banner_image,
+    })
+
+    const response = await createTraveler(optimizedPayload)
+
+    submitProgress.value = 100
+    submitStatus.value = '發布成功！'
 
     if (response.success) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
       alert('✨ 旅伴招募發布成功！')
-      emit('success')
-      emit('close')
+      window.location.reload()
     } else {
       formError.value = '發布失敗：' + (response.message || '請稍後再試')
+      isSubmitting.value = false
+      submitProgress.value = 0
+      submitStatus.value = ''
     }
   } catch (error) {
     console.error(error)
     formError.value = '發布失敗，發生未知錯誤'
+    isSubmitting.value = false
+    submitProgress.value = 0
+    submitStatus.value = ''
   }
 }
 
@@ -454,15 +571,29 @@ if (postData.value.itinerary.days.length === 0) {
             >
               <img :src="bannerPreview" alt="Banner" class="w-full h-full object-cover" />
               <button
+                v-if="!isUploading"
                 class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full p-1 transition"
                 @click="removeBanner"
               >
                 <XIcon class="w-5 h-5" />
               </button>
+              <div
+                v-if="isUploading"
+                class="absolute inset-0 bg-black/50 flex flex-col items-center justify-center"
+              >
+                <div class="w-3/4 bg-gray-200 rounded-full h-2.5 mb-2">
+                  <div
+                    class="bg-primary-600 h-2.5 rounded-full transition-all duration-300"
+                    :style="{ width: uploadProgress + '%' }"
+                  ></div>
+                </div>
+                <span class="text-white text-sm font-bold">{{ uploadProgress }}%</span>
+              </div>
             </div>
             <button
               v-else
-              class="w-full py-8 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-green-500 hover:text-green-600 transition flex flex-col items-center justify-center gap-2"
+              :disabled="isUploading"
+              class="w-full py-8 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-green-500 hover:text-green-600 transition flex flex-col items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="triggerBannerSelect"
             >
               <ImageIcon class="w-8 h-8 opacity-50" /> 點擊上傳 Banner 圖片
@@ -472,6 +603,7 @@ if (postData.value.itinerary.days.length === 0) {
               type="file"
               accept="image/*"
               class="hidden"
+              :disabled="isUploading"
               @change="handleBannerSelect"
             />
           </div>
@@ -634,8 +766,8 @@ if (postData.value.itinerary.days.length === 0) {
             <button
               v-for="tag in filteredTags"
               :key="tag"
-              @click="addTag(tag)"
               class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-gray-200"
+              @click="addTag(tag)"
             >
               #{{ tag }}
             </button>
@@ -812,8 +944,8 @@ if (postData.value.itinerary.days.length === 0) {
                 </button>
               </div>
               <div
-                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
                 v-if="currentDay"
+                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
               >
                 <h4 class="font-bold text-gray-700 mb-3">
                   Day {{ currentDay.day }} - {{ currentDay.date }}
@@ -860,10 +992,23 @@ if (postData.value.itinerary.days.length === 0) {
       <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
         <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
 
+        <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div
+            class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+            :style="{ width: submitProgress + '%' }"
+          >
+            <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
+          </div>
+        </div>
+        <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
+          {{ submitStatus }}
+        </p>
+
         <div class="flex gap-3">
           <button
             type="button"
-            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition"
+            :disabled="isSubmitting"
+            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
             @click="handleSaveDraft"
           >
             <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
@@ -872,24 +1017,28 @@ if (postData.value.itinerary.days.length === 0) {
           <template v-if="currentStep === 'preview'">
             <button
               type="button"
-              class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
               type="button"
-              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleFinalSubmit"
             >
-              確認發布
+              <span v-if="!isSubmitting">確認發布</span>
+              <span v-else>發布中...</span>
             </button>
           </template>
 
           <button
             v-else
             type="button"
-            class="flex-1 py-3 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold transition shadow-md"
+            :disabled="isUploading || isSubmitting"
+            class="flex-1 py-3 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             @click="nextStep"
           >
             下一步

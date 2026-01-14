@@ -71,7 +71,7 @@ function checkEnvVars() {
   }
 
   const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-  const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+  const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
   if (missingEnvVars.length > 0) {
     console.error('缺少環境變數：', missingEnvVars.join(', '));
@@ -97,6 +97,8 @@ async function createPool() {
     console.log('連接字符串來源:', process.env.DB_URL ? 'DB_URL' : 'DATABASE_URL');
 
     try {
+      // 注意：Neon 連接池不支持在連接字符串中使用 options 參數
+      // 我們將在連接建立後通過 SET search_path 命令設置
       const poolConfig = {
         connectionString: connectionString,
         ssl: {
@@ -123,10 +125,20 @@ async function createPool() {
 
       console.log('測試連接字符串連接...');
       await pool.query('SELECT 1');
+      // 設置 search_path
+      await pool.query('SET search_path TO public, travelers, discussion');
+      console.log('✅ search_path 已設置: public, travelers, discussion');
       console.log('連接字符串連接成功！');
 
-      pool.on('connect', () => {
+      pool.on('connect', async (client) => {
         console.log('資料庫連接成功！');
+        // 設置 search_path 包含 travelers 和 discussion schema
+        try {
+          await client.query('SET search_path TO public, travelers, discussion');
+          console.log('✅ search_path 已設置: public, travelers, discussion');
+        } catch (err) {
+          console.warn('⚠️ 設置 search_path 失敗:', err.message);
+        }
         debugLog('connection.js:198', 'Pool connect event', { timestamp: Date.now() }, 'A,B,C');
       });
 
@@ -265,6 +277,8 @@ async function createPool() {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    // 注意：對於 Neon 連接池，不能使用 options 參數
+    // 我們將在連接建立後通過 SET search_path 命令設置（見 pool.on('connect') 事件）
     connectionTimeoutMillis: isNeonPooler
       ? parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 120000
       : parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 60000,
@@ -344,8 +358,15 @@ async function createPool() {
   debugLog('connection.js:193', 'Pool object created', { duration: Date.now() - poolCreateStartTime }, 'D');
   // #endregion
 
-  pool.on('connect', () => {
+  pool.on('connect', async (client) => {
     console.log('資料庫連接成功！');
+    // 設置 search_path 包含 travelers 和 discussion schema
+    try {
+      await client.query('SET search_path TO public, travelers, discussion');
+      console.log('✅ search_path 已設置: public, travelers, discussion');
+    } catch (err) {
+      console.warn('⚠️ 設置 search_path 失敗:', err.message);
+    }
     debugLog('connection.js:198', 'Pool connect event', { timestamp: Date.now() }, 'A,B,C');
     // #endregion
   });
@@ -393,6 +414,9 @@ async function initializePool() {
         // #endregion
         const queryStartTime = Date.now();
         await pool.query('SELECT 1');
+        // 設置 search_path
+        await pool.query('SET search_path TO public, travelers, discussion');
+        console.log('✅ search_path 已設置: public, travelers, discussion');
 
         debugLog('connection.js:248', 'Query test success', { queryDuration: Date.now() - queryStartTime, totalDuration: Date.now() - attemptStartTime }, 'A,B,C');
         // #endregion
