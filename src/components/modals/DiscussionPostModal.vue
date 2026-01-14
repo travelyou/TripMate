@@ -16,6 +16,8 @@ import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createPost } from '@/api/discussions'
+import { uploadImage, uploadMultipleImages } from '@/api/storage'
+import { compressImage } from '@/utils/imageCompress'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -32,6 +34,13 @@ const postData = ref({
 
 const fileInputRef = ref(null)
 const imagePreviews = ref([])
+const imageFiles = ref([]) // 保存原始 File 對象（用於重新上傳）
+const uploadedImageUrls = ref([]) // 保存已上傳的圖片 URL
+const uploadProgress = ref(0) // 上傳進度 0-100
+const isUploading = ref(false) // 是否正在上傳
+const submitProgress = ref(0) // 整體提交進度 0-100
+const isSubmitting = ref(false) // 是否正在提交
+const submitStatus = ref('') // 提交狀態文字
 
 const errors = ref({
   category: '',
@@ -115,6 +124,10 @@ const validateForm = () => {
 }
 
 const nextStep = () => {
+  if (isUploading.value || isSubmitting.value) {
+    return
+  }
+
   if (currentStep.value === 'edit') {
     if (!validateForm()) return
     currentStep.value = 'tags'
@@ -137,7 +150,7 @@ const triggerFileSelect = () => {
   fileInputRef.value?.click()
 }
 
-const handleImageSelect = (event) => {
+const handleImageSelect = async (event) => {
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
 
@@ -146,26 +159,89 @@ const handleImageSelect = (event) => {
   const remainingSlots = 5 - imagePreviews.value.length
   const filesToAdd = files.slice(0, remainingSlots)
 
-  filesToAdd.forEach((file, index) => {
+  // 驗證文件
+  const validFiles = []
+  for (const file of filesToAdd) {
     if (!file.type.startsWith('image/')) {
       alert(`${file.name} 不是有效的圖片`)
       console.log('❌ [圖片上傳] 檔案類型無效:', file.name, file.type)
-      return
+      continue
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert(`${file.name} 檔案太大，請選擇小於 5MB 的圖片`)
+    if (file.size > 10 * 1024 * 1024) {
+      alert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
       console.log('❌ [圖片上傳] 檔案過大:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB')
-      return
+      continue
     }
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreviews.value.push(e.target.result)
-      console.log(`✅ [圖片上傳] 第 ${index + 1} 張圖片載入完成，總數:`, imagePreviews.value.length)
+    validFiles.push(file)
+  }
+
+  if (validFiles.length === 0) {
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
     }
-    reader.readAsDataURL(file)
-  })
+    return
+  }
+
+  // 立即上傳圖片並顯示進度
+  isUploading.value = true
+  uploadProgress.value = 0
+
+  try {
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i]
+      const fileIndex = imageFiles.value.length + i
+
+      // 壓縮圖片
+      submitStatus.value = `正在處理圖片 ${i + 1}/${validFiles.length}...`
+      const compressedFile = await compressImage(file, {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.8,
+        maxSizeMB: 2,
+      })
+
+      // 先顯示預覽
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        imagePreviews.value.push(e.target.result)
+      }
+      reader.readAsDataURL(compressedFile)
+
+      // 上傳圖片（使用壓縮後的文件）
+      submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}...`
+      const imageUrl = await uploadImage(
+        compressedFile,
+        'discussions',
+        (progress) => {
+          // 計算整體進度：已完成的文件 + 當前文件進度
+          const baseProgress = (i / validFiles.length) * 100
+          const currentFileProgress = (progress / 100) * (100 / validFiles.length)
+          uploadProgress.value = Math.round(baseProgress + currentFileProgress)
+          submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
+        }
+      )
+
+      // 保存上傳後的 URL 和原始文件（保存壓縮後的文件）
+      imageFiles.value.push(compressedFile)
+      uploadedImageUrls.value.push(imageUrl)
+      console.log(`✅ [圖片上傳] 第 ${i + 1} 張圖片上傳成功:`, imageUrl)
+    }
+
+    uploadProgress.value = 100
+    submitStatus.value = '圖片上傳完成'
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    submitStatus.value = ''
+  } catch (error) {
+    console.error('❌ [圖片上傳] 上傳失敗：', error)
+    alert('圖片上傳失敗：' + error.message)
+    // 移除失敗的預覽
+    imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
+  } finally {
+    isUploading.value = false
+    uploadProgress.value = 0
+  }
 
   if (fileInputRef.value) {
     fileInputRef.value.value = ''
@@ -175,6 +251,8 @@ const handleImageSelect = (event) => {
 const removeImage = (index) => {
   console.log('🗑️ [圖片移除] 移除第', index + 1, '張圖片')
   imagePreviews.value.splice(index, 1)
+  imageFiles.value.splice(index, 1) // 同時移除對應的 File 對象
+  uploadedImageUrls.value.splice(index, 1) // 同時移除對應的 URL
 }
 
 const addTag = (tagText) => {
@@ -223,6 +301,10 @@ const handleSaveDraft = () => {
 }
 
 const handleFinalSubmit = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
   console.log('🚀 [發文] ========== 開始發文流程 ==========')
   console.log('🚀 [發文 Step 0] 當前步驟:', currentStep.value)
 
@@ -239,20 +321,48 @@ const handleFinalSubmit = async () => {
   }
   console.log('✅ [發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
 
+  isSubmitting.value = true
+  submitProgress.value = 0
+  submitStatus.value = '準備中...'
+
   try {
-    console.log('🚀 [發文 Step 2] 準備 payload')
+    console.log('🚀 [發文 Step 2] 開始上傳圖片到 Firebase Storage')
+
+    // 上傳圖片到 Firebase Storage
+    let bannerUrl = null
+    let imageUrls = []
+
+    // 使用已上傳的圖片 URL（在選擇時已上傳）
+    if (uploadedImageUrls.value.length > 0) {
+      submitProgress.value = 60
+      submitStatus.value = '圖片已準備完成'
+
+      // 第一張作為 banner
+      bannerUrl = uploadedImageUrls.value[0]
+      // 其餘作為 image_urls
+      if (uploadedImageUrls.value.length > 1) {
+        imageUrls = uploadedImageUrls.value.slice(1)
+      }
+
+      console.log('✅ [發文 Step 2] 使用已上傳的圖片:', { bannerUrl, imageUrls })
+    } else {
+      submitProgress.value = 60
+      submitStatus.value = '準備提交...'
+    }
+
+    console.log('🚀 [發文 Step 3] 準備 payload')
     const payload = {
       board: 'discussion',
       category: postData.value.category,
       title: postData.value.title,
       content: postData.value.content,
       tags: postData.value.tags,
-      banner: imagePreviews.value.length > 0 ? imagePreviews.value[0] : null,
-      image_urls: imagePreviews.value.slice(1),
+      banner: bannerUrl,
+      image_urls: imageUrls,
       author_uid: auth.currentUser.uid,
     }
 
-    console.log('✅ [發文 Step 2] Payload 準備完成')
+    console.log('✅ [發文 Step 3] Payload 準備完成')
     console.log('📊 [發文 Payload] 詳細資料:', {
       board: payload.board,
       category: payload.category,
@@ -260,27 +370,37 @@ const handleFinalSubmit = async () => {
       contentLength: payload.content.length,
       tagsCount: payload.tags.length,
       hasBanner: !!payload.banner,
-      bannerSize: payload.banner ? (payload.banner.length / 1024).toFixed(2) + ' KB' : '無',
       imageUrlsCount: payload.image_urls.length,
       author_uid: payload.author_uid,
     })
 
-    console.log('🚀 [發文 Step 3] 調用 createPost API')
+    submitProgress.value = 70
+    submitStatus.value = '正在提交貼文...'
+    console.log('🚀 [發文 Step 4] 調用 createPost API')
     const response = await createPost(payload)
 
-    console.log('✅ [發文 Step 3] API 回應成功')
+    console.log('✅ [發文 Step 4] API 回應成功')
     console.log('📊 [發文 Response]', response)
 
+    submitProgress.value = 100
+    submitStatus.value = '發布成功！'
+
     if (response) {
-      console.log('✅ [發文 Step 4] 發文成功！')
+      console.log('✅ [發文 Step 5] 發文成功！')
+      // 延遲一下讓用戶看到完成狀態
+      await new Promise((resolve) => setTimeout(resolve, 500))
       alert('✨ 發文成功！')
-      emit('success')
-      emit('close')
+      // 重新載入頁面
+      window.location.reload()
     }
   } catch (error) {
     console.error('❌ [發文 Error] ========== 發文失敗 ==========')
     console.error('❌ [發文 Error] 錯誤訊息:', error.message)
     console.error('❌ [發文 Error] 完整錯誤:', error)
+
+    isSubmitting.value = false
+    submitProgress.value = 0
+    submitStatus.value = ''
 
     if (error.response) {
       console.error('❌ [發文 Error] HTTP 狀態:', error.response.status)
@@ -411,12 +531,27 @@ const handleFinalSubmit = async () => {
             <p class="text-xs text-gray-400">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
           </div>
 
+          <!-- 上傳進度條 -->
+          <div v-if="isUploading" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+            <div
+              class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+              :style="{ width: uploadProgress + '%' }"
+            >
+              <span class="text-xs font-bold text-white">{{ uploadProgress }}%</span>
+            </div>
+          </div>
+          <p v-if="isUploading" class="text-sm text-center text-primary-600 font-bold mb-2">
+            {{ submitStatus }}
+          </p>
+
           <button
-            class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2"
+            :disabled="isUploading"
+            class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="triggerFileSelect"
           >
             <ImageIcon class="w-6 h-6" />
-            點擊上傳圖片
+            <span v-if="!isUploading">點擊上傳圖片</span>
+            <span v-else>上傳中...</span>
           </button>
           <input
             ref="fileInputRef"
@@ -424,6 +559,7 @@ const handleFinalSubmit = async () => {
             accept="image/*"
             multiple
             class="hidden"
+            :disabled="isUploading"
             @change="handleImageSelect"
           />
         </div>
@@ -568,10 +704,24 @@ const handleFinalSubmit = async () => {
       <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
         <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
 
+        <!-- 提交進度條 -->
+        <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div
+            class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+            :style="{ width: submitProgress + '%' }"
+          >
+            <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
+          </div>
+        </div>
+        <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
+          {{ submitStatus }}
+        </p>
+
         <div class="flex gap-3">
           <button
             type="button"
-            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition"
+            :disabled="isSubmitting"
+            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
             @click="handleSaveDraft"
           >
             <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
@@ -579,23 +729,27 @@ const handleFinalSubmit = async () => {
 
           <template v-if="currentStep === 'preview'">
             <button
-              class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
-              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleFinalSubmit"
             >
-              <SendIcon class="w-4 h-4" />
-              確認發布
+              <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
+              <span v-if="!isSubmitting">確認發布</span>
+              <span v-else>發布中...</span>
             </button>
           </template>
 
           <button
             v-else
-            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md"
+            :disabled="isUploading || isSubmitting"
+            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             @click="nextStep"
           >
             下一步

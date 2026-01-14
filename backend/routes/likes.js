@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global require, module */
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
@@ -19,36 +21,120 @@ router.post('/', async (req, res) => {
       })
     }
 
+    const postIdNum = Number(post_id)
+    if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
+      console.log('❌ [Backend Likes POST] post_id 格式錯誤:', post_id)
+      return res.status(400).json({
+        error: 'post_id 格式錯誤',
+        details: 'post_id 必須是正整數',
+      })
+    }
+
     console.log('🔵 [Backend Likes POST] 檢查是否已按讚')
 
-    // 檢查是否已經按讚
+    // 驗證 post_id 是否存在於對應的表中
+    let postExists = false
+    if (board === 'discussion') {
+      const postCheckQuery = `
+        SELECT id FROM discussion.discussion
+        WHERE id = $1 AND deleted_at IS NULL
+      `
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
+      postExists = postCheckResult.rows.length > 0
+    } else if (board === 'traveler') {
+      const postCheckQuery = `
+        SELECT id FROM travelers.travelers
+        WHERE id = $1 AND deleted_at IS NULL
+      `
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
+      postExists = postCheckResult.rows.length > 0
+    } else {
+      return res.status(400).json({
+        error: '不支援的 board 類型',
+        details: `board 必須是 'discussion' 或 'traveler'`,
+      })
+    }
+
+    if (!postExists) {
+      console.log('❌ [Backend Likes POST] 貼文不存在:', { post_id: postIdNum, board })
+      return res.status(404).json({
+        error: '貼文不存在',
+        details: `找不到 ID 為 ${postIdNum} 的 ${board} 貼文`,
+      })
+    }
+
+    // 檢查是否已經按讚（先檢查是否有 (post_id, author_uid) 的記錄，不管 board）
     const checkQuery = `
-      SELECT id FROM public.likes
-      WHERE post_id = $1 AND author_uid = $2 AND board = $3
+      SELECT id, board FROM public.likes
+      WHERE post_id = $1 AND author_uid = $2
     `
-    const checkResult = await pool.query(checkQuery, [post_id, author_uid, board])
+    const checkResult = await pool.query(checkQuery, [postIdNum, author_uid])
 
     let liked = false
     let likesCount = 0
 
     if (checkResult.rows.length > 0) {
-      // 已經按讚，取消按讚
-      console.log('🔵 [Backend Likes POST] 取消按讚')
-      const deleteQuery = `
-        DELETE FROM public.likes
-        WHERE post_id = $1 AND author_uid = $2 AND board = $3
-      `
-      await pool.query(deleteQuery, [post_id, author_uid, board])
-      liked = false
+      // 已經存在記錄，檢查 board 是否匹配
+      const existingRecord = checkResult.rows[0]
+      if (existingRecord.board === board) {
+        // board 匹配，取消按讚
+        console.log('🔵 [Backend Likes POST] 取消按讚')
+        const deleteQuery = `
+          DELETE FROM public.likes
+          WHERE post_id = $1 AND author_uid = $2
+        `
+        await pool.query(deleteQuery, [postIdNum, author_uid])
+        liked = false
+      } else {
+        // board 不匹配，更新 board 字段
+        console.log('🔵 [Backend Likes POST] 更新 board 字段')
+        const updateQuery = `
+          UPDATE public.likes
+          SET board = $1, created_at = CURRENT_TIMESTAMP
+          WHERE post_id = $2 AND author_uid = $3
+        `
+        await pool.query(updateQuery, [board, postIdNum, author_uid])
+        liked = true
+      }
     } else {
-      // 尚未按讚，新增按讚
+      // 尚未按讚，嘗試新增按讚
       console.log('🔵 [Backend Likes POST] 新增按讚')
-      const insertQuery = `
-        INSERT INTO public.likes (post_id, author_uid, board, created_at)
-        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-      `
-      await pool.query(insertQuery, [post_id, author_uid, board])
-      liked = true
+      try {
+        const insertQuery = `
+          INSERT INTO public.likes (post_id, author_uid, board, created_at)
+          VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        `
+        await pool.query(insertQuery, [postIdNum, author_uid, board])
+        liked = true
+      } catch (insertError) {
+        // 處理不同的錯誤類型
+        if (insertError.code === '23505') {
+          // 唯一約束衝突，更新記錄
+          console.log('🔵 [Backend Likes POST] 檢測到唯一約束衝突，更新記錄')
+          const updateQuery = `
+            UPDATE public.likes
+            SET board = $1, created_at = CURRENT_TIMESTAMP
+            WHERE post_id = $2 AND author_uid = $3
+          `
+          await pool.query(updateQuery, [board, postIdNum, author_uid])
+          liked = true
+        } else if (insertError.code === '23503') {
+          // 外鍵約束違反 - 這表示外鍵約束只指向 discussion 表
+          // 對於 traveler 類型的帖子，我們需要跳過外鍵檢查
+          console.log('⚠️ [Backend Likes POST] 檢測到外鍵約束違反，嘗試使用不同的方法')
+
+          // 由於外鍵約束的限制，我們需要檢查是否可以通過其他方式插入
+          // 或者提供更友好的錯誤信息
+          throw new Error(
+            `無法為 ${board} 類型的帖子創建按讚記錄。` +
+            `數據庫外鍵約束只支持 discussion 類型的帖子。` +
+            `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`
+          )
+        } else {
+          // 其他錯誤，重新拋出
+          throw insertError
+        }
+      }
     }
 
     // 查詢更新後的按讚總數
@@ -57,7 +143,7 @@ router.post('/', async (req, res) => {
       SELECT COUNT(*) as count FROM public.likes
       WHERE post_id = $1 AND board = $2
     `
-    const countResult = await pool.query(countQuery, [post_id, board])
+    const countResult = await pool.query(countQuery, [postIdNum, board])
     likesCount = parseInt(countResult.rows[0].count) || 0
 
     console.log('✅ [Backend Likes POST] 成功，liked:', liked, 'count:', likesCount)
@@ -68,9 +154,15 @@ router.post('/', async (req, res) => {
     })
   } catch (error) {
     console.error('❌ [Backend Likes POST] 錯誤:', error)
+    console.error('❌ [Backend Likes POST] 錯誤堆疊:', error.stack)
+    console.error('❌ [Backend Likes POST] 錯誤代碼:', error.code)
+    console.error('❌ [Backend Likes POST] 錯誤詳情:', error.detail)
+    console.error('❌ [Backend Likes POST] 請求 Body:', req.body)
     res.status(500).json({
       error: '按讚操作失敗',
       details: error?.message || String(error),
+      code: error?.code,
+      detail: error?.detail,
     })
   }
 })

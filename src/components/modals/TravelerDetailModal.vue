@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -13,6 +13,7 @@ import {
   Coffee as CoffeeIcon,
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
+  Eye as EyeIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -149,7 +150,7 @@ const handleLike = async () => {
   }
 
   try {
-    const result = await toggleLike(props.traveler.id, currentUserUid.value)
+    const result = await toggleLike(props.traveler.id, currentUserUid.value, 'traveler')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -170,7 +171,7 @@ const toggleCommentLike = (item) => {
 const submitComment = async () => {
   if (!newComment.value.trim()) return
 
-  if (!currentUserUid.value) {
+  if (!userStore.isLoggedIn || !currentUserUid.value) {
     alert('請先登入後才能留言')
     return
   }
@@ -178,9 +179,12 @@ const submitComment = async () => {
   const content = newComment.value.trim()
 
   try {
-    const newCommentData = await createComment(props.traveler.id, {
+    await createComment(props.traveler.id, {
       author_uid: currentUserUid.value,
       content: content,
+      board: 'traveler',
+      author_name: userStore.currentUser?.displayName || '匿名用戶',
+      author_avatar: userStore.currentUser?.photoURL || null,
     })
 
     localComments.value = [
@@ -351,7 +355,7 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
                 <div class="flex items-center text-primary-600 mb-1">
                   <MapPinIcon class="w-4 h-4 mr-1" />
@@ -382,6 +386,14 @@ onMounted(async () => {
                   <span class="text-xs font-bold text-secondary-500">留言</span>
                 </div>
                 <div class="font-bold text-secondary-900">{{ totalCommentCount }}</div>
+              </div>
+
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-primary-600 mb-1">
+                  <EyeIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">瀏覽</span>
+                </div>
+                <div class="font-bold text-secondary-900">{{ localTravelerData.views_count || 0 }}</div>
               </div>
             </div>
           </div>
@@ -637,17 +649,18 @@ onMounted(async () => {
       </div>
 
       <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-secondary-200 bg-white">
-        <div v-if="userStore.isLoggedIn" class="flex space-x-3">
+        <div v-if="userStore.isLoggedIn && currentUserUid" class="flex space-x-3">
           <input
             ref="commentInputRef"
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
             class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
+            :disabled="!userStore.isLoggedIn || !currentUserUid"
             @keyup.enter="submitComment"
           />
           <button
-            :disabled="!newComment.trim()"
+            :disabled="!newComment.trim() || !userStore.isLoggedIn || !currentUserUid"
             class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
             @click="submitComment"
           >

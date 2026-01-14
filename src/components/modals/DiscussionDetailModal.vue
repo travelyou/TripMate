@@ -145,7 +145,7 @@ const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
 
   try {
-    const info = await getLikesInfo(props.post.id, currentUserUid.value)
+    const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
   } catch (error) {
@@ -168,7 +168,7 @@ const handlePostLike = async () => {
 
   try {
     console.log('開始按讚操作，貼文 ID：', props.post.id, '用戶 UID：', currentUserUid.value)
-    const result = await toggleLike(props.post.id, currentUserUid.value)
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     console.log('按讚操作成功，結果：', result)
     isLiked.value = result.liked
     likesCount.value = result.likesCount
