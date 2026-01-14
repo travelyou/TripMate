@@ -14,7 +14,9 @@ const dnsResolve4 = promisify(dns.resolve4);
 dns.setDefaultResultOrder('ipv4first');
 
 const DEBUG_LOG_PATH = path.join(process.cwd(), '.cursor', 'debug.log');
+const DEBUG_ENABLED = process.env.DB_DEBUG_LOG === '1';
 function debugLog(location, message, data, hypothesisId) {
+  if (!DEBUG_ENABLED) return;
   try {
     const logDir = path.dirname(DEBUG_LOG_PATH);
     if (!fs.existsSync(logDir)) {
@@ -90,6 +92,7 @@ async function createPool() {
     throw new Error('缺少必要的環境變數');
   }
 
+  const isDev = process.env.NODE_ENV === 'development';
   const connectionString = process.env.DB_URL || process.env.DATABASE_URL;
 
   if (connectionString) {
@@ -104,8 +107,8 @@ async function createPool() {
         ssl: {
           rejectUnauthorized: false,
         },
-        connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 120000,
-        idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS) || 60000,
+        connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || (isDev ? 20000 : 120000),
+        idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS) || (isDev ? 20000 : 60000),
         max: parseInt(process.env.DB_POOL_MAX) || 3,
         keepAlive: true,
         keepAliveInitialDelayMillis: parseInt(process.env.DB_KEEPALIVE_DELAY_MS) || 10000,
@@ -116,7 +119,7 @@ async function createPool() {
       if (isPooler) {
         console.log('✅ 檢測到連接池端點（Connection Pooling）');
         if (!process.env.DB_CONNECT_TIMEOUT_MS) {
-          poolConfig.connectionTimeoutMillis = 120000;
+          poolConfig.connectionTimeoutMillis = isDev ? 20000 : 120000;
           console.log('  連接超時已設置為 120 秒（連接池端點需要更長時間）');
         }
       }
@@ -179,6 +182,12 @@ async function createPool() {
 
   const dbHost = process.env.DB_HOST;
 
+  const disablePreflight = process.env.DB_PREFLIGHT_DISABLED === '1';
+
+  if (disablePreflight) {
+    console.log('DB preflight (DNS/TCP) disabled (DB_PREFLIGHT_DISABLED=1)');
+  }
+
   const isNeonPooler = typeof dbHost === 'string' && dbHost.includes('-pooler');
 
   if (isNeonPooler) {
@@ -189,6 +198,7 @@ async function createPool() {
     throw new Error('DB_HOST 格式不支援（包含 ":"）。此專案已設定為僅使用 IPv4，請改用 IPv4 的 DB_HOST（例如 IPv4 位址或可解析出 A 記錄的主機名）。');
   }
 
+  if (!disablePreflight) {
   // #region agent log
   const dnsStartTime = Date.now();
   debugLog('connection.js:92', 'DNS resolution start', { host: dbHost, startTime: dnsStartTime }, 'C');
@@ -216,11 +226,11 @@ async function createPool() {
     }
   }
 
+  const dbPort = parseInt(process.env.DB_PORT) || 5432;
   // #region agent log
   const tcpTestStartTime = Date.now();
-  debugLog('connection.js:110', 'TCP connection test start', { ip: resolvedIp, port: parseInt(process.env.DB_PORT) || 5432 }, 'F,H');
+  debugLog('connection.js:110', 'TCP connection test start', { ip: resolvedIp, port: dbPort }, 'F,H');
   // #endregion
-  const dbPort = parseInt(process.env.DB_PORT) || 5432;
   try {
     await new Promise((resolve, reject) => {
       const socket = new net.Socket();
@@ -271,6 +281,7 @@ async function createPool() {
     }
     console.warn(`警告：TCP 測試失敗，但將繼續嘗試連接資料庫...`);
   }
+  }
   const poolConfig = {
     host: dbHost,
     port: parseInt(process.env.DB_PORT) || 5432,
@@ -280,11 +291,11 @@ async function createPool() {
     // 注意：對於 Neon 連接池，不能使用 options 參數
     // 我們將在連接建立後通過 SET search_path 命令設置（見 pool.on('connect') 事件）
     connectionTimeoutMillis: isNeonPooler
-      ? parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 120000
-      : parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || 60000,
+      ? parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || (isDev ? 20000 : 120000)
+      : parseInt(process.env.DB_CONNECT_TIMEOUT_MS) || (isDev ? 20000 : 60000),
     idleTimeoutMillis: isNeonPooler
-      ? parseInt(process.env.DB_IDLE_TIMEOUT_MS) || 60000
-      : parseInt(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
+      ? parseInt(process.env.DB_IDLE_TIMEOUT_MS) || (isDev ? 20000 : 60000)
+      : parseInt(process.env.DB_IDLE_TIMEOUT_MS) || (isDev ? 20000 : 30000),
     max: parseInt(process.env.DB_POOL_MAX) || 3,
     keepAlive: true,
     keepAliveInitialDelayMillis: parseInt(process.env.DB_KEEPALIVE_DELAY_MS) || 10000,
@@ -342,7 +353,7 @@ async function createPool() {
     }
 
     if (!process.env.DB_CONNECT_TIMEOUT_MS) {
-      poolConfig.connectionTimeoutMillis = 120000;
+      poolConfig.connectionTimeoutMillis = isDev ? 20000 : 120000;
       console.log(`連接超時已設置為 120 秒（連接池端點需要更長時間）`);
       debugLog('connection.js:190', 'connectionTimeout set to 120000 for pooler', { timeout: 120000 }, 'A');
     }
@@ -398,8 +409,9 @@ async function initializePool() {
   }
 
   initPromise = (async () => {
-    const maxAttempts = parseInt(process.env.DB_CONNECT_MAX_ATTEMPTS) || 6;
-    const baseDelayMs = parseInt(process.env.DB_CONNECT_RETRY_BASE_DELAY_MS) || 2000;
+    const isDev = process.env.NODE_ENV === 'development';
+    const maxAttempts = parseInt(process.env.DB_CONNECT_MAX_ATTEMPTS) || (isDev ? 2 : 6);
+    const baseDelayMs = parseInt(process.env.DB_CONNECT_RETRY_BASE_DELAY_MS) || (isDev ? 500 : 2000);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       let pool = null;
@@ -410,15 +422,13 @@ async function initializePool() {
         // #endregion
         pool = await createPool();
 
-        debugLog('connection.js:243', 'Pool created, starting query test', { duration: Date.now() - attemptStartTime }, 'A');
+        debugLog('connection.js:243', 'Pool created, query test skipped (already tested in createPool)', { duration: Date.now() - attemptStartTime }, 'A');
         // #endregion
-        const queryStartTime = Date.now();
-        await pool.query('SELECT 1');
         // 設置 search_path
         await pool.query('SET search_path TO public, travelers, discussion');
         console.log('✅ search_path 已設置: public, travelers, discussion');
 
-        debugLog('connection.js:248', 'Query test success', { queryDuration: Date.now() - queryStartTime, totalDuration: Date.now() - attemptStartTime }, 'A,B,C');
+        debugLog('connection.js:248', 'Search_path set', { totalDuration: Date.now() - attemptStartTime }, 'A,B,C');
         // #endregion
 
         poolInstance = pool;
