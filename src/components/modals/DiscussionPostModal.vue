@@ -300,32 +300,59 @@ const handleSaveDraft = () => {
   emit('close')
 }
 
-const handleFinalSubmit = async () => {
-  if (isSubmitting.value) {
-    return
+let isMouseDownOnBackdrop = false
+let hasTextSelection = false
+
+const handleBackdropMouseDown = (event) => {
+  const selection = window.getSelection()
+  hasTextSelection = selection && selection.toString().length > 0
+  
+  if (!hasTextSelection) {
+    isMouseDownOnBackdrop = true
   }
+}
 
-  console.log('🚀 [發文] ========== 開始發文流程 ==========')
-  console.log('🚀 [發文 Step 0] 當前步驟:', currentStep.value)
-
-  if (!validateForm()) {
-    console.log('❌ [發文 Step 0] 表單驗證失敗，停止發文')
-    return
+const handleBackdropMouseUp = (event) => {
+  if (isMouseDownOnBackdrop) {
+    const selection = window.getSelection()
+    const hasSelection = selection && selection.toString().length > 0
+    
+    if (!hasSelection) {
+      emit('close')
+    }
+    
+    isMouseDownOnBackdrop = false
+    hasTextSelection = false
   }
+}
 
-  console.log('🚀 [發文 Step 1] 檢查用戶登入狀態')
-  if (!auth.currentUser) {
-    formError.value = '請先登入'
-    console.log('❌ [發文 Step 1] 用戶未登入')
-    return
+const handleGlobalMouseUp = (event) => {
+  const selection = window.getSelection()
+  const hasSelection = selection && selection.toString().length > 0
+  
+  if (hasSelection) {
+    hasTextSelection = true
   }
-  console.log('✅ [發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
+  
+  if (isMouseDownOnBackdrop && !hasSelection) {
+    const target = event.target
+    const modalContent = document.querySelector('.modal-content-container')
+    
+    if (modalContent && !modalContent.contains(target)) {
+      emit('close')
+    }
+    
+    isMouseDownOnBackdrop = false
+  }
+}
 
+const executeSubmit = async () => {
   isSubmitting.value = true
   submitProgress.value = 0
   submitStatus.value = '準備中...'
 
   try {
+    console.log('🚀 [發文] ========== 開始發文流程 ==========')
     console.log('🚀 [發文 Step 2] 開始上傳圖片到 Firebase Storage')
 
     // 上傳圖片到 Firebase Storage
@@ -387,16 +414,26 @@ const handleFinalSubmit = async () => {
 
     if (response) {
       console.log('✅ [發文 Step 5] 發文成功！')
-      // 延遲一下讓用戶看到完成狀態
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      alert('✨ 發文成功！')
-      // 重新載入頁面
+      sessionStorage.removeItem('is_submitting_discussion_post')
+      sessionStorage.removeItem('submit_start_time')
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('發文成功！', {
+          body: '您的貼文已成功發布',
+          icon: '/favicon.ico',
+        })
+      } else {
+        alert('✨ 發文成功！')
+      }
       window.location.reload()
     }
   } catch (error) {
     console.error('❌ [發文 Error] ========== 發文失敗 ==========')
     console.error('❌ [發文 Error] 錯誤訊息:', error.message)
     console.error('❌ [發文 Error] 完整錯誤:', error)
+
+    sessionStorage.removeItem('is_submitting_discussion_post')
+    sessionStorage.removeItem('submit_start_time')
 
     isSubmitting.value = false
     submitProgress.value = 0
@@ -407,19 +444,83 @@ const handleFinalSubmit = async () => {
       console.error('❌ [發文 Error] 回應資料:', error.response.data)
     }
 
-    formError.value = '發文失敗：' + (error.message || '請稍後再試')
+    const errorMessage = '發文失敗：' + (error.message || '請稍後再試')
+    
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('發文失敗', {
+        body: errorMessage,
+        icon: '/favicon.ico',
+      })
+    } else {
+      alert(errorMessage)
+    }
   }
 }
+
+const handleFinalSubmit = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
+  console.log('🚀 [發文] ========== 開始發文流程 ==========')
+  console.log('🚀 [發文 Step 0] 當前步驟:', currentStep.value)
+
+  if (!validateForm()) {
+    console.log('❌ [發文 Step 0] 表單驗證失敗，停止發文')
+    return
+  }
+
+  console.log('🚀 [發文 Step 1] 檢查用戶登入狀態')
+  if (!auth.currentUser) {
+    formError.value = '請先登入'
+    console.log('❌ [發文 Step 1] 用戶未登入')
+    return
+  }
+  console.log('✅ [發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
+
+  // 立即關閉模態框
+  emit('close')
+
+  // 設置提交標記
+  sessionStorage.setItem('is_submitting_discussion_post', 'true')
+  sessionStorage.setItem('submit_start_time', Date.now().toString())
+
+  // 在後台執行提交
+  executeSubmit()
+}
+
+onMounted(() => {
+  document.addEventListener('mouseup', handleGlobalMouseUp)
+  
+  // 監聽頁面卸載事件，提示用戶
+  window.addEventListener('beforeunload', (e) => {
+    if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
+      e.preventDefault()
+      e.returnValue = '貼文正在提交中，確定要離開嗎？'
+      return e.returnValue
+    }
+  })
+  
+  // 請求通知權限
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mouseup', handleGlobalMouseUp)
+})
 </script>
 
 <template>
   <div
     class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
-    @click.self="emit('close')"
+    @mousedown.self="handleBackdropMouseDown"
+    @mouseup.self="handleBackdropMouseUp"
   >
     <div
       :class="[
-        'bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
+        'modal-content-container bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
         currentStep === 'preview' ? 'max-w-4xl h-[90vh]' : 'max-w-2xl max-h-[90vh]',
       ]"
     >

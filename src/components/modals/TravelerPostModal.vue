@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -30,6 +30,17 @@ const myItineraryStore = useMyItineraryStore()
 
 const currentStep = ref('basic')
 const formError = ref('')
+const fieldErrors = ref({
+  title: '',
+  content: '',
+  max_people: '',
+  start_date: '',
+  end_date: '',
+  location: '',
+  itinerary: '',
+  packingList: '',
+  tags: '',
+})
 
 const previewActiveTab = ref('itinerary')
 
@@ -82,16 +93,198 @@ const currentDay = computed(() => {
 
 const validateBasic = () => {
   formError.value = ''
-  if (!postData.value.title.trim()) return '請輸入標題'
-  if (!postData.value.content.trim()) return '請輸入內容'
-  if (!postData.value.location.trim()) return '請輸入地點'
-  if (!postData.value.start_date) return '請選擇開始日期'
-  if (!postData.value.end_date) return '請選擇結束日期'
-  if (new Date(postData.value.end_date) < new Date(postData.value.start_date)) {
-    return '結束日期不能早於開始日期'
+  fieldErrors.value = {
+    title: '',
+    content: '',
+    max_people: '',
+    start_date: '',
+    end_date: '',
+  }
+
+  let hasError = false
+
+  // 驗證標題
+  if (!postData.value.title.trim()) {
+    fieldErrors.value.title = '請輸入標題'
+    hasError = true
+  } else if (postData.value.title.trim().length > 35) {
+    fieldErrors.value.title = `標題不能超過 35 字（目前 ${postData.value.title.trim().length} 字）`
+    hasError = true
+  }
+
+  // 驗證內容
+  if (!postData.value.content.trim()) {
+    fieldErrors.value.content = '請輸入內容'
+    hasError = true
+  } else if (postData.value.content.trim().length > 5000) {
+    fieldErrors.value.content = `內容不能超過 5000 字（目前 ${postData.value.content.trim().length} 字）`
+    hasError = true
+  }
+
+  // 驗證地點
+  if (!postData.value.location.trim()) {
+    fieldErrors.value.location = '請輸入地點'
+    hasError = true
+  } else if (postData.value.location.trim().length > 50) {
+    fieldErrors.value.location = `地點不能超過 50 字（目前 ${postData.value.location.trim().length} 字）`
+    hasError = true
+  }
+
+  // 驗證人數
+  const maxPeopleNum = Number(postData.value.max_people)
+  if (!maxPeopleNum || maxPeopleNum < 1) {
+    fieldErrors.value.max_people = '請輸入有效的人數'
+    hasError = true
+  } else if (maxPeopleNum > 999) {
+    fieldErrors.value.max_people = '人數最多不能超過 999 人'
+    hasError = true
+  }
+
+  // 驗證開始日期
+  if (!postData.value.start_date) {
+    fieldErrors.value.start_date = '請選擇開始日期'
+    hasError = true
+  } else {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const startDate = new Date(postData.value.start_date)
+    if (startDate < today) {
+      fieldErrors.value.start_date = '開始日期不能選擇小於今日'
+      hasError = true
+    }
+  }
+
+  // 驗證結束日期
+  if (!postData.value.end_date) {
+    fieldErrors.value.end_date = '請選擇結束日期'
+    hasError = true
+  } else {
+    const endDate = new Date(postData.value.end_date)
+    if (postData.value.start_date) {
+      const startDate = new Date(postData.value.start_date)
+      if (endDate < startDate) {
+        fieldErrors.value.end_date = '結束日期不能早於開始日期'
+        hasError = true
+      } else {
+        const diffTime = Math.abs(endDate - startDate)
+        const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+        if (daysCount > 365) {
+          fieldErrors.value.end_date = '行程天數不能超過 365 天'
+          hasError = true
+        }
+      }
+    } else {
+      const maxDate = new Date()
+      maxDate.setFullYear(maxDate.getFullYear() + 3)
+      if (endDate > maxDate) {
+        fieldErrors.value.end_date = '結束日期不能超過 3 年以後'
+        hasError = true
+      }
+    }
+  }
+
+  if (hasError) {
+    return '請檢查並修正表單錯誤'
   }
   return ''
 }
+
+const maxEndDate = computed(() => {
+  if (postData.value.start_date) {
+    const startDate = new Date(postData.value.start_date)
+    const maxDate = new Date(startDate)
+    maxDate.setDate(maxDate.getDate() + 364)
+    return maxDate.toISOString().split('T')[0]
+  }
+  const maxDate = new Date()
+  maxDate.setFullYear(maxDate.getFullYear() + 3)
+  return maxDate.toISOString().split('T')[0]
+})
+
+const minStartDate = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
+
+watch(
+  () => postData.value.title,
+  () => {
+    if (fieldErrors.value.title) {
+      fieldErrors.value.title = ''
+    }
+  }
+)
+
+watch(
+  () => postData.value.content,
+  () => {
+    if (fieldErrors.value.content) {
+      fieldErrors.value.content = ''
+    }
+  }
+)
+
+watch(
+  () => postData.value.max_people,
+  () => {
+    if (fieldErrors.value.max_people) {
+      fieldErrors.value.max_people = ''
+    }
+  }
+)
+
+watch(
+  () => postData.value.start_date,
+  () => {
+    if (fieldErrors.value.start_date) {
+      fieldErrors.value.start_date = ''
+    }
+    if (postData.value.end_date) {
+      const endDate = new Date(postData.value.end_date)
+      const startDate = new Date(postData.value.start_date)
+      if (startDate && endDate) {
+        if (endDate < startDate) {
+          fieldErrors.value.end_date = '結束日期不能早於開始日期'
+        } else {
+          const diffTime = Math.abs(endDate - startDate)
+          const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+          if (daysCount > 365) {
+            fieldErrors.value.end_date = '行程天數不能超過 365 天'
+          } else {
+            fieldErrors.value.end_date = ''
+          }
+        }
+      }
+    }
+  }
+)
+
+watch(
+  () => postData.value.end_date,
+  () => {
+    if (fieldErrors.value.end_date && postData.value.start_date && postData.value.end_date) {
+      const endDate = new Date(postData.value.end_date)
+      const startDate = new Date(postData.value.start_date)
+      if (endDate >= startDate) {
+        const diffTime = Math.abs(endDate - startDate)
+        const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+        if (daysCount <= 365) {
+          fieldErrors.value.end_date = ''
+        }
+      }
+    }
+  }
+)
+
+watch(
+  () => postData.value.location,
+  () => {
+    if (fieldErrors.value.location && postData.value.location) {
+      if (postData.value.location.trim().length <= 50) {
+        fieldErrors.value.location = ''
+      }
+    }
+  }
+)
 
 const triggerBannerSelect = () => bannerFileInput.value?.click()
 
@@ -116,10 +309,10 @@ const handleBannerSelect = async (event) => {
     })
 
     bannerFile.value = compressedFile
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      bannerPreview.value = e.target.result
-    }
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    bannerPreview.value = e.target.result
+  }
     reader.readAsDataURL(compressedFile)
 
     isUploading.value = false
@@ -172,22 +365,200 @@ const addActivity = () => {
 
 const removeActivity = (activityIndex) => currentDay.value.activities.splice(activityIndex, 1)
 
-const addPackingCategory = () => postData.value.packingList.push({ category: '', items: [] })
-const removePackingCategory = (index) => postData.value.packingList.splice(index, 1)
+const addPackingCategory = () => {
+  if (postData.value.packingList.length >= 50) {
+    fieldErrors.value.packingList = '分類數量不能超過 50 個'
+    return
+  }
+  fieldErrors.value.packingList = ''
+  postData.value.packingList.push({ category: '', items: [] })
+}
+const removePackingCategory = (index) => {
+  postData.value.packingList.splice(index, 1)
+  fieldErrors.value.packingList = ''
+}
 const addPackingItem = (categoryIndex) => {
   const category = postData.value.packingList[categoryIndex]
   if (!category.items) category.items = []
+
+  let totalItems = 0
+  for (const cat of postData.value.packingList) {
+    if (cat.items && Array.isArray(cat.items)) {
+      totalItems += cat.items.length
+    }
+  }
+
+  if (totalItems >= 100) {
+    fieldErrors.value.packingList = '物品總數不能超過 100 個'
+    return
+  }
+
+  fieldErrors.value.packingList = ''
   category.items.push({ id: Date.now(), name: '', checked: false })
 }
-const removePackingItem = (categoryIndex, itemIndex) =>
+const removePackingItem = (categoryIndex, itemIndex) => {
   postData.value.packingList[categoryIndex].items.splice(itemIndex, 1)
+  fieldErrors.value.packingList = ''
+}
 
 const addTag = (tagText) => {
   const cleanTag = tagText.replace(/^#/, '').trim()
-  if (cleanTag && !postData.value.tags.includes(cleanTag)) postData.value.tags.push(cleanTag)
+  if (!cleanTag) {
+    tagSearch.value = ''
+    return
+  }
+
+  if (cleanTag.length > 30) {
+    fieldErrors.value.tags = `標籤不能超過 30 字（目前 ${cleanTag.length} 字）`
+    return
+  }
+
+  if (postData.value.tags.length >= 5) {
+    fieldErrors.value.tags = '標籤數量不能超過 5 個'
+    return
+  }
+
+  if (postData.value.tags.includes(cleanTag)) {
+    tagSearch.value = ''
+    return
+  }
+
+  fieldErrors.value.tags = ''
+  postData.value.tags.push(cleanTag)
   tagSearch.value = ''
 }
 const removeTag = (index) => postData.value.tags.splice(index, 1)
+
+let isMouseDownOnBackdrop = false
+let hasTextSelection = false
+
+const handleBackdropMouseDown = (event) => {
+  const selection = window.getSelection()
+  hasTextSelection = selection && selection.toString().length > 0
+  
+  if (!hasTextSelection) {
+    isMouseDownOnBackdrop = true
+  }
+}
+
+const handleBackdropMouseUp = (event) => {
+  if (isMouseDownOnBackdrop) {
+    const selection = window.getSelection()
+    const hasSelection = selection && selection.toString().length > 0
+    
+    if (!hasSelection) {
+      emit('close')
+    }
+    
+    isMouseDownOnBackdrop = false
+    hasTextSelection = false
+  }
+}
+
+const handleGlobalMouseUp = (event) => {
+  const selection = window.getSelection()
+  const hasSelection = selection && selection.toString().length > 0
+  
+  if (hasSelection) {
+    hasTextSelection = true
+  }
+  
+  if (isMouseDownOnBackdrop && !hasSelection) {
+    const target = event.target
+    const modalContent = document.querySelector('.modal-content-container')
+    
+    if (modalContent && !modalContent.contains(target)) {
+      emit('close')
+    }
+    
+    isMouseDownOnBackdrop = false
+  }
+}
+
+const validateItinerary = () => {
+  fieldErrors.value.itinerary = ''
+  if (!postData.value.itinerary.days || postData.value.itinerary.days.length === 0) {
+    return ''
+  }
+
+  for (let i = 0; i < postData.value.itinerary.days.length; i++) {
+    const day = postData.value.itinerary.days[i]
+    if (day.activities && Array.isArray(day.activities)) {
+      for (let j = 0; j < day.activities.length; j++) {
+        const activity = day.activities[j]
+        if (activity.title && activity.title.trim().length > 50) {
+          fieldErrors.value.itinerary = `第 ${i + 1} 天第 ${j + 1} 個活動名稱不能超過 50 字（目前 ${activity.title.trim().length} 字）`
+          return fieldErrors.value.itinerary
+        }
+        if (activity.desc && activity.desc.trim().length > 500) {
+          fieldErrors.value.itinerary = `第 ${i + 1} 天第 ${j + 1} 個活動內文不能超過 500 字（目前 ${activity.desc.trim().length} 字）`
+          return fieldErrors.value.itinerary
+        }
+      }
+    }
+  }
+  return ''
+}
+
+const validatePackingList = () => {
+  fieldErrors.value.packingList = ''
+  if (!postData.value.packingList || postData.value.packingList.length === 0) {
+    return ''
+  }
+
+  if (postData.value.packingList.length > 50) {
+    fieldErrors.value.packingList = `分類數量不能超過 50 個（目前 ${postData.value.packingList.length} 個）`
+    return fieldErrors.value.packingList
+  }
+
+  let totalItems = 0
+  for (let i = 0; i < postData.value.packingList.length; i++) {
+    const category = postData.value.packingList[i]
+    if (category.category && category.category.trim().length > 30) {
+      fieldErrors.value.packingList = `第 ${i + 1} 個分類名稱不能超過 30 字（目前 ${category.category.trim().length} 字）`
+      return fieldErrors.value.packingList
+    }
+    if (category.items && Array.isArray(category.items)) {
+      totalItems += category.items.length
+      for (let j = 0; j < category.items.length; j++) {
+        const item = category.items[j]
+        if (item.name && item.name.trim().length > 50) {
+          fieldErrors.value.packingList = `第 ${i + 1} 個分類第 ${j + 1} 個物品名稱不能超過 50 字（目前 ${item.name.trim().length} 字）`
+          return fieldErrors.value.packingList
+        }
+      }
+    }
+  }
+
+  if (totalItems > 100) {
+    fieldErrors.value.packingList = `物品總數不能超過 100 個（目前 ${totalItems} 個）`
+    return fieldErrors.value.packingList
+  }
+
+  return ''
+}
+
+const validateTags = () => {
+  fieldErrors.value.tags = ''
+  if (!postData.value.tags || postData.value.tags.length === 0) {
+    return ''
+  }
+
+  if (postData.value.tags.length > 5) {
+    fieldErrors.value.tags = `標籤數量不能超過 5 個（目前 ${postData.value.tags.length} 個）`
+    return fieldErrors.value.tags
+  }
+
+  for (let i = 0; i < postData.value.tags.length; i++) {
+    const tag = postData.value.tags[i]
+    if (tag && tag.trim().length > 30) {
+      fieldErrors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字（目前 ${tag.trim().length} 字）`
+      return fieldErrors.value.tags
+    }
+  }
+
+  return ''
+}
 
 const nextStep = () => {
   if (isUploading.value || isSubmitting.value) {
@@ -204,6 +575,12 @@ const nextStep = () => {
     const end = new Date(postData.value.end_date)
     const diffTime = Math.abs(end - start)
     const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+    if (daysCount > 365) {
+      formError.value = '行程天數不能超過 365 天'
+      return
+    }
+
     const existingDays = postData.value.itinerary.days
     const newDays = []
 
@@ -223,10 +600,22 @@ const nextStep = () => {
     currentStep.value = 'itinerary'
     formError.value = ''
   } else if (currentStep.value === 'itinerary') {
+    const error = validateItinerary()
+    if (error) {
+      return
+    }
     currentStep.value = 'packing'
   } else if (currentStep.value === 'packing') {
+    const error = validatePackingList()
+    if (error) {
+      return
+    }
     currentStep.value = 'tags'
   } else if (currentStep.value === 'tags') {
+    const error = validateTags()
+    if (error) {
+      return
+    }
     currentStep.value = 'preview'
   }
 }
@@ -257,26 +646,11 @@ const handleSaveDraft = () => {
 
   myItineraryStore.addDraft(draftData)
 
-  alert('📦 已儲存至「我的行程」草稿夾！')
+  alert('已儲存至「我的行程」草稿夾！')
   emit('close')
 }
 
-const handleFinalSubmit = async () => {
-  if (isSubmitting.value) {
-    return
-  }
-
-  const error = validateBasic()
-  if (error) {
-    formError.value = error
-    return
-  }
-
-  if (!auth.currentUser) {
-    formError.value = '請先登入'
-    return
-  }
-
+const executeSubmit = async () => {
   isSubmitting.value = true
   submitProgress.value = 0
   submitStatus.value = '準備中...'
@@ -290,7 +664,7 @@ const handleFinalSubmit = async () => {
         uploadProgress.value = 0
         submitProgress.value = 10
         submitStatus.value = '正在上傳圖片...'
-        console.log('📤 [旅伴發文] 開始上傳 banner 圖片...')
+        console.log('[旅伴發文] 開始上傳 banner 圖片...')
         bannerImageUrl = await uploadImage(
           bannerFile.value,
           'travelers',
@@ -298,15 +672,15 @@ const handleFinalSubmit = async () => {
             uploadProgress.value = progress
             submitProgress.value = 10 + Math.floor((progress / 100) * 50)
             submitStatus.value = `正在上傳圖片... ${progress}%`
-            console.log(`📤 [旅伴發文] 上傳進度: ${progress}%`)
+            console.log(`[旅伴發文] 上傳進度: ${progress}%`)
           }
         )
-        console.log('✅ [旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
+        console.log('[旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
         uploadProgress.value = 100
         submitProgress.value = 60
         submitStatus.value = '圖片上傳完成'
       } catch (error) {
-        console.error('❌ [旅伴發文] Banner 圖片上傳失敗：', error)
+        console.error('[旅伴發文] Banner 圖片上傳失敗：', error)
         isUploading.value = false
         uploadProgress.value = 0
         const shouldContinue = confirm(
@@ -345,7 +719,7 @@ const handleFinalSubmit = async () => {
       author_avatar:
         userStore.currentUser?.photoURL ||
         'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
-      spirit_animal: userStore.currentUser?.spiritAnimal || '🦁 樂天派',
+      spirit_animal: userStore.currentUser?.spiritAnimal || '樂天派',
     }
 
     // 清理和优化数据
@@ -355,7 +729,7 @@ const handleFinalSubmit = async () => {
       location: payload.location.trim(),
       start_date: payload.start_date,
       end_date: payload.end_date,
-      max_people: payload.max_people,
+      max_people: Number(payload.max_people) || 2,
       tags: payload.tags || [],
       status: payload.status,
       banner_image: payload.banner_image,
@@ -366,7 +740,7 @@ const handleFinalSubmit = async () => {
       itinerary: payload.itinerary?.days
         ? {
             days: payload.itinerary.days.map((day) => ({
-              day: day.day || day.day_number,
+              day: Number(day.day || day.day_number) || 1,
               date: day.date || '',
               activities: (day.activities || []).map((act) => ({
                 time: act.time || '',
@@ -387,8 +761,8 @@ const handleFinalSubmit = async () => {
     const payloadSize = JSON.stringify(optimizedPayload).length
     const payloadSizeMB = (payloadSize / 1024 / 1024).toFixed(2)
     const payloadSizeKB = (payloadSize / 1024).toFixed(2)
-    console.log('📊 [旅伴發文] Payload 大小:', payloadSizeMB, 'MB (', payloadSizeKB, 'KB)')
-    console.log('📊 [旅伴發文] Payload 詳細:', {
+    console.log('[旅伴發文] Payload 大小:', payloadSizeMB, 'MB (', payloadSizeKB, 'KB)')
+    console.log('[旅伴發文] Payload 詳細:', {
       title: optimizedPayload.title,
       contentLength: optimizedPayload.content?.length || 0,
       itineraryDays: optimizedPayload.itinerary?.days?.length || 0,
@@ -396,6 +770,22 @@ const handleFinalSubmit = async () => {
       tagsCount: optimizedPayload.tags?.length || 0,
       hasBanner: !!optimizedPayload.banner_image,
     })
+
+    console.log('[診斷] Firebase Storage URL 長度:', bannerImageUrl?.length || 0)
+    console.log('[診斷] 完整 payload 結構分析:', {
+      bannerUrlLength: optimizedPayload.banner_image?.length || 0,
+      itinerarySize: JSON.stringify(optimizedPayload.itinerary).length,
+      packingListSize: JSON.stringify(optimizedPayload.packingList).length,
+      contentSize: optimizedPayload.content?.length || 0,
+      tagsSize: JSON.stringify(optimizedPayload.tags).length,
+      totalSize: payloadSize,
+      totalSizeKB: payloadSizeKB,
+      totalSizeMB: payloadSizeMB,
+    })
+
+    if (optimizedPayload.banner_image) {
+      console.log('[診斷] Banner URL 前 100 字符:', optimizedPayload.banner_image.substring(0, 100))
+    }
 
     // Zeabur 通常限制为 1MB，我们设置为 900KB 作为安全边界
     if (payloadSize > 900 * 1024) {
@@ -408,10 +798,11 @@ const handleFinalSubmit = async () => {
 
     submitProgress.value = 70
     submitStatus.value = '正在提交貼文...'
-    console.log('📤 [旅伴發文] 提交 payload:', {
+    console.log('[旅伴發文] 提交 payload:', {
       title: optimizedPayload.title,
       hasBanner: !!optimizedPayload.banner_image,
       bannerUrl: optimizedPayload.banner_image,
+      payloadSizeKB: payloadSizeKB,
     })
 
     const response = await createTraveler(optimizedPayload)
@@ -420,37 +811,131 @@ const handleFinalSubmit = async () => {
     submitStatus.value = '發布成功！'
 
     if (response.success) {
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      alert('✨ 旅伴招募發布成功！')
+      sessionStorage.removeItem('is_submitting_traveler_post')
+      sessionStorage.removeItem('submit_start_time')
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('旅伴招募發布成功！', {
+          body: '您的貼文已成功發布',
+          icon: '/favicon.ico',
+        })
+      } else {
+        alert('旅伴招募發布成功！')
+      }
       window.location.reload()
     } else {
-      formError.value = '發布失敗：' + (response.message || '請稍後再試')
+      sessionStorage.removeItem('is_submitting_traveler_post')
+      sessionStorage.removeItem('submit_start_time')
+      const errorMessage = '發布失敗：' + (response.message || '請稍後再試')
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('發布失敗', {
+          body: errorMessage,
+          icon: '/favicon.ico',
+        })
+      } else {
+        alert(errorMessage)
+      }
+      
       isSubmitting.value = false
       submitProgress.value = 0
       submitStatus.value = ''
     }
   } catch (error) {
-    console.error(error)
-    formError.value = '發布失敗，發生未知錯誤'
+    console.error('[旅伴發文] 提交失敗:', error)
+    console.error('[旅伴發文] 錯誤詳情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      code: error.response?.data?.code,
+      detail: error.response?.data?.detail,
+    })
+
+    sessionStorage.removeItem('is_submitting_traveler_post')
+    sessionStorage.removeItem('submit_start_time')
+    
+    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || '發布失敗，發生未知錯誤'
+    const errorDetail = error.response?.data?.detail || error.response?.data?.code || ''
+    const fullErrorMessage = errorDetail ? `${errorMessage} (${errorDetail})` : errorMessage
+    
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('發布失敗', {
+        body: fullErrorMessage,
+        icon: '/favicon.ico',
+      })
+    } else {
+      alert(fullErrorMessage)
+    }
+    
     isSubmitting.value = false
     submitProgress.value = 0
     submitStatus.value = ''
   }
 }
 
+const handleFinalSubmit = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
+  const error = validateBasic()
+  if (error) {
+    formError.value = error
+    return
+  }
+
+  if (!auth.currentUser) {
+    formError.value = '請先登入'
+    return
+  }
+
+  // 立即關閉模態框
+  emit('close')
+
+  // 設置提交標記
+  sessionStorage.setItem('is_submitting_traveler_post', 'true')
+  sessionStorage.setItem('submit_start_time', Date.now().toString())
+
+  // 在後台執行提交
+  executeSubmit()
+}
+
 if (postData.value.itinerary.days.length === 0) {
   postData.value.itinerary.days.push({ day: 1, date: '', activities: [] })
 }
+
+onMounted(() => {
+  document.addEventListener('mouseup', handleGlobalMouseUp)
+  
+  // 監聽頁面卸載事件，提示用戶
+  window.addEventListener('beforeunload', (e) => {
+    if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
+      e.preventDefault()
+      e.returnValue = '貼文正在提交中，確定要離開嗎？'
+      return e.returnValue
+    }
+  })
+  
+  // 請求通知權限
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mouseup', handleGlobalMouseUp)
+})
 </script>
 
 <template>
   <div
     class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
-    @click.self="emit('close')"
+    @mousedown.self="handleBackdropMouseDown"
+    @mouseup.self="handleBackdropMouseUp"
   >
     <div
       :class="[
-        'bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
+        'modal-content-container bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
         currentStep === 'preview' ? 'max-w-5xl h-[90vh]' : 'max-w-4xl max-h-[90vh]',
       ]"
     >
@@ -507,42 +992,102 @@ if (postData.value.itinerary.days.length === 0) {
       >
         <div v-if="currentStep === 'basic'" class="space-y-6">
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">標題</label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-bold text-gray-700">標題</label>
+              <span
+                :class="[
+                  'text-xs',
+                  postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
+                ]"
+              >
+                {{ postData.title.trim().length }}/35
+              </span>
+            </div>
             <input
               v-model="postData.title"
               type="text"
               placeholder="例如：徵求一位女生分攤札幌住宿費"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition"
-              maxlength="100"
+              :class="[
+                'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                fieldErrors.title
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="35"
             />
+            <p v-if="fieldErrors.title" class="mt-1 text-sm text-red-500">{{ fieldErrors.title }}</p>
           </div>
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">內容</label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-bold text-gray-700">內容</label>
+              <span
+                :class="[
+                  'text-xs',
+                  postData.content.trim().length > 5000 ? 'text-red-500 font-bold' : 'text-gray-400',
+                ]"
+              >
+                {{ postData.content.trim().length }}/5000
+              </span>
+            </div>
             <textarea
               v-model="postData.content"
               placeholder="詳細描述你的旅行計劃..."
               rows="5"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none resize-none transition"
+              :class="[
+                'w-full p-3 border-2 rounded-xl focus:outline-none resize-none transition',
+                fieldErrors.content
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="5000"
             ></textarea>
+            <p v-if="fieldErrors.content" class="mt-1 text-sm text-red-500">{{ fieldErrors.content }}</p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">地點</label>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-bold text-gray-700">地點</label>
+                <span
+                  :class="[
+                    'text-xs',
+                    postData.location.length > 50 ? 'text-red-500' : 'text-gray-400',
+                  ]"
+                >
+                  {{ postData.location.length }}/50
+                </span>
+              </div>
               <input
                 v-model="postData.location"
                 type="text"
                 placeholder="例如：日本"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition"
+                :class="[
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  fieldErrors.location
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-200 focus:border-green-500',
+                ]"
               />
+              <p v-if="fieldErrors.location" class="mt-1 text-sm text-red-500">
+                {{ fieldErrors.location }}
+              </p>
             </div>
             <div>
               <label class="block text-sm font-bold text-gray-700 mb-2">最多人數</label>
               <input
                 v-model.number="postData.max_people"
                 type="number"
-                min="2"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition"
+                min="1"
+                max="999"
+                :class="[
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  fieldErrors.max_people
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-200 focus:border-green-500',
+                ]"
               />
+              <p v-if="fieldErrors.max_people" class="mt-1 text-sm text-red-500">
+                {{ fieldErrors.max_people }}
+              </p>
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -551,16 +1096,35 @@ if (postData.value.itinerary.days.length === 0) {
               <input
                 v-model="postData.start_date"
                 type="date"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition"
+                :min="minStartDate"
+                :class="[
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  fieldErrors.start_date
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-200 focus:border-green-500',
+                ]"
               />
+              <p v-if="fieldErrors.start_date" class="mt-1 text-sm text-red-500">
+                {{ fieldErrors.start_date }}
+              </p>
             </div>
             <div>
               <label class="block text-sm font-bold text-gray-700 mb-2">結束日期</label>
               <input
                 v-model="postData.end_date"
                 type="date"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition"
+                :min="postData.start_date || minStartDate"
+                :max="maxEndDate"
+                :class="[
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  fieldErrors.end_date
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-200 focus:border-green-500',
+                ]"
               />
+              <p v-if="fieldErrors.end_date" class="mt-1 text-sm text-red-500">
+                {{ fieldErrors.end_date }}
+              </p>
             </div>
           </div>
           <div>
@@ -610,6 +1174,9 @@ if (postData.value.itinerary.days.length === 0) {
         </div>
 
         <div v-else-if="currentStep === 'itinerary'" class="space-y-6">
+          <p v-if="fieldErrors.itinerary" class="text-sm text-red-500 mb-2">
+            {{ fieldErrors.itinerary }}
+          </p>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-bold text-gray-800">行程安排</h3>
             <button
@@ -631,12 +1198,12 @@ if (postData.value.itinerary.days.length === 0) {
               ]"
               @click="activeDayIndex = index"
             >
-              Day {{ day.day }}
+              {{ day.date || `Day ${day.day}` }}
             </button>
           </div>
           <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div class="flex items-center justify-between mb-4">
-              <span class="font-bold text-gray-700">Day {{ currentDay.day }} 日期</span>
+              <span class="font-bold text-gray-700">{{ currentDay.date ? `日期：${currentDay.date}` : `Day ${currentDay.day} 日期` }}</span>
               <input
                 v-model="currentDay.date"
                 type="date"
@@ -662,17 +1229,65 @@ if (postData.value.itinerary.days.length === 0) {
                     <TrashIcon class="w-4 h-4" />
                   </button>
                 </div>
-                <input
-                  v-model="activity.title"
-                  placeholder="活動名稱"
-                  class="w-full font-bold text-lg mb-2 focus:outline-none"
-                />
-                <textarea
-                  v-model="activity.desc"
-                  placeholder="活動描述..."
-                  rows="2"
-                  class="w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none"
-                ></textarea>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <input
+                      v-model="activity.title"
+                      placeholder="活動名稱"
+                      :class="[
+                        'w-full font-bold text-lg focus:outline-none',
+                        activity.title && activity.title.trim().length > 50 ? 'text-red-500' : '',
+                      ]"
+                      maxlength="50"
+                    />
+                    <span
+                      :class="[
+                        'text-xs ml-2',
+                        activity.title && activity.title.trim().length > 50
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
+                    >
+                      {{ (activity.title || '').length }}/50
+                    </span>
+                  </div>
+                  <p
+                    v-if="activity.title && activity.title.trim().length > 50"
+                    class="text-xs text-red-500 mb-1"
+                  >
+                    活動名稱不能超過 50 字
+                  </p>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <textarea
+                      v-model="activity.desc"
+                      placeholder="活動描述..."
+                      rows="2"
+                      :class="[
+                        'w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none',
+                        activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
+                      ]"
+                      maxlength="500"
+                    ></textarea>
+                    <span
+                      :class="[
+                        'text-xs ml-2 self-start pt-1',
+                        activity.desc && activity.desc.trim().length > 500
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
+                    >
+                      {{ (activity.desc || '').length }}/500
+                    </span>
+                  </div>
+                  <p
+                    v-if="activity.desc && activity.desc.trim().length > 500"
+                    class="text-xs text-red-500"
+                  >
+                    活動內文不能超過 500 字
+                  </p>
+                </div>
               </div>
             </div>
             <button
@@ -685,6 +1300,9 @@ if (postData.value.itinerary.days.length === 0) {
         </div>
 
         <div v-else-if="currentStep === 'packing'" class="space-y-6">
+          <p v-if="fieldErrors.packingList" class="text-sm text-red-500 mb-2">
+            {{ fieldErrors.packingList }}
+          </p>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-bold text-gray-800">打包清單</h3>
             <button
@@ -701,11 +1319,37 @@ if (postData.value.itinerary.days.length === 0) {
               class="p-4 border border-gray-200 rounded-xl bg-gray-50"
             >
               <div class="flex justify-between items-center mb-3">
-                <input
-                  v-model="category.category"
-                  placeholder="分類名稱"
-                  class="bg-transparent font-bold text-gray-800 focus:outline-none"
-                />
+                <div class="flex-1 mr-2">
+                  <div class="flex items-center justify-between">
+                    <input
+                      v-model="category.category"
+                      placeholder="分類名稱"
+                      :class="[
+                        'bg-transparent font-bold text-gray-800 focus:outline-none w-full',
+                        category.category && category.category.trim().length > 30
+                          ? 'text-red-500'
+                          : '',
+                      ]"
+                      maxlength="30"
+                    />
+                    <span
+                      :class="[
+                        'text-xs ml-2',
+                        category.category && category.category.trim().length > 30
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
+                    >
+                      {{ (category.category || '').length }}/30
+                    </span>
+                  </div>
+                  <p
+                    v-if="category.category && category.category.trim().length > 30"
+                    class="text-xs text-red-500 mt-1"
+                  >
+                    分類名稱不能超過 30 字
+                  </p>
+                </div>
                 <button
                   class="text-gray-400 hover:text-red-500"
                   @click="removePackingCategory(catIndex)"
@@ -717,19 +1361,41 @@ if (postData.value.itinerary.days.length === 0) {
                 <div
                   v-for="(item, itemIndex) in category.items"
                   :key="item.id"
-                  class="flex items-center gap-2 bg-white p-2 rounded border border-gray-100"
+                  class="bg-white p-2 rounded border border-gray-100"
                 >
-                  <input
-                    v-model="item.name"
-                    placeholder="物品名稱"
-                    class="flex-1 text-sm focus:outline-none"
-                  />
-                  <button
-                    class="text-gray-300 hover:text-red-500"
-                    @click="removePackingItem(catIndex, itemIndex)"
+                  <div class="flex items-center gap-2">
+                    <input
+                      v-model="item.name"
+                      placeholder="物品名稱"
+                      :class="[
+                        'flex-1 text-sm focus:outline-none',
+                        item.name && item.name.trim().length > 50 ? 'text-red-500' : '',
+                      ]"
+                      maxlength="50"
+                    />
+                    <span
+                      :class="[
+                        'text-xs',
+                        item.name && item.name.trim().length > 50
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
+                    >
+                      {{ (item.name || '').length }}/50
+                    </span>
+                    <button
+                      class="text-gray-300 hover:text-red-500"
+                      @click="removePackingItem(catIndex, itemIndex)"
+                    >
+                      <XIcon class="w-3 h-3" />
+                    </button>
+                  </div>
+                  <p
+                    v-if="item.name && item.name.trim().length > 50"
+                    class="text-xs text-red-500 mt-1"
                   >
-                    <XIcon class="w-3 h-3" />
-                  </button>
+                    物品名稱不能超過 50 字
+                  </p>
                 </div>
                 <button
                   class="text-xs text-green-600 font-bold mt-2"
@@ -743,21 +1409,53 @@ if (postData.value.itinerary.days.length === 0) {
         </div>
 
         <div v-else-if="currentStep === 'tags'" class="">
+          <p v-if="fieldErrors.tags" class="text-sm text-red-500 mb-2">
+            {{ fieldErrors.tags }}
+          </p>
           <div class="relative mb-6">
             <input
               v-model="tagSearch"
               type="text"
               placeholder="輸入標籤..."
-              class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+              :class="[
+                'w-full pl-10 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none',
+                tagSearch && tagSearch.trim().length > 30
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="30"
               @keyup.enter="addTag(tagSearch)"
             />
             <HashIcon class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+            <div class="absolute right-3 top-3.5">
+              <span
+                :class="[
+                  'text-xs',
+                  tagSearch && tagSearch.trim().length > 30
+                    ? 'text-red-500 font-bold'
+                    : 'text-gray-400',
+                ]"
+              >
+                {{ (tagSearch || '').length }}/30
+              </span>
+            </div>
+            <p v-if="tagSearch && tagSearch.trim().length > 30" class="text-xs text-red-500 mt-1">
+              標籤不能超過 30 字
+            </p>
+          </div>
+          <div class="mb-2">
+            <span class="text-xs text-gray-500">已選擇 {{ postData.tags.length }}/5 個標籤</span>
           </div>
           <div class="flex flex-wrap gap-2 mb-4">
             <span
               v-for="(tag, i) in postData.tags"
               :key="i"
-              class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-100 flex items-center gap-1"
+              :class="[
+                'px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1',
+                tag && tag.trim().length > 30
+                  ? 'bg-red-50 text-red-700 border-red-100'
+                  : 'bg-green-50 text-green-700 border-green-100',
+              ]"
             >
               #{{ tag }} <button @click="removeTag(i)"><XIcon class="w-3 h-3" /></button>
             </span>
@@ -940,7 +1638,7 @@ if (postData.value.itinerary.days.length === 0) {
                   ]"
                   @click="activeDayIndex = index"
                 >
-                  Day {{ day.day }}
+                  {{ day.date || `Day ${day.day}` }}
                 </button>
               </div>
               <div
