@@ -1,11 +1,6 @@
 import { reactive } from 'vue'
 import { fetchItinerariesByIds } from '@/api/itineraries'
-import {
-  fetchCartItems,
-  addCartItem,
-  updateCartItemPersons,
-  removeCartItem,
-} from '@/api/cart'
+import { fetchCartItems, addCartItem, updateCartItemPersons, removeCartItem } from '@/api/cart'
 
 function toDateRange(it) {
   const s = it?.start_date ? String(it.start_date).slice(0, 10) : ''
@@ -24,6 +19,52 @@ export const checkoutStore = reactive({
   selectedCartTourId: null,
   isCartLoading: false,
   cartError: '',
+  // Debounce 同步用
+  _personsSyncTimers: new Map(), // key: itineraryId, value: timeoutId
+  _personsLastSynced: new Map(), // key: itineraryId, value: lastSyncedPersons（可選）
+
+  // 延遲同步人數（避免每次點擊都打 API）
+  _scheduleSyncPersons(itineraryId, persons) {
+    // 清掉舊的 timer（代表使用者還在連點）
+    const old = this._personsSyncTimers.get(itineraryId)
+    if (old) clearTimeout(old)
+
+    const timer = setTimeout(async () => {
+      try {
+        await updateCartItemPersons({ itineraryId, persons })
+
+        // 同步 cartItems，讓之後 reload/checkout 資料一致
+        const c = this.cartItems.find((x) => x.itineraryId === itineraryId)
+        if (c) c.persons = persons
+
+        this._personsLastSynced.set(itineraryId, persons)
+      } catch (e) {
+        console.error('[syncPersons] failed:', e)
+        this.cartError = e?.message || '更新人數失敗'
+
+        // 失敗處理（建議：直接以 DB 為準回復）
+        // 這樣不會跟後端狀態不一致
+        await this.loadCartFromDb()
+      } finally {
+        this._personsSyncTimers.delete(itineraryId)
+      }
+    }, 600) // 600ms 可調：越大越省流量、越小越即時
+
+    this._personsSyncTimers.set(itineraryId, timer)
+  },
+
+  async flushPersonsSync() {
+    // 把所有 timer 立刻清掉並直接送最新值
+    const entries = Array.from(this._personsSyncTimers.entries())
+    this._personsSyncTimers.clear()
+
+    for (const [itineraryId] of entries) {
+      const t = this.tourGroups.find((x) => x.id === itineraryId)
+      if (!t) continue
+      const persons = Number(t.persons ?? 1)
+      await updateCartItemPersons({ itineraryId, persons })
+    }
+  },
 
   // 讀取購物車：先抓 cart/items，再用 itinerary ids 去抓 itineraries
   async loadCartFromDb() {
@@ -59,7 +100,7 @@ export const checkoutStore = reactive({
         description: it.content ?? '',
         image: it.banner_image ?? '',
         date: toDateRange(it),
-        duration: '', 
+        duration: '',
         price: Number(it.price ?? 0),
         persons: personsMap.get(it.id) ?? 1,
       }))
@@ -86,7 +127,7 @@ export const checkoutStore = reactive({
     }
   },
 
-  // ✅ 給 ShoppingCartPage 測試按鈕用：加入 itineraryId 到購物車
+  // 給 ShoppingCartPage 測試按鈕用：加入 itineraryId 到購物車
   async addToCart(itineraryId, persons = 1) {
     try {
       this.cartError = ''
@@ -128,41 +169,31 @@ export const checkoutStore = reactive({
   completedOrders: [],
   lastOrder: null,
 
-  // ---- 購物車操作方法（同步 UI + 呼叫後端更新）----
+  // ---- 購物車操作方法（同步 UI + 延遲同步後端）----
 
-  async increasePersons(id) {
+  increasePersons(id) {
     const t = this.tourGroups.find((x) => x.id === id)
     if (!t) return
+
     const next = Number(t.persons ?? 1) + 1
     t.persons = next
 
-    try {
-      await updateCartItemPersons({ itineraryId: id, persons: next })
-    } catch (e) {
-      console.error('[increasePersons] failed:', e)
-      this.cartError = e?.message || '更新人數失敗'
-      // 回滾
-      t.persons = Math.max(1, next - 1)
-    }
+    // 不立刻打 API，改成 debounce 同步
+    this._scheduleSyncPersons(id, next)
   },
 
-  async decreasePersons(id) {
+  decreasePersons(id) {
     const t = this.tourGroups.find((x) => x.id === id)
     if (!t) return
+
     const current = Number(t.persons ?? 1)
     if (current <= 1) return
 
     const next = current - 1
     t.persons = next
 
-    try {
-      await updateCartItemPersons({ itineraryId: id, persons: next })
-    } catch (e) {
-      console.error('[decreasePersons] failed:', e)
-      this.cartError = e?.message || '更新人數失敗'
-      // 回滾
-      t.persons = current
-    }
+    // 不立刻打 API，改成 debounce 同步
+    this._scheduleSyncPersons(id, next)
   },
 
   async removeTour(id) {
