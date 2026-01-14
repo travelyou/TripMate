@@ -1,13 +1,16 @@
 ﻿<script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router' // 新增：引入路由以防萬一
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
 import { usePersonalityStore } from '@/stores/personality'
+
+// Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
-// Import New Components
+// Profile Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
 import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
 import FriendListModal from '@/components/profile/FriendListModal.vue'
@@ -18,17 +21,21 @@ import TabPosts from '@/components/profile/tabs/TabPosts.vue'
 import TabReviews from '@/components/profile/tabs/TabReviews.vue'
 
 // Store setup
+const route = useRoute()
 const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
 const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
 
+// Computeds
 const user = computed(() => userStore.currentUser)
 const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
-const isCurrentUser = true // In real app, check if route param ID matches current user ID
+
+// 判斷是否為當前用戶 (目前寫死為 true，保留你的邏輯)
+const isCurrentUser = true
 
 // Tab State
-const activeTab = ref('hosted_trips')
+const activeTab = ref('hosted_trips') // 注意：這裡的值要跟 tabs 陣列裡的 k 對應
 const tabs = [
   { k: 'visited_places', l: '去過的地方', s: '足跡' },
   { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
@@ -44,37 +51,53 @@ const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
 const isPersonalityModalOpen = ref(false)
 
-// Data Preparation
+// Data Preparation (★ 修正核心：加入空值檢查)
 const activeTabsData = computed(() => {
+  // 如果使用者資料還沒載入，回傳空結構以防崩潰
+  if (!user.value) {
+    return { hostedTrips: [], posts: [], reviews: [] }
+  }
+
+  // 1. 處理主揪行程 (加上 || [] 防止 map 錯誤)
+  const rawItineraries = itineraryStore.myItineraries || []
+  const hostedTrips = rawItineraries.map((trip) => ({
+    id: trip.id,
+    title: trip.title,
+    content: trip.description,
+    image: trip.image,
+    author: user.value?.name || '未知用戶', // 安全存取
+    avatar: user.value?.avatar,
+    spiritAnimal: user.value?.spiritAnimal || '🦁 樂天派',
+    location: trip.location || '台灣',
+    date: trip.startDate,
+    status: trip.status || '招募中',
+    people: `${trip.participants || 0}/${trip.maxParticipants || 0}`,
+    comments: 0,
+    tags: ['行程', trip.status || '未分類'],
+    isAuthor: true,
+    commentsData: [],
+  }))
+
+  // 2. 處理貼文 (加上 || [] 防止 filter 錯誤)
+  const rawDiscussions = discussionsStore.discussions || []
+  const posts = rawDiscussions.filter((p) => p.author === user.value?.name)
+
+  // 3. 處理評價 (安全存取)
+  const reviews = user.value?.reviews || []
+
   return {
-    hostedTrips: itineraryStore.myItineraries.map((trip) => ({
-      id: trip.id,
-      title: trip.title,
-      content: trip.description,
-      image: trip.image,
-      author: user.value.name,
-      avatar: user.value.avatar,
-      spiritAnimal: user.value.spiritAnimal || '🦁 樂天派',
-      location: trip.location || '台灣',
-      date: trip.startDate,
-      status: trip.status || '招募中',
-      people: `${trip.participants}/${trip.maxParticipants}`,
-      comments: 0,
-      tags: ['行程', trip.status],
-      isAuthor: true,
-      commentsData: [],
-    })),
-    posts: discussionsStore.discussions.filter((p) => p.author === user.value.name),
-    reviews: user.value.reviews || [],
+    hostedTrips,
+    posts,
+    reviews,
   }
 })
 
-// Stats for Header
+// Stats for Header (★ 修正核心：依賴安全的 activeTabsData)
 const stats = computed(() => ({
   hosted: activeTabsData.value.hostedTrips.length,
   posts: activeTabsData.value.posts.length,
   reviews: activeTabsData.value.reviews.length,
-  friends: user.value.friends ? user.value.friends.length : 0,
+  friends: user.value?.friends?.length || 0, // 安全存取
 }))
 
 // Methods
@@ -99,11 +122,11 @@ const handleSaveProfile = (formData) => {
   // Update Profile
   userStore.updateProfile(profileData)
 
-  // Update Wishlist
-  userStore.wishlist = wishlist
+  // Update Wishlist (直接更新 Store state)
+  if (wishlist) userStore.wishlist = wishlist
 
   // Update Hidden Stamps
-  userStore.hiddenStamps = hiddenStamps
+  if (hiddenStamps) userStore.hiddenStamps = hiddenStamps
 
   isEditingProfile.value = false
 }
@@ -118,9 +141,13 @@ const handleAddPlace = ({ type, name, date, icon }) => {
 }
 
 const handleRemovePlace = ({ type, index }) => {
+  // 確保 visitedPlaces 存在
+  if (!userStore.visitedPlaces) return
+
   const places =
     type === 'domestic' ? userStore.visitedPlaces.domestic : userStore.visitedPlaces.international
-  places.splice(index, 1)
+
+  if (places) places.splice(index, 1)
 }
 
 const handleUpdateAvatar = (file) => {
@@ -128,7 +155,6 @@ const handleUpdateAvatar = (file) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     // Update store directly for immediate feedback
-    // In a real app, you would upload to server first
     userStore.updateProfile({ avatar: e.target.result })
   }
   reader.readAsDataURL(file)
@@ -143,8 +169,9 @@ const closePersonalityResult = () => {
 }
 
 // Ensure store consistency
-onMounted(() => {
-  // If needed, fetch data here
+onMounted(async () => {
+  // 可以在這裡呼叫 API 確保資料載入
+  // await userStore.fetchUserProfile()
 })
 </script>
 
