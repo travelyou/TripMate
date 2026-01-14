@@ -27,7 +27,10 @@ let model = null
 let chat = null
 
 if (!apiKey) {
-  console.error('沒有 VITE_GEMINI_API_KEY ！')
+  console.error('❌ 沒有 VITE_GEMINI_API_KEY ！')
+  if (import.meta.env.PROD) {
+    console.error('⚠️ 生產環境：請檢查 GitHub Secrets 中的 VITE_GEMINI_API_KEY 是否已設置')
+  }
 }
 
 if (apiKey) {
@@ -37,8 +40,12 @@ if (apiKey) {
     chat = model.startChat({
       history: TRIPMATE_SYSTEM_PROMPT,
     })
+    console.log('✅ AI 初始化成功，模型:', GEMINI_MODEL_NAME)
   } catch (error) {
-    console.error('AI 初始化失敗', error)
+    console.error('❌ AI 初始化失敗:', error)
+    if (error.message?.includes('API key') || error.message?.includes('API_KEY')) {
+      console.error('⚠️ API Key 可能無效或過期，請檢查 GitHub Secrets')
+    }
   }
 }
 
@@ -99,11 +106,32 @@ const sendMessage = async () => {
       content: sanitizedHtml,
     })
   } catch (error) {
-    console.error('AI Error:', error)
+    console.error('❌ AI Error:', error)
+
+    let errorMessage = '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫'
+
+    // 檢查特定錯誤類型
+    if (error.message?.includes('API key expired') || error.message?.includes('API_KEY_INVALID')) {
+      errorMessage = '⚠️ API Key 已過期或無效，請聯繫管理員更新'
+      console.error('⚠️ API Key 問題：', error.message)
+      if (import.meta.env.PROD) {
+        console.error('⚠️ 生產環境：請檢查 GitHub Secrets 中的 VITE_GEMINI_API_KEY')
+      }
+    } else if (error.message?.includes('404') || error.message?.includes('not found')) {
+      errorMessage = '⚠️ 模型名稱錯誤，請檢查配置'
+      console.error('⚠️ 模型問題：', error.message)
+    } else if (error.message?.includes('502') || error.message?.includes('Bad Gateway')) {
+      errorMessage = '⚠️ 網路連線問題，請稍後再試'
+      console.error('⚠️ 網路問題：', error.message)
+    } else if (error.message?.includes('400')) {
+      errorMessage = '⚠️ 請求格式錯誤，請稍後再試'
+      console.error('⚠️ 請求錯誤：', error.message)
+    }
+
     messages.value.push({
       id: Date.now() + 1,
       type: 'bot',
-      content: '聊天功能沒有成功開始，系統出錯了',
+      content: errorMessage,
     })
   } finally {
     isLoading.value = false

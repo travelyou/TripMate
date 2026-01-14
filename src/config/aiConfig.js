@@ -1,4 +1,4 @@
-export const GEMINI_MODEL_NAME = 'gemini-3-flash-preview'
+export const GEMINI_MODEL_NAME = 'gemini-1.5-pro' // 使用稳定版本
 export const TRIPMATE_SYSTEM_PROMPT = [
   {
     role: 'user',
