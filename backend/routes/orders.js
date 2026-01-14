@@ -10,6 +10,14 @@ function generateOrderNo() {
   return `TM-${date}-${time}-${rand}`
 }
 
+/**
+ * POST /api/orders
+ * body: { itineraryId, persons, contact, emergencyContact }
+ * 建單流程：
+ * 1) 查 itinerary.itineraries 取得 price/title
+ * 2) 後端計算 amount
+ * 3) 寫入 commerce.orders
+ */
 router.post('/', async (req, res) => {
   try {
     const { itineraryId, persons, contact, emergencyContact } = req.body || {}
@@ -23,27 +31,29 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'persons must be a positive integer' })
     }
 
-    // 1) 後端查 itinerary
-    const it = await pool.query('SELECT id, title, price, status FROM itineraries WHERE id = $1', [
-      itineraryId,
-    ])
+    // 1) 後端查 itinerary（注意：你們行程表在 itinerary schema）
+    const it = await pool.query(
+      'SELECT id, title, price, status FROM itinerary.itineraries WHERE id = $1',
+      [itineraryId],
+    )
 
     if (it.rows.length === 0) {
-      return res.status(404).json({ ok: false, message: 'itinerary not found or not active' })
+      return res.status(404).json({ ok: false, message: 'itinerary not found' })
     }
 
     const itinerary = it.rows[0]
     const unitPrice = Number(itinerary.price)
     const amount = unitPrice * p
 
-    // 2) 建立訂單（這裡假設你有 orders 表；若還沒建，先回傳也可以）
+    // 2) 建立訂單（寫入 commerce.orders）
     const orderNo = generateOrderNo()
 
-    // ⚠️ 你們如果還沒做登入/uid，user_uid 先存 null
+    // ⚠️ 若尚未接登入，先存 null；之後可以換成 Firebase uid
     const userUid = null
 
     const insert = await pool.query(
-      `INSERT INTO orders (order_no, user_uid, itinerary_id, persons, unit_price, amount, status, contact_json, emergency_contact_json)
+      `INSERT INTO commerce.orders
+        (order_no, user_uid, itinerary_id, persons, unit_price, amount, status, contact_json, emergency_contact_json)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING id, order_no, amount, status`,
       [
