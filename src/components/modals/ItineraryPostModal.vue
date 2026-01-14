@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -7,10 +7,13 @@ import {
   Trash2 as TrashIcon,
   DollarSign as DollarSignIcon,
   Building as BuildingIcon,
-  CheckSquare as CheckSquareIcon, // 新增 icon
+  CheckSquare as CheckSquareIcon,
+  Calendar as CalendarIcon,
+  Users as UsersIcon,
+  MapPin as MapPinIcon,
+  AlertCircle as AlertIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-// 這裡必須從 API 引入建立行程的 function
 import { createItinerary } from '@/api/itinerary'
 
 const emit = defineEmits(['close', 'success'])
@@ -27,32 +30,96 @@ const postData = ref({
   price: null,
   agencyName: '',
   location: '',
+  start_date: '',
+  end_date: '',
   durationDays: 1,
+  max_people: 20,
   coverImage: '',
   tags: [],
   itinerary: { days: [] },
-  packingList: [], // 這裡會存放打包資料
+  packingList: [],
 })
 
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 
-// 驗證
+// --- 驗證邏輯 ---
 const validateBasic = () => {
   if (!postData.value.title) return '請輸入行程標題'
+  if (postData.value.title.length > 35) return '標題不能超過 35 個字元' // 修正限制
+
   if (!postData.value.price) return '請輸入價格'
   if (!postData.value.agencyName) return '請輸入旅行社/提供者名稱'
+  if (!postData.value.start_date || !postData.value.end_date) return '請選擇行程日期'
+
+  // 驗證字數
+  if (postData.value.description.length > 5000) return '行程介紹不能超過 5000 字' // 修正限制
+
+  // 驗證人數
+  if (postData.value.max_people > 999) return '人數限制不能超過 999 人'
+  if (postData.value.max_people < 1) return '人數限制至少 1 人'
+
+  // 驗證標籤
+  if (postData.value.tags.length > 5) return '標籤最多只能設定 5 個' // 修正限制
+
   return ''
 }
 
-// --- 每日行程邏輯 ---
-const addDay = () => {
-  const dayNumber = postData.value.itinerary.days.length + 1
-  postData.value.itinerary.days.push({ day: dayNumber, activities: [] })
-  activeDayIndex.value = postData.value.itinerary.days.length - 1
-  postData.value.durationDays = postData.value.itinerary.days.length
+// --- 日期與天數計算邏輯 ---
+const calculateDuration = () => {
+  if (postData.value.start_date && postData.value.end_date) {
+    const start = new Date(postData.value.start_date)
+    const end = new Date(postData.value.end_date)
+
+    // 計算時間差 (毫秒)
+    const diffTime = end - start
+    // 換算成天數 (無條件進位，並 +1 包含當天)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+    if (diffDays <= 0) {
+      formError.value = '結束日期必須晚於或等於起始日期'
+      postData.value.durationDays = 0
+      return
+    }
+
+    if (diffDays > 364) {
+      formError.value = '行程天數不能超過 364 天'
+      postData.value.durationDays = 0
+      return
+    }
+
+    formError.value = ''
+    postData.value.durationDays = diffDays
+
+    // 自動調整行程天數陣列
+    updateItineraryDays(diffDays)
+  }
 }
 
+// 根據天數更新 itinerary.days 陣列
+const updateItineraryDays = (daysCount) => {
+  const currentDays = postData.value.itinerary.days
+
+  if (daysCount > currentDays.length) {
+    // 補足天數
+    for (let i = currentDays.length; i < daysCount; i++) {
+      currentDays.push({ day: i + 1, activities: [] })
+    }
+  } else if (daysCount < currentDays.length) {
+    // 刪減天數 (保留前面的)
+    postData.value.itinerary.days = currentDays.slice(0, daysCount)
+  }
+
+  // 修正當前選中的天數索引，避免越界
+  if (activeDayIndex.value >= daysCount) {
+    activeDayIndex.value = Math.max(0, daysCount - 1)
+  }
+}
+
+// 監聽日期變動
+watch(() => [postData.value.start_date, postData.value.end_date], calculateDuration)
+
+// --- 每日行程邏輯 ---
 const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, activities: [] }
 })
@@ -69,10 +136,10 @@ const addActivity = () => {
 }
 const removeActivity = (index) => currentDay.value.activities.splice(index, 1)
 
-// --- 打包清單邏輯 (新增部分) ---
+// --- 打包清單邏輯 ---
 const addPackingCategory = () => {
   postData.value.packingList.push({
-    category: '新分類 (例如: 衣物)',
+    category: '新分類',
     items: [],
   })
 }
@@ -89,26 +156,39 @@ const removePackingItem = (catIndex, itemIndex) => {
   postData.value.packingList[catIndex].items.splice(itemIndex, 1)
 }
 
-// 標籤操作
+// --- 標籤操作 ---
 const addTag = (tagText) => {
   const clean = tagText.replace(/^#/, '').trim()
-  if (clean && !postData.value.tags.includes(clean)) postData.value.tags.push(clean)
+  if (!clean) return
+
+  if (clean.length > 30) {
+    alert('標籤名稱不能超過 30 個字元')
+    return
+  }
+
+  if (postData.value.tags.length >= 5) {
+    // 修正限制
+    alert('標籤最多只能設定 5 個')
+    return
+  }
+
+  if (!postData.value.tags.includes(clean)) {
+    postData.value.tags.push(clean)
+  }
   tagSearch.value = ''
 }
 
-// 步驟切換
+const removeTag = (index) => {
+  postData.value.tags.splice(index, 1)
+}
+
+// --- 步驟切換 ---
 const nextStep = () => {
   if (currentStep.value === 'basic') {
     const error = validateBasic()
     if (error) {
       formError.value = error
       return
-    }
-    // 自動補齊天數
-    if (postData.value.itinerary.days.length === 0) {
-      for (let i = 0; i < postData.value.durationDays; i++) {
-        postData.value.itinerary.days.push({ day: i + 1, activities: [] })
-      }
     }
     currentStep.value = 'itinerary'
   } else if (currentStep.value === 'itinerary') {
@@ -204,8 +284,9 @@ if (postData.value.itinerary.days.length === 0) {
             <label class="block font-bold text-gray-700 mb-2">行程標題</label>
             <input
               v-model="postData.title"
+              maxlength="35"
               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 outline-none"
-              placeholder="例如：京都深度五日遊"
+              placeholder="例如：京都深度五日遊 (限35字)"
             />
           </div>
 
@@ -235,21 +316,62 @@ if (postData.value.itinerary.days.length === 0) {
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block font-bold text-gray-700 mb-2">地點</label>
-              <input
-                v-model="postData.location"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl"
-                placeholder="例如：日本關西"
-              />
+              <label class="block font-bold text-gray-700 mb-2">出發日期</label>
+              <div class="relative">
+                <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  v-model="postData.start_date"
+                  type="date"
+                  class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
+                />
+              </div>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-2">總天數</label>
-              <input
-                v-model.number="postData.durationDays"
-                type="number"
-                min="1"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl"
-              />
+              <label class="block font-bold text-gray-700 mb-2">結束日期</label>
+              <div class="relative">
+                <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  v-model="postData.end_date"
+                  type="date"
+                  :min="postData.start_date"
+                  class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div
+            v-if="postData.durationDays > 0"
+            class="text-sm text-primary-600 font-bold bg-primary-50 p-2 rounded-lg"
+          >
+            預計行程天數：{{ postData.durationDays }} 天
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold text-gray-700 mb-2">地點</label>
+              <div class="relative">
+                <MapPinIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  v-model="postData.location"
+                  class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl"
+                  placeholder="例如：日本關西"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 mb-2">團體人數上限</label>
+              <div class="relative">
+                <UsersIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  v-model.number="postData.max_people"
+                  type="number"
+                  min="1"
+                  max="999"
+                  class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl"
+                  placeholder="限制 999 人內"
+                />
+              </div>
+              <p class="text-xs text-gray-400 mt-1 text-right">上限 999 人</p>
             </div>
           </div>
 
@@ -263,45 +385,62 @@ if (postData.value.itinerary.days.length === 0) {
           </div>
 
           <div>
-            <label class="block font-bold text-gray-700 mb-2">行程介紹</label>
+            <div class="flex justify-between items-center mb-2">
+              <label class="block font-bold text-gray-700">行程介紹</label>
+              <span
+                :class="postData.description.length > 5000 ? 'text-red-500' : 'text-gray-400'"
+                class="text-xs"
+              >
+                {{ postData.description.length }} / 5000
+              </span>
+            </div>
             <textarea
               v-model="postData.description"
               rows="4"
+              maxlength="5000"
               class="w-full p-3 border-2 border-gray-200 rounded-xl resize-none focus:border-primary-500 outline-none"
             ></textarea>
           </div>
 
           <div>
-            <label class="block font-bold text-gray-700 mb-2">標籤 (按 Enter 新增)</label>
+            <div class="flex justify-between mb-2">
+              <label class="block font-bold text-gray-700">標籤</label>
+              <span class="text-xs text-gray-400">{{ postData.tags.length }} / 5 (每個限30字)</span>
+            </div>
+
             <div class="flex flex-wrap gap-2 mb-2" v-if="postData.tags.length">
               <span
                 v-for="(tag, idx) in postData.tags"
                 :key="idx"
-                class="bg-primary-100 text-primary-700 px-2 py-1 rounded-full text-sm"
-                >#{{ tag }}</span
+                class="bg-primary-100 text-primary-700 px-2 py-1 rounded-full text-sm flex items-center"
               >
+                #{{ tag }}
+                <button
+                  @click="removeTag(idx)"
+                  class="ml-1 text-primary-400 hover:text-primary-700"
+                >
+                  <XIcon class="w-3 h-3" />
+                </button>
+              </span>
             </div>
+
             <input
               v-model="tagSearch"
               @keyup.enter="addTag(tagSearch)"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl"
-              placeholder="輸入標籤..."
+              :disabled="postData.tags.length >= 5"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder="輸入標籤按 Enter 新增..."
             />
           </div>
         </div>
 
         <div v-else-if="currentStep === 'itinerary'" class="space-y-6">
           <div class="flex items-center justify-between">
-            <h3 class="font-bold text-lg">行程規劃</h3>
-            <button
-              @click="addDay"
-              class="text-primary-600 font-bold hover:bg-primary-50 px-3 py-1 rounded"
-            >
-              <PlusIcon class="inline w-4 h-4" /> 新增天數
-            </button>
+            <h3 class="font-bold text-lg">每日行程規劃</h3>
+            <div class="text-sm text-gray-500">共 {{ postData.durationDays }} 天</div>
           </div>
 
-          <div class="flex overflow-x-auto gap-2 pb-2">
+          <div class="flex overflow-x-auto gap-2 pb-2 custom-scrollbar">
             <button
               v-for="(day, idx) in postData.itinerary.days"
               :key="idx"
@@ -316,7 +455,16 @@ if (postData.value.itinerary.days.length === 0) {
           </div>
 
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
-            <div class="mb-4 font-bold text-gray-700">正在編輯 Day {{ currentDay.day }}</div>
+            <div class="mb-4 font-bold text-gray-700 flex justify-between">
+              <span>正在編輯 Day {{ currentDay.day }}</span>
+              <span class="text-sm text-gray-400" v-if="postData.start_date">
+                {{
+                  new Date(
+                    new Date(postData.start_date).getTime() + activeDayIndex * 86400000,
+                  ).toLocaleDateString()
+                }}
+              </span>
+            </div>
 
             <div class="space-y-3">
               <div
@@ -419,9 +567,17 @@ if (postData.value.itinerary.days.length === 0) {
           <div class="text-center py-10 space-y-4">
             <h3 class="text-2xl font-black text-gray-800">{{ postData.title }}</h3>
             <div class="flex justify-center gap-4 text-sm text-gray-500">
-              <span>{{ postData.location }}</span>
+              <span class="flex items-center gap-1"
+                ><MapPinIcon class="w-4 h-4" /> {{ postData.location }}</span
+              >
               <span>|</span>
-              <span>{{ postData.durationDays }} 天</span>
+              <span class="flex items-center gap-1"
+                ><CalendarIcon class="w-4 h-4" /> {{ postData.start_date }} 出發</span
+              >
+              <span>|</span>
+              <span class="flex items-center gap-1"
+                ><UsersIcon class="w-4 h-4" /> 上限 {{ postData.max_people }} 人</span
+              >
             </div>
             <div class="text-primary-600 font-bold text-xl">NT$ {{ postData.price }}</div>
 
@@ -442,7 +598,8 @@ if (postData.value.itinerary.days.length === 0) {
       </div>
 
       <div class="p-4 border-t border-gray-100 bg-white flex justify-end gap-3">
-        <div v-if="formError" class="mr-auto text-red-500 font-bold self-center">
+        <div v-if="formError" class="mr-auto text-red-500 font-bold self-center flex items-center">
+          <AlertIcon class="w-4 h-4 mr-1" />
           {{ formError }}
         </div>
 

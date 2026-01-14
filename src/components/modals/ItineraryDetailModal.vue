@@ -36,14 +36,12 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const activeTab = ref('itinerary')
-// 初始資料使用列表傳進來的基本資訊，詳細資訊等待 API 補完
 const localItineraryData = ref({ ...props.itinerary })
 const activeDayIndex = ref(0)
 const isLoadingDetails = ref(false)
 
 // 整合資料結構
 const itineraryDetails = computed(() => {
-  // 如果後端回傳結構在 itinerary 物件下
   if (localItineraryData.value.itinerary && localItineraryData.value.itinerary.days) {
     return {
       days: localItineraryData.value.itinerary.days,
@@ -59,6 +57,35 @@ const activeDay = computed(() => {
   return itineraryDetails.value.days[activeDayIndex.value] || { activities: [] }
 })
 
+// 智慧日期顯示邏輯
+const displayDate = computed(() => {
+  const { start_date, end_date, durationDays } = localItineraryData.value
+
+  if (start_date && end_date) {
+    const d1 = new Date(start_date)
+    const d2 = new Date(end_date)
+
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return `${durationDays || 1} 天`
+
+    const pad = (n) => n.toString().padStart(2, '0')
+    const y1 = d1.getFullYear()
+    const m1 = pad(d1.getMonth() + 1)
+    const day1 = pad(d1.getDate())
+    const y2 = d2.getFullYear()
+    const m2 = pad(d2.getMonth() + 1)
+    const day2 = pad(d2.getDate())
+
+    // 同一天
+    if (y1 === y2 && m1 === m2 && day1 === day2) return `${y1}/${m1}/${day1}`
+    // 同一年 -> 省略後面的年份
+    if (y1 === y2) return `${y1}/${m1}/${day1} - ${m2}/${day2}`
+    // 不同年 -> 完整顯示
+    return `${y1}/${m1}/${day1} - ${y2}/${m2}/${day2}`
+  }
+
+  return `${durationDays || 1} 天`
+})
+
 // 呼叫後端 API 獲取詳細資料
 const fetchFullItineraryDetails = async () => {
   if (!props.itinerary.id) return
@@ -67,7 +94,6 @@ const fetchFullItineraryDetails = async () => {
   try {
     const response = await getItineraryById(props.itinerary.id)
     if (response.success) {
-      // 合併後端回傳的完整資料 (包含 itinerary_days 和 packing_lists)
       localItineraryData.value = { ...localItineraryData.value, ...response.data }
     }
   } catch (error) {
@@ -152,7 +178,7 @@ onMounted(async () => {
         </div>
 
         <div class="p-6">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
               <div class="flex items-center text-primary-600 mb-1">
                 <MapPinIcon class="w-4 h-4 mr-1" />
@@ -170,24 +196,36 @@ onMounted(async () => {
             <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
               <div class="flex items-center text-secondary-500 mb-1">
                 <CalendarIcon class="w-4 h-4 mr-1" />
-                <span class="text-xs font-bold text-secondary-500">天數</span>
+                <span class="text-xs font-bold text-secondary-500">日期</span>
               </div>
-              <div class="font-bold text-secondary-900">
-                {{ localItineraryData.durationDays || 1 }} 天
+              <div class="font-bold text-secondary-900 text-sm truncate">
+                {{ displayDate }}
               </div>
             </div>
 
             <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
               <div class="flex items-center text-primary-500 mb-1">
                 <UsersIcon class="w-4 h-4 mr-1" />
-                <span class="text-xs font-bold text-secondary-500">瀏覽</span>
+                <span class="text-xs font-bold text-secondary-500">參與人數</span>
               </div>
-              <div class="font-bold text-primary-600">{{ localItineraryData.totalViews || 0 }}</div>
+              <div class="font-bold text-primary-600">
+                上限 {{ localItineraryData.max_people || 20 }} 人
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+              <div class="flex items-center text-blue-500 mb-1">
+                <MessageCircleIcon class="w-4 h-4 mr-1" />
+                <span class="text-xs font-bold text-secondary-500">留言</span>
+              </div>
+              <div class="font-bold text-secondary-900">
+                {{ localItineraryData.comments_count || 0 }} 則
+              </div>
             </div>
 
             <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
               <div class="flex items-center text-accent-500 mb-1">
-                <HeartIcon class="w-4 h-4 mr-1" />
+                <BookmarkIcon class="w-4 h-4 mr-1" />
                 <span class="text-xs font-bold text-secondary-500">收藏</span>
               </div>
               <div class="font-bold text-secondary-900">
@@ -228,11 +266,18 @@ onMounted(async () => {
               <BookmarkIcon class="w-6 h-6" />
             </button>
 
-            <button
-              class="ml-auto bg-primary-600 text-white px-8 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
-            >
-              立即預訂 / 諮詢
-            </button>
+            <div class="ml-auto flex gap-3">
+              <button
+                class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
+              >
+                立即諮詢
+              </button>
+              <button
+                class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
+              >
+                立即預訂
+              </button>
+            </div>
           </div>
 
           <div class="border-b-2 border-primary-200 mb-6">
@@ -259,7 +304,7 @@ onMounted(async () => {
                 @click="activeTab = 'comments'"
               >
                 <MessageCircleIcon class="w-5 h-5 inline mr-2" />
-                評價討論
+                留言討論
               </button>
             </div>
           </div>
@@ -357,7 +402,7 @@ onMounted(async () => {
           </div>
 
           <div v-if="activeTab === 'comments'" class="py-10 text-center text-secondary-500">
-            這裡可以放置針對此行程的評價或 Q&A
+            這裡可以放置針對此行程的留言討論
           </div>
         </div>
       </div>

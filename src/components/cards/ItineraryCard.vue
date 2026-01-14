@@ -43,6 +43,41 @@ const displayLocation = computed(() => {
   }
   return dest || '未定地點'
 })
+
+const displayDate = computed(() => {
+  const { start_date, end_date, durationDays } = props.itinerary
+
+  if (start_date && end_date) {
+    const d1 = new Date(start_date)
+    const d2 = new Date(end_date)
+
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+      return `${durationDays || 1} 天`
+    }
+
+    const pad = (n) => n.toString().padStart(2, '0')
+
+    const y1 = d1.getFullYear()
+    const m1 = pad(d1.getMonth() + 1)
+    const day1 = pad(d1.getDate())
+
+    const y2 = d2.getFullYear()
+    const m2 = pad(d2.getMonth() + 1)
+    const day2 = pad(d2.getDate())
+
+    if (y1 === y2 && m1 === m2 && day1 === day2) {
+      return `${y1}/${m1}/${day1}`
+    }
+
+    if (y1 === y2) {
+      return `${y1}/${m1}/${day1} - ${m2}/${day2}`
+    }
+
+    return `${y1}/${m1}/${day1} - ${y2}/${m2}/${day2}`
+  }
+
+  return `${durationDays || 1} 天`
+})
 </script>
 
 <template>
@@ -90,7 +125,7 @@ const displayLocation = computed(() => {
       <div class="flex items-center space-x-4 text-sm text-secondary-600 mb-auto pb-4">
         <div class="flex items-center space-x-1 shrink-0">
           <CalendarIcon class="w-4 h-4 text-primary-500" />
-          <span class="font-bold">{{ props.itinerary.durationDays || 1 }} 天</span>
+          <span class="font-bold text-xs">{{ displayDate }}</span>
         </div>
         <div class="flex items-center space-x-1 truncate">
           <MapPinIcon class="w-4 h-4 text-primary-600 shrink-0" />

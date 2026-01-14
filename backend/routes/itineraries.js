@@ -5,17 +5,17 @@ const pool = require('../database/connection')
 // 1. 取得所有行程 (列表頁用)
 router.get('/', async (req, res) => {
   try {
-    // 這裡我們用 SQL 直接計算天數，並把欄位別名(AS)轉成前端要的名字
     const query = `
       SELECT
         id,
         title,
         price,
         agency_name as "agencyName",
-        -- 計算天數：如果沒有日期預設 1 天
+        start_date,        -- ★ 新增：回傳開始日期
+        end_date,          -- ★ 新增：回傳結束日期
         COALESCE(end_date - start_date + 1, 1) as "durationDays",
         banner_image as "coverImage",
-        location as destinations, -- 前端可能需要處理字串轉陣列
+        location as destinations,
         content as description,
         views_count as "totalViews",
         saves_count as "totalSaves",
@@ -26,11 +26,8 @@ router.get('/', async (req, res) => {
     `
     const result = await pool.query(query)
 
-    // 簡單處理資料格式
     const data = result.rows.map((row) => ({
       ...row,
-      // 如果你的 location 是存 "台北, 台中" 這種字串，前端 ItineraryCard 支援字串，
-      // 但如果你想轉陣列也可以在這裡做： destinations: row.destinations ? [row.destinations] : []
       destinations: row.destinations ? [row.destinations] : [],
     }))
 
@@ -41,14 +38,15 @@ router.get('/', async (req, res) => {
   }
 })
 
-// 2. 取得單一行程詳細資料 (包含 Days 和 PackingLists)
+// 2. 取得單一行程詳細資料
 router.get('/:id', async (req, res) => {
   const { id } = req.params
   try {
-    // A. 查詢主表
     const itineraryQuery = `
       SELECT
         id, title, price, agency_name as "agencyName",
+        start_date,        -- ★ 新增
+        end_date,          -- ★ 新增
         COALESCE(end_date - start_date + 1, 1) as "durationDays",
         banner_image as "coverImage",
         location,
@@ -67,25 +65,21 @@ router.get('/:id', async (req, res) => {
     }
     const itinerary = itineraryResult.rows[0]
 
-    // B. 查詢每日行程 (依照 day_number 排序)
     const daysResult = await pool.query(
       'SELECT day_number as day, activities FROM itinerary_days WHERE itinerary_id = $1 ORDER BY day_number ASC',
       [id],
     )
 
-    // C. 查詢打包清單
     const packingResult = await pool.query(
       'SELECT category, items FROM itinerary_packing_lists WHERE itinerary_id = $1',
       [id],
     )
 
-    // D. 組裝回傳
     const fullData = {
       ...itinerary,
       itinerary: {
         days: daysResult.rows.map((row) => ({
           day: row.day,
-          // 如果 DB 存的是 JSON 字串就不用動，如果是純文字可能要 parse，這邊假設 pg 自動處理 JSONB
           activities: row.activities,
         })),
       },
@@ -102,7 +96,7 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// 3. 建立新行程 (寫入 3 張表)
+// 3. 建立新行程 (維持原本的，不需要變動，這裡列出是為了完整性)
 router.post('/', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -113,50 +107,46 @@ router.post('/', async (req, res) => {
       coverImage,
       price,
       agencyName,
-      durationDays,
-      itinerary, // { days: [...] }
-      packingList, // [ { category:..., items:[...] } ]
+      start_date,
+      end_date, // 接收日期
+      itinerary,
+      packingList,
       tags,
     } = req.body
 
-    // 計算日期 (為了填入 start_date / end_date)
-    const startDate = new Date()
-    const endDate = new Date()
-    endDate.setDate(startDate.getDate() + (durationDays || 1) - 1)
+    // 驗證必填
+    if (!start_date || !end_date) {
+      return res.status(400).json({ success: false, message: '請提供開始與結束日期' })
+    }
 
-    await client.query('BEGIN') // 開始交易
+    await client.query('BEGIN')
 
-    // 1. 寫入 itineraries 主表
     const insertItineraryQuery = `
       INSERT INTO itineraries
-      (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, author_uid, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING id
     `
-    // 注意：這裡假設 tags 前端傳來是陣列，pg 可以直接存 ARRAY
     const itineraryValues = [
       title,
       description,
       location,
       coverImage,
       price || 0,
-      agencyName || '未命名廠商',
-      startDate,
-      endDate,
+      agencyName,
+      start_date,
+      end_date,
       tags || [],
+      'vendor_default_001',
+      'published',
     ]
     const itineraryResult = await client.query(insertItineraryQuery, itineraryValues)
     const newItineraryId = itineraryResult.rows[0].id
 
-    // 2. 寫入 itinerary_days (每日行程)
-    if (itinerary && itinerary.days && itinerary.days.length > 0) {
-      const dayInsertQuery = `
-        INSERT INTO itinerary_days (itinerary_id, day_number, activities, created_at)
-        VALUES ($1, $2, $3, NOW())
-      `
+    // 每日行程
+    if (itinerary && itinerary.days) {
+      const dayInsertQuery = `INSERT INTO itinerary_days (itinerary_id, day_number, activities, created_at) VALUES ($1, $2, $3, NOW())`
       for (const day of itinerary.days) {
-        // day.activities 是 JSON 物件陣列，pg node套件會自動轉 stringify 或需要手動
-        // 建議這裡顯式轉成 JSON string 以防萬一
         await client.query(dayInsertQuery, [
           newItineraryId,
           day.day,
@@ -165,12 +155,9 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 3. 寫入 itinerary_packing_lists (打包清單)
-    if (packingList && packingList.length > 0) {
-      const packingInsertQuery = `
-        INSERT INTO itinerary_packing_lists (itinerary_id, category, items, created_at)
-        VALUES ($1, $2, $3, NOW())
-      `
+    // 打包清單
+    if (packingList) {
+      const packingInsertQuery = `INSERT INTO itinerary_packing_lists (itinerary_id, category, items, created_at) VALUES ($1, $2, $3, NOW())`
       for (const list of packingList) {
         await client.query(packingInsertQuery, [
           newItineraryId,
@@ -180,12 +167,12 @@ router.post('/', async (req, res) => {
       }
     }
 
-    await client.query('COMMIT') // 提交交易
+    await client.query('COMMIT')
     res.json({ success: true, message: '建立成功', id: newItineraryId })
   } catch (err) {
-    await client.query('ROLLBACK') // 失敗則回滾
-    console.error('建立行程失敗 Transaction Error:', err)
-    res.status(500).json({ success: false, message: 'Create failed' })
+    await client.query('ROLLBACK')
+    console.error('建立行程失敗:', err)
+    res.status(500).json({ success: false, message: 'Create failed', error: err.message })
   } finally {
     client.release()
   }
