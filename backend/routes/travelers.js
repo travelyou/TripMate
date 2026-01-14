@@ -120,11 +120,11 @@ router.get('/', async (req, res) => {
       total: result.rowCount,
     })
   } catch (error) {
-    console.error('❌ 獲取旅伴列表錯誤：', error)
-    console.error('❌ 錯誤代碼:', error.code)
-    console.error('❌ 錯誤位置:', error.position)
-    console.error('❌ 錯誤詳情:', error.detail)
-    console.error('❌ 錯誤提示:', error.hint)
+    console.error('獲取旅伴列表錯誤：', error)
+    console.error('錯誤代碼:', error.code)
+    console.error('錯誤位置:', error.position)
+    console.error('錯誤詳情:', error.detail)
+    console.error('錯誤提示:', error.hint)
 
     res.status(500).json({
       success: false,
@@ -312,11 +312,11 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    console.log('🟢 [Backend Travelers POST] ========== 開始 ==========')
+    console.log('[Backend Travelers POST] ========== 開始 ==========')
     const bodySize = JSON.stringify(req.body).length
     const bodySizeMB = (bodySize / 1024 / 1024).toFixed(2)
-    console.log('📊 [Backend Travelers POST] Body 大小:', bodySizeMB, 'MB')
-    console.log('🟢 [Backend Travelers POST] 收到請求 Body (摘要):', {
+    console.log('[Backend Travelers POST] Body 大小:', bodySizeMB, 'MB')
+    console.log('[Backend Travelers POST] 收到請求 Body (摘要):', {
       title: req.body.title,
       contentLength: req.body.content?.length || 0,
       itineraryDays: req.body.itinerary?.days?.length || 0,
@@ -342,7 +342,7 @@ router.post('/', async (req, res) => {
     } = req.body
 
     if (!title || !content || !location || !start_date || !end_date || !author_uid) {
-      console.log('❌ [Backend Travelers POST] 缺少必填欄位')
+      console.log('[Backend Travelers POST] 缺少必填欄位')
       return res.status(400).json({
         success: false,
         message: '缺少必填欄位',
@@ -358,15 +358,15 @@ router.post('/', async (req, res) => {
       })
     }
 
-    console.log('✅ [Backend Travelers POST] 必填欄位驗證通過')
+    console.log('[Backend Travelers POST] 必填欄位驗證通過')
 
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
-      console.log('🟢 [Backend Travelers POST] 開始資料庫事務')
+      console.log('[Backend Travelers POST] 開始資料庫事務')
 
-      console.log('🟢 [Backend Travelers POST] 準備插入主表')
-      console.log('📊 [Backend Travelers POST] 插入資料:', {
+      console.log('[Backend Travelers POST] 準備插入主表')
+      console.log('[Backend Travelers POST] 插入資料:', {
         title: title?.substring(0, 50),
         contentLength: content?.length,
         location,
@@ -376,6 +376,11 @@ router.post('/', async (req, res) => {
         author_uid,
         tagsCount: Array.isArray(tags) ? tags.length : 0,
       })
+
+      const maxPeopleNum = Number(max_people) || 2
+      if (!Number.isInteger(maxPeopleNum) || maxPeopleNum < 1 || maxPeopleNum > 100) {
+        throw new Error('max_people 必須是 1-100 之間的整數')
+      }
 
       const travelerResult = await client.query(
         `INSERT INTO travelers.travelers (
@@ -390,7 +395,7 @@ router.post('/', async (req, res) => {
           location,
           start_date,
           end_date,
-          max_people || 2,
+          maxPeopleNum,
           author_uid,
           author_name || null,
           author_avatar || null,
@@ -400,56 +405,97 @@ router.post('/', async (req, res) => {
       )
 
       const travelerId = travelerResult.rows[0].id
-      console.log('✅ [Backend Travelers POST] 主表插入成功，ID:', travelerId)
+      console.log('[Backend Travelers POST] 主表插入成功，ID:', travelerId)
 
       if (itinerary && itinerary.days && Array.isArray(itinerary.days)) {
-        console.log('🟢 [Backend Travelers POST] 插入行程規劃，天數:', itinerary.days.length)
-        for (const day of itinerary.days) {
-          await client.query(
-            `INSERT INTO travelers.traveler_itineraries (traveler_id, day_number, date, activities) VALUES ($1, $2, $3, $4)`,
-            [
-              travelerId,
-              day.day || day.day_number,
-              day.date,
-              Array.isArray(day.activities) ? JSON.stringify(day.activities) : '[]',
-            ],
-          )
+        if (itinerary.days.length > 365) {
+          throw new Error('行程天數不能超過 365 天')
         }
+        console.log('[Backend Travelers POST] 插入行程規劃，天數:', itinerary.days.length)
+        for (let i = 0; i < itinerary.days.length; i++) {
+          const day = itinerary.days[i]
+          const dayNumber = Number(day.day || day.day_number)
+          const dayDate = (day.date && day.date.trim() !== '') ? day.date : null
+          const dayActivities = Array.isArray(day.activities) ? JSON.stringify(day.activities) : '[]'
+
+          console.log(`[Backend Travelers POST] 行程第 ${i + 1} 天:`, {
+            dayNumber,
+            date: dayDate,
+            activitiesCount: Array.isArray(day.activities) ? day.activities.length : 0,
+          })
+
+          if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 365) {
+            throw new Error(`行程第 ${i + 1} 天的天數編號無效: ${day.day || day.day_number}，必須是 1-365 之間的整數`)
+          }
+
+          try {
+            await client.query(
+              `INSERT INTO travelers.traveler_itineraries (traveler_id, day_number, date, activities) VALUES ($1, $2, $3, $4)`,
+              [travelerId, dayNumber, dayDate, dayActivities],
+            )
+          } catch (insertError) {
+            console.error(`[Backend Travelers POST] 插入行程第 ${i + 1} 天失敗:`, {
+              dayNumber,
+              date: dayDate,
+              error: insertError.message,
+              code: insertError.code,
+              detail: insertError.detail,
+            })
+            throw new Error(`插入行程第 ${i + 1} 天失敗: ${insertError.message}`)
+          }
+        }
+        console.log('[Backend Travelers POST] 行程規劃插入完成')
       }
 
       if (packingList && Array.isArray(packingList)) {
-        console.log('🟢 [Backend Travelers POST] 插入打包清單，項目數:', packingList.length)
+        console.log('[Backend Travelers POST] 插入打包清單，項目數:', packingList.length)
         for (let i = 0; i < packingList.length; i++) {
-          await client.query(
-            `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,
-            [
-              travelerId,
-              packingList[i].category,
-              Array.isArray(packingList[i].items) ? JSON.stringify(packingList[i].items) : '[]',
-            ],
-          )
+          const pack = packingList[i]
+          const category = (pack.category && pack.category.trim() !== '') ? pack.category.trim() : null
+          const items = Array.isArray(pack.items) ? JSON.stringify(pack.items) : '[]'
+
+          console.log(`[Backend Travelers POST] 打包清單第 ${i + 1} 項:`, {
+            category,
+            itemsCount: Array.isArray(pack.items) ? pack.items.length : 0,
+          })
+
+          try {
+            await client.query(
+              `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,
+              [travelerId, category, items],
+            )
+          } catch (insertError) {
+            console.error(`[Backend Travelers POST] 插入打包清單第 ${i + 1} 項失敗:`, {
+              category,
+              error: insertError.message,
+              code: insertError.code,
+              detail: insertError.detail,
+            })
+            throw new Error(`插入打包清單第 ${i + 1} 項失敗: ${insertError.message}`)
+          }
         }
+        console.log('[Backend Travelers POST] 打包清單插入完成')
       }
 
       await client.query('COMMIT')
-      console.log('✅ [Backend Travelers POST] 事務提交成功')
-      console.log('🟢 [Backend Travelers POST] ========== 完成 ==========')
+      console.log('[Backend Travelers POST] 事務提交成功')
+      console.log('[Backend Travelers POST] ========== 完成 ==========')
       res.status(201).json({ success: true, message: '旅伴貼文建立成功', data: { id: travelerId } })
     } catch (error) {
       await client.query('ROLLBACK')
-      console.error('❌ [Backend Travelers POST] 資料庫錯誤，已回滾')
+      console.error('[Backend Travelers POST] 資料庫錯誤，已回滾')
       throw error
     } finally {
       client.release()
     }
   } catch (error) {
-    console.error('❌ [Backend Travelers POST] ========== 失敗 ==========')
-    console.error('❌ [Backend Travelers POST] 錯誤類型:', error.name)
-    console.error('❌ [Backend Travelers POST] 錯誤訊息:', error.message)
-    console.error('❌ [Backend Travelers POST] 錯誤代碼:', error.code)
-    console.error('❌ [Backend Travelers POST] 錯誤詳情:', error.detail)
-    console.error('❌ [Backend Travelers POST] 錯誤堆疊:', error.stack)
-    console.error('❌ [Backend Travelers POST] 請求 Body:', JSON.stringify(req.body, null, 2))
+    console.error('[Backend Travelers POST] ========== 失敗 ==========')
+    console.error('[Backend Travelers POST] 錯誤類型:', error.name)
+    console.error('[Backend Travelers POST] 錯誤訊息:', error.message)
+    console.error('[Backend Travelers POST] 錯誤代碼:', error.code)
+    console.error('[Backend Travelers POST] 錯誤詳情:', error.detail)
+    console.error('[Backend Travelers POST] 錯誤堆疊:', error.stack)
+    console.error('[Backend Travelers POST] 請求 Body:', JSON.stringify(req.body, null, 2))
 
     res.status(500).json({
       success: false,
