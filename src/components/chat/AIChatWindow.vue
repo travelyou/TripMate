@@ -20,13 +20,27 @@ const messageInput = ref('')
 const messagesContainer = ref(null)
 const isLoading = ref(false)
 
-// 初始化 Google AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
-const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME })
+// 初始化 Gemini
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+let genAI = null
+let model = null
+let chat = null
 
-const chat = model.startChat({
-  history: TRIPMATE_SYSTEM_PROMPT,
-})
+if (!apiKey) {
+  console.error('沒有 VITE_GEMINI_API_KEY ！')
+}
+
+if (apiKey) {
+  try {
+    genAI = new GoogleGenerativeAI(apiKey)
+    model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME })
+    chat = model.startChat({
+      history: TRIPMATE_SYSTEM_PROMPT,
+    })
+  } catch (error) {
+    console.error('AI 初始化失敗', error)
+  }
+}
 
 // 預設歡迎訊息
 const messages = ref([
@@ -49,6 +63,15 @@ const messages = ref([
 const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text || isLoading.value) return
+
+  if (!chat) {
+    messages.value.push({
+      id: Date.now() + 1,
+      type: 'bot',
+      content: '聊天功能沒有成功開始',
+    })
+    return
+  }
 
   // 1. 加入使用者訊息
   messages.value.push({
@@ -80,7 +103,7 @@ const sendMessage = async () => {
     messages.value.push({
       id: Date.now() + 1,
       type: 'bot',
-      content: '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫',
+      content: '聊天功能沒有成功開始，系統出錯了',
     })
   } finally {
     isLoading.value = false
