@@ -40,9 +40,9 @@ router.get('/', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
-      WHERE 
+      WHERE ${whereClause}
       ORDER BY d.created_at DESC
-      LIMIT  OFFSET 
+      LIMIT $1 OFFSET $2
 `
 
     console.log('🔵 [Backend GET / Step 3] 執行查詢')
