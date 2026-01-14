@@ -7,6 +7,7 @@ import {
   Trash2 as TrashIcon,
   DollarSign as DollarSignIcon,
   Building as BuildingIcon,
+  CheckSquare as CheckSquareIcon, // 新增 icon
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 // 這裡必須從 API 引入建立行程的 function
@@ -30,7 +31,7 @@ const postData = ref({
   coverImage: '',
   tags: [],
   itinerary: { days: [] },
-  packingList: [],
+  packingList: [], // 這裡會存放打包資料
 })
 
 const activeDayIndex = ref(0)
@@ -44,7 +45,7 @@ const validateBasic = () => {
   return ''
 }
 
-// 新增天數邏輯
+// --- 每日行程邏輯 ---
 const addDay = () => {
   const dayNumber = postData.value.itinerary.days.length + 1
   postData.value.itinerary.days.push({ day: dayNumber, activities: [] })
@@ -56,7 +57,6 @@ const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, activities: [] }
 })
 
-// 活動操作
 const addActivity = () => {
   if (!currentDay.value.activities) currentDay.value.activities = []
   currentDay.value.activities.push({
@@ -68,6 +68,26 @@ const addActivity = () => {
   })
 }
 const removeActivity = (index) => currentDay.value.activities.splice(index, 1)
+
+// --- 打包清單邏輯 (新增部分) ---
+const addPackingCategory = () => {
+  postData.value.packingList.push({
+    category: '新分類 (例如: 衣物)',
+    items: [],
+  })
+}
+
+const removePackingCategory = (index) => {
+  postData.value.packingList.splice(index, 1)
+}
+
+const addPackingItem = (catIndex) => {
+  postData.value.packingList[catIndex].items.push('')
+}
+
+const removePackingItem = (catIndex, itemIndex) => {
+  postData.value.packingList[catIndex].items.splice(itemIndex, 1)
+}
 
 // 標籤操作
 const addTag = (tagText) => {
@@ -84,6 +104,7 @@ const nextStep = () => {
       formError.value = error
       return
     }
+    // 自動補齊天數
     if (postData.value.itinerary.days.length === 0) {
       for (let i = 0; i < postData.value.durationDays; i++) {
         postData.value.itinerary.days.push({ day: i + 1, activities: [] })
@@ -91,6 +112,13 @@ const nextStep = () => {
     }
     currentStep.value = 'itinerary'
   } else if (currentStep.value === 'itinerary') {
+    // 如果打包清單是空的，預設加一個
+    if (postData.value.packingList.length === 0) {
+      postData.value.packingList.push(
+        { category: '證件與金錢', items: ['護照', '現金', '信用卡'] },
+        { category: '衣物', items: ['換洗衣物', '外套'] },
+      )
+    }
     currentStep.value = 'packing'
   } else if (currentStep.value === 'packing') {
     currentStep.value = 'preview'
@@ -328,17 +356,87 @@ if (postData.value.itinerary.days.length === 0) {
           </div>
         </div>
 
-        <div v-else-if="currentStep === 'packing'">
-          <div class="text-center text-gray-400 py-10">
-            (此範例暫略過打包清單 UI，發布時會傳送空陣列)
+        <div v-else-if="currentStep === 'packing'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div class="space-y-1">
+              <h3 class="font-bold text-lg text-gray-800">打包建議清單</h3>
+              <p class="text-xs text-gray-500">幫旅客列出這趟旅程必備的物品</p>
+            </div>
+            <button
+              @click="addPackingCategory"
+              class="text-primary-600 font-bold hover:bg-primary-50 px-3 py-1 rounded"
+            >
+              <PlusIcon class="inline w-4 h-4" /> 新增分類
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div
+              v-for="(cat, cIdx) in postData.packingList"
+              :key="cIdx"
+              class="bg-white p-4 rounded-xl border-2 border-gray-200 relative group"
+            >
+              <button
+                @click="removePackingCategory(cIdx)"
+                class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+              >
+                <XIcon class="w-4 h-4" />
+              </button>
+
+              <input
+                v-model="cat.category"
+                class="font-bold text-primary-700 w-full mb-3 border-b border-dashed border-gray-300 focus:border-primary-500 outline-none"
+                placeholder="分類名稱"
+              />
+
+              <div class="space-y-2">
+                <div v-for="(item, iIdx) in cat.items" :key="iIdx" class="flex items-center">
+                  <CheckSquareIcon class="w-4 h-4 text-gray-300 mr-2 flex-shrink-0" />
+                  <input
+                    v-model="cat.items[iIdx]"
+                    class="text-sm text-gray-600 w-full outline-none hover:bg-gray-50 rounded px-1"
+                    placeholder="物品名稱"
+                  />
+                  <button
+                    @click="removePackingItem(cIdx, iIdx)"
+                    class="text-gray-300 hover:text-red-400 ml-2"
+                  >
+                    <XIcon class="w-3 h-3" />
+                  </button>
+                </div>
+                <button
+                  @click="addPackingItem(cIdx)"
+                  class="text-xs font-bold text-primary-500 mt-2 hover:underline"
+                >
+                  + 新增物品
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         <div v-else-if="currentStep === 'preview'">
           <div class="text-center py-10 space-y-4">
             <h3 class="text-2xl font-black text-gray-800">{{ postData.title }}</h3>
+            <div class="flex justify-center gap-4 text-sm text-gray-500">
+              <span>{{ postData.location }}</span>
+              <span>|</span>
+              <span>{{ postData.durationDays }} 天</span>
+            </div>
             <div class="text-primary-600 font-bold text-xl">NT$ {{ postData.price }}</div>
-            <p class="text-gray-600">確認資訊無誤後請點擊發布。</p>
+
+            <div
+              class="bg-gray-50 p-4 rounded-lg text-left max-w-md mx-auto mt-4 text-sm text-gray-600"
+            >
+              <p class="font-bold mb-1">打包清單預覽：</p>
+              <ul class="list-disc pl-5">
+                <li v-for="cat in postData.packingList" :key="cat.category">
+                  {{ cat.category }}: {{ cat.items.length }} 項物品
+                </li>
+              </ul>
+            </div>
+
+            <p class="text-gray-600 pt-4">確認資訊無誤後請點擊發布。</p>
           </div>
         </div>
       </div>
@@ -367,3 +465,16 @@ if (postData.value.itinerary.days.length === 0) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+</style>
