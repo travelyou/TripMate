@@ -2,14 +2,19 @@
 import MainButton from '@/components/checkout/MainButton.vue'
 import SubButton from '@/components/checkout/SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+
+onMounted(() => {
+  if (!checkoutStore.tourGroups.length) {
+    checkoutStore.loadCartFromDb()
+  }
+})
+
 const router = useRouter()
 
-// 購物車資料存放於 checkoutStore
 const tourGroups = computed(() => checkoutStore.tourGroups)
 
-// 選擇的項目ID（雙向綁定到 store）
 const selectedTourId = computed({
   get: () => checkoutStore.selectedCartTourId,
   set: (val) => (checkoutStore.selectedCartTourId = val),
@@ -57,7 +62,19 @@ function goToFeatured() {
 <template>
   <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 xl:mr-20 rounded-2xl text-secondary-900">
     <h1 class="text-3xl font-bold ml-8 mb-5">購物車</h1>
-
+    <button
+      type="button"
+      class="bg-primary text-white px-5 py-2 rounded-xl"
+      @click="checkoutStore.addToCart(1)"
+    >
+      加入itinerary #1 到購物車
+    </button>
+    <button
+      class="bg-primary text-white px-5 py-2 rounded-xl"
+      @click="checkoutStore.loadCartFromDb()"
+    >
+      重新載入
+    </button>
     <!-- 購物車整個區塊 -->
     <div class="flex flex-col gap-5 lg:flex-row">
       <!-- 購物車列表 -->
@@ -125,6 +142,9 @@ function goToFeatured() {
             </div>
           </li>
         </ul>
+
+        <div v-if="checkoutStore.isCartLoading">載入中...</div>
+        <div v-else-if="checkoutStore.cartError">{{ checkoutStore.cartError }}</div>
       </div>
 
       <!-- 購物車是空的 -->
