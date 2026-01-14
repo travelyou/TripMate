@@ -4,9 +4,8 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
 import {
   Calendar as CalendarIcon,
-  FolderOpen as FolderIcon,
-  Plus as PlusIcon,
   Briefcase as BriefcaseIcon,
+  Plus as PlusIcon
 } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
@@ -114,12 +113,6 @@ const handleDeleteItinerary = (id) => {
   }
 }
 
-const getTagColor = (type) => {
-  if (type === 'discussion') return 'bg-primary-600 text-white border-primary-700'
-  if (type === 'traveler') return 'bg-primary-500 text-white border-primary-600'
-  if (type === 'my_itinerary' || type === 'itinerary') return 'bg-primary-700 text-white border-primary-800'
-  return 'bg-secondary-500 text-white'
-}
 
 // 當組件掛載完成（頁面載入）時執行
 onMounted(() => {
@@ -215,7 +208,7 @@ onMounted(() => {
           新增行程
         </button>
       </div>
-
+    </div> <!-- End of space-y-6 container -->
 
     <ItineraryDetailModal
       v-if="isDetailModalOpen"
