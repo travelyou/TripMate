@@ -69,11 +69,18 @@ const handlePostLike = async (post) => {
     return
   }
 
+  const prevLiked = !!post.isLiked
+  const prevLikes = Number(post.likes) || 0
+  post.isLiked = !prevLiked
+  post.likes = Math.max(0, prevLikes + (post.isLiked ? 1 : -1))
+
   try {
-    const result = await toggleLike(post.id, currentUserUid.value)
+    const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
+    post.isLiked = prevLiked
+    post.likes = prevLikes
     console.error('按讚操作失敗：', error)
     alert('按讚操作失敗，請稍後再試')
   }
