@@ -22,29 +22,6 @@ const discussionsStore = useDiscussionsStore()
 const userStore = useUserStore()
 
 const currentUserUid = ref(null)
-let likeSyncTimer = null
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-
-const scheduleLikesSync = (posts, uid) => {
-  if (!uid || !Array.isArray(posts) || posts.length === 0) return
-  if (likeSyncTimer) clearTimeout(likeSyncTimer)
-  likeSyncTimer = setTimeout(async () => {
-    for (const post of posts) {
-      try {
-        const { getLikesInfo } = await import('@/api/likes')
-        const info = await getLikesInfo(post.id, uid, 'discussion')
-        post.isLiked = info.isLiked
-        post.likes = info.likesCount || post.likes
-        await sleep(120)
-      } catch (error) {
-        console.error(`load likes failed for ${post.id}:`, error)
-      }
-    }
-  }, 800)
-}
-
-
 
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
@@ -55,7 +32,18 @@ onAuthStateChanged(auth, async (user) => {
     currentUserUid.value &&
     discussionsStore.discussions.length > 0
   ) {
-    scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+    await Promise.all(
+      discussionsStore.discussions.map(async (post) => {
+        try {
+          const { getLikesInfo } = await import('@/api/likes')
+          const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
+          post.isLiked = info.isLiked
+          post.likes = info.likesCount || post.likes
+        } catch (error) {
+          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+        }
+      }),
+    )
   } else if (!currentUserUid.value) {
     discussionsStore.discussions.forEach((post) => {
       post.isLiked = false
@@ -72,7 +60,18 @@ onMounted(async () => {
   try {
     await discussionsStore.loadDiscussions()
     if (currentUserUid.value) {
-      scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+      await Promise.all(
+        discussionsStore.discussions.map(async (post) => {
+          try {
+            const { getLikesInfo } = await import('@/api/likes')
+            const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
+            post.isLiked = info.isLiked
+            post.likes = info.likesCount || post.likes
+          } catch (error) {
+            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+          }
+        }),
+      )
     }
   } catch (error) {
     console.error('載入貼文失敗：', error)
@@ -85,18 +84,11 @@ const handlePostLike = async (post) => {
     return
   }
 
-  const prevLiked = !!post.isLiked
-  const prevLikes = Number(post.likes) || 0
-  post.isLiked = !prevLiked
-  post.likes = Math.max(0, prevLikes + (post.isLiked ? 1 : -1))
-
   try {
     const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
-    post.isLiked = prevLiked
-    post.likes = prevLikes
     console.error('按讚操作失敗：', error)
     alert('按讚操作失敗，請稍後再試')
   }

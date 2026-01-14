@@ -24,27 +24,6 @@ const userStore = useUserStore()
 
 // 當前用戶 UID
 const currentUserUid = ref(null)
-let likeSyncTimer = null
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-
-const scheduleLikesSync = (posts, uid) => {
-  if (!uid || !Array.isArray(posts) || posts.length === 0) return
-  if (likeSyncTimer) clearTimeout(likeSyncTimer)
-  likeSyncTimer = setTimeout(async () => {
-    for (const post of posts) {
-      try {
-        const { getLikesInfo } = await import('@/api/likes')
-        const info = await getLikesInfo(post.id, uid)
-        post.isLiked = info.isLiked
-        post.likes = info.likesCount || post.likes
-        await sleep(120)
-      } catch (error) {
-        console.error(`load likes failed for ${post.id}:`, error)
-      }
-    }
-  }, 800)
-}
 
 // 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
@@ -53,7 +32,18 @@ onAuthStateChanged(auth, async (user) => {
 
   // 如果用戶登入狀態改變，重新載入按讚狀態
   if (previousUid !== currentUserUid.value && currentUserUid.value) {
-    scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+    await Promise.all(
+      discussionsStore.discussions.map(async (post) => {
+        try {
+          const { getLikesInfo } = await import('@/api/likes')
+          const info = await getLikesInfo(post.id, currentUserUid.value)
+          post.isLiked = info.isLiked
+          post.likes = info.likesCount || post.likes
+        } catch (error) {
+          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+        }
+      }),
+    )
   } else if (!currentUserUid.value) {
     // 如果登出，清除所有按讚狀態
     discussionsStore.discussions.forEach((post) => {
@@ -69,18 +59,11 @@ const handlePostLike = async (post) => {
     return
   }
 
-  const prevLiked = !!post.isLiked
-  const prevLikes = Number(post.likes) || 0
-  post.isLiked = !prevLiked
-  post.likes = Math.max(0, prevLikes + (post.isLiked ? 1 : -1))
-
   try {
     const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
   } catch (error) {
-    post.isLiked = prevLiked
-    post.likes = prevLikes
     console.error('按讚操作失敗：', error)
     alert('按讚操作失敗，請稍後再試')
   }
@@ -92,7 +75,17 @@ onMounted(async () => {
     await discussionsStore.loadDiscussions()
     // 載入每個貼文的按讚狀態
     if (currentUserUid.value) {
-      scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+      await Promise.all(
+        discussionsStore.discussions.map(async (post) => {
+          try {
+            const { getLikesInfo } = await import('@/api/likes')
+            const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
+            post.isLiked = info.isLiked
+          } catch (error) {
+            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
+          }
+        }),
+      )
     }
   } catch (error) {
     console.error('載入貼文失敗：', error)
@@ -276,30 +269,7 @@ const getPostData = (post) => ({
           </h2>
         </div>
 
-        <div
-          v-if="discussionsStore.loading && !discussionsStore.discussions.length"
-          class="space-y-6"
-        >
-          <div
-            v-for="n in 3"
-            :key="`skeleton-${n}`"
-            class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl animate-pulse"
-          >
-            <div class="flex items-center space-x-3 mb-4">
-              <div class="w-10 h-10 rounded-full bg-gray-200"></div>
-              <div class="space-y-2">
-                <div class="h-4 w-32 bg-gray-200 rounded"></div>
-                <div class="h-3 w-20 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-            <div class="h-5 w-2/3 bg-gray-200 rounded mb-3"></div>
-            <div class="h-4 w-full bg-gray-200 rounded mb-2"></div>
-            <div class="h-4 w-5/6 bg-gray-200 rounded mb-4"></div>
-            <div class="w-full h-64 rounded-xl bg-gray-200"></div>
-          </div>
-        </div>
-
-        <div v-else class="space-y-6">
+        <div class="space-y-6">
           <div
             v-for="post in discussionsStore.discussions"
             :key="post.id"
