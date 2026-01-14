@@ -1,4 +1,3 @@
-Directory structure:
 └── travelyou-tripmate/
     ├── README.md
     ├── aaa.html
@@ -24,8 +23,9 @@ Directory structure:
     │       ├── comments.js
     │       ├── likes.js
     │       ├── discussions.js
+    │       ├── itineraries.js 
     │       ├── travelers.js
-    │       └── users.js
+    │       └── users.js       
     └── src/
         ├── App.vue
         ├── main.js
@@ -34,6 +34,7 @@ Directory structure:
         │   ├── config.js
         │   ├── likes.js
         │   ├── discussions.js
+        │   ├── itinerary.js   
         │   ├── storage.js
         │   ├── travelers.js
         │   └── users.js
@@ -43,6 +44,7 @@ Directory structure:
         ├── components/
         │   ├── PostModal.vue
         │   ├── cards/
+        │   │   ├── ItineraryCard.vue 
         │   │   ├── PostingChoiceCard.vue
         │   │   └── TravelerCard.vue
         │   ├── chat/
@@ -60,14 +62,13 @@ Directory structure:
         │   │   └── TourInfoBlock.vue
         │   ├── common/
         │   │   └── RightSidebarAd.vue
-        │   ├── itinerary/
-        │   │   └── ItineraryCard.vue
         │   ├── modals/
         │   │   ├── AddToCollectionModal.vue
         │   │   ├── MyItineraryDetailModal.vue
-        │   │   ├── DiscussionDetailModal.vue
+        │   │   ├── DiscussionDetailModal.vue 
         │   │   ├── DiscussionPostModal.vue
-        │   │   ├── ItineraryDetailModal.vue
+        │   │   ├── ItineraryDetailModal.vue  
+        │   │   ├── ItineraryPostModal.vue    
         │   │   ├── ShareModal.vue
         │   │   ├── SwipeMatchModal.vue
         │   │   ├── TravelerDetailModal.vue
@@ -115,13 +116,12 @@ Directory structure:
         │       ├── AppHeader.vue
         │       └── AppSidebar.vue
         ├── router/
-        │   └── index.js
+        │   └── index.js        
         ├── stores/
         │   ├── checkout.js
         │   ├── counter.js
         │   ├── discussions.js
-        │   ├── featured.js
-        │   ├── itinerary.js
+        │   ├── itinerary.js    
         │   ├── modal.js
         │   ├── myItinerary.js
         │   ├── personality.js
@@ -134,14 +134,14 @@ Directory structure:
             ├── CollectionsPage.vue
             ├── DiscussionPage.vue
             ├── FavoritesPage.vue
-            ├── FeaturedItineraryPage.vue
+            ├── ItineraryPage.vue  
             ├── HomePage.vue
             ├── LoginPage.vue
             ├── MyItineraryPage.vue
             ├── PersonalityTest.vue
             ├── PostDetailPage.vue
-            ├── ProfilePage.vue
+            ├── ProfilePage.vue    
             ├── SearchPage.vue
             ├── ShoppingCartPage.vue
             ├── TravelerPage.vue
-            └── VendorProfilePage.vue
+            └── VendorProfilePage.vue 

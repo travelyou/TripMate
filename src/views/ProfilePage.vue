@@ -24,9 +24,7 @@ const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
 
 const user = computed(() => userStore.currentUser)
-const personalityResult = computed(
-  () => personalityStore.savedResult || personalityStore.result,
-)
+const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
 const isCurrentUser = true // In real app, check if route param ID matches current user ID
 
 // Tab State
@@ -176,7 +174,9 @@ onMounted(() => {
       <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
       <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
         <!-- Tab Navigation -->
-        <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1.5 md:p-2 flex space-x-1">
+        <div
+          class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1.5 md:p-2 flex space-x-1"
+        >
           <button
             v-for="tab in tabs"
             :key="tab.k"
