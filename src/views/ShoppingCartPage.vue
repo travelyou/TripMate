@@ -142,9 +142,6 @@ function goToFeatured() {
             </div>
           </li>
         </ul>
-
-        <div v-if="checkoutStore.isCartLoading">載入中...</div>
-        <div v-else-if="checkoutStore.cartError">{{ checkoutStore.cartError }}</div>
       </div>
 
       <!-- 購物車是空的 -->
