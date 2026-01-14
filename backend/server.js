@@ -13,6 +13,8 @@ const travelersRoutes = require('./routes/travelers')
 const itinerariesRouter = require('./routes/itineraries')
 const paymentsRouter = require('./routes/payments')
 const ordersRouter = require('./routes/orders')
+const itinerariesRouter = require('./routes/itineraries')
+const cartRouter = require('./routes/cart')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -142,12 +144,17 @@ app.use('/api/travelers', travelersRoutes)
 app.use('/api/itineraries', itinerariesRouter)
 app.use('/api/users', usersRouter)
 
-
 // 付款路由
 app.use('/api/payments', paymentsRouter)
 
 // 訂單路由
 app.use('/api/orders', ordersRouter)
+
+// 行程路由
+app.use('/api/itineraries', itinerariesRouter)
+
+// 購物車路由
+app.use('/api/cart', cartRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
 
