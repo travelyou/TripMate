@@ -90,4 +90,90 @@ router.post('/', async (req, res) => {
   }
 })
 
+/**
+ * GET /api/orders/:id
+ * 用途：前端 Step5 Done 查詢訂單狀態/金額/行程資訊
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ ok: false, message: 'invalid order id' })
+    }
+
+    // 訂單主檔 + 行程資訊（跨 schema join）
+    const q = await pool.query(
+      `SELECT
+         o.id,
+         o.order_no,
+         o.status,
+         o.amount,
+         o.unit_price,
+         o.persons,
+         o.itinerary_id,
+         o.created_at,
+         i.title,
+         i.start_date,
+         i.end_date,
+         i.location,
+         i.banner_image
+       FROM commerce.orders o
+       JOIN itinerary.itineraries i ON i.id = o.itinerary_id
+       WHERE o.id = $1`,
+      [id],
+    )
+
+    if (q.rows.length === 0) {
+      return res.status(404).json({ ok: false, message: 'order not found' })
+    }
+
+    const row = q.rows[0]
+
+    // （可選）把付款狀態也帶回來：取最新一筆 payment
+    const p = await pool.query(
+      `SELECT id, provider, method, amount, status, created_at
+       FROM commerce.payments
+       WHERE order_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [id],
+    )
+
+    return res.json({
+      ok: true,
+      order: {
+        id: row.id,
+        orderNo: row.order_no,
+        status: row.status,
+        amount: Number(row.amount),
+        unitPrice: Number(row.unit_price),
+        persons: Number(row.persons),
+        itineraryId: row.itinerary_id,
+        createdAt: row.created_at,
+      },
+      itinerary: {
+        id: row.itinerary_id,
+        title: row.title,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        location: row.location,
+        bannerImage: row.banner_image,
+      },
+      latestPayment: p.rows[0]
+        ? {
+            id: p.rows[0].id,
+            provider: p.rows[0].provider,
+            method: p.rows[0].method,
+            amount: Number(p.rows[0].amount),
+            status: p.rows[0].status,
+            createdAt: p.rows[0].created_at,
+          }
+        : null,
+    })
+  } catch (err) {
+    console.error('[GET /api/orders/:id] error:', err)
+    return res.status(500).json({ ok: false, message: 'server error' })
+  }
+})
+
 module.exports = router
