@@ -1,7 +1,7 @@
 <script setup>
 import { useMyItineraryStore } from '@/stores/myItinerary'
-import ItineraryDetailModal from './ItineraryDetailModal.vue'
-import { useRouter } from 'vue-router' // 🔥 補上這一行
+import MyItineraryDetailModal from './MyItineraryDetailModal.vue'
+import { useRouter } from 'vue-router'
 import { ref, computed, onUnmounted } from 'vue'
 import {
   MessageSquare as MessageSquareIcon,
@@ -56,7 +56,6 @@ const tagSearch = ref('')
 const showItineraryModal = ref(false)
 
 const attachedItinerary = ref(null)
-
 
 // 🟢 1. 行程規劃彈窗 -> 按下「儲存」 (變成正式行程)
 const handleItinerarySave = (itineraryData) => {
@@ -631,14 +630,13 @@ const filteredTags = computed(() => {
       </div>
     </div>
 
-    <ItineraryDetailModal
+    <MyItineraryDetailModal
       v-if="showItineraryModal"
       :itinerary="getBlankItinerary()"
       @close="showItineraryModal = false"
       @save="handleItinerarySave"
       @save-draft="handleItineraryDraftSave"
     />
-
   </div>
 </template>
 

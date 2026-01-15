@@ -23,7 +23,8 @@ Directory structure:
     │   └── routes/
     │       ├── comments.js
     │       ├── likes.js
-    │       ├── posts.js
+    │       ├── discussions.js
+    │       ├── travelers.js
     │       └── users.js
     └── src/
         ├── App.vue
@@ -32,14 +33,18 @@ Directory structure:
         │   ├── comments.js
         │   ├── config.js
         │   ├── likes.js
-        │   ├── posts.js
+        │   ├── discussions.js
         │   ├── storage.js
+        │   ├── travelers.js
         │   └── users.js
         ├── assets/
         │   ├── base.css
         │   └── main.css
         ├── components/
         │   ├── PostModal.vue
+        │   ├── cards/
+        │   │   ├── PostingChoiceCard.vue
+        │   │   └── TravelerCard.vue
         │   ├── chat/
         │   │   ├── AIChatWindow.vue
         │   │   └── PrivateChatWindow.vue
@@ -59,11 +64,14 @@ Directory structure:
         │   │   └── ItineraryCard.vue
         │   ├── modals/
         │   │   ├── AddToCollectionModal.vue
-        │   │   ├── ItineraryDetailModal.vue
+        │   │   ├── MyItineraryDetailModal.vue
         │   │   ├── DiscussionDetailModal.vue
-        │   │   ├── PostingChoiceModal.vue
+        │   │   ├── DiscussionPostModal.vue
+        │   │   ├── ItineraryDetailModal.vue
         │   │   ├── ShareModal.vue
-        │   │   └── SwipeMatchModal.vue
+        │   │   ├── SwipeMatchModal.vue
+        │   │   ├── TravelerDetailModal.vue
+        │   │   └── TravelerPostModal.vue
         │   ├── personality-test/
         │   │   ├── components/
         │   │   │   ├── ProgressBar.vue
@@ -74,8 +82,7 @@ Directory structure:
         │   │       ├── ResultPage.vue
         │   │       └── StartPage.vue
         │   ├── posts/
-        │   │   ├── PostCard.vue
-        │   │   └── TravelerCard.vue
+        │   │   └── PostCard.vue
         │   ├── profile/
         │   │   ├── EditProfileModal.vue
         │   │   ├── FriendListModal.vue
@@ -120,15 +127,14 @@ Directory structure:
         │   ├── personality.js
         │   ├── travelers.js
         │   └── user.js
-        ├── supabase/
-        │   └── config.js
+        ├── utils/
+        │   └── time.js
         └── views/
             ├── CheckoutLayout.vue
             ├── CollectionsPage.vue
             ├── DiscussionPage.vue
             ├── FavoritesPage.vue
             ├── FeaturedItineraryPage.vue
-            ├── FindTravelerPage.vue
             ├── HomePage.vue
             ├── LoginPage.vue
             ├── MyItineraryPage.vue
@@ -137,4 +143,5 @@ Directory structure:
             ├── ProfilePage.vue
             ├── SearchPage.vue
             ├── ShoppingCartPage.vue
+            ├── TravelerPage.vue
             └── VendorProfilePage.vue

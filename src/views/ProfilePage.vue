@@ -3,7 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
+import { usePersonalityStore } from '@/stores/personality'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
 // Import New Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -22,8 +24,12 @@ const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
 const itineraryStore = useItineraryStore()
 const router = useRouter() // 初始化路由器
+const personalityStore = usePersonalityStore()
 
 const user = computed(() => userStore.currentUser)
+const personalityResult = computed(
+  () => personalityStore.savedResult || personalityStore.result,
+)
 const isCurrentUser = true // In real app, check if route param ID matches current user ID
 
 // Tab State
@@ -42,6 +48,7 @@ const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
+const isPersonalityModalOpen = ref(false)
 
 // Data Preparation
 const activeTabsData = computed(() => {
@@ -149,6 +156,14 @@ const handleUpdateAvatar = (file) => {
   reader.readAsDataURL(file)
 }
 
+const openPersonalityResult = () => {
+  isPersonalityModalOpen.value = true
+}
+
+const closePersonalityResult = () => {
+  isPersonalityModalOpen.value = false
+}
+
 // Ensure store consistency
 onMounted(() => {
   // If needed, fetch data here
@@ -170,7 +185,12 @@ onMounted(() => {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Right Column: Sidebar (First on Mobile, Right on Desktop) -->
       <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
-        <ProfileSidebar :user="user" :wishlist="userStore.wishlist" />
+        <ProfileSidebar
+          :user="user"
+          :wishlist="userStore.wishlist"
+          :personality-result="personalityResult"
+          @open-personality-result="openPersonalityResult"
+        />
       </div>
 
       <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
@@ -256,6 +276,12 @@ onMounted(() => {
       :post="selectedPost"
       :scroll-to-comments="shouldScrollToComments"
       @close="isDetailModalOpen = false"
+    />
+
+    <PersonalityResultModal
+      v-if="isPersonalityModalOpen"
+      :result="personalityResult"
+      @close="closePersonalityResult"
     />
   </div>
 </template>

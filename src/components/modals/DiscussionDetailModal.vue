@@ -16,6 +16,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { useDiscussionsStore } from '@/stores/discussions'
+import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -28,9 +29,7 @@ const likesCount = ref(0)
 
 // 顯示用讚數：注意 0 也要顯示，不能用 `likesCount || ...` 這種會把 0 當成 false 的寫法
 const displayLikesCount = computed(() => {
-  return typeof likesCount.value === 'number'
-    ? likesCount.value
-    : (props.post?.likes ?? 0)
+  return typeof likesCount.value === 'number' ? likesCount.value : (props.post?.likes ?? 0)
 })
 
 // 監聽 Firebase 認證狀態
@@ -146,7 +145,7 @@ const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
 
   try {
-    const info = await getLikesInfo(props.post.id, currentUserUid.value)
+    const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
   } catch (error) {
@@ -169,7 +168,7 @@ const handlePostLike = async () => {
 
   try {
     console.log('開始按讚操作，貼文 ID：', props.post.id, '用戶 UID：', currentUserUid.value)
-    const result = await toggleLike(props.post.id, currentUserUid.value)
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     console.log('按讚操作成功，結果：', result)
     isLiked.value = result.liked
     likesCount.value = result.likesCount
@@ -378,7 +377,10 @@ onMounted(async () => {
         <h3 class="text-xl font-bold text-secondary-800">
           {{ post.price || post.agencyName ? '行程詳情與諮詢' : '貼文詳情與討論' }}
         </h3>
-        <button class="text-secondary-500 hover:text-secondary-800 transition" @click="emit('close')">
+        <button
+          class="text-secondary-500 hover:text-secondary-800 transition"
+          @click="emit('close')"
+        >
           <XIcon class="w-6 h-6" />
         </button>
       </header>
@@ -426,7 +428,9 @@ onMounted(async () => {
             </span>
           </div>
 
-          <div class="flex items-center text-secondary-400 text-sm mt-4 border-t border-secondary-100 pt-3">
+          <div
+            class="flex items-center text-secondary-400 text-sm mt-4 border-t border-secondary-100 pt-3"
+          >
             <button
               :class="[
                 'flex items-center space-x-1 transition mr-6 group',
@@ -494,7 +498,7 @@ onMounted(async () => {
                 <div class="flex-1">
                   <div class="flex justify-between items-start">
                     <span class="font-bold text-secondary-800 text-sm">{{ comment.author }}</span>
-                    <span class="text-xs text-secondary-400">{{ comment.time }}</span>
+                    <span class="text-xs text-secondary-400">{{ formatTime(comment.time) }}</span>
                   </div>
                   <p class="text-secondary-700 text-sm mt-1">{{ comment.content }}</p>
 
@@ -530,10 +534,16 @@ onMounted(async () => {
                           class="w-6 h-6 rounded-full object-cover border border-secondary-100 mt-1"
                         />
                         <div class="flex-1">
-                          <span class="font-bold text-secondary-800 text-xs">{{ reply.author }}</span>
-                          <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                          <span class="font-bold text-secondary-800 text-xs">{{
+                            reply.author
+                          }}</span>
+                          <span class="text-xs text-secondary-400 ml-2">{{
+                            formatTime(reply.time)
+                          }}</span>
                           <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
-                          <div class="flex items-center space-x-4 mt-1 text-[10px] text-secondary-500">
+                          <div
+                            class="flex items-center space-x-4 mt-1 text-[10px] text-secondary-500"
+                          >
                             <button
                               class="flex items-center space-x-1 hover:text-red-500 transition"
                               @click="toggleCommentLike(reply)"
@@ -555,7 +565,9 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-          <div v-else class="text-center text-secondary-500 pt-10">目前沒有留言，來當第一個吧！</div>
+          <div v-else class="text-center text-secondary-500 pt-10">
+            目前沒有留言，來當第一個吧！
+          </div>
         </div>
       </div>
 
@@ -602,10 +614,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* scrollbar rules moved to src/assets/main.css */
-
-/* 已移除 .pixel-modal（已用 Tailwind 類別替代） */
-</style>
-

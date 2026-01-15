@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -13,6 +13,7 @@ import {
   Coffee as CoffeeIcon,
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
+  Eye as EyeIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -20,6 +21,8 @@ import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
+import { getTravelerById, incrementView } from '@/api/travelers'
+import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -37,67 +40,39 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'traveler-updated'])
 
-// 當前用戶
 const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(0)
-
-// Tab 切換：'itinerary' 或 'comments'
 const activeTab = ref('itinerary')
-
-// 留言相關
 const newComment = ref('')
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const localComments = ref([])
 
-// 行程相關（
+// 建立一個本地變數來存「完整資料」，預設先用傳進來的 props 擋著
+const localTravelerData = ref({ ...props.traveler })
+
 const itineraryData = computed(() => {
-  if (props.traveler.itinerary) {
-    return props.traveler.itinerary
+  // 優先使用後端抓回來的完整行程
+  if (localTravelerData.value.itinerary && localTravelerData.value.itinerary.days) {
+    return {
+      days: localTravelerData.value.itinerary.days,
+      packingList: localTravelerData.value.packingList || [],
+    }
   }
+
   return {
-    days: [
-      {
-        day: 1,
-        date: props.traveler.date || '2026/01/15',
-        activities: [
-          {
-            id: 1,
-            time: '09:00',
-            icon: 'map-pin',
-            title: '集合出發',
-            desc: '機場集合，準備開始美好的旅程',
-          },
-          {
-            id: 2,
-            time: '14:00',
-            icon: 'coffee',
-            title: '當地美食體驗',
-            desc: '品嚐當地特色料理',
-          },
-        ],
-      },
-    ],
-    packingList: [
-      {
-        category: '必備物品',
-        items: [
-          { id: 1, name: '護照', checked: false },
-          { id: 2, name: '信用卡', checked: false },
-          { id: 3, name: '充電器', checked: false },
-        ],
-      },
-    ],
+    days: [],
+    packingList: [],
   }
 })
 
 const activeDayIndex = ref(0)
 const activeDay = computed(() => {
+  if (!itineraryData.value.days || itineraryData.value.days.length === 0) return { activities: [] }
   return itineraryData.value.days[activeDayIndex.value] || { activities: [] }
 })
 
-// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
@@ -111,12 +86,11 @@ onAuthStateChanged(auth, async (user) => {
   }
 })
 
-// 計算留言總數
 const normalizedComments = computed(() => {
   if (localComments.value.length > 0) {
     return localComments.value
   }
-  return props.traveler.commentsData || []
+  return localTravelerData.value.commentsData || []
 })
 
 const totalCommentCount = computed(() => {
@@ -132,7 +106,6 @@ const totalCommentCount = computed(() => {
   return total
 })
 
-// 載入按讚資訊
 const loadLikesInfo = async () => {
   if (!props.traveler?.id || !currentUserUid.value) return
 
@@ -141,11 +114,31 @@ const loadLikesInfo = async () => {
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
   } catch (error) {
-    console.error('載入按讚資訊失敗：', error)
+    console.error(error)
   }
 }
 
-// 處理按讚
+const fetchFullTravelerDetails = async () => {
+  try {
+    console.log('正在抓取詳細資料 ID:', props.traveler.id)
+    const response = await getTravelerById(props.traveler.id, currentUserUid.value)
+
+    if (response.success) {
+      // 更新本地資料
+      localTravelerData.value = {
+        ...localTravelerData.value,
+        ...response.data,
+      }
+      console.log('詳細資料更新成功:', localTravelerData.value)
+
+      // 單獨呼叫增加瀏覽數
+      incrementView(props.traveler.id)
+    }
+  } catch (error) {
+    console.error('抓取詳細資料失敗:', error)
+  }
+}
+
 const handleLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -153,16 +146,14 @@ const handleLike = async () => {
   }
 
   try {
-    const result = await toggleLike(props.traveler.id, currentUserUid.value)
+    const result = await toggleLike(props.traveler.id, currentUserUid.value, 'traveler')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
-    console.error('按讚操作失敗：', error)
-    alert(`按讚操作失敗：${error.message || '請稍後再試'}`)
+    console.error(error)
   }
 }
 
-// 處理留言按讚
 const toggleCommentLike = (item) => {
   if (typeof item.likes !== 'number') item.likes = 0
   if (item.isLiked) {
@@ -173,11 +164,10 @@ const toggleCommentLike = (item) => {
   item.isLiked = !item.isLiked
 }
 
-// 發送留言
 const submitComment = async () => {
   if (!newComment.value.trim()) return
 
-  if (!currentUserUid.value) {
+  if (!userStore.isLoggedIn || !currentUserUid.value) {
     alert('請先登入後才能留言')
     return
   }
@@ -185,21 +175,20 @@ const submitComment = async () => {
   const content = newComment.value.trim()
 
   try {
-    const newCommentData = await createComment(props.traveler.id, {
+    await createComment(props.traveler.id, {
       author_uid: currentUserUid.value,
       content: content,
+      board: 'traveler',
+      author_name: userStore.currentUser?.displayName || '匿名用戶',
+      author_avatar: userStore.currentUser?.photoURL || null,
     })
 
-    console.log('留言創建成功：', newCommentData)
-
-    // 更新本地留言列表（簡化版，實際應該重新載入）
     localComments.value = [
-      ...localComments.value,
       {
         id: Date.now(),
-        author: '我',
+        author: userStore.currentUser?.displayName || '我',
         avatar:
-          currentUserUid.value.avatar ||
+          userStore.currentUser?.photoURL ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
         content: content,
         time: '剛剛',
@@ -207,6 +196,7 @@ const submitComment = async () => {
         isLiked: false,
         replies: [],
       },
+      ...localComments.value,
     ]
 
     newComment.value = ''
@@ -216,12 +206,10 @@ const submitComment = async () => {
       commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   } catch (error) {
-    console.error('發布留言失敗：', error)
-    alert(`發布留言失敗：${error.message || '請稍後再試'}`)
+    console.error(error)
   }
 }
 
-// 獲取圖標組件
 const getIconComponent = (iconName) => {
   switch (iconName) {
     case 'camera':
@@ -235,7 +223,6 @@ const getIconComponent = (iconName) => {
   }
 }
 
-// 獲取狀態樣式
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
@@ -249,38 +236,45 @@ const getStatusClasses = (status) => {
   }
 }
 
-// 獲取日期標籤
 const getDayLabel = (index) => {
-  const startDateStr = props.traveler.date || '2026/01/15'
-  const [year, month, day] = startDateStr.split(/[/-]/).map(Number)
-  const date = new Date(year, month - 1, day)
-  date.setDate(date.getDate() + index)
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${m}/${d}`
+  const startDateStr = localTravelerData.value.date || '2026/01/15'
+  const parts = startDateStr.split(/[/-]/)
+  if (parts.length >= 3) {
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1])
+    const day = parseInt(parts[2])
+
+    const date = new Date(year, month - 1, day)
+    date.setDate(date.getDate() + index)
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${m}/${d}`
+  }
+  return `Day ${index + 1}`
 }
 
-// 計算項目數據（用於收藏）
 const itemData = computed(() => ({
-  id: props.traveler.id,
+  id: localTravelerData.value.id,
   type: 'traveler',
-  title: props.traveler.title,
-  content: props.traveler.content,
-  image: props.traveler.image,
-  author: props.traveler.author,
-  avatar: props.traveler.avatar,
-  location: props.traveler.location,
-  date: props.traveler.date,
-  status: props.traveler.status,
-  people: props.traveler.people,
-  tags: props.traveler.tags,
-  comments: props.traveler.comments,
+  title: localTravelerData.value.title,
+  content: localTravelerData.value.content,
+  image: localTravelerData.value.image,
+  author: localTravelerData.value.author,
+  avatar: localTravelerData.value.avatar,
+  location: localTravelerData.value.location,
+  date: localTravelerData.value.date,
+  status: localTravelerData.value.status,
+  people: localTravelerData.value.people,
+  tags: localTravelerData.value.tags,
+  comments: localTravelerData.value.comments,
 }))
 
 onMounted(async () => {
   if (props.traveler) {
     likesCount.value = props.traveler.likes || 0
     localComments.value = props.traveler.commentsData || []
+
+    await fetchFullTravelerDetails()
 
     if (currentUserUid.value) {
       await loadLikesInfo()
@@ -304,9 +298,8 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-xl border-2 border-primary  overflow-hidden relative"
+      class="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-xl border-2 border-primary overflow-hidden relative"
     >
-      <!-- 關閉按鈕 -->
       <button
         class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
         @click="emit('close')"
@@ -315,53 +308,55 @@ onMounted(async () => {
       </button>
 
       <div class="flex-1 overflow-y-auto custom-scrollbar">
-        <!-- Banner 圖片 -->
-        <div class="relative w-full h-72 overflow-hidden ">
-          <img :src="traveler.image" :alt="traveler.title" class="w-full h-full object-cover" />
+        <div class="relative w-full h-72 overflow-hidden">
+          <img
+            :src="localTravelerData.image"
+            :alt="localTravelerData.title"
+            class="w-full h-full object-cover"
+          />
           <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
 
-          <!-- 狀態標籤 -->
           <div
-            :class="getStatusClasses(traveler.status)"
+            :class="getStatusClasses(localTravelerData.status)"
             class="absolute top-4 left-4 px-4 py-2 font-bold text-sm rounded-lg border-2 border-primary"
           >
-            {{ traveler.status }}
+            {{ localTravelerData.status }}
           </div>
         </div>
 
-        <!-- 內容區 -->
         <div class="p-6">
           <div class="mb-6">
             <h1 class="text-3xl font-black text-secondary-900 mb-4">
-              {{ traveler.title }}
+              {{ localTravelerData.title }}
             </h1>
 
             <div class="flex items-center space-x-3 mb-4">
               <img
-                :src="traveler.avatar"
+                :src="localTravelerData.avatar"
                 class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
               />
               <div>
                 <div class="flex items-center space-x-2">
-                  <span class="font-bold text-secondary-900">{{ traveler.author }}</span>
+                  <span class="font-bold text-secondary-900">{{ localTravelerData.author }}</span>
                   <span
                     class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
                   >
-                    {{ traveler.spiritAnimal }}
+                    {{ localTravelerData.spiritAnimal }}
                   </span>
                 </div>
-                <div class="text-sm text-secondary-500">發布於 {{ traveler.date || '最近' }}</div>
+                <div class="text-sm text-secondary-500">
+                  發布於 {{ localTravelerData.created_at || '最近' }}
+                </div>
               </div>
             </div>
 
-            <!-- 旅行資訊卡片 -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
                 <div class="flex items-center text-primary-600 mb-1">
                   <MapPinIcon class="w-4 h-4 mr-1" />
                   <span class="text-xs font-bold text-secondary-500">地點</span>
                 </div>
-                <div class="font-bold text-secondary-900">{{ traveler.location }}</div>
+                <div class="font-bold text-secondary-900">{{ localTravelerData.location }}</div>
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
@@ -369,7 +364,7 @@ onMounted(async () => {
                   <CalendarIcon class="w-4 h-4 mr-1" />
                   <span class="text-xs font-bold text-secondary-500">日期</span>
                 </div>
-                <div class="font-bold text-secondary-900">{{ traveler.date }}</div>
+                <div class="font-bold text-secondary-900">{{ localTravelerData.date }}</div>
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
@@ -377,7 +372,7 @@ onMounted(async () => {
                   <UsersIcon class="w-4 h-4 mr-1" />
                   <span class="text-xs font-bold text-secondary-500">人數</span>
                 </div>
-                <div class="font-bold text-primary-600">{{ traveler.people }}</div>
+                <div class="font-bold text-primary-600">{{ localTravelerData.people }}</div>
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
@@ -387,13 +382,25 @@ onMounted(async () => {
                 </div>
                 <div class="font-bold text-secondary-900">{{ totalCommentCount }}</div>
               </div>
+
+              <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+                <div class="flex items-center text-accent-500 mb-1">
+                  <BookmarkIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">收藏</span>
+                </div>
+                <div class="font-bold text-secondary-900">
+                  {{ localTravelerData.totalSaves || 0 }}
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 標籤 -->
-          <div v-if="traveler.tags && traveler.tags.length" class="flex flex-wrap gap-2 mb-6">
+          <div
+            v-if="localTravelerData.tags && localTravelerData.tags.length"
+            class="flex flex-wrap gap-2 mb-6"
+          >
             <span
-              v-for="tag in traveler.tags"
+              v-for="tag in localTravelerData.tags"
               :key="tag"
               class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
             >
@@ -401,14 +408,12 @@ onMounted(async () => {
             </span>
           </div>
 
-          <!-- 內容描述 -->
           <div class="prose prose-lg max-w-none mb-6">
             <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
-              {{ traveler.content }}
+              {{ localTravelerData.content }}
             </p>
           </div>
 
-          <!-- 互動按鈕 -->
           <div class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6">
             <button
               :class="[
@@ -448,17 +453,16 @@ onMounted(async () => {
             </button>
 
             <button
-              v-if="traveler.status === '招募中'"
+              v-if="localTravelerData.status === '招募中'"
               class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md"
             >
               聯繫作者
             </button>
             <div v-else class="ml-auto text-secondary-400 font-bold">
-              {{ traveler.status }}
+              {{ localTravelerData.status }}
             </div>
           </div>
 
-          <!-- Tab 切換 -->
           <div class="border-b-2 border-primary-200 mb-6">
             <div class="flex space-x-1">
               <button
@@ -488,53 +492,61 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- 行程內容區 -->
           <div v-if="activeTab === 'itinerary'" class="space-y-6">
-            <div class="flex overflow-x-auto space-x-2 pb-2">
-              <button
-                v-for="(day, index) in itineraryData.days"
-                :key="index"
-                :class="[
-                  'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
-                  activeDayIndex === index
-                    ? 'bg-primary-600 text-white border-primary-700'
-                    : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
-                ]"
-                @click="activeDayIndex = index"
-              >
-                Day {{ index + 1 }} - {{ getDayLabel(index) }}
-              </button>
-            </div>
+            <div v-if="itineraryData.days && itineraryData.days.length > 0">
+              <div class="flex overflow-x-auto space-x-2 pb-2">
+                <button
+                  v-for="(day, index) in itineraryData.days"
+                  :key="index"
+                  :class="[
+                    'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
+                    activeDayIndex === index
+                      ? 'bg-primary-600 text-white border-primary-700'
+                      : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
+                  ]"
+                  @click="activeDayIndex = index"
+                >
+                  Day {{ index + 1 }} - {{ getDayLabel(index) }}
+                </button>
+              </div>
 
-            <!-- 活動列表 -->
-            <div class="space-y-4">
-              <div
-                v-for="activity in activeDay.activities"
-                :key="activity.id"
-                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
-              >
-                <div class="flex gap-4">
-                  <div class="w-20 shrink-0">
-                    <div class="text-2xl font-black text-primary-600">
-                      {{ activity.time }}
+              <div class="space-y-4">
+                <div v-if="activeDay.activities && activeDay.activities.length > 0">
+                  <div
+                    v-for="activity in activeDay.activities"
+                    :key="activity.id"
+                    class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
+                  >
+                    <div class="flex gap-4">
+                      <div class="w-20 shrink-0">
+                        <div class="text-2xl font-black text-primary-600">
+                          {{ activity.time }}
+                        </div>
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-2">
+                          <component
+                            :is="getIconComponent(activity.icon)"
+                            class="w-5 h-5 text-primary-500"
+                          />
+                          <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
+                        </div>
+                        <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div class="flex-1">
-                    <div class="flex items-center space-x-2 mb-2">
-                      <component
-                        :is="getIconComponent(activity.icon)"
-                        class="w-5 h-5 text-primary-500"
-                      />
-                      <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
-                    </div>
-                    <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
                   </div>
                 </div>
+                <div v-else class="text-center text-gray-500 py-4">當天無活動安排</div>
               </div>
             </div>
+            <div v-else class="text-center text-gray-400 py-10 bg-gray-50 rounded-lg">
+              作者尚未新增詳細行程
+            </div>
 
-            <!-- 打包清單 -->
-            <div v-if="itineraryData.packingList" class="mt-8">
+            <div
+              v-if="itineraryData.packingList && itineraryData.packingList.length > 0"
+              class="mt-8"
+            >
               <h3 class="font-black text-lg text-secondary-900 flex items-center mb-4">
                 <CheckSquareIcon class="w-5 h-5 mr-2 text-primary" />
                 建議攜帶物品
@@ -569,7 +581,6 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- 留言區 -->
           <div v-if="activeTab === 'comments'" ref="commentsSectionRef">
             <div v-if="normalizedComments.length" class="space-y-4">
               <div
@@ -585,7 +596,7 @@ onMounted(async () => {
                   <div class="flex-1">
                     <div class="flex justify-between items-start mb-1">
                       <span class="font-bold text-secondary-900">{{ comment.author }}</span>
-                      <span class="text-xs text-secondary-400">{{ comment.time }}</span>
+                      <span class="text-xs text-secondary-400">{{ formatTime(comment.time) }}</span>
                     </div>
                     <p class="text-secondary-700 text-sm mb-2">{{ comment.content }}</p>
 
@@ -595,13 +606,15 @@ onMounted(async () => {
                         @click="toggleCommentLike(comment)"
                       >
                         <HeartIcon
-                          :class="['w-3 h-3', comment.isLiked ? 'fill-current text-accent-600' : '']"
+                          :class="[
+                            'w-3 h-3',
+                            comment.isLiked ? 'fill-current text-accent-600' : '',
+                          ]"
                         />
                         <span>{{ comment.likes || 0 }}</span>
                       </button>
                     </div>
 
-                    <!-- 回覆 -->
                     <div
                       v-if="comment.replies && comment.replies.length"
                       class="mt-3 pl-4 border-l-2 border-primary-200 space-y-2"
@@ -610,8 +623,12 @@ onMounted(async () => {
                         <div class="flex items-start space-x-2">
                           <img :src="reply.avatar" class="w-7 h-7 rounded-full object-cover" />
                           <div class="flex-1">
-                            <span class="font-bold text-secondary-900 text-xs">{{ reply.author }}</span>
-                            <span class="text-xs text-secondary-400 ml-2">{{ reply.time }}</span>
+                            <span class="font-bold text-secondary-900 text-xs">{{
+                              reply.author
+                            }}</span>
+                            <span class="text-xs text-secondary-400 ml-2">{{
+                              formatTime(reply.time)
+                            }}</span>
                             <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
                           </div>
                         </div>
@@ -621,24 +638,26 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <div v-else class="text-center text-secondary-400 py-10">目前沒有留言，來當第一個吧！</div>
+            <div v-else class="text-center text-secondary-400 py-10">
+              目前沒有留言，來當第一個吧！
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- 留言輸入區（固定底部） -->
       <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-secondary-200 bg-white">
-        <div v-if="userStore.isLoggedIn" class="flex space-x-3">
+        <div v-if="userStore.isLoggedIn && currentUserUid" class="flex space-x-3">
           <input
             ref="commentInputRef"
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
             class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
+            :disabled="!userStore.isLoggedIn || !currentUserUid"
             @keyup.enter="submitComment"
           />
           <button
-            :disabled="!newComment.trim()"
+            :disabled="!newComment.trim() || !userStore.isLoggedIn || !currentUserUid"
             class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
             @click="submitComment"
           >
@@ -681,4 +700,3 @@ onMounted(async () => {
   max-width: none;
 }
 </style>
-

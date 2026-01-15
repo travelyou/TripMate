@@ -1,13 +1,20 @@
 ﻿<script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import StartPage from '@/components/personality-test/StartPage.vue'
 import QuizPage from '@/components/personality-test/QuizPage.vue'
 import ResultPage from '@/components/personality-test/ResultPage.vue'
 import { usePersonalityStore } from '@/stores/personality'
 
 const store = usePersonalityStore()
+const router = useRouter()
 const step = computed(() => store.step) // 當前測驗階段
 const result = computed(() => store.result) // 測驗結果
+
+const handleSave = () => {
+  store.saveResult()
+  router.push('/profile')
+}
 </script>
 
 <template>
@@ -37,6 +44,7 @@ const result = computed(() => store.result) // 測驗結果
           v-else-if="step === 'result' && result"
           :result="result"
           @restart="store.resetTest"
+          @save="handleSave"
         />
       </main>
     </div>

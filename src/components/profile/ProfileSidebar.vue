@@ -1,16 +1,26 @@
 <script setup>
 import { ref } from 'vue'
 
-defineProps({
+const props = defineProps({
   user: {
     type: Object,
-    required: true
+    required: true,
   },
   wishlist: {
     type: Array,
-    required: true
-  }
+    required: true,
+  },
+  personalityResult: {
+    type: Object,
+    default: null,
+  },
 })
+
+const emit = defineEmits(['open-personality-result'])
+
+const handleOpenPersonalityResult = () => {
+  emit('open-personality-result')
+}
 
 // Wishlist Physics Logic
 const ballContainer = ref(null)
@@ -56,26 +66,45 @@ function resetBalls() {
   <div class="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-6">
     <!-- Spirit Animal -->
     <div
-      class="bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl p-0.5 shadow-lg transform transition hover:-translate-y-1 duration-300 h-full"
+      class="border-secondary-200 bg-white rounded-2xl p-1 shadow-lg hover:-translate-y-1 duration-300 h-full"
     >
-      <div class="bg-white rounded-[14px] p-3 md:p-6 h-full flex flex-col items-center justify-center text-center">
-        <h3 class="text-sm md:text-lg font-bold text-gray-800 mb-1 md:mb-2">🧩 性格測驗</h3>
-        <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">
-          {{ user.spiritAnimal ? user.spiritAnimal.split(' ')[0] : '🦁' }}
-        </div>
-        <div
-          class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 truncate max-w-full"
-        >
-          {{ user.spiritAnimal ? user.spiritAnimal.split(' ')[1] : '樂天派' }}
-        </div>
-        <button class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-pink-100 text-pink-600 text-xs md:text-sm font-bold rounded-full hover:bg-pink-200 transition">
-          查看詳情
-        </button>
+      <div class=" rounded-2xl p-3 md:p-6 h-full flex flex-col items-center justify-center text-center">
+        <h3 class="text-sm md:text-lg font-bold text-secondary-700 mb-1 md:mb-2">🧩 性格測驗</h3>
+        <template v-if="props.personalityResult">
+          <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">
+            {{ props.personalityResult.animalEmoji }}
+          </div>
+          <div
+            class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-primary-800 truncate max-w-full"
+          >
+            {{ props.personalityResult.animalName }}
+          </div>
+          <button
+            class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-primary-50 text-primary-600 text-xs md:text-sm font-bold rounded-full hover:bg-primary-100 transition"
+            @click="handleOpenPersonalityResult"
+          >
+            查看詳情
+          </button>
+        </template>
+        <template v-else>
+          <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">😓</div>
+          <div
+            class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-primary-800 truncate max-w-full"
+          >
+            尚未測驗
+          </div>
+          <router-link
+            to="/test"
+            class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-primary-50 text-primary-600 text-xs md:text-sm font-bold rounded-full hover:bg-primary-100 transition"
+          >
+            開始測驗
+          </router-link>
+        </template>
       </div>
     </div>
 
     <!-- Wishlist Ball Pool (Physics Effect) -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-6 overflow-hidden h-full flex flex-col justify-between">
+    <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-3 md:p-6 overflow-hidden h-full flex flex-col justify-between">
       <h3 class="text-sm md:text-lg font-bold text-gray-800 mb-2 md:mb-4 text-center w-full">🔮 許願球池</h3>
       <!-- Ball Container -->
       <div
@@ -94,7 +123,7 @@ function resetBalls() {
         <div
           v-for="(item, index) in wishlist"
           :key="index"
-          class="wish-ball w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-[10px] md:text-xs font-bold text-indigo-700 shadow-md border-2 border-white select-none transition-transform duration-300 ease-out z-10 text-center leading-tight p-0.5 md:p-1 break-words"
+          class="wish-ball w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center text-[10px] md:text-xs font-bold text-primary-700 shadow-md border-2 border-white select-none transition-transform duration-300 ease-out z-10 text-center leading-tight p-0.5 md:p-1 break-words"
         >
           {{ item }}
         </div>

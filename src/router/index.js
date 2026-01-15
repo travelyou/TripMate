@@ -17,9 +17,9 @@ const router = createRouter({
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
-      path: '/find-traveler',
-      name: 'find_traveler',
-      component: () => import('@/views/FindTravelerPage.vue'),
+      path: '/travelers',
+      name: 'travelers',
+      component: () => import('@/views/TravelerPage.vue'),
     },
     {
       path: '/featured-itinerary',
@@ -58,6 +58,17 @@ const router = createRouter({
       component: () => import('@/views/VendorProfilePage.vue'),
       meta: {
         hideAd: true,
+      },
+    },
+    {
+      path: '/vendor/dashboard',
+      name: 'VendorDashboard',
+      component: () => import('@/views/VendorDashboardPage.vue'),
+      meta: {
+        hideAd: true,
+        hideLayout: true, // 隱藏前台 Layout (AppHeader, AppSidebar, FABs)
+        requiresAuth: true,
+        requiresVendorAuth: true, // 📡 未來需實作廠商權限驗證
       },
     },
     {
@@ -164,6 +175,24 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
+    return
+  }
+
+  // 廠商權限檢查
+  if (to.meta.requiresVendorAuth) {
+    if (!userStore.isLoggedIn) {
+      next('/login')
+      alert('請先登入後才可使用')
+      return
+    }
+    // 🔴 MOCK DATA - 目前允許所有登入使用者訪問
+    // 📡 未來需檢查: userStore.currentUser.role === 'vendor'
+    // if (!userStore.currentUser?.isVendor) {
+    //   next('/')
+    //   alert('此頁面僅限廠商使用')
+    //   return
+    // }
+    next()
     return
   }
 

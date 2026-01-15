@@ -50,9 +50,9 @@ const getStatusClasses = (status) => {
 </script>
 
 <template>
-  <div @click="$emit('open-detail', traveler)">
+  <div class="h-full" @click="$emit('open-detail', traveler)">
     <div
-      class="p-5 bg-white transition relative cursor-pointer rounded-2xl border-2 border-secondary-200 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]"
+      class="p-5 bg-white transition relative cursor-pointer rounded-2xl border border-secondary-200 shadow hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] h-full flex flex-col"
     >
       <div
         :class="getStatusClasses(traveler.status)"
@@ -61,53 +61,56 @@ const getStatusClasses = (status) => {
         {{ traveler.status }}
       </div>
 
-      <div class="flex flex-col lg:flex-row gap-4">
+      <div class="flex flex-col lg:flex-row gap-4 h-full">
         <div
-          class="w-full lg:w-1/3 h-40 lg:h-auto shrink-0 rounded-xl overflow-hidden border-2 border-secondary-200"
+          class="w-full lg:w-1/3 shrink-0 rounded-xl overflow-hidden border-2 border-secondary-200"
         >
           <img :src="traveler.image" :alt="traveler.title" class="w-full h-full object-cover" />
         </div>
 
-        <div class="flex-1 flex flex-col justify-between">
-          <div class="flex items-center space-x-3 mb-2">
-            <img
-              :src="traveler.avatar"
-              class="w-8 h-8 rounded-full object-cover border-2 border-secondary-200"
-            />
-            <div>
-              <div class="flex items-center space-x-1">
-                <span class="font-bold text-sm text-secondary-900">{{ traveler.author }}</span>
-                <span
-                  class="text-xs font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded-full"
-                >
-                  {{ traveler.spiritAnimal }}
-                </span>
+        <div class="flex-1 flex flex-col justify-between h-full">
+          <div>
+            <div class="flex items-center space-x-3 mb-2">
+              <img
+                :src="traveler.avatar"
+                class="w-8 h-8 rounded-full object-cover border-2 border-secondary-200"
+              />
+              <div>
+                <div class="flex items-center space-x-1">
+                  <span class="font-bold text-sm text-secondary-900">{{ traveler.author }}</span>
+                  <span
+                    class="text-xs font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded-full"
+                  >
+                    {{ traveler.spiritAnimal }}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div>
-            <h3 class="text-xl font-bold text-secondary-900 mb-2 hover:text-primary-600">
-              {{ traveler.title }}
-            </h3>
-            <p class="text-secondary-600 text-sm mb-3 line-clamp-2">
-              {{ traveler.content }}
-            </p>
+            <div>
+              <h3
+                class="text-xl font-bold text-secondary-900 mb-2 hover:text-primary-600 line-clamp-1"
+              >
+                {{ traveler.title }}
+              </h3>
+              <p class="text-secondary-600 text-sm mb-3 line-clamp-2">
+                {{ traveler.content }}
+              </p>
+            </div>
           </div>
-
           <div class="space-y-2 text-sm text-secondary-700">
-            <div v-if="traveler.tags && traveler.tags.length" class="flex flex-wrap gap-1">
+            <div class="flex flex-wrap gap-1 overflow-hidden line-clamp-1 min-h-[1.25rem]">
               <span
-                v-for="tag in traveler.tags"
+                v-for="tag in traveler.tags || []"
                 :key="tag"
-                class="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full hover:bg-primary-200 transition"
+                class="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full hover:bg-primary-200 transition inline-flex items-center h-5 max-w-[6.5rem] truncate"
               >
                 #{{ tag }}
               </span>
             </div>
 
-            <div class="flex items-center flex-wrap gap-4 mt-2">
-              <span class="flex items-center">
+            <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
+              <span class="flex items-center max-w-[10rem] truncate">
                 <MapPinIcon class="w-4 h-4 mr-1 text-primary-500" />
                 {{ traveler.location }}
               </span>
