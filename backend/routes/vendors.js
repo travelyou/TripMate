@@ -19,8 +19,7 @@ router.get('/:id', async (req, res) => {
       data: {
         id: id,
         name: '環遊世界旅行社',
-        avatar:
-          'https://www.facebook.com/photo/?fbid=1274899801326107&set=pb.100064182960601.-2207520000',
+        avatar: 'https://picsum.photos/200?random=vendor',
         description:
           '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。歡迎加入我們，一起發現世界的美好！',
         isVerified: true,
