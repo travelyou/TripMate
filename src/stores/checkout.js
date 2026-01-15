@@ -221,28 +221,18 @@ export const checkoutStore = reactive({
     this.selectedCartTourId = id
   },
 
-  // 儲存目前 checkout 為已完成訂單並重設 checkout 狀態（暫時仍是前端模擬）
-  completeOrder() {
-    const order = {
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      tour: this.selectedTour ? { ...this.selectedTour } : null,
-      contact: { ...this.contact },
-      emergencyContact: { ...this.emergencyContact },
-      paymentMethod: this.paymentMethod,
-      mobileProvider: this.mobileProvider,
-      cartTotalPrice: this.cartTotalPrice,
-    }
-
-    this.completedOrders.push(order)
-    this.lastOrder = order
-
-    // 重設 checkoutStore 為預設值
+  // 不再建立前端假訂單：只重設 checkout 狀態
+  resetCheckout() {
     this.selectedTour = null
     this.contact = { name: '', phone: '', email: '', note: '' }
     this.emergencyContact = { name: '', phone: '' }
     this.agree = false
     this.paymentMethod = ''
     this.mobileProvider = ''
+  },
+
+  // 保留舊名字做相容（可選）
+  completeOrder() {
+    this.resetCheckout()
   },
 })
