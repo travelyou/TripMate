@@ -16,12 +16,15 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || '0.0.0.0'
 
+// 1. 修改：加入 Vercel 前端網址到允許清單
 const allowedOrigins = [
   'https://tripmate.zeabur.app',
   'https://tripmate-backend.zeabur.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-]
+  'https://trip-mate-xi.vercel.app', // 新增你的 Vercel 前端網址
+  process.env.ALLOWED_ORIGIN, // 預留給環境變數設定
+].filter(Boolean) // 過濾掉空值
 
 // CORS 配置函數
 function setCorsHeaders(req, res) {
@@ -35,7 +38,7 @@ function setCorsHeaders(req, res) {
   }
 }
 
-// 手動處理 OPTIONS 預檢請求（使用中間件而非路由）
+// 手動處理 OPTIONS 預檢請求
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.origin
@@ -49,22 +52,18 @@ app.use((req, res, next) => {
   next()
 })
 
-// CORS 配置（用於非 OPTIONS 請求）
+// CORS 配置
 const corsOptions = {
   origin(origin, cb) {
-    // 允許沒有 origin 的請求（例如：Postman、curl、伺服器端請求）
     if (!origin) {
       console.log('CORS: 允許無 origin 的請求')
       return cb(null, true)
     }
-    // 檢查是否在允許列表中
     if (allowedOrigins.includes(origin)) {
       console.log(`CORS: 允許來源 ${origin}`)
       return cb(null, true)
     }
-    // 記錄被阻擋的來源（用於除錯）
     console.log(`CORS: 阻擋來源 ${origin}`)
-    // 拒絕其他來源
     return cb(new Error(`CORS blocked origin: ${origin}`))
   },
   credentials: true,
@@ -75,10 +74,9 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 }
 
-// 使用 CORS 中間件處理所有非 OPTIONS 請求
 app.use(cors(corsOptions))
 
-// 記錄所有請求（用於除錯）
+// 記錄所有請求
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`)
   next()
@@ -91,6 +89,7 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }))
 app.get('/', (req, res) => {
   res.json({
     message: 'TripMate 後端 API 服務',
+    environment: process.env.VERCEL ? 'Vercel Serverless' : 'Server/Local', // 方便你確認目前跑在哪裡
     endpoints: {
       test: '/api/test',
       testDb: '/api/test-db',
@@ -107,7 +106,6 @@ app.get('/api/test', (req, res) => {
   res.json({ message: '後端 API 連接成功！' })
 })
 
-// CORS 測試端點
 app.get('/api/test-cors', (req, res) => {
   res.json({
     message: 'CORS 測試成功！',
@@ -142,18 +140,15 @@ app.use('/api/users', usersRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
 
-// 全域錯誤處理中間件
-// 處理請求體過大的錯誤
+// 全域錯誤處理
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  // 確保 CORS 標頭在錯誤回應中也被設置
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
   }
 
-  // 處理請求體過大的錯誤
   if (err.type === 'entity.too.large' || err.status === 413) {
     console.error('❌ 請求體過大:', err.message)
     return res.status(413).json({
@@ -180,7 +175,6 @@ app.use((err, req, res, next) => {
 
 // 404 處理
 app.use((req, res) => {
-  // 確保 CORS 標頭在 404 回應中也被設置
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
@@ -193,7 +187,13 @@ app.use((req, res) => {
   })
 })
 
-app.listen(PORT, HOST, () => {
-  console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
-  console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
-})
+// 2. 修改：只在非 Vercel 環境下啟動監聽 (Zeabur/Local 依然會執行這裡)
+if (!process.env.VERCEL) {
+  app.listen(PORT, HOST, () => {
+    console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
+    console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
+  })
+}
+
+// 3. 修改：匯出 app 供 Vercel Serverless Function 使用
+module.exports = app

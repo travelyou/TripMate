@@ -51,7 +51,6 @@ const getTodayString = () => {
   const day = String(d.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-// 綁定給 input 的 min 屬性使用
 const minDate = getTodayString()
 
 // --- 驗證邏輯 ---
@@ -59,24 +58,23 @@ const validateBasic = () => {
   if (!postData.value.title) return '請輸入行程標題'
   if (postData.value.title.length > 35) return '標題不能超過 35 個字元'
 
-  // ★ 限制：價格檢查 (非空、非負、不超過一百萬、必須是整數)
+  // 價格檢查
   if (postData.value.price === null || postData.value.price === '') return '請輸入價格'
   if (postData.value.price < 0) return '價格不能為負數'
   if (postData.value.price > 1000000) return '價格不能超過 1,000,000'
   if (!Number.isInteger(postData.value.price)) return '價格必須為整數'
 
-  // ★ 限制：廠商名稱字數
+  // 廠商名稱字數
   if (!postData.value.agencyName) return '請輸入旅行社/提供者名稱'
   if (postData.value.agencyName.length > 15) return '廠商名稱不能超過 15 個字'
 
-  // ★ 限制：地點字數
+  // 地點字數
   if (postData.value.location && postData.value.location.length > 10)
     return '地點名稱不能超過 10 個字'
 
   if (!postData.value.start_date || !postData.value.end_date) return '請選擇行程日期'
 
-  // ★ 限制：出發日期不能早於今天
-  // 將字串轉為日期物件進行比較 (設為當天 00:00:00 避免時分秒誤差)
+  // 出發日期不能早於今天
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const startDate = new Date(postData.value.start_date)
@@ -152,7 +150,6 @@ const removeActivity = (index) => currentDay.value.activities.splice(index, 1)
 
 // --- 打包清單邏輯 ---
 const addPackingCategory = () => {
-  // ★ 限制：最多 10 個分類
   if (postData.value.packingList.length >= 10) {
     alert('打包物品最多只能設定 10 個分類')
     return
@@ -165,7 +162,6 @@ const removePackingCategory = (index) => {
 }
 
 const addPackingItem = (catIndex) => {
-  // ★ 限制：每個分類最多 15 個物品
   if (postData.value.packingList[catIndex].items.length >= 15) {
     alert('每個分類最多只能包含 15 個物品')
     return
@@ -301,12 +297,12 @@ if (postData.value.itinerary.days.length === 0) {
               v-model="postData.title"
               maxlength="35"
               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 outline-none"
-              placeholder="例如：京都深度五日遊 (限35字)"
+              placeholder="例如：京都深度五日遊"
             />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block font-bold text-gray-700 mb-2">價格 (NT$)</label>
+              <label class="block font-bold text-gray-700 mb-2">價格 </label>
               <div class="relative">
                 <DollarSignIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
@@ -316,26 +312,26 @@ if (postData.value.itinerary.days.length === 0) {
                   max="1000000"
                   step="1"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
-                  placeholder="0 ~ 1,000,000"
+                  placeholder="請輸入金額"
                 />
               </div>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-2">旅行社/提供者</label>
+              <label class="block font-bold text-gray-700 mb-2">旅行社/提供者 </label>
               <div class="relative">
                 <BuildingIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   v-model="postData.agencyName"
                   maxlength="15"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
-                  placeholder="限 15 字內"
+                  placeholder="例如：雄獅旅遊"
                 />
               </div>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block font-bold text-gray-700 mb-2">出發日期</label>
+              <label class="block font-bold text-gray-700 mb-2">出發日期 </label>
               <div class="relative">
                 <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
@@ -367,19 +363,19 @@ if (postData.value.itinerary.days.length === 0) {
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block font-bold text-gray-700 mb-2">地點</label>
+              <label class="block font-bold text-gray-700 mb-2">地點 </label>
               <div class="relative">
                 <MapPinIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   v-model="postData.location"
                   maxlength="10"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl"
-                  placeholder="限 10 字內，例如：日本關西"
+                  placeholder="例如：日本關西"
                 />
               </div>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-2">團體人數上限</label>
+              <label class="block font-bold text-gray-700 mb-2">團體人數上限 </label>
               <div class="relative">
                 <UsersIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
@@ -388,10 +384,9 @@ if (postData.value.itinerary.days.length === 0) {
                   min="1"
                   max="999"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl"
-                  placeholder="限制 999 人內"
+                  placeholder="請輸入人數"
                 />
               </div>
-              <p class="text-xs text-gray-400 mt-1 text-right">上限 999 人</p>
             </div>
           </div>
           <div>
@@ -404,7 +399,7 @@ if (postData.value.itinerary.days.length === 0) {
           </div>
           <div>
             <div class="flex justify-between items-center mb-2">
-              <label class="block font-bold text-gray-700">行程介紹</label>
+              <label class="block font-bold text-gray-700">行程介紹 </label>
               <span
                 :class="postData.description.length > 5000 ? 'text-red-500' : 'text-gray-400'"
                 class="text-xs"
@@ -416,12 +411,13 @@ if (postData.value.itinerary.days.length === 0) {
               rows="4"
               maxlength="5000"
               class="w-full p-3 border-2 border-gray-200 rounded-xl resize-none focus:border-primary-500 outline-none"
+              placeholder="請輸入行程詳細介紹..."
             ></textarea>
           </div>
           <div>
             <div class="flex justify-between mb-2">
-              <label class="block font-bold text-gray-700">標籤</label>
-              <span class="text-xs text-gray-400">{{ postData.tags.length }} / 5 (每個限30字)</span>
+              <label class="block font-bold text-gray-700">標籤 </label>
+              <span class="text-xs text-gray-400">{{ postData.tags.length }} / 5</span>
             </div>
             <div class="flex flex-wrap gap-2 mb-2" v-if="postData.tags.length">
               <span
@@ -443,7 +439,7 @@ if (postData.value.itinerary.days.length === 0) {
               @keyup.enter="addTag(tagSearch)"
               :disabled="postData.tags.length >= 5"
               class="w-full p-3 border-2 border-gray-200 rounded-xl disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="輸入標籤按 Enter 新增..."
+              placeholder="輸入標籤按 Enter 新增 (例如：#親子遊)"
             />
           </div>
         </div>
@@ -540,7 +536,7 @@ if (postData.value.itinerary.days.length === 0) {
               <input
                 v-model="cat.category"
                 class="font-bold text-primary-700 w-full mb-3 border-b border-dashed border-gray-300 focus:border-primary-500 outline-none"
-                placeholder="分類名稱"
+                placeholder="分類名稱 (例如：衣物)"
               />
               <div class="space-y-2">
                 <div v-for="(item, iIdx) in cat.items" :key="iIdx" class="flex items-center">
@@ -548,7 +544,7 @@ if (postData.value.itinerary.days.length === 0) {
                   <input
                     v-model="cat.items[iIdx]"
                     class="text-sm text-gray-600 w-full outline-none hover:bg-gray-50 rounded px-1"
-                    placeholder="物品名稱"
+                    placeholder="物品名稱 (例如：外套)"
                   />
                   <button
                     @click="removePackingItem(cIdx, iIdx)"
