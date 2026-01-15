@@ -29,9 +29,9 @@ router.get('/items', async (req, res) => {
 
     const r = await pool.query(
       `SELECT itinerary_id AS "itineraryId", persons
-       FROM commerce.cart_items
-       WHERE cart_id=$1
-       ORDER BY id ASC`,
+      FROM commerce.cart_items
+      WHERE cart_id=$1
+      ORDER BY id ASC`,
       [cartId],
     )
 
@@ -54,9 +54,9 @@ router.post('/items', async (req, res) => {
     // upsert：同 itinerary 就累加 persons
     await pool.query(
       `INSERT INTO commerce.cart_items(cart_id, itinerary_id, persons)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (cart_id, itinerary_id)
-       DO UPDATE SET persons = commerce.cart_items.persons + EXCLUDED.persons,
+      VALUES ($1, $2, $3)
+      ON CONFLICT (cart_id, itinerary_id)
+      DO UPDATE SET persons = commerce.cart_items.persons + EXCLUDED.persons,
                     updated_at = NOW()`,
       [cartId, itineraryId, persons],
     )
@@ -83,8 +83,8 @@ router.patch('/items/:itineraryId', async (req, res) => {
 
     const r = await pool.query(
       `UPDATE commerce.cart_items
-       SET persons=$1, updated_at=NOW()
-       WHERE cart_id=$2 AND itinerary_id=$3`,
+      SET persons=$1, updated_at=NOW()
+      WHERE cart_id=$2 AND itinerary_id=$3`,
       [persons, cartId, itineraryId],
     )
 

@@ -17,6 +17,7 @@ router.get('/test', (req, res) => {
  * 2) 建立一筆 commerce.payments（INIT）
  * 3) 回傳 mock 付款網址
  */
+
 router.post('/create', async (req, res) => {
   try {
     const { orderId, paymentMethod = 'mock' } = req.body || {}
@@ -44,8 +45,8 @@ router.post('/create', async (req, res) => {
     // 假設 commerce.payments 欄位至少有：order_id, provider, method, amount, status, created_at
     const pay = await pool.query(
       `INSERT INTO commerce.payments (order_id, provider, method, amount, status)
-       VALUES ($1, $2, $3, $4, 'INIT')
-       RETURNING id`,
+      VALUES ($1, $2, $3, $4, 'INIT')
+      RETURNING id`,
       [orderId, paymentMethod, paymentMethod, Number(order.amount)],
     )
 
@@ -73,6 +74,7 @@ router.post('/create', async (req, res) => {
  * 1) 把最新一筆該訂單的 payment 改成 PAID
  * 2) 把 commerce.orders.status 改成 PAID
  */
+
 router.get('/mock-pay', async (req, res) => {
   try {
     const { orderId } = req.query || {}
@@ -87,14 +89,14 @@ router.get('/mock-pay', async (req, res) => {
     // 1) 更新最新一筆 payment 狀態為 PAID（若你希望一定要有 payment，這裡可加判斷）
     await pool.query(
       `UPDATE commerce.payments
-       SET status = 'PAID'
-       WHERE id = (
-         SELECT id
-         FROM commerce.payments
-         WHERE order_id = $1
-         ORDER BY created_at DESC
-         LIMIT 1
-       )`,
+      SET status = 'PAID'
+      WHERE id = (
+        SELECT id
+        FROM commerce.payments
+        WHERE order_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      )`,
       [orderId],
     )
 
@@ -113,6 +115,7 @@ router.get('/mock-pay', async (req, res) => {
  * 真金流會呼叫這支（server-to-server）
  * 目前先印出來確認「收得到」
  */
+
 router.post('/webhook', (req, res) => {
   console.log('[payments webhook] body:', req.body)
   res.json({ ok: true })
