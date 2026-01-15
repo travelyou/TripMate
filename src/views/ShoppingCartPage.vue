@@ -46,15 +46,22 @@ function removeTour(id) {
   checkoutStore.removeTour(id)
 }
 
-//前往結帳
-function goToCheckout() {
-  if (selectedTour.value) {
-    checkoutStore.selectedTour = selectedTour.value
-    router.push('/checkout/step1')
-  } else {
-    // 沒有選中項目
+// 去結帳
+const goCheckout = async () => {
+  // 確保購物車資料存在
+  if (!checkoutStore.tourGroups.length) {
+    await checkoutStore.loadCartFromDb()
+  }
+
+  // 把選中的商品放進 store（後面 Step1~5 都靠它）
+  const selected = checkoutStore.cartSelectedTour
+  if (!selected) {
+    // 沒選到就退回（或提示）
     alert('請先選擇一個要結帳的行程！')
   }
+  checkoutStore.selectedTour = { ...selected } // 建議拷貝
+
+  router.push('/checkout/step1')
 }
 
 //去精選行程頁
@@ -72,6 +79,13 @@ function goToFeatured() {
       @click="checkoutStore.addToCart(1)"
     >
       加入itinerary #1 到購物車
+    </button>
+    <button
+      type="button"
+      class="bg-primary text-white px-5 py-2 rounded-xl"
+      @click="checkoutStore.addToCart(2)"
+    >
+      加入itinerary #2 到購物車
     </button>
     <button
       class="bg-primary text-white px-5 py-2 rounded-xl"
@@ -267,7 +281,7 @@ function goToFeatured() {
           </div>
           <!-- 按鈕區 -->
           <div class="flex flex-col gap-5">
-            <MainButton @click="goToCheckout"> 前往結帳 </MainButton>
+            <MainButton @click="goCheckout"> 前往結帳 </MainButton>
             <SubButton @click="goToFeatured">繼續購物</SubButton>
           </div>
         </div>
