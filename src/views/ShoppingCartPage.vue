@@ -194,7 +194,7 @@ function goToFeatured() {
                 <div class="flex flex-col justify-between">
                   <div>
                     <h1 class="font-bold">{{ tour.title }}</h1>
-                    <p class="text-sm text-gray-500">{{ tour.description }}</p>
+                    <p class="text-sm text-gray-500 line-clamp-2">{{ tour.description }}</p>
                   </div>
                   <div class="flex gap-5 mt-5">
                     <p class="text-sm text-gray-500">{{ tour.date }}</p>
