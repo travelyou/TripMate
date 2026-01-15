@@ -231,8 +231,10 @@ export const checkoutStore = reactive({
     this.mobileProvider = ''
   },
 
+  /*
   // 保留舊名字做相容（可選）
   completeOrder() {
     this.resetCheckout()
   },
+  */
 })

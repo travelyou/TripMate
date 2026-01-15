@@ -340,7 +340,7 @@ function backStep() {
             </div>
             <div class="flex justify-between font-bold text-blue-600">
               <span>轉帳金額</span>
-              <span>NT$ {{ checkoutStore.cartTotalPrice }}</span>
+              <span>NT$ {{ payableAmount }}</span>
             </div>
           </div>
 
