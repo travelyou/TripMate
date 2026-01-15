@@ -66,20 +66,32 @@ router.post('/', async (req, res) => {
     let finalVendorId = vendor_id;
 
     if (finalRole === 'user' || finalRole === 'admin') {
-      // 一般用戶和管理員的 vendor_id 必須是 null
+      // 一般用戶和管理員的 vendor_id 必須是 null（避免外鍵約束錯誤）
       finalVendorId = null;
     } else if (finalRole === 'vendor') {
       // 廠商角色：如果有 vendor_id，驗證它是否存在於 vendors 表
       if (finalVendorId) {
-        const vendorCheck = await pool.query('SELECT id FROM vendors WHERE id = $1', [finalVendorId]);
-        if (vendorCheck.rows.length === 0) {
-          return res.status(400).json({
-            error: '無效的廠商 ID',
-            message: '指定的 vendor_id 不存在於 vendors 表中',
-          });
+        console.log('[Users API] 驗證 vendor_id 是否存在於 vendors 表:', finalVendorId)
+        try {
+          const vendorCheck = await pool.query('SELECT id FROM vendors WHERE id = $1', [finalVendorId]);
+          if (vendorCheck.rows.length === 0) {
+            console.warn('[Users API] vendor_id 不存在於 vendors 表:', finalVendorId)
+            return res.status(400).json({
+              error: '無效的廠商 ID',
+              message: `指定的 vendor_id (${finalVendorId}) 不存在於 vendors 表中`,
+            });
+          }
+          console.log('[Users API] vendor_id 驗證通過:', finalVendorId)
+        } catch (vendorCheckError) {
+          console.error('[Users API] 檢查 vendor_id 時發生錯誤:', vendorCheckError)
+          // 如果檢查失敗，仍然允許繼續（讓資料庫外鍵約束來處理）
         }
+      } else {
+        // 如果沒有 vendor_id，設為 null（註冊時可能還沒有創建 vendor 資料）
+        // NULL 值不會觸發外鍵約束檢查
+        finalVendorId = null;
+        console.log('[Users API] vendor 角色但沒有提供 vendor_id，設為 null')
       }
-      // 如果沒有 vendor_id，允許為 null（註冊時可能還沒有創建 vendor 資料）
     }
 
     console.log('[Users API] 準備查詢現有用戶，UID:', uid)
@@ -217,29 +229,45 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 處理 PostgreSQL 外鍵約束錯誤
+    // 處理 PostgreSQL 外鍵約束錯誤 (23503)
     if (error.code === '23503') {
+      console.error('[Users API] 外鍵約束錯誤:', {
+        constraint: error.constraint,
+        detail: error.detail,
+        message: error.message
+      })
+
       // 檢查是哪個外鍵約束失敗
-      if (error.constraint === 'fk_users_vendor' || error.constraint?.includes('vendor')) {
+      const constraintName = error.constraint || '';
+      const errorDetail = error.detail || '';
+
+      // 檢查 vendor 相關的外鍵約束
+      if (constraintName.toLowerCase().includes('vendor') ||
+          constraintName.toLowerCase().includes('users_vendor') ||
+          errorDetail.toLowerCase().includes('vendor')) {
         return res.status(400).json({
           error: '無效的廠商 ID',
-          message: '指定的 vendor_id 不存在於 vendors 表中',
+          message: '指定的 vendor_id 不存在於 vendors 表中，請確認 vendor_id 是否正確',
           constraint: error.constraint,
           detail: error.detail
         });
       }
-      if (error.constraint?.includes('conversation')) {
+
+      // 檢查 conversation 相關的外鍵約束
+      if (constraintName.toLowerCase().includes('conversation') ||
+          errorDetail.toLowerCase().includes('conversation')) {
         return res.status(400).json({
           error: '外鍵約束錯誤',
-          message: 'conversation 外鍵約束失敗',
+          message: 'conversation 外鍵約束失敗，請確認相關資料是否存在',
           constraint: error.constraint,
           detail: error.detail
         });
       }
+
       // 其他外鍵約束錯誤
       return res.status(400).json({
         error: '外鍵約束錯誤',
-        message: error.detail || '外鍵約束失敗',
+        message: error.detail || '外鍵約束失敗，請確認相關資料是否存在',
         constraint: error.constraint,
         detail: error.detail
       });
