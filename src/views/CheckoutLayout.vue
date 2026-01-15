@@ -1,12 +1,31 @@
 <script setup>
 import CheckoutProgress from '@/components/checkout/CheckoutProgress.vue'
 import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
+import { checkoutStore } from '@/stores/checkout'
 const route = useRoute()
 
 const currentStep = computed(() => {
   const match = route.name?.match(/\d+/)
   return match ? Number(match[0]) : 1
+})
+
+onMounted(async () => {
+  // 1) 正常情況：從購物車按「前往結帳」會先設好 selectedTour
+  if (checkoutStore.selectedTour) return
+
+  // 2) 使用者重整 / 直接輸入網址：嘗試恢復
+  if (!checkoutStore.tourGroups.length) {
+    await checkoutStore.loadCartFromDb()
+  }
+  const selected = checkoutStore.cartSelectedTour
+  if (selected) {
+    checkoutStore.selectedTour = { ...selected }
+    return
+  }
+
+  // 3) 真的沒有商品 → 退回購物車
+  route.replace('/cart')
 })
 </script>
 <template>

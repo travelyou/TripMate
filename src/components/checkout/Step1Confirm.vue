@@ -41,7 +41,7 @@ function backCart() {
             <!-- 商品資訊區 -->
             <div>
               <h1 class="text-xl font-bold sm:text-3xl">{{ checkoutStore.selectedTour.title }}</h1>
-              <p class="text-sm mt-5 sm:text-base sm:mt-0 line-clamp-2">
+              <p class="text-sm mt-5 sm:text-base sm:mt-2 line-clamp-2">
                 {{ checkoutStore.selectedTour.description }}
               </p>
 
