@@ -27,7 +27,11 @@ const selectedTour = computed(() => checkoutStore.cartSelectedTour)
 const totalPrice = computed(() => checkoutStore.cartTotalPrice)
 
 // 購物車是否為空
-const isCartEmpty = computed(() => checkoutStore.tourGroups.length === 0)
+
+const isCartLoading = computed(() => checkoutStore.isCartLoading)
+const showCartList = computed(() => checkoutStore.tourGroups.length > 0)
+const isCartEmpty = computed(() => !isCartLoading.value && checkoutStore.tourGroups.length === 0)
+const showLoading = computed(() => isCartLoading.value && checkoutStore.tourGroups.length === 0)
 
 // 增加/減少人數
 function increasePersons(tour) {
@@ -76,9 +80,84 @@ function goToFeatured() {
       重新載入
     </button>
     <!-- 購物車整個區塊 -->
+
+    <!-- 載入骨架 -->
+    <div v-show="showLoading" class="rounded-2xl">
+      <div class="flex flex-col gap-5 lg:flex-row">
+        <div class="rounded-2xl flex-1">
+          <ul class="grid gap-5">
+            <li
+              v-for="n in 3"
+              :key="n"
+              class="p-5 border border-secondary-100 rounded-2xl bg-white shadow-sm"
+            >
+              <div class="animate-pulse flex flex-col justify-between gap-10 sm:flex-row">
+                <div class="flex flex-col gap-5 sm:flex-row">
+                  <div class="h-4 w-4 rounded-full bg-gray-200 mt-1"></div>
+                  <div class="w-32 h-24 bg-gray-200 rounded-lg"></div>
+                  <div class="flex flex-col justify-between flex-1">
+                    <div class="space-y-2">
+                      <div class="h-4 w-48 bg-gray-200 rounded"></div>
+                      <div class="h-3 w-72 bg-gray-200 rounded"></div>
+                    </div>
+                    <div class="flex gap-5 mt-5">
+                      <div class="h-3 w-20 bg-gray-200 rounded"></div>
+                      <div class="h-3 w-16 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex justify-between sm:flex-col">
+                  <div class="h-4 w-16 bg-gray-200 rounded"></div>
+                  <div class="flex gap-1">
+                    <div class="h-5 w-5 bg-gray-200 rounded-md"></div>
+                    <div class="h-5 w-5 bg-gray-200 rounded-md"></div>
+                    <div class="h-5 w-5 bg-gray-200 rounded-md"></div>
+                  </div>
+                  <div class="h-4 w-12 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="min-w-48 md:max-w-240 lg:min-w-64">
+          <div
+            class="p-5 bg-white rounded-2xl flex flex-col justify-between ring-1 ring-secondary-100 shadow-sm animate-pulse"
+          >
+            <div>
+              <div class="h-4 w-28 bg-gray-200 rounded mb-3"></div>
+              <div class="h-3 w-40 bg-gray-200 rounded mb-5"></div>
+            </div>
+            <div>
+              <div class="space-y-3 mb-6">
+                <div class="flex justify-between">
+                  <div class="h-3 w-10 bg-gray-200 rounded"></div>
+                  <div class="h-3 w-16 bg-gray-200 rounded"></div>
+                </div>
+                <div class="flex justify-between">
+                  <div class="h-3 w-10 bg-gray-200 rounded"></div>
+                  <div class="h-3 w-16 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+              <div class="border-t border-gray-200 pt-3 pb-3">
+                <div class="flex justify-between">
+                  <div class="h-3 w-10 bg-gray-200 rounded"></div>
+                  <div class="h-3 w-16 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-5">
+              <div class="h-10 w-full bg-gray-200 rounded-xl"></div>
+              <div class="h-10 w-full bg-gray-200 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="flex flex-col gap-5 lg:flex-row">
       <!-- 購物車列表 -->
-      <div v-show="!isCartEmpty" class="rounded-2xl">
+      <div v-show="showCartList" class="rounded-2xl">
         <ul class="grid gap-5">
           <li
             v-for="tour in tourGroups"
@@ -160,7 +239,7 @@ function goToFeatured() {
 
       <!-- 購物車小結區 -->
 
-      <div v-show="!isCartEmpty" class="min-w-48 md:max-w-240 lg:min-w-64">
+      <div v-show="showCartList" class="min-w-48 md:max-w-240 lg:min-w-64">
         <div
           class="p-5 bg-white rounded-2xl flex flex-col justify-between ring-1 ring-secondary-100 shadow-sm"
         >
