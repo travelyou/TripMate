@@ -148,34 +148,45 @@ router.post('/', async (req, res) => {
         vendor_id: finalVendorId
       });
 
+      // 確保所有參數都正確對應到資料庫欄位
+      // 根據資料庫表結構，可能包含：uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id
+      // 注意：created_at 和 updated_at 應該有默認值，不需要在 INSERT 中指定
+      // 如果表中有 vendor 或 conversation 外鍵欄位，需要確認是否需要處理
       const insertQuery = `
         INSERT INTO users (uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
+
+      // 準備參數，確保順序正確
+      // 如果資料庫表有 vendor 或 conversation 外鍵欄位，可能需要額外處理
+      const insertParams = [
+        uid,                    // $1: uid
+        email,                  // $2: email
+        nickname || null,       // $3: nickname
+        real_name || null,      // $4: real_name
+        avatar || null,         // $5: avatar
+        bio || null,            // $6: bio
+        spirit_animal || null,  // $7: spirit_animal
+        finalRole,              // $8: role
+        finalVendorId,          // $9: vendor_id
+      ];
+
       console.log('[Users API] 準備執行 INSERT 查詢')
+      console.log('[Users API] SQL:', insertQuery)
       console.log('[Users API] 查詢參數：', {
-        uid,
-        email,
-        nickname: nickname || null,
-        real_name: real_name || null,
-        avatar: avatar || null,
-        bio: bio || null,
-        spirit_animal: spirit_animal || null,
-        role: finalRole,
-        vendor_id: finalVendorId
+        param1_uid: insertParams[0],
+        param2_email: insertParams[1],
+        param3_nickname: insertParams[2],
+        param4_real_name: insertParams[3],
+        param5_avatar: insertParams[4],
+        param6_bio: insertParams[5],
+        param7_spirit_animal: insertParams[6],
+        param8_role: insertParams[7],
+        param9_vendor_id: insertParams[8]
       })
-      const result = await pool.query(insertQuery, [
-        uid,
-        email,
-        nickname || null,
-        real_name || null,
-        avatar || null,
-        bio || null,
-        spirit_animal || null,
-        finalRole,
-        finalVendorId,
-      ]);
+
+      const result = await pool.query(insertQuery, insertParams);
 
       console.log('用戶已成功插入資料庫：', {
         uid: result.rows[0].uid,
@@ -207,10 +218,30 @@ router.post('/', async (req, res) => {
     }
 
     // 處理 PostgreSQL 外鍵約束錯誤
-    if (error.code === '23503' && error.constraint === 'fk_users_vendor') {
+    if (error.code === '23503') {
+      // 檢查是哪個外鍵約束失敗
+      if (error.constraint === 'fk_users_vendor' || error.constraint?.includes('vendor')) {
+        return res.status(400).json({
+          error: '無效的廠商 ID',
+          message: '指定的 vendor_id 不存在於 vendors 表中',
+          constraint: error.constraint,
+          detail: error.detail
+        });
+      }
+      if (error.constraint?.includes('conversation')) {
+        return res.status(400).json({
+          error: '外鍵約束錯誤',
+          message: 'conversation 外鍵約束失敗',
+          constraint: error.constraint,
+          detail: error.detail
+        });
+      }
+      // 其他外鍵約束錯誤
       return res.status(400).json({
-        error: '無效的廠商 ID',
-        message: '指定的 vendor_id 不存在於 vendors 表中',
+        error: '外鍵約束錯誤',
+        message: error.detail || '外鍵約束失敗',
+        constraint: error.constraint,
+        detail: error.detail
       });
     }
 
