@@ -137,7 +137,7 @@ router.post('/', async (req, res) => {
       start_date,
       end_date,
       tags || [],
-      'vendor_default_001',
+      req.user.uid,
       'published',
     ]
     const itineraryResult = await client.query(insertItineraryQuery, itineraryValues)
