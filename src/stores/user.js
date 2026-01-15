@@ -420,7 +420,10 @@ export const useUserStore = defineStore('user', () => {
         })
         return
       } catch (neonError) {
+        // 404 錯誤是正常的（用戶可能還沒在資料庫中註冊），不需要記錄錯誤
+        if (neonError.response?.status !== 404) {
         console.error('從 Neon 載入失敗，嘗試從 Firestore 載入：', neonError)
+        }
       }
 
       const userDocRef = doc(db, 'users', uid)

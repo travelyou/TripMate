@@ -596,25 +596,42 @@ const handleRegister = async () => {
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
     try {
-      // 根據 role 設置 vendor_id
-      // 一般用戶和管理員的 vendor_id 必須是 null
-      // 廠商角色在註冊時可能還沒有 vendor_id，也設為 null（後續再設置）
       const finalRole = registerForm.value.role || 'user'
       const vendorId = finalRole === 'vendor' ? null : null
 
-      await createOrUpdateUser({
+      console.log('準備同步用戶資料到 Neon 資料庫：', {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        nickname: userData.nickname,
+        role: finalRole
+      })
+
+      const result = await createOrUpdateUser({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         nickname: userData.nickname,
         real_name: userData.realName,
         avatar: userData.avatar,
-        bio: userData.bio, // null
-        spirit_animal: userData.spiritAnimal, // null
+        bio: userData.bio,
+        spirit_animal: userData.spiritAnimal,
         role: finalRole,
-        vendor_id: vendorId, // 明確設置為 null
+        vendor_id: vendorId,
       })
+
+      console.log('用戶資料已成功同步到 Neon 資料庫：', result)
     } catch (syncError) {
       console.error('同步到 Neon 資料庫失敗：', syncError)
+      console.error('錯誤詳情：', {
+        message: syncError.message,
+        stack: syncError.stack,
+        response: syncError.response?.data
+      })
+
+      // 顯示錯誤訊息給用戶
+      const errorMessage = syncError.response?.data?.error || syncError.response?.data?.details || syncError.message || '未知錯誤'
+      registerErrors.value.general = '註冊成功，但資料同步到資料庫失敗：' + errorMessage
+
+      // 不阻止註冊流程，但讓用戶知道需要重新登入以同步資料
     }
 
     applyUserProfileToStore({

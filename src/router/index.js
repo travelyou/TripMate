@@ -53,7 +53,7 @@ const router = createRouter({
       },
     },
     {
-      path: '/vendor',
+      path: '/vendor/:id?',
       name: 'VendorProfile',
       component: () => import('@/views/VendorProfilePage.vue'),
       meta: {
@@ -68,7 +68,7 @@ const router = createRouter({
         hideAd: true,
         hideLayout: true, // 隱藏前台 Layout (AppHeader, AppSidebar, FABs)
         requiresAuth: true,
-        requiresVendorAuth: true, // 📡 未來需實作廠商權限驗證
+        requiresVendorAuth: true, // 未來需實作廠商權限驗證
       },
     },
     {
@@ -185,8 +185,8 @@ router.beforeEach(async (to, from, next) => {
       alert('請先登入後才可使用')
       return
     }
-    // 🔴 MOCK DATA - 目前允許所有登入使用者訪問
-    // 📡 未來需檢查: userStore.currentUser.role === 'vendor'
+    // MOCK DATA - 目前允許所有登入使用者訪問
+    // 未來需檢查: userStore.currentUser.role === 'vendor'
     // if (!userStore.currentUser?.isVendor) {
     //   next('/')
     //   alert('此頁面僅限廠商使用')

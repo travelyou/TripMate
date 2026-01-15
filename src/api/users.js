@@ -3,6 +3,9 @@ import { API_BASE_URL } from './config'
 // 創建或更新用戶資料
 export async function createOrUpdateUser(userData) {
   try {
+    console.log('[Users API] 準備發送請求到：', `${API_BASE_URL}/users`)
+    console.log('[Users API] 請求資料：', userData)
+
     const response = await fetch(`${API_BASE_URL}/users`, {
       method: 'POST',
       headers: {
@@ -10,14 +13,32 @@ export async function createOrUpdateUser(userData) {
       },
       body: JSON.stringify(userData),
     })
+
+    console.log('[Users API] 回應狀態：', response.status, response.statusText)
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.details || '創建/更新用戶失敗')
+      console.error('[Users API] 錯誤回應：', errorData)
+
+      // 創建一個包含更多資訊的錯誤物件
+      const error = new Error(errorData.error || errorData.details || '創建/更新用戶失敗')
+      error.response = { data: errorData, status: response.status }
+      throw error
     }
+
     const data = await response.json()
+    console.log('[Users API] 成功回應：', data)
     return data
   } catch (error) {
-    console.error('創建/更新用戶錯誤：', error)
+    console.error('[Users API] 請求失敗：', error)
+
+    // 如果是網路錯誤，提供更詳細的訊息
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      const networkError = new Error('無法連接到後端伺服器，請確認後端服務是否運行')
+      networkError.originalError = error
+      throw networkError
+    }
+
     throw error
   }
 }

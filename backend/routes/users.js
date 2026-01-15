@@ -4,9 +4,22 @@ const pool = require('../database/connection');
 
 router.post('/', async (req, res) => {
   try {
-    const { uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id } = req.body;
+    console.log('[Users API] 收到 POST 請求')
+    console.log('[Users API] 請求 Body:', JSON.stringify(req.body, null, 2))
+
+    // 從 req.body 讀取值，避免解構賦值可能的問題
+    const uid = req.body.uid;
+    const email = req.body.email;
+    let nickname = req.body.nickname;
+    let real_name = req.body.real_name;
+    let avatar = req.body.avatar;
+    let bio = req.body.bio;
+    let spirit_animal = req.body.spirit_animal;
+    let role = req.body.role;
+    let vendor_id = req.body.vendor_id;
 
     if (!uid || !email) {
+      console.warn('[Users API] 缺少必填欄位:', { uid: !!uid, email: !!email })
       return res.status(400).json({
         error: '缺少必填欄位',
         required: ['uid', 'email'],
@@ -24,7 +37,7 @@ router.post('/', async (req, res) => {
         real_name = trimmedName;
       }
     }
-    
+
     // 統一處理空字符串為 null
     if (bio === '') bio = null;
     if (spirit_animal === '') spirit_animal = null;
@@ -112,6 +125,15 @@ router.post('/', async (req, res) => {
       ]);
       res.json(result.rows[0]);
     } else {
+      console.log('準備插入新用戶到資料庫：', {
+        uid,
+        email,
+        nickname,
+        real_name,
+        role: finalRole,
+        vendor_id: finalVendorId
+      });
+
       const insertQuery = `
         INSERT INTO users (uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -128,10 +150,24 @@ router.post('/', async (req, res) => {
         finalRole,
         finalVendorId,
       ]);
+
+      console.log('用戶已成功插入資料庫：', {
+        uid: result.rows[0].uid,
+        email: result.rows[0].email,
+        nickname: result.rows[0].nickname
+      });
+
       res.status(201).json(result.rows[0]);
     }
   } catch (error) {
     console.error('創建/更新用戶失敗：', error);
+    console.error('錯誤詳情：', {
+      code: error.code,
+      constraint: error.constraint,
+      detail: error.detail,
+      message: error.message,
+      stack: error.stack
+    });
 
     if (error.code === '23503' && error.constraint === 'fk_users_vendor') {
       return res.status(400).json({
@@ -140,9 +176,18 @@ router.post('/', async (req, res) => {
       });
     }
 
+    if (error.code === '23505') {
+      return res.status(400).json({
+        error: '用戶已存在',
+        message: error.detail || '該 UID 或 Email 已被使用',
+      });
+    }
+
     res.status(500).json({
       error: '創建/更新用戶失敗',
-      details: error?.message || String(error)
+      details: error?.message || String(error),
+      code: error.code,
+      constraint: error.constraint
     });
   }
 });
@@ -206,7 +251,7 @@ router.put('/:uid', async (req, res) => {
         real_name = trimmedName;
       }
     }
-    
+
     // 統一處理空字符串為 null
     if (bio === '') bio = null;
     if (spirit_animal === '') spirit_animal = null;
@@ -247,7 +292,8 @@ router.put('/:uid', async (req, res) => {
 router.patch('/:uid/role', async (req, res) => {
   try {
     const { uid } = req.params;
-    const { role, vendor_id } = req.body;
+    const role = req.body.role;
+    const vendor_id = req.body.vendor_id;
 
     if (!role || !['user', 'vendor', 'admin'].includes(role)) {
       return res.status(400).json({
