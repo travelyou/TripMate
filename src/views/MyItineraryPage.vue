@@ -5,7 +5,7 @@ import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
 import {
   Calendar as CalendarIcon,
   Briefcase as BriefcaseIcon,
-  Plus as PlusIcon
+  Plus as PlusIcon,
 } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
@@ -14,8 +14,6 @@ const myItineraryStore = useMyItineraryStore()
 const route = useRoute() // 獲取當前路由資訊，用於讀取網址參數
 
 const { myItineraries, drafts } = storeToRefs(myItineraryStore)
-
-
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
@@ -52,7 +50,10 @@ const openAddItineraryModal = () => {
  */
 const openDraft = (draft) => {
   // 判斷草稿類型，如果是行程草稿就打開編輯
-  if ((draft.type === 'my_itinerary' || draft.type === 'itinerary') && (draft.data || draft.rawItinerary)) {
+  if (
+    (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
+    (draft.data || draft.rawItinerary)
+  ) {
     // 獲取草稿內的行程數據
     const dataToLoad = draft.data || draft.rawItinerary
     // 深拷貝一份資料，避免直接改到 Store 裡的原始草稿
@@ -113,14 +114,13 @@ const handleDeleteItinerary = (id) => {
   }
 }
 
-
 // 當組件掛載完成（頁面載入）時執行
 onMounted(() => {
   // 從網址中尋找是否有 'openDraft' 這個參數
   const draftId = route.query.openDraft
   if (draftId) {
     // 在草稿清單中找出 ID 符合的那筆
-    const draft = drafts.value.find(d => String(d.id) === String(draftId))
+    const draft = drafts.value.find((d) => String(d.id) === String(draftId))
     if (draft) {
       // 如果找到了，就自動幫使用者開啟這個草稿
       openDraft(draft)
@@ -134,9 +134,7 @@ onMounted(() => {
   <div class="p-4 max-w-5xl mx-auto">
     <!-- 使用 space-y-6 讓子元素之間自動產生垂直間距 -->
     <div class="space-y-6 pt-4">
-      <div
-        class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center"
-      >
+      <div class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center">
         <h1 class="text-2xl font-black text-secondary-50 flex items-center gap-3">
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
           我的行程
@@ -211,7 +209,8 @@ onMounted(() => {
           新增行程
         </button>
       </div>
-    </div> <!-- End of space-y-6 container -->
+    </div>
+    <!-- End of space-y-6 container -->
 
     <ItineraryDetailModal
       v-if="isDetailModalOpen"

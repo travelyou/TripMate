@@ -71,9 +71,11 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
     console.log('✅ [Likes API] 成功響應:', data)
     return data
   } catch (error) {
-    if (error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('404')) {
+    if (
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('NetworkError') ||
+      error.message.includes('404')
+    ) {
       console.warn(`獲取按讚資訊失敗，返回默認值。貼文 ID: ${postId}`, error.message)
       return {
         likesCount: 0,

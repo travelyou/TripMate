@@ -29,9 +29,8 @@ if (import.meta.env.DEV) {
     // 只顯示 API Key 的前後部分，保護敏感信息
     if (firebaseConfig.apiKey) {
       const key = firebaseConfig.apiKey
-      const maskedKey = key.length > 14
-        ? key.substring(0, 10) + '...' + key.substring(key.length - 4)
-        : key
+      const maskedKey =
+        key.length > 14 ? key.substring(0, 10) + '...' + key.substring(key.length - 4) : key
       console.log('🔑 API Key:', maskedKey)
     }
   }

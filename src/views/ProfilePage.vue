@@ -27,9 +27,7 @@ const personalityStore = usePersonalityStore()
 const router = useRouter() // 初始化路由器
 
 const user = computed(() => userStore.currentUser)
-const personalityResult = computed(
-  () => personalityStore.savedResult || personalityStore.result,
-)
+const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
 const isCurrentUser = true // In real app, check if route param ID matches current user ID
 
 // Tab State
@@ -126,7 +124,9 @@ const handleSelectDraft = (draft) => {
     router.push({ path: '/my-itinerary', query: { openDraft: draft.id } })
   } else {
     // 其他類型的草稿暫時只跳出提示
-    alert(`這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`)
+    alert(
+      `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
+    )
   }
 }
 
@@ -196,7 +196,9 @@ onMounted(() => {
       <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
       <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
         <!-- Tab Navigation -->
-        <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1.5 md:p-2 flex space-x-1">
+        <div
+          class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1.5 md:p-2 flex space-x-1"
+        >
           <button
             v-for="tab in tabs"
             :key="tab.k"
@@ -246,10 +248,7 @@ onMounted(() => {
           />
 
           <!-- 草稿分頁內容：監聽選中草稿事件 -->
-          <TabDrafts
-            v-if="activeTab === 'drafts'"
-            @select-draft="handleSelectDraft"
-          />
+          <TabDrafts v-if="activeTab === 'drafts'" @select-draft="handleSelectDraft" />
         </div>
       </div>
     </div>

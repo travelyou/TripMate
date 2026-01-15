@@ -160,7 +160,7 @@ export const useVendorStore = defineStore('vendor', () => {
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
       rating: 5,
       date: '2023-12-15',
-      content: '參加了他們的京都團，導遊非常專業，行程安排也很鬆弛有度，非常推薦！'
+      content: '參加了他們的京都團，導遊非常專業，行程安排也很鬆弛有度，非常推薦！',
     },
     {
       id: 2,
@@ -168,7 +168,7 @@ export const useVendorStore = defineStore('vendor', () => {
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
       rating: 4.5,
       date: '2023-11-20',
-      content: '整體的體驗很棒，住宿也很舒適。唯一的小缺點是遊覽車坐得有點久。'
+      content: '整體的體驗很棒，住宿也很舒適。唯一的小缺點是遊覽車坐得有點久。',
     },
     {
       id: 3,
@@ -176,8 +176,8 @@ export const useVendorStore = defineStore('vendor', () => {
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
       rating: 5,
       date: '2023-10-05',
-      content: '這是我參加過最棒的極光團！真的看到極光大爆發，太感動了！'
-    }
+      content: '這是我參加過最棒的極光團！真的看到極光大爆發，太感動了！',
+    },
   ]
 
   const vendorReviews = ref([])
@@ -238,7 +238,7 @@ export const useVendorStore = defineStore('vendor', () => {
    */
   const fetchVendorReviews = async (id) => {
     // 🔴 MOCK DATA
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 100))
     console.log(`Fetching reviews for vendor: ${id}`)
     vendorReviews.value = mockReviews
   }
@@ -256,7 +256,7 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
       currentVendor.value = { ...currentVendor.value, ...profileData }
 
       // 📡 未來實作:
@@ -283,13 +283,13 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
       const newItinerary = {
         id: Date.now(),
         ...itineraryData,
         vendorId,
         rating: 0,
-        reviewCount: 0
+        reviewCount: 0,
       }
       vendorItineraries.value.push(newItinerary)
 
@@ -310,12 +310,12 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
-      const index = vendorItineraries.value.findIndex(i => i.id === itineraryId)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const index = vendorItineraries.value.findIndex((i) => i.id === itineraryId)
       if (index !== -1) {
         vendorItineraries.value[index] = {
           ...vendorItineraries.value[index],
-          ...itineraryData
+          ...itineraryData,
         }
       }
 
@@ -336,8 +336,8 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
-      vendorItineraries.value = vendorItineraries.value.filter(i => i.id !== itineraryId)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      vendorItineraries.value = vendorItineraries.value.filter((i) => i.id !== itineraryId)
 
       return { success: true }
     } catch (err) {
@@ -356,7 +356,7 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
       const newPost = {
         id: Date.now(),
         ...postData,
@@ -364,7 +364,7 @@ export const useVendorStore = defineStore('vendor', () => {
         likes: 0,
         collects: 0,
         comments: 0,
-        time: new Date().toISOString().split('T')[0]
+        time: new Date().toISOString().split('T')[0],
       }
       vendorPosts.value.unshift(newPost)
 
@@ -385,12 +385,12 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
-      const index = vendorPosts.value.findIndex(p => p.id === postId)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const index = vendorPosts.value.findIndex((p) => p.id === postId)
       if (index !== -1) {
         vendorPosts.value[index] = {
           ...vendorPosts.value[index],
-          ...postData
+          ...postData,
         }
       }
 
@@ -411,8 +411,8 @@ export const useVendorStore = defineStore('vendor', () => {
     loading.value = true
     try {
       // 🔴 MOCK DATA
-      await new Promise(resolve => setTimeout(resolve, 500))
-      vendorPosts.value = vendorPosts.value.filter(p => p.id !== postId)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      vendorPosts.value = vendorPosts.value.filter((p) => p.id !== postId)
 
       return { success: true }
     } catch (err) {
@@ -435,7 +435,7 @@ export const useVendorStore = defineStore('vendor', () => {
       // 暫時忽略未使用的參數
       console.log('Uploading file:', file?.name, 'type:', type)
 
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
       // 模擬回傳 URL (使用假圖)
       const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
@@ -475,6 +475,6 @@ export const useVendorStore = defineStore('vendor', () => {
     createPost,
     updatePost,
     deletePost,
-    uploadVendorImage
+    uploadVendorImage,
   }
 })

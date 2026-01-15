@@ -13,6 +13,22 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // 驗證 real_name 不能是 email 格式
+    if (real_name) {
+      const trimmedName = real_name.trim();
+      // 檢查是否包含 @ 或看起來像 email
+      if (trimmedName.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedName)) {
+        console.warn(`警告：real_name 看起來像 email，將其設為 null (UID: ${uid}, real_name: ${real_name})`);
+        real_name = null;
+      } else {
+        real_name = trimmedName;
+      }
+    }
+    
+    // 統一處理空字符串為 null
+    if (bio === '') bio = null;
+    if (spirit_animal === '') spirit_animal = null;
+
     if (role && !['user', 'vendor', 'admin'].includes(role)) {
       return res.status(400).json({
         error: '無效的角色',
@@ -20,7 +36,28 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const existingUser = await pool.query('SELECT uid, role FROM users WHERE uid = $1', [uid]);
+    // 根據 role 強制設置 vendor_id
+    const finalRole = role || 'user';
+    let finalVendorId = vendor_id;
+
+    if (finalRole === 'user' || finalRole === 'admin') {
+      // 一般用戶和管理員的 vendor_id 必須是 null
+      finalVendorId = null;
+    } else if (finalRole === 'vendor') {
+      // 廠商角色：如果有 vendor_id，驗證它是否存在於 vendors 表
+      if (finalVendorId) {
+        const vendorCheck = await pool.query('SELECT id FROM vendors WHERE id = $1', [finalVendorId]);
+        if (vendorCheck.rows.length === 0) {
+          return res.status(400).json({
+            error: '無效的廠商 ID',
+            message: '指定的 vendor_id 不存在於 vendors 表中',
+          });
+        }
+      }
+      // 如果沒有 vendor_id，允許為 null（註冊時可能還沒有創建 vendor 資料）
+    }
+
+    const existingUser = await pool.query('SELECT uid, role, vendor_id FROM users WHERE uid = $1', [uid]);
 
     if (existingUser.rows.length > 0) {
       const currentRole = existingUser.rows[0].role || 'user';
@@ -29,7 +66,23 @@ router.post('/', async (req, res) => {
         console.log(`角色變更請求：${currentRole} -> ${role} (UID: ${uid})`);
       }
 
-      const finalRole = role || currentRole || 'user';
+      // 更新時也要根據 role 強制設置 vendor_id
+      let updateVendorId;
+      if (finalRole === 'user' || finalRole === 'admin') {
+        // 一般用戶和管理員的 vendor_id 必須是 null
+        updateVendorId = null;
+      } else if (finalRole === 'vendor') {
+        // 廠商角色：如果提供了 vendor_id 就使用，否則保持原值
+        if (vendor_id !== undefined) {
+          updateVendorId = finalVendorId;
+        } else {
+          // 沒有提供 vendor_id，保持原值
+          updateVendorId = existingUser.rows[0].vendor_id || null;
+        }
+      } else {
+        // 保持原值
+        updateVendorId = existingUser.rows[0].vendor_id || null;
+      }
 
       const updateQuery = `
         UPDATE users
@@ -41,7 +94,7 @@ router.post('/', async (req, res) => {
           bio = COALESCE($6, bio),
           spirit_animal = COALESCE($7, spirit_animal),
           role = $8,
-          vendor_id = COALESCE($9, vendor_id),
+          vendor_id = $9,
           updated_at = CURRENT_TIMESTAMP
         WHERE uid = $1
         RETURNING *
@@ -55,7 +108,7 @@ router.post('/', async (req, res) => {
         bio,
         spirit_animal,
         finalRole,
-        vendor_id || null,
+        updateVendorId,
       ]);
       res.json(result.rows[0]);
     } else {
@@ -72,8 +125,8 @@ router.post('/', async (req, res) => {
         avatar || null,
         bio || null,
         spirit_animal || null,
-        role || 'user',
-        vendor_id || null,
+        finalRole,
+        finalVendorId,
       ]);
       res.status(201).json(result.rows[0]);
     }
@@ -140,7 +193,23 @@ router.get('/:uid', async (req, res) => {
 router.put('/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    const { nickname, real_name, avatar, bio, spirit_animal } = req.body;
+    let { nickname, real_name, avatar, bio, spirit_animal } = req.body;
+
+    // 驗證 real_name 不能是 email 格式
+    if (real_name) {
+      const trimmedName = real_name.trim();
+      // 檢查是否包含 @ 或看起來像 email
+      if (trimmedName.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedName)) {
+        console.warn(`警告：real_name 看起來像 email，不更新此欄位 (UID: ${uid}, real_name: ${real_name})`);
+        real_name = undefined;
+      } else {
+        real_name = trimmedName;
+      }
+    }
+    
+    // 統一處理空字符串為 null
+    if (bio === '') bio = null;
+    if (spirit_animal === '') spirit_animal = null;
 
     const updateQuery = `
       UPDATE users
@@ -187,22 +256,44 @@ router.patch('/:uid/role', async (req, res) => {
       });
     }
 
-    const userCheck = await pool.query('SELECT role FROM users WHERE uid = $1', [uid]);
+    const userCheck = await pool.query('SELECT role, vendor_id FROM users WHERE uid = $1', [uid]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' });
+    }
+
+    // 根據 role 強制設置 vendor_id
+    let finalVendorId = null;
+    if (role === 'user' || role === 'admin') {
+      // 一般用戶和管理員的 vendor_id 必須是 null
+      finalVendorId = null;
+    } else if (role === 'vendor') {
+      // 廠商角色：如果有 vendor_id，驗證它是否存在
+      if (vendor_id) {
+        const vendorCheck = await pool.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
+        if (vendorCheck.rows.length === 0) {
+          return res.status(400).json({
+            error: '無效的廠商 ID',
+            message: '指定的 vendor_id 不存在於 vendors 表中',
+          });
+        }
+        finalVendorId = vendor_id;
+      } else {
+        // 如果沒有提供 vendor_id，保持原值（可能註冊時還沒有創建 vendor 資料）
+        finalVendorId = userCheck.rows[0].vendor_id;
+      }
     }
 
     const updateQuery = `
       UPDATE users
       SET
         role = $2,
-        vendor_id = COALESCE($3, vendor_id),
+        vendor_id = $3,
         updated_at = CURRENT_TIMESTAMP
       WHERE uid = $1
       RETURNING *
     `;
 
-    const result = await pool.query(updateQuery, [uid, role, vendor_id || null]);
+    const result = await pool.query(updateQuery, [uid, role, finalVendorId]);
 
     res.json({
       message: '角色更新成功',

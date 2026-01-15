@@ -154,9 +154,7 @@ const getPostData = (post) => ({
 <template>
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
-      <div
-        class="mb-6 mt-4 bg-primary rounded-xl p-5 shadow-primary-tall"
-      >
+      <div class="mb-6 mt-4 bg-primary rounded-xl p-5 shadow-primary-tall">
         <div class="flex justify-between items-center">
           <h1 class="text-2xl font-black text-white flex items-center">
             <MessageCircleIcon class="w-7 h-7 mr-3 text-white" />

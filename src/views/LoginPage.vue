@@ -145,7 +145,9 @@
                     />
                     <div class="flex flex-col">
                       <span class="text-sm sm:text-base">一般用戶</span>
-                      <span class="text-xs text-gray-500 mt-0.5">可瀏覽、找旅伴、發布找旅伴行程</span>
+                      <span class="text-xs text-gray-500 mt-0.5"
+                        >可瀏覽、找旅伴、發布找旅伴行程</span
+                      >
                     </div>
                   </label>
                   <label class="flex items-start cursor-pointer flex-1">
@@ -157,7 +159,9 @@
                     />
                     <div class="flex flex-col">
                       <span class="text-sm sm:text-base">廠商</span>
-                      <span class="text-xs text-gray-500 mt-0.5">額外擁有廠商資料、發布精選行程</span>
+                      <span class="text-xs text-gray-500 mt-0.5"
+                        >額外擁有廠商資料、發布精選行程</span
+                      >
                     </div>
                   </label>
                 </div>
@@ -401,15 +405,24 @@ const handleLogin = async () => {
     }
 
     try {
+      // 登入時同步資料，根據 role 設置 vendor_id
+      const userRole = userData.role || 'user'
+      // 一般用戶和管理員的 vendor_id 必須是 null
+      // 廠商角色：如果 Firestore 中有 vendorId 就使用，否則設為 null（後端會處理）
+      const vendorId = (userRole === 'user' || userRole === 'admin')
+        ? null
+        : (userData.vendorId || userData.vendor_id || null)
+
       await createOrUpdateUser({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         nickname: userData.nickname || '',
-        real_name: userData.realName || '',
+        real_name: userData.realName || null,
         avatar: userData.avatar || '',
-        bio: userData.bio || '',
-        spirit_animal: userData.spiritAnimal || '',
-        role: userData.role || 'user',
+        bio: userData.bio || null, // 空字符串轉為 null
+        spirit_animal: userData.spiritAnimal || null, // 空字符串轉為 null
+        role: userRole,
+        vendor_id: vendorId,
       })
     } catch (syncError) {
       console.error('同步到 Neon 資料庫失敗（但不影響登入）：', syncError)
@@ -486,10 +499,30 @@ const handleRegister = async () => {
 
     registerForm.value.email = sanitizeEmail(registerForm.value.email)
 
+    // 清理 real_name（去除前后空格）
+    if (registerForm.value.realName) {
+      registerForm.value.realName = registerForm.value.realName.trim()
+    }
+
     if (!registerForm.value.realName) {
       registerErrors.value.realName = '請填寫真實姓名'
       return
     }
+
+    // 驗證 email 格式的正則表達式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+    // 驗證 real_name 不能是 email 格式
+    if (registerForm.value.realName.includes('@') || emailRegex.test(registerForm.value.realName)) {
+      registerErrors.value.realName = '真實姓名不能是電子信箱格式'
+      return
+    }
+
+    // 清理 nickname（去除空格）
+    if (registerForm.value.nickname) {
+      registerForm.value.nickname = registerForm.value.nickname.trim()
+    }
+
     if (!registerForm.value.nickname) {
       registerErrors.value.nickname = '請填暱稱'
       return
@@ -507,7 +540,6 @@ const handleRegister = async () => {
       registerErrors.value.email = '電子信箱必須包含@'
       return
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(registerForm.value.email)) {
       registerErrors.value.email = '請填寫有效的電子信箱格式'
       return
@@ -552,27 +584,34 @@ const handleRegister = async () => {
     )
 
     const userData = {
-      realName: registerForm.value.realName,
-      nickname: registerForm.value.nickname,
+      realName: registerForm.value.realName.trim(),
+      nickname: registerForm.value.nickname.trim(),
       email: registerForm.value.email,
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
-      bio: '',
-      spiritAnimal: '',
+      bio: null, // 使用 null 而不是空字符串
+      spiritAnimal: null, // 使用 null 而不是空字符串
       role: registerForm.value.role || 'user',
       createdAt: new Date(),
     }
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
     try {
+      // 根據 role 設置 vendor_id
+      // 一般用戶和管理員的 vendor_id 必須是 null
+      // 廠商角色在註冊時可能還沒有 vendor_id，也設為 null（後續再設置）
+      const finalRole = registerForm.value.role || 'user'
+      const vendorId = finalRole === 'vendor' ? null : null
+
       await createOrUpdateUser({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         nickname: userData.nickname,
         real_name: userData.realName,
         avatar: userData.avatar,
-        bio: userData.bio,
-        spirit_animal: userData.spiritAnimal,
-        role: registerForm.value.role || 'user',
+        bio: userData.bio, // null
+        spirit_animal: userData.spiritAnimal, // null
+        role: finalRole,
+        vendor_id: vendorId, // 明確設置為 null
       })
     } catch (syncError) {
       console.error('同步到 Neon 資料庫失敗：', syncError)
