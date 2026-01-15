@@ -296,7 +296,7 @@ function backStep() {
             </div>
             <div class="flex justify-between font-bold text-blue-600">
               <span>轉帳金額</span>
-              <span>NT$ {{ checkoutStore.totalPrice }}</span>
+              <span>NT$ {{ checkoutStore.cartTotalPrice }}</span>
             </div>
           </div>
 
@@ -328,12 +328,12 @@ function backStep() {
 
           <div class="flex justify-between font-bold text-blue-600 text-lg">
             <span>應付金額</span>
-            <span>NT$ {{ checkoutStore.totalPrice }}</span>
+            <span>NT$ {{ checkoutStore.cartTotalPrice }}</span>
           </div>
         </div>
         <div class="flex flex-col gap-3">
           <MainButton @click="confirmPayment">
-            確認付款 NT$ {{ checkoutStore.totalPrice }}
+            確認付款 NT$ {{ checkoutStore.cartTotalPrice }}
           </MainButton>
 
           <SubButton @click="backStep"> 上一步 </SubButton>

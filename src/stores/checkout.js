@@ -231,7 +231,7 @@ export const checkoutStore = reactive({
       emergencyContact: { ...this.emergencyContact },
       paymentMethod: this.paymentMethod,
       mobileProvider: this.mobileProvider,
-      totalPrice: this.totalPrice,
+      cartTotalPrice: this.cartTotalPrice,
     }
 
     this.completedOrders.push(order)
