@@ -14,7 +14,6 @@ import {
   AlertCircle as AlertIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-// ★ 修正：確保正確引入 createItinerary
 import { createItinerary } from '@/api/itinerary'
 
 const emit = defineEmits(['close', 'success'])
@@ -24,7 +23,7 @@ const currentStep = ref('basic')
 const formError = ref('')
 const isSubmitting = ref(false)
 
-// 表單資料結構 (保持你原本的結構)
+// 表單資料結構
 const postData = ref({
   title: '',
   description: '',
@@ -44,14 +43,44 @@ const postData = ref({
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 
-// --- 驗證邏輯 (保持原本) ---
+// --- Helper: 取得今天的日期字串 (YYYY-MM-DD) ---
+const getTodayString = () => {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+// 綁定給 input 的 min 屬性使用
+const minDate = getTodayString()
+
+// --- 驗證邏輯 ---
 const validateBasic = () => {
   if (!postData.value.title) return '請輸入行程標題'
   if (postData.value.title.length > 35) return '標題不能超過 35 個字元'
 
-  if (!postData.value.price) return '請輸入價格'
+  // ★ 限制：價格檢查 (非空、非負、不超過一百萬、必須是整數)
+  if (postData.value.price === null || postData.value.price === '') return '請輸入價格'
+  if (postData.value.price < 0) return '價格不能為負數'
+  if (postData.value.price > 1000000) return '價格不能超過 1,000,000'
+  if (!Number.isInteger(postData.value.price)) return '價格必須為整數'
+
+  // ★ 限制：廠商名稱字數
   if (!postData.value.agencyName) return '請輸入旅行社/提供者名稱'
+  if (postData.value.agencyName.length > 15) return '廠商名稱不能超過 15 個字'
+
+  // ★ 限制：地點字數
+  if (postData.value.location && postData.value.location.length > 10)
+    return '地點名稱不能超過 10 個字'
+
   if (!postData.value.start_date || !postData.value.end_date) return '請選擇行程日期'
+
+  // ★ 限制：出發日期不能早於今天
+  // 將字串轉為日期物件進行比較 (設為當天 00:00:00 避免時分秒誤差)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const startDate = new Date(postData.value.start_date)
+  if (startDate < today) return '出發日期不能早於今天'
 
   if (postData.value.description.length > 5000) return '行程介紹不能超過 5000 字'
 
@@ -63,7 +92,7 @@ const validateBasic = () => {
   return ''
 }
 
-// --- 日期與天數計算邏輯 (保持原本) ---
+// --- 日期與天數計算邏輯 ---
 const calculateDuration = () => {
   if (postData.value.start_date && postData.value.end_date) {
     const start = new Date(postData.value.start_date)
@@ -121,19 +150,34 @@ const addActivity = () => {
 }
 const removeActivity = (index) => currentDay.value.activities.splice(index, 1)
 
+// --- 打包清單邏輯 ---
 const addPackingCategory = () => {
+  // ★ 限制：最多 10 個分類
+  if (postData.value.packingList.length >= 10) {
+    alert('打包物品最多只能設定 10 個分類')
+    return
+  }
   postData.value.packingList.push({ category: '新分類', items: [] })
 }
+
 const removePackingCategory = (index) => {
   postData.value.packingList.splice(index, 1)
 }
+
 const addPackingItem = (catIndex) => {
+  // ★ 限制：每個分類最多 15 個物品
+  if (postData.value.packingList[catIndex].items.length >= 15) {
+    alert('每個分類最多只能包含 15 個物品')
+    return
+  }
   postData.value.packingList[catIndex].items.push('')
 }
+
 const removePackingItem = (catIndex, itemIndex) => {
   postData.value.packingList[catIndex].items.splice(itemIndex, 1)
 }
 
+// --- 標籤邏輯 ---
 const addTag = (tagText) => {
   const clean = tagText.replace(/^#/, '').trim()
   if (!clean) return
@@ -154,6 +198,7 @@ const removeTag = (index) => {
   postData.value.tags.splice(index, 1)
 }
 
+// --- 步驟控制 ---
 const nextStep = () => {
   if (currentStep.value === 'basic') {
     const error = validateBasic()
@@ -181,23 +226,14 @@ const prevStep = () => {
   else if (currentStep.value === 'itinerary') currentStep.value = 'basic'
 }
 
-// ★★★ 修改：送出表單邏輯 ★★★
+// --- 送出表單 ---
 const handleFinalSubmit = async () => {
   isSubmitting.value = true
   formError.value = ''
   try {
-    // 呼叫 API (createItinerary)
-    // 注意：Store 的 createItinerary 已經包含了 API 呼叫 + Mock 更新
-    // 但如果你在 Dashboard 頁面是直接使用 API，這裡就是直接呼叫 API
-
-    // 這裡我們直接 emit 資料給父層 (Dashboard) 處理，因為父層才有 vendorId
-    // 或者直接呼叫 API
-
-    // 這裡假設是直接呼叫 API，並由 API 回傳結果
     const res = await createItinerary(postData.value)
 
     if (res.success) {
-      // 成功後發送訊號
       emit('success')
       emit('close')
     } else {
@@ -276,7 +312,11 @@ if (postData.value.itinerary.days.length === 0) {
                 <input
                   v-model.number="postData.price"
                   type="number"
+                  min="0"
+                  max="1000000"
+                  step="1"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
+                  placeholder="0 ~ 1,000,000"
                 />
               </div>
             </div>
@@ -286,7 +326,9 @@ if (postData.value.itinerary.days.length === 0) {
                 <BuildingIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   v-model="postData.agencyName"
+                  maxlength="15"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
+                  placeholder="限 15 字內"
                 />
               </div>
             </div>
@@ -299,6 +341,7 @@ if (postData.value.itinerary.days.length === 0) {
                 <input
                   v-model="postData.start_date"
                   type="date"
+                  :min="minDate"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
                 />
               </div>
@@ -310,7 +353,7 @@ if (postData.value.itinerary.days.length === 0) {
                 <input
                   v-model="postData.end_date"
                   type="date"
-                  :min="postData.start_date"
+                  :min="postData.start_date || minDate"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500"
                 />
               </div>
@@ -329,8 +372,9 @@ if (postData.value.itinerary.days.length === 0) {
                 <MapPinIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   v-model="postData.location"
+                  maxlength="10"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl"
-                  placeholder="例如：日本關西"
+                  placeholder="限 10 字內，例如：日本關西"
                 />
               </div>
             </div>
