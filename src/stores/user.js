@@ -7,12 +7,9 @@ import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 
 export const useUserStore = defineStore('user', () => {
-  // ----------------------------------------------------------------
-  // 1. 使用者狀態 (保留你原本豐富的 Mock Data)
-  // ----------------------------------------------------------------
   const currentUser = ref({
-    id: 1, // 預設 ID，登入後會被 Firebase UID 覆蓋
-    uid: 'gDuCNAtHzhUj3So6rGB4LC6fD2h2', // 預設 UID (對應資料庫測試用)
+    id: 1,
+    uid: 'gDuCNAtHzhUj3So6rGB4LC6fD2h2',
     name: 'Jovi',
     nickname: 'Jovi',
     email: 'jovi@example.com',
@@ -22,13 +19,14 @@ export const useUserStore = defineStore('user', () => {
     joinDate: '2023年5月',
     location: '台北, 台灣',
     website: 'https://jovitravels.com',
-    spiritAnimal: '🦉 觀察家',
+    spiritAnimal: '觀察家',
+    role: 'user',
+    vendorId: null,
     followers: 1250,
     following: 340,
     tripsHosted: 5,
     tags: ['攝影', '背包客', '美食', '自由行'],
     reviews: [
-      // ... (保留你原本的 reviews 資料)
       {
         id: 1,
         author: '小美',
@@ -77,7 +75,6 @@ export const useUserStore = defineStore('user', () => {
       },
     ],
     friends: [
-      // ... (保留你原本的 friends 資料)
       {
         id: 101,
         name: 'Alice',
@@ -111,7 +108,6 @@ export const useUserStore = defineStore('user', () => {
     ],
   })
 
-  // 拜訪過的地點
   const visitedPlaces = ref({
     domestic: [
       { name: '台北', date: '2024.01' },
@@ -132,14 +128,9 @@ export const useUserStore = defineStore('user', () => {
   const wishlist = ref(['冰島極光', '紐西蘭健行', '瑞士滑雪', '土耳其熱氣球'])
   const likedPosts = ref([])
 
-  // ----------------------------------------------------------------
-  // 2. 核心修改區：收藏與按讚 (整合後端 API)
-  // ----------------------------------------------------------------
   const favorites = ref([])
 
-  // [新增] 從後端抓取收藏列表
   const fetchFavorites = async () => {
-    // 確保有 UID 才能抓取 (使用 Firebase UID 或預設 UID)
     const targetUid = currentUser.value.uid || currentUser.value.id
     if (!targetUid) return
 
@@ -148,36 +139,27 @@ export const useUserStore = defineStore('user', () => {
         params: { board: 'discussion' },
       })
       favorites.value = response.data
-      console.log('✅ [Store] 收藏列表同步成功:', favorites.value.length, '筆')
     } catch (error) {
-      console.error('❌ [Store] 獲取收藏失敗:', error)
-      // 失敗時不清除原本的內容，避免閃爍
+      console.error('獲取收藏失敗:', error)
     }
   }
 
-  // [修改] 按讚 / 取消讚 (整合 API)
   const toggleFavorite = async (item) => {
-    // 1. 權限檢查
-    // if (!isLoggedIn.value) { alert('請先登入'); return; } // 視需求開啟
-
-    // 2. 樂觀更新 (Optimistic Update) - 先改畫面，讓使用者覺得很快
     const itemType = item.type || 'discussion'
     const index = favorites.value.findIndex((i) => i.id === item.id && i.type === itemType)
 
-    // 用來判斷我們剛剛是做了 "新增" 還是 "移除"
     let action = ''
 
     if (index > -1) {
-      favorites.value.splice(index, 1) // 移除
-      if (item.likes !== undefined) item.likes-- // 修正數字顯示
+      favorites.value.splice(index, 1)
+      if (item.likes !== undefined) item.likes--
       action = 'remove'
     } else {
-      favorites.value.push({ ...item, type: itemType }) // 新增
-      if (item.likes !== undefined) item.likes++ // 修正數字顯示
+      favorites.value.push({ ...item, type: itemType })
+      if (item.likes !== undefined) item.likes++
       action = 'add'
     }
 
-    // 3. 發送後端請求
     try {
       const targetUid = currentUser.value.uid || currentUser.value.id
       const board = itemType === 'traveler' ? 'traveler' : 'discussion'
@@ -186,10 +168,8 @@ export const useUserStore = defineStore('user', () => {
         author_uid: targetUid,
         board: board,
       })
-      console.log('✅ [Store] 按讚操作已同步至後端')
     } catch (error) {
-      console.error('❌ [Store] 按讚 API 失敗，正在回滾...', error)
-      // 如果 API 失敗，把畫面改回來 (Rollback)
+      console.error('按讚 API 失敗，正在回滾...', error)
       if (action === 'remove') {
         favorites.value.push({ ...item, type: itemType })
         if (item.likes !== undefined) item.likes++
@@ -208,16 +188,12 @@ export const useUserStore = defineStore('user', () => {
     return favorites.value.some((i) => i.id === item.id && i.type === itemType)
   }
 
-  // ----------------------------------------------------------------
-  // 3. 收藏分類 (Collection Categories) - 保留原本邏輯
-  // ----------------------------------------------------------------
   const collectionCategories = ref([
     { id: 'default', name: '未分類項目', items: [] },
     { id: 'domestic', name: '國內旅遊', items: [] },
     { id: 'international', name: '國外旅遊', items: [] },
   ])
 
-  // 模擬參加過的行程資料
   const participatedTrips = ref([
     {
       id: 201,
@@ -235,7 +211,6 @@ export const useUserStore = defineStore('user', () => {
     },
   ])
 
-  // 隱藏的足跡
   const hiddenStamps = ref([])
 
   const hideStamp = (key) => {
@@ -247,9 +222,6 @@ export const useUserStore = defineStore('user', () => {
     if (idx > -1) hiddenStamps.value.splice(idx, 1)
   }
 
-  // ----------------------------------------------------------------
-  // 4. 護照資料聚合邏輯 (Passport Aggregation) - 完全保留
-  // ----------------------------------------------------------------
   const passportEntries = computed(() => {
     const entries = []
     const getKey = (type, location, date) => `${type}-${location}-${date}`
@@ -322,9 +294,6 @@ export const useUserStore = defineStore('user', () => {
     return entries.sort((a, b) => b.date.localeCompare(a.date))
   })
 
-  // ----------------------------------------------------------------
-  // 5. 收藏彈窗與邏輯 - 保留原本邏輯
-  // ----------------------------------------------------------------
   const isCollectionModalOpen = ref(false)
   const pendingCollectionItem = ref(null)
 
@@ -383,9 +352,6 @@ export const useUserStore = defineStore('user', () => {
     return all
   })
 
-  // ----------------------------------------------------------------
-  // 6. 其他輔助功能與 Auth - 保留原本邏輯
-  // ----------------------------------------------------------------
   const updateProfile = (newData) => {
     currentUser.value = { ...currentUser.value, ...newData }
   }
@@ -417,13 +383,7 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
-      const createdAt = profileData.createdAt?.toDate
-        ? profileData.createdAt.toDate()
-        : profileData.createdAt
-          ? new Date(profileData.createdAt)
-          : new Date()
       currentUser.value = {
-        // 合併原本的 mock data，避免欄位遺失
         ...currentUser.value,
         id: profileData.uid,
         uid: profileData.uid,
@@ -435,12 +395,34 @@ export const useUserStore = defineStore('user', () => {
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`,
         bio: profileData.bio || currentUser.value.bio,
         spiritAnimal: profileData.spiritAnimal || currentUser.value.spiritAnimal,
+        role: profileData.role || 'user',
+        vendorId: profileData.vendorId || null,
       }
     }
   }
 
   const loadUserProfile = async (uid) => {
     try {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/users/${uid}`)
+        const neonUserData = response.data
+
+        setUserProfile({
+          uid: uid,
+          email: firebaseUser.value?.email || neonUserData.email || '',
+          nickname: neonUserData.nickname || '',
+          realName: neonUserData.real_name || '',
+          avatar: neonUserData.avatar || '',
+          bio: neonUserData.bio || '',
+          spiritAnimal: neonUserData.spirit_animal || '',
+          role: neonUserData.role || 'user',
+          vendorId: neonUserData.vendor_id || null,
+        })
+        return
+      } catch (neonError) {
+        console.error('從 Neon 載入失敗，嘗試從 Firestore 載入：', neonError)
+      }
+
       const userDocRef = doc(db, 'users', uid)
       const userDoc = await getDoc(userDocRef)
 
@@ -450,6 +432,8 @@ export const useUserStore = defineStore('user', () => {
           uid: uid,
           email: firebaseUser.value?.email || '',
           ...userData,
+          role: userData.role || 'user',
+          vendorId: userData.vendorId || null,
         })
       }
     } catch (error) {
@@ -457,16 +441,19 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  const userRole = computed(() => currentUser.value?.role || 'user')
+  const isVendor = computed(() => userRole.value === 'vendor')
+  const isAdmin = computed(() => userRole.value === 'admin')
+  const isRegularUser = computed(() => userRole.value === 'user')
+
   onAuthStateChanged(auth, async (user) => {
     firebaseUser.value = user
     isLoggedIn.value = user ? true : false
 
     if (user) {
-      // 登入時載入用戶資料與收藏
       await loadUserProfile(user.uid)
-      await fetchFavorites() // [新增] 登入後自動抓取後端收藏
+      await fetchFavorites()
     } else {
-      // 登出時重置用戶資料 (保留你的 Mock Data 預設值)
       currentUser.value = {
         id: 1,
         name: 'Jovi',
@@ -478,15 +465,17 @@ export const useUserStore = defineStore('user', () => {
         joinDate: '2023年5月',
         location: '台北, 台灣',
         website: 'https://jovitravels.com',
-        spiritAnimal: '🦉 觀察家',
+        spiritAnimal: '觀察家',
+        role: 'user',
+        vendorId: null,
         followers: 1250,
         following: 340,
         tripsHosted: 5,
         tags: ['攝影', '背包客', '美食', '自由行'],
-        reviews: currentUser.value.reviews || [], // 使用目前有的，或重置為預設
+        reviews: currentUser.value.reviews || [],
         friends: currentUser.value.friends || [],
       }
-      favorites.value = [] // 登出清空收藏
+      favorites.value = []
     }
 
     if (!authReady.value) {
@@ -505,7 +494,6 @@ export const useUserStore = defineStore('user', () => {
       console.error('Firebase signOut 失敗：', error)
     } finally {
       isLoggedIn.value = false
-      console.log('Logged out')
     }
   }
 
@@ -517,14 +505,18 @@ export const useUserStore = defineStore('user', () => {
     firebaseUser,
     setUserProfile,
     loadUserProfile,
+    userRole,
+    isVendor,
+    isAdmin,
+    isRegularUser,
     visitedPlaces,
     wishlist,
     likedPosts,
-    favorites, // 這是 API 同步的收藏列表
-    fetchFavorites, // [新增]
-    toggleFavorite, // [修改] 整合 API
+    favorites,
+    fetchFavorites,
+    toggleFavorite,
     isFavorite,
-    collectionCategories, // 這是本地分類的收藏
+    collectionCategories,
     collections,
     isCollectionModalOpen,
     openCollectionModal,

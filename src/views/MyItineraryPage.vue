@@ -1,18 +1,21 @@
 ﻿<script setup>
-import { ref } from 'vue'
-import { storeToRefs } from 'pinia'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
 import {
   Calendar as CalendarIcon,
-  FolderOpen as FolderIcon,
-  Plus as PlusIcon,
   Briefcase as BriefcaseIcon,
+  Plus as PlusIcon
 } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
 const myItineraryStore = useMyItineraryStore()
+const route = useRoute() // 獲取當前路由資訊，用於讀取網址參數
 
 const { myItineraries, drafts } = storeToRefs(myItineraryStore)
+
+
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
@@ -43,21 +46,19 @@ const openAddItineraryModal = () => {
   isDetailModalOpen.value = true
 }
 
-// 開啟草稿
+/**
+ * 開啟草稿編輯彈窗
+ * @param {Object} draft - 要編輯的草稿
+ */
 const openDraft = (draft) => {
   // 判斷草稿類型，如果是行程草稿就打開編輯
-  if (
-    (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
-    (draft.data || draft.rawItinerary)
-  ) {
-    // 兼容兩種草稿結構 (你原本寫的 & 我之前教你的)
+  if ((draft.type === 'my_itinerary' || draft.type === 'itinerary') && (draft.data || draft.rawItinerary)) {
+    // 獲取草稿內的行程數據
     const dataToLoad = draft.data || draft.rawItinerary
+    // 深拷貝一份資料，避免直接改到 Store 裡的原始草稿
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
+    // 開啟編輯 Modal
     isDetailModalOpen.value = true
-  } else {
-    alert(
-      `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
-    )
   }
 }
 
@@ -112,20 +113,29 @@ const handleDeleteItinerary = (id) => {
   }
 }
 
-const getTagColor = (type) => {
-  if (type === 'discussion') return 'bg-primary-600 text-white border-primary-700'
-  if (type === 'traveler') return 'bg-primary-500 text-white border-primary-600'
-  if (type === 'my_itinerary' || type === 'itinerary')
-    return 'bg-primary-700 text-white border-primary-800'
-  return 'bg-secondary-500 text-white'
-}
+
+// 當組件掛載完成（頁面載入）時執行
+onMounted(() => {
+  // 從網址中尋找是否有 'openDraft' 這個參數
+  const draftId = route.query.openDraft
+  if (draftId) {
+    // 在草稿清單中找出 ID 符合的那筆
+    const draft = drafts.value.find(d => String(d.id) === String(draftId))
+    if (draft) {
+      // 如果找到了，就自動幫使用者開啟這個草稿
+      openDraft(draft)
+    }
+  }
+})
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start pt-4">
+  <!-- 最外層容器：限制最大寬度 (max-width 5xl) 並置中 (mx-auto)，讓畫面在寬螢幕上更美觀 -->
+  <div class="p-4 max-w-5xl mx-auto">
+    <!-- 使用 space-y-6 讓子元素之間自動產生垂直間距 -->
+    <div class="space-y-6 pt-4">
       <div
-        class="lg:col-start-1 lg:row-start-1 bg-primary p-5 rounded-xl shadow-primary-tall flex items-center"
+        class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center"
       >
         <h1 class="text-2xl font-black text-secondary-50 flex items-center gap-3">
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
@@ -134,7 +144,7 @@ const getTagColor = (type) => {
       </div>
 
       <div
-        class="lg:col-start-1 lg:row-start-2 bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall"
+        class="bg-white rounded-xl p-6 relative overflow-hidden border-4 border-primary shadow-primary-tall"
       >
         <div class="flex items-center mb-6 pb-4 border-b-2 border-secondary-100">
           <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-4">
@@ -201,48 +211,7 @@ const getTagColor = (type) => {
           新增行程
         </button>
       </div>
-
-      <div
-        class="lg:col-start-2 lg:row-start-2 bg-white rounded-xl p-5 border-4 border-primary shadow-primary-tall"
-      >
-        <div class="flex items-center mb-6">
-          <div class="bg-primary-100 p-2 rounded-lg border-2 border-primary-200 mr-3">
-            <FolderIcon class="w-5 h-5 text-primary-600" />
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-secondary-800">草稿夾</h3>
-            <p class="text-xs text-secondary-500">查看你儲存的貼文草稿</p>
-          </div>
-        </div>
-
-        <div class="space-y-4">
-          <div
-            v-for="draft in drafts"
-            :key="draft.id"
-            class="border border-secondary-200 rounded-lg p-3 hover:shadow-md transition bg-secondary-50 cursor-pointer"
-            @click="openDraft(draft)"
-          >
-            <div class="flex justify-between items-center mb-2">
-              <span
-                :class="[
-                  getTagColor(draft.type),
-                  'text-[10px] px-2 py-0.5 rounded border font-bold',
-                ]"
-              >
-                {{ draft.typeLabel }}
-              </span>
-              <span class="text-[10px] text-secondary-400"
-                >儲存於: {{ draft.saveTime ? draft.saveTime.split(' ')[0] : '剛剛' }}</span
-              >
-            </div>
-            <h4 class="font-bold text-sm text-secondary-800 mb-1 line-clamp-1">
-              {{ draft.title }}
-            </h4>
-            <p class="text-xs text-secondary-500 line-clamp-2">{{ draft.content }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </div> <!-- End of space-y-6 container -->
 
     <ItineraryDetailModal
       v-if="isDetailModalOpen"

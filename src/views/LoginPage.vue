@@ -134,6 +134,37 @@
           >
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label class="text-sm sm:text-base mb-2">註冊身分</label>
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <label class="flex items-start cursor-pointer flex-1">
+                    <input
+                      v-model="registerForm.role"
+                      type="radio"
+                      value="user"
+                      class="mr-2 w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 mt-0.5 flex-shrink-0"
+                    />
+                    <div class="flex flex-col">
+                      <span class="text-sm sm:text-base">一般用戶</span>
+                      <span class="text-xs text-gray-500 mt-0.5">可瀏覽、找旅伴、發布找旅伴行程</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start cursor-pointer flex-1">
+                    <input
+                      v-model="registerForm.role"
+                      type="radio"
+                      value="vendor"
+                      class="mr-2 w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 mt-0.5 flex-shrink-0"
+                    />
+                    <div class="flex flex-col">
+                      <span class="text-sm sm:text-base">廠商</span>
+                      <span class="text-xs text-gray-500 mt-0.5">額外擁有廠商資料、發布精選行程</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="realName" class="text-sm sm:text-base">真實姓名</label>
                 <input
                   id="realName"
@@ -263,33 +294,30 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { createOrUpdateUser, getUserProfile } from '@/api/users'
 
-//切換 login / register
 const activeTab = ref('login')
 
-//登入：填寫帳號密碼
 const loginForm = ref({
   email: '',
   password: '',
 })
 
-//註冊：填寫帳號密碼
 const registerForm = ref({
   realName: '',
   nickname: '',
   email: '',
   password: '',
   confirmPassword: '',
+  role: 'user',
 })
 
-//登入錯誤訊息通知
 const loginErrors = ref({
   email: '',
   password: '',
   general: '',
 })
 
-//登入：送出資料
 const userStore = useUserStore()
 const router = useRouter()
 
@@ -308,70 +336,55 @@ const applyUserProfileToStore = (profileData) => {
       avatar: profileData?.avatar,
       bio: profileData?.bio,
       spiritAnimal: profileData?.spiritAnimal,
+      role: profileData?.role || 'user',
+      vendorId: profileData?.vendorId || null,
     })
   }
 }
 
 const handleLogin = async () => {
-  // 清理 email：避免零寬字元/全形符號導致 Firebase 判定 auth/invalid-email
   loginForm.value.email = (loginForm.value.email || '')
     .toString()
     .trim()
     .toLowerCase()
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\s+/g, '')
-    .replace(/\uFF20/g, '@') // ＠
-    .replace(/[\uFF0E\u3002\uFF61]/g, '.') // ． 。 ｡
+    .replace(/\uFF20/g, '@')
+    .replace(/[\uFF0E\u3002\uFF61]/g, '.')
 
-  console.log('🔵 登入函數被觸發', { email: loginForm.value.email, password: loginForm.value.password ? '***' : '' })
-
-  //送出後出錯則欄位清空
   loginErrors.value = {
     email: '',
     password: '',
     general: '',
   }
 
-  // 基本驗證
   if (!loginForm.value.email) {
     loginErrors.value.email = '請輸入電子信箱'
-    console.log('❌ 驗證失敗：電子信箱為空')
     return
   }
 
   if (!loginForm.value.password) {
     loginErrors.value.password = '請輸入密碼'
-    console.log('❌ 驗證失敗：密碼為空')
     return
   }
 
   try {
-    console.log('⏳ 正在嘗試登入...')
     const userCredential = await signInWithEmailAndPassword(
       auth,
       loginForm.value.email,
       loginForm.value.password,
     )
-    console.log('✅ 登入成功：', userCredential.user)
 
+    let userData = {}
 
-    // 從 Firestore 獲取用戶資料
     try {
       const userDocRef = doc(db, 'users', userCredential.user.uid)
       const userDoc = await getDoc(userDocRef)
 
-
       if (userDoc.exists()) {
-        // 更新 user store
-        const userData = userDoc.data()
-        applyUserProfileToStore({
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          ...userData,
-        })
+        userData = userDoc.data()
       } else {
-        // 如果 Firestore 中沒有用戶資料，創建一個
-        const defaultUserData = {
+        userData = {
           realName: '',
           nickname:
             userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
@@ -381,27 +394,64 @@ const handleLogin = async () => {
           spiritAnimal: '',
           createdAt: new Date(),
         }
-        await setDoc(userDocRef, defaultUserData)
+        await setDoc(userDocRef, userData)
+      }
+    } catch (error) {
+      console.error('獲取 Firestore 用戶資料失敗：', error)
+    }
+
+    try {
+      await createOrUpdateUser({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        nickname: userData.nickname || '',
+        real_name: userData.realName || '',
+        avatar: userData.avatar || '',
+        bio: userData.bio || '',
+        spirit_animal: userData.spiritAnimal || '',
+        role: userData.role || 'user',
+      })
+    } catch (syncError) {
+      console.error('同步到 Neon 資料庫失敗（但不影響登入）：', syncError)
+    }
+
+    try {
+      const neonUserData = await getUserProfile(userCredential.user.uid)
+      if (neonUserData) {
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
-          ...defaultUserData,
+          nickname: neonUserData.nickname || userData.nickname || '',
+          realName: neonUserData.real_name || userData.realName || '',
+          avatar: neonUserData.avatar || userData.avatar || '',
+          bio: neonUserData.bio || userData.bio || '',
+          spiritAnimal: neonUserData.spirit_animal || userData.spiritAnimal || '',
+          role: neonUserData.role || 'user',
+          vendorId: neonUserData.vendor_id || null,
+        })
+      } else {
+        applyUserProfileToStore({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          ...userData,
+          role: userData.role || 'user',
         })
       }
-    } catch (error) {
-      console.error('獲取用戶資料失敗：', error)
-      // 即使獲取失敗也允許登入
+    } catch (loadError) {
+      console.error('從 Neon 載入用戶資料失敗，使用 Firestore 資料：', loadError)
+      applyUserProfileToStore({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        ...userData,
+        role: userData.role || 'user',
+      })
     }
 
-
     userStore.login()
-    console.log('🚀 正在跳轉到首頁...')
     router.push('/')
   } catch (error) {
-    console.error('❌ 登入失敗：', error.code, error.message)
+    console.error('登入失敗：', error.code, error.message)
 
-    //各種錯誤訊息顯示
-    //general 是假如網路連線、firebase、帳號被停用、其他未預期錯誤
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
       loginErrors.value.email = '該電子信箱不存在或是輸入錯誤'
     } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -412,7 +462,6 @@ const handleLogin = async () => {
   }
 }
 
-//註冊：送出資料
 const handleRegister = async () => {
   try {
     registerErrors.value = {
@@ -429,18 +478,14 @@ const handleRegister = async () => {
         .toString()
         .trim()
         .toLowerCase()
-        // 移除常見「看不見」字元（零寬空白/零寬連字/Byte Order Mark）
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        // 移除所有空白字元（含中間的空白）
         .replace(/\s+/g, '')
-        // 常見全形符號轉半形（避免 IME 輸入造成 Firebase 判定 invalid-email）
-        .replace(/\uFF20/g, '@') // ＠
-        .replace(/[\uFF0E\u3002\uFF61]/g, '.') // 「．」「。」「 ｡」
+        .replace(/\uFF20/g, '@')
+        .replace(/[\uFF0E\u3002\uFF61]/g, '.')
     }
 
     registerForm.value.email = sanitizeEmail(registerForm.value.email)
 
-    // 1. 檢查必填欄位
     if (!registerForm.value.realName) {
       registerErrors.value.realName = '請填寫真實姓名'
       return
@@ -458,7 +503,6 @@ const handleRegister = async () => {
       return
     }
 
-    // 2. 檢查 Email 格式（必須包含@）
     if (!registerForm.value.email.includes('@')) {
       registerErrors.value.email = '電子信箱必須包含@'
       return
@@ -469,13 +513,11 @@ const handleRegister = async () => {
       return
     }
 
-    // 3. 檢查密碼長度
     if (registerForm.value.password.length < 6) {
       registerErrors.value.password = '密碼長度至少需要 6 個字元'
       return
     }
 
-    // 4. 檢查密碼格式（必須包含大小寫字母和數字）
     const hasUpperCase = /[A-Z]/.test(registerForm.value.password)
     const hasLowerCase = /[a-z]/.test(registerForm.value.password)
     const hasNumber = /[0-9]/.test(registerForm.value.password)
@@ -498,7 +540,6 @@ const handleRegister = async () => {
       return
     }
 
-    // 5. 檢查密碼是否一致
     if (registerForm.value.password !== registerForm.value.confirmPassword) {
       registerErrors.value.password = '密碼不一致，請重新確認'
       return
@@ -510,7 +551,6 @@ const handleRegister = async () => {
       registerForm.value.password,
     )
 
-    // 儲存使用者額外資料到 Firestore
     const userData = {
       realName: registerForm.value.realName,
       nickname: registerForm.value.nickname,
@@ -518,31 +558,43 @@ const handleRegister = async () => {
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
       bio: '',
       spiritAnimal: '',
+      role: registerForm.value.role || 'user',
       createdAt: new Date(),
     }
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
-    // 更新 user store
+    try {
+      await createOrUpdateUser({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        nickname: userData.nickname,
+        real_name: userData.realName,
+        avatar: userData.avatar,
+        bio: userData.bio,
+        spirit_animal: userData.spiritAnimal,
+        role: registerForm.value.role || 'user',
+      })
+    } catch (syncError) {
+      console.error('同步到 Neon 資料庫失敗：', syncError)
+    }
+
     applyUserProfileToStore({
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       ...userData,
     })
 
-    console.log('註冊成功：', userCredential.user)
     await userStore.logout()
 
-    // 切回登入頁籤並帶入 email，提升體驗
     activeTab.value = 'login'
     loginForm.value.email = registerForm.value.email
     loginForm.value.password = ''
 
-    // 清空註冊表單（避免重複提交）
     registerForm.value.password = ''
     registerForm.value.confirmPassword = ''
   } catch (error) {
-    console.log('註冊失敗', error.message)
-    // 不同狀況的註冊失敗
+    console.error('註冊失敗：', error.message)
+
     if (error.code === 'auth/email-already-in-use') {
       registerErrors.value.email = '此電子信箱已被註冊使用'
     } else if (error.code === 'auth/weak-password') {
@@ -554,7 +606,7 @@ const handleRegister = async () => {
     }
   }
 }
-//忘記密碼
+
 const handleForgotPassword = async () => {
   try {
     if (!loginForm.value.email) {
@@ -572,12 +624,11 @@ const handleForgotPassword = async () => {
     await sendPasswordResetEmail(auth, loginForm.value.email)
     alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
-    console.log('發送失敗：' + error.message)
+    console.error('發送失敗：', error.message)
     loginErrors.value.email = '發送失敗：' + error.message
   }
 }
 
-//註冊發生錯誤
 const registerErrors = ref({
   realName: '',
   nickname: '',
