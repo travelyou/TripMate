@@ -260,17 +260,13 @@ const handleImageSelect = async (event) => {
 
       // 上傳圖片（使用壓縮後的文件）
       submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}...`
-      const imageUrl = await uploadImage(
-        compressedFile,
-        'discussions',
-        (progress) => {
-          // 計算整體進度：已完成的文件 + 當前文件進度
-          const baseProgress = (i / validFiles.length) * 100
-          const currentFileProgress = (progress / 100) * (100 / validFiles.length)
-          uploadProgress.value = Math.round(baseProgress + currentFileProgress)
-          submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
-        }
-      )
+      const imageUrl = await uploadImage(compressedFile, 'discussions', (progress) => {
+        // 計算整體進度：已完成的文件 + 當前文件進度
+        const baseProgress = (i / validFiles.length) * 100
+        const currentFileProgress = (progress / 100) * (100 / validFiles.length)
+        uploadProgress.value = Math.round(baseProgress + currentFileProgress)
+        submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
+      })
 
       // 保存上傳後的 URL 和原始文件（保存壓縮後的文件）
       imageFiles.value.push(compressedFile)

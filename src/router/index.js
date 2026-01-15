@@ -24,7 +24,7 @@ const router = createRouter({
     {
       path: '/featured-itinerary',
       name: 'featured_itinerary',
-      component: () => import('@/views/FeaturedItineraryPage.vue'),
+      component: () => import('@/views/ItineraryPage.vue'),
     },
     {
       path: '/my-itinerary',

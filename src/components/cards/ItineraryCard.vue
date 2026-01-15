@@ -9,130 +9,149 @@ import {
   DollarSign as DollarSignIcon,
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
+  Building as BuildingIcon,
 } from 'lucide-vue-next'
 
 const props = defineProps({
   itinerary: {
     type: Object,
     required: true,
-    default: () => ({}),
   },
 })
 
 const userStore = useUserStore()
 const emit = defineEmits(['open-detail', 'open-share'])
 
+// 統一資料格式給 Store 使用 (收藏/按讚)
 const itemData = computed(() => ({
   id: props.itinerary.id,
   type: 'itinerary',
   title: props.itinerary.title,
   coverImage: props.itinerary.coverImage,
   price: props.itinerary.price,
-  agencyName: props.itinerary.agencyName,
-  durationDays: props.itinerary.durationDays,
-  destinations: props.itinerary.destinations,
-  totalViews: props.itinerary.totalViews,
-  totalSaves: props.itinerary.totalSaves,
-  likes: props.itinerary.likes,
-  comments: props.itinerary.comments,
 }))
 
 const formatPrice = (price) => {
-  if (price === undefined || price === null) return 'NT$ 0'
-  return price
-    .toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'TWD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })
-    .replace('TWD', 'NT$')
+  if (price === undefined || price === null) return '洽詢'
+  return `NT$ ${Number(price).toLocaleString()}`
 }
+
+const displayLocation = computed(() => {
+  const dest = props.itinerary.destinations || props.itinerary.location
+  if (Array.isArray(dest)) {
+    return dest.join('、')
+  }
+  return dest || '未定地點'
+})
+
+const displayDate = computed(() => {
+  const { start_date, end_date, durationDays } = props.itinerary
+
+  if (start_date && end_date) {
+    const d1 = new Date(start_date)
+    const d2 = new Date(end_date)
+
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+      return `${durationDays || 1} 天`
+    }
+
+    const pad = (n) => n.toString().padStart(2, '0')
+
+    const y1 = d1.getFullYear()
+    const m1 = pad(d1.getMonth() + 1)
+    const day1 = pad(d1.getDate())
+
+    const y2 = d2.getFullYear()
+    const m2 = pad(d2.getMonth() + 1)
+    const day2 = pad(d2.getDate())
+
+    if (y1 === y2 && m1 === m2 && day1 === day2) {
+      return `${y1}/${m1}/${day1}`
+    }
+
+    if (y1 === y2) {
+      return `${y1}/${m1}/${day1} - ${m2}/${day2}`
+    }
+
+    return `${y1}/${m1}/${day1} - ${y2}/${m2}/${day2}`
+  }
+
+  return `${durationDays || 1} 天`
+})
 </script>
 
 <template>
   <div
-    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border border-secondary-200 shadow-md bg-white"
+    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border border-secondary-200 shadow-md bg-white group flex flex-col h-full"
+    @click="emit('open-detail', props.itinerary, false)"
   >
-    <div
-      class="relative w-full h-48 md:h-52 overflow-hidden bg-secondary-100"
-      @click="emit('open-detail', props.itinerary, false)"
-    >
+    <div class="relative w-full aspect-[4/3] overflow-hidden bg-secondary-100">
       <img
         v-if="props.itinerary.coverImage"
         :src="props.itinerary.coverImage"
-        :alt="props.itinerary.title || '行程圖片'"
-        class="w-full h-full object-cover"
+        :alt="props.itinerary.title"
+        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
       />
       <div
         v-else
-        class="w-full h-full bg-secondary-200 flex items-center justify-center text-secondary-400"
+        class="w-full h-full flex items-center justify-center text-secondary-400 bg-secondary-200"
       >
-        無圖片
+        <MapPinIcon class="w-12 h-12 opacity-50" />
       </div>
 
       <div
-        v-if="props.itinerary.isFeatured"
-        class="absolute top-2 right-2 bg-primary-100 text-primary-800 font-black text-xs px-2 py-1 border-2 border-primary-300 shadow-primary-sm"
+        class="absolute bottom-2 left-2 bg-primary-600/95 backdrop-blur-sm text-white font-black text-sm px-3 py-1.5 rounded-full flex items-center shadow-lg border border-white/20"
       >
-        FEATURED
-      </div>
-
-      <div
-        class="absolute bottom-2 left-2 bg-primary-600 text-white font-black text-sm px-3 py-1 rounded-full flex items-center shadow-lg"
-      >
-        <DollarSignIcon class="w-4 h-4 mr-0.5" />
+        <DollarSignIcon class="w-3.5 h-3.5 mr-0.5" />
         <span>{{ formatPrice(props.itinerary.price) }}</span>
       </div>
     </div>
 
-    <div class="p-4 flex flex-col space-y-3">
+    <div class="p-4 flex flex-col flex-1">
       <div
         v-if="props.itinerary.agencyName"
-        class="text-xs font-bold text-primary-600 tracking-wider"
+        class="flex items-center text-xs font-bold text-primary-600 mb-1"
       >
-        由 {{ props.itinerary.agencyName }} 服務
+        <BuildingIcon class="w-3 h-3 mr-1" />
+        {{ props.itinerary.agencyName }}
       </div>
 
       <h3
-        class="text-lg font-black text-secondary-900 line-clamp-2 hover:text-primary-600 transition"
-        @click="emit('open-detail', props.itinerary, false)"
+        class="text-lg font-black text-secondary-900 line-clamp-2 mb-3 group-hover:text-primary-600 transition"
       >
-        {{ props.itinerary.title || '未命名行程' }}
+        {{ props.itinerary.title || '無標題' }}
       </h3>
 
-      <div class="flex items-center space-x-4 text-sm text-secondary-600">
-        <div class="flex items-center space-x-1">
+      <div class="flex items-center space-x-4 text-sm text-secondary-600 mb-auto pb-4">
+        <div class="flex items-center space-x-1 shrink-0">
           <CalendarIcon class="w-4 h-4 text-primary-500" />
-          <span>{{ props.itinerary.durationDays || 0 }} 天</span>
+          <span class="font-bold text-xs">{{ displayDate }}</span>
         </div>
-        <div class="flex items-center space-x-1">
-          <MapPinIcon class="w-4 h-4 text-primary-600" />
-          <span class="font-bold line-clamp-1">
-            {{ props.itinerary.destinations?.join('...') || '地點未定' }}
-          </span>
+        <div class="flex items-center space-x-1 truncate">
+          <MapPinIcon class="w-4 h-4 text-primary-600 shrink-0" />
+          <span class="truncate">{{ displayLocation }}</span>
         </div>
       </div>
 
-      <div class="flex items-center justify-between border-t border-secondary-100 pt-3">
-        <div class="flex items-center space-x-4 text-xs text-secondary-500">
+      <div class="flex items-center justify-between border-t border-secondary-100 pt-3 mt-auto">
+        <div class="flex items-center space-x-3 text-xs text-secondary-500">
           <button
-            class="flex items-center space-x-1 transition group"
+            class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
             :class="userStore.isFavorite(itemData) ? 'text-accent-600' : 'hover:text-accent-600'"
             @click.stop="userStore.toggleFavorite(itemData)"
           >
             <HeartIcon
-              class="w-4 h-4 transition-transform group-active:scale-125"
+              class="w-4 h-4 transition-transform active:scale-125"
               :class="{ 'fill-current': userStore.isFavorite(itemData) }"
             />
-            <span>{{
+            <span class="font-bold">{{
               (props.itinerary.likes || 0) + (userStore.isFavorite(itemData) ? 1 : 0)
             }}</span>
           </button>
 
           <button
-            class="flex items-center space-x-1 transition group"
-            :class="userStore.isCollected(itemData) ? 'text-primary-500' : 'hover:text-primary-600'"
+            class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
+            :class="userStore.isCollected(itemData) ? 'text-primary-600' : 'hover:text-primary-600'"
             @click.stop="
               userStore.isCollected(itemData)
                 ? userStore.removeFromCollection(itemData)
@@ -140,26 +159,25 @@ const formatPrice = (price) => {
             "
           >
             <BookmarkIcon
-              class="w-4 h-4 transition-transform group-active:scale-125"
+              class="w-4 h-4 transition-transform active:scale-125"
               :class="{ 'fill-current': userStore.isCollected(itemData) }"
             />
-            <span>{{
+            <span class="font-bold">{{
               (props.itinerary.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
             }}</span>
           </button>
         </div>
 
-        <div class="flex items-center space-x-4 text-secondary-500">
+        <div class="flex items-center space-x-2 text-secondary-400">
           <button
-            class="flex items-center space-x-1 hover:text-primary-600 transition"
+            class="p-1.5 hover:bg-secondary-50 rounded-full hover:text-secondary-600 transition"
             @click.stop="emit('open-detail', props.itinerary, true)"
           >
             <MessageCircleIcon class="w-4 h-4" />
-            <span>{{ props.itinerary.comments ? props.itinerary.comments.length : 0 }}</span>
           </button>
 
           <button
-            class="flex items-center space-x-1 hover:text-secondary-600 transition"
+            class="p-1.5 hover:bg-secondary-50 rounded-full hover:text-secondary-600 transition"
             @click.stop="emit('open-share', props.itinerary.id)"
           >
             <Repeat2Icon class="w-4 h-4" />
@@ -169,8 +187,3 @@ const formatPrice = (price) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Replaced pixel-card and pixel-card-mini with Tailwind classes in template */
-</style>
-

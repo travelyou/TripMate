@@ -180,11 +180,10 @@ export const useUserStore = defineStore('user', () => {
     // 3. 發送後端請求
     try {
       const targetUid = currentUser.value.uid || currentUser.value.id
-      const board = itemType === 'traveler' ? 'traveler' : 'discussion'
       await axios.post(`${API_BASE_URL}/likes`, {
         post_id: item.id,
         author_uid: targetUid,
-        board: board,
+        board: 'discussion',
       })
       console.log('✅ [Store] 按讚操作已同步至後端')
     } catch (error) {
