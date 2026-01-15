@@ -25,7 +25,8 @@
     │       ├── discussions.js
     │       ├── itineraries.js 
     │       ├── travelers.js
-    │       └── users.js       
+    │       ├── users.js
+    │       └── vendors.js       
     └── src/
         ├── App.vue
         ├── main.js
@@ -37,7 +38,8 @@
         │   ├── itinerary.js   
         │   ├── storage.js
         │   ├── travelers.js
-        │   └── users.js
+        │   ├── users.js
+        │   └── vendor.js        
         ├── assets/
         │   ├── base.css
         │   └── main.css
@@ -97,8 +99,16 @@
         │   │       ├── TabPosts.vue
         │   │       ├── TabReviews.vue
         │   │       └── TabVisitedPlaces.vue
-        │   └── shared/
-        │       └── AppFABs.vue
+        │   ├── shared/
+        │   │   └── AppFABs.vue
+        │   └── vendor-dashboard/      
+        │       ├── DashboardNav.vue
+        │       ├── DashboardSidebar.vue
+        │       ├── DashboardHeader.vue
+        │       └── tabs/
+        │           ├── TabBasicInfo.vue
+        │           ├── TabItineraryList.vue
+        │           └── TabPostList.vue
         ├── composables/
         │   ├── useChat.js
         │   ├── useComments.js
@@ -126,7 +136,8 @@
         │   ├── myItinerary.js
         │   ├── personality.js
         │   ├── travelers.js
-        │   └── user.js
+        │   ├── user.js
+        │   └── vendor.js        
         ├── utils/
         │   └── time.js
         └── views/
@@ -144,4 +155,5 @@
             ├── SearchPage.vue
             ├── ShoppingCartPage.vue
             ├── TravelerPage.vue
-            └── VendorProfilePage.vue 
+            ├── VendorDashboardPage.vue  
+            └── VendorProfilePage.vue

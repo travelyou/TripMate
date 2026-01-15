@@ -14,6 +14,7 @@ import {
   AlertCircle as AlertIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
+// ★ 修正：確保正確引入 createItinerary
 import { createItinerary } from '@/api/itinerary'
 
 const emit = defineEmits(['close', 'success'])
@@ -23,7 +24,7 @@ const currentStep = ref('basic')
 const formError = ref('')
 const isSubmitting = ref(false)
 
-// 表單資料結構
+// 表單資料結構 (保持你原本的結構)
 const postData = ref({
   title: '',
   description: '',
@@ -43,37 +44,31 @@ const postData = ref({
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 
-// --- 驗證邏輯 ---
+// --- 驗證邏輯 (保持原本) ---
 const validateBasic = () => {
   if (!postData.value.title) return '請輸入行程標題'
-  if (postData.value.title.length > 35) return '標題不能超過 35 個字元' // 修正限制
+  if (postData.value.title.length > 35) return '標題不能超過 35 個字元'
 
   if (!postData.value.price) return '請輸入價格'
   if (!postData.value.agencyName) return '請輸入旅行社/提供者名稱'
   if (!postData.value.start_date || !postData.value.end_date) return '請選擇行程日期'
 
-  // 驗證字數
-  if (postData.value.description.length > 5000) return '行程介紹不能超過 5000 字' // 修正限制
+  if (postData.value.description.length > 5000) return '行程介紹不能超過 5000 字'
 
-  // 驗證人數
   if (postData.value.max_people > 999) return '人數限制不能超過 999 人'
   if (postData.value.max_people < 1) return '人數限制至少 1 人'
 
-  // 驗證標籤
-  if (postData.value.tags.length > 5) return '標籤最多只能設定 5 個' // 修正限制
+  if (postData.value.tags.length > 5) return '標籤最多只能設定 5 個'
 
   return ''
 }
 
-// --- 日期與天數計算邏輯 ---
+// --- 日期與天數計算邏輯 (保持原本) ---
 const calculateDuration = () => {
   if (postData.value.start_date && postData.value.end_date) {
     const start = new Date(postData.value.start_date)
     const end = new Date(postData.value.end_date)
-
-    // 計算時間差 (毫秒)
     const diffTime = end - start
-    // 換算成天數 (無條件進位，並 +1 包含當天)
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
 
     if (diffDays <= 0) {
@@ -90,36 +85,26 @@ const calculateDuration = () => {
 
     formError.value = ''
     postData.value.durationDays = diffDays
-
-    // 自動調整行程天數陣列
     updateItineraryDays(diffDays)
   }
 }
 
-// 根據天數更新 itinerary.days 陣列
 const updateItineraryDays = (daysCount) => {
   const currentDays = postData.value.itinerary.days
-
   if (daysCount > currentDays.length) {
-    // 補足天數
     for (let i = currentDays.length; i < daysCount; i++) {
       currentDays.push({ day: i + 1, activities: [] })
     }
   } else if (daysCount < currentDays.length) {
-    // 刪減天數 (保留前面的)
     postData.value.itinerary.days = currentDays.slice(0, daysCount)
   }
-
-  // 修正當前選中的天數索引，避免越界
   if (activeDayIndex.value >= daysCount) {
     activeDayIndex.value = Math.max(0, daysCount - 1)
   }
 }
 
-// 監聽日期變動
 watch(() => [postData.value.start_date, postData.value.end_date], calculateDuration)
 
-// --- 每日行程邏輯 ---
 const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, activities: [] }
 })
@@ -136,53 +121,39 @@ const addActivity = () => {
 }
 const removeActivity = (index) => currentDay.value.activities.splice(index, 1)
 
-// --- 打包清單邏輯 ---
 const addPackingCategory = () => {
-  postData.value.packingList.push({
-    category: '新分類',
-    items: [],
-  })
+  postData.value.packingList.push({ category: '新分類', items: [] })
 }
-
 const removePackingCategory = (index) => {
   postData.value.packingList.splice(index, 1)
 }
-
 const addPackingItem = (catIndex) => {
   postData.value.packingList[catIndex].items.push('')
 }
-
 const removePackingItem = (catIndex, itemIndex) => {
   postData.value.packingList[catIndex].items.splice(itemIndex, 1)
 }
 
-// --- 標籤操作 ---
 const addTag = (tagText) => {
   const clean = tagText.replace(/^#/, '').trim()
   if (!clean) return
-
   if (clean.length > 30) {
     alert('標籤名稱不能超過 30 個字元')
     return
   }
-
   if (postData.value.tags.length >= 5) {
-    // 修正限制
     alert('標籤最多只能設定 5 個')
     return
   }
-
   if (!postData.value.tags.includes(clean)) {
     postData.value.tags.push(clean)
   }
   tagSearch.value = ''
 }
-
 const removeTag = (index) => {
   postData.value.tags.splice(index, 1)
 }
 
-// --- 步驟切換 ---
 const nextStep = () => {
   if (currentStep.value === 'basic') {
     const error = validateBasic()
@@ -192,7 +163,6 @@ const nextStep = () => {
     }
     currentStep.value = 'itinerary'
   } else if (currentStep.value === 'itinerary') {
-    // 如果打包清單是空的，預設加一個
     if (postData.value.packingList.length === 0) {
       postData.value.packingList.push(
         { category: '證件與金錢', items: ['護照', '現金', '信用卡'] },
@@ -211,14 +181,23 @@ const prevStep = () => {
   else if (currentStep.value === 'itinerary') currentStep.value = 'basic'
 }
 
+// ★★★ 修改：送出表單邏輯 ★★★
 const handleFinalSubmit = async () => {
   isSubmitting.value = true
   formError.value = ''
   try {
-    // 呼叫後端 API
+    // 呼叫 API (createItinerary)
+    // 注意：Store 的 createItinerary 已經包含了 API 呼叫 + Mock 更新
+    // 但如果你在 Dashboard 頁面是直接使用 API，這裡就是直接呼叫 API
+
+    // 這裡我們直接 emit 資料給父層 (Dashboard) 處理，因為父層才有 vendorId
+    // 或者直接呼叫 API
+
+    // 這裡假設是直接呼叫 API，並由 API 回傳結果
     const res = await createItinerary(postData.value)
 
     if (res.success) {
+      // 成功後發送訊號
       emit('success')
       emit('close')
     } else {
@@ -289,7 +268,6 @@ if (postData.value.itinerary.days.length === 0) {
               placeholder="例如：京都深度五日遊 (限35字)"
             />
           </div>
-
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block font-bold text-gray-700 mb-2">價格 (NT$)</label>
@@ -313,7 +291,6 @@ if (postData.value.itinerary.days.length === 0) {
               </div>
             </div>
           </div>
-
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block font-bold text-gray-700 mb-2">出發日期</label>
@@ -345,7 +322,6 @@ if (postData.value.itinerary.days.length === 0) {
           >
             預計行程天數：{{ postData.durationDays }} 天
           </div>
-
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block font-bold text-gray-700 mb-2">地點</label>
@@ -374,7 +350,6 @@ if (postData.value.itinerary.days.length === 0) {
               <p class="text-xs text-gray-400 mt-1 text-right">上限 999 人</p>
             </div>
           </div>
-
           <div>
             <label class="block font-bold text-gray-700 mb-2">封面圖片網址</label>
             <input
@@ -383,16 +358,14 @@ if (postData.value.itinerary.days.length === 0) {
               placeholder="https://..."
             />
           </div>
-
           <div>
             <div class="flex justify-between items-center mb-2">
               <label class="block font-bold text-gray-700">行程介紹</label>
               <span
                 :class="postData.description.length > 5000 ? 'text-red-500' : 'text-gray-400'"
                 class="text-xs"
+                >{{ postData.description.length }} / 5000</span
               >
-                {{ postData.description.length }} / 5000
-              </span>
             </div>
             <textarea
               v-model="postData.description"
@@ -401,13 +374,11 @@ if (postData.value.itinerary.days.length === 0) {
               class="w-full p-3 border-2 border-gray-200 rounded-xl resize-none focus:border-primary-500 outline-none"
             ></textarea>
           </div>
-
           <div>
             <div class="flex justify-between mb-2">
               <label class="block font-bold text-gray-700">標籤</label>
               <span class="text-xs text-gray-400">{{ postData.tags.length }} / 5 (每個限30字)</span>
             </div>
-
             <div class="flex flex-wrap gap-2 mb-2" v-if="postData.tags.length">
               <span
                 v-for="(tag, idx) in postData.tags"
@@ -423,7 +394,6 @@ if (postData.value.itinerary.days.length === 0) {
                 </button>
               </span>
             </div>
-
             <input
               v-model="tagSearch"
               @keyup.enter="addTag(tagSearch)"
@@ -439,7 +409,6 @@ if (postData.value.itinerary.days.length === 0) {
             <h3 class="font-bold text-lg">每日行程規劃</h3>
             <div class="text-sm text-gray-500">共 {{ postData.durationDays }} 天</div>
           </div>
-
           <div class="flex overflow-x-auto gap-2 pb-2 custom-scrollbar">
             <button
               v-for="(day, idx) in postData.itinerary.days"
@@ -453,19 +422,15 @@ if (postData.value.itinerary.days.length === 0) {
               Day {{ day.day }}
             </button>
           </div>
-
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <div class="mb-4 font-bold text-gray-700 flex justify-between">
               <span>正在編輯 Day {{ currentDay.day }}</span>
-              <span class="text-sm text-gray-400" v-if="postData.start_date">
-                {{
-                  new Date(
-                    new Date(postData.start_date).getTime() + activeDayIndex * 86400000,
-                  ).toLocaleDateString()
-                }}
-              </span>
+              <span class="text-sm text-gray-400" v-if="postData.start_date">{{
+                new Date(
+                  new Date(postData.start_date).getTime() + activeDayIndex * 86400000,
+                ).toLocaleDateString()
+              }}</span>
             </div>
-
             <div class="space-y-3">
               <div
                 v-for="(act, aIdx) in currentDay.activities"
@@ -494,7 +459,6 @@ if (postData.value.itinerary.days.length === 0) {
                 ></textarea>
               </div>
             </div>
-
             <button
               @click="addActivity"
               class="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold hover:border-primary-400 hover:text-primary-600"
@@ -517,7 +481,6 @@ if (postData.value.itinerary.days.length === 0) {
               <PlusIcon class="inline w-4 h-4" /> 新增分類
             </button>
           </div>
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
               v-for="(cat, cIdx) in postData.packingList"
@@ -530,13 +493,11 @@ if (postData.value.itinerary.days.length === 0) {
               >
                 <XIcon class="w-4 h-4" />
               </button>
-
               <input
                 v-model="cat.category"
                 class="font-bold text-primary-700 w-full mb-3 border-b border-dashed border-gray-300 focus:border-primary-500 outline-none"
                 placeholder="分類名稱"
               />
-
               <div class="space-y-2">
                 <div v-for="(item, iIdx) in cat.items" :key="iIdx" class="flex items-center">
                   <CheckSquareIcon class="w-4 h-4 text-gray-300 mr-2 flex-shrink-0" />
@@ -580,7 +541,6 @@ if (postData.value.itinerary.days.length === 0) {
               >
             </div>
             <div class="text-primary-600 font-bold text-xl">NT$ {{ postData.price }}</div>
-
             <div
               class="bg-gray-50 p-4 rounded-lg text-left max-w-md mx-auto mt-4 text-sm text-gray-600"
             >
@@ -591,7 +551,6 @@ if (postData.value.itinerary.days.length === 0) {
                 </li>
               </ul>
             </div>
-
             <p class="text-gray-600 pt-4">確認資訊無誤後請點擊發布。</p>
           </div>
         </div>
