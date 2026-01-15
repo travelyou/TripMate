@@ -2,10 +2,22 @@
 import { computed } from 'vue'
 import { checkoutStore } from '@/stores/checkout'
 
-const tour = computed(() => checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null)
+// 新增：允許外部傳 tour / price
+const props = defineProps({
+  tour: { type: Object, default: null },
+  price: { type: [Number, String], default: null },
+})
+
+// tour：先用 props.tour，沒有才回退到 store
+const tour = computed(
+  () => props.tour ?? checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null,
+)
+
+// displayPrice：先用 props.price，沒有才回退舊邏輯
 const displayPrice = computed(() => {
+  if (props.price != null) return Number(props.price) || 0
   if (checkoutStore.selectedTour) return checkoutStore.cartTotalPrice
-  return checkoutStore.lastOrder?.cartTotalPrice ?? 0
+  return Number(checkoutStore.lastOrder?.cartTotalPrice ?? 0)
 })
 </script>
 
