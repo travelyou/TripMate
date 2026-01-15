@@ -402,6 +402,11 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const loadUserProfile = async (uid) => {
+    if (!uid) {
+      console.warn('[User Store] loadUserProfile: uid 為空，跳過載入')
+      return
+    }
+
     try {
       try {
         const response = await axios.get(`${API_BASE_URL}/users/${uid}`)
@@ -420,9 +425,10 @@ export const useUserStore = defineStore('user', () => {
         })
         return
       } catch (neonError) {
-        // 404 錯誤是正常的（用戶可能還沒在資料庫中註冊），不需要記錄錯誤
+        // 404 錯誤是正常的（用戶可能還沒在資料庫中註冊，或剛註冊完成資料庫還在同步）
+        // 不需要記錄錯誤，靜默處理
         if (neonError.response?.status !== 404) {
-        console.error('從 Neon 載入失敗，嘗試從 Firestore 載入：', neonError)
+          console.error('[User Store] 從 Neon 載入失敗，嘗試從 Firestore 載入：', neonError)
         }
       }
 
@@ -453,9 +459,15 @@ export const useUserStore = defineStore('user', () => {
     firebaseUser.value = user
     isLoggedIn.value = user ? true : false
 
-    if (user) {
-      await loadUserProfile(user.uid)
-      await fetchFavorites()
+    if (user && user.uid) {
+      // 只有在用戶存在且有 uid 時才載入資料
+      try {
+        await loadUserProfile(user.uid)
+        await fetchFavorites()
+      } catch (error) {
+        // 靜默處理錯誤，避免在註冊流程中產生不必要的錯誤訊息
+        console.warn('[User Store] 載入用戶資料時發生錯誤（已靜默處理）：', error.message)
+      }
     } else {
       currentUser.value = {
         id: 1,
