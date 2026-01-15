@@ -8,6 +8,7 @@ router.post('/', async (req, res) => {
     console.log('[Users API] 請求 Body:', JSON.stringify(req.body, null, 2))
 
     // 從 req.body 讀取值，避免解構賦值可能的問題
+    // 使用獨立的變數聲明，確保所有需要重新賦值的變數都使用 let
     const uid = req.body.uid;
     const email = req.body.email;
     let nickname = req.body.nickname;
@@ -27,20 +28,27 @@ router.post('/', async (req, res) => {
     }
 
     // 驗證 real_name 不能是 email 格式
-    if (real_name) {
-      const trimmedName = real_name.trim();
+    // 使用臨時變數來避免直接重新賦值
+    let processedRealName = real_name;
+    if (processedRealName && typeof processedRealName === 'string') {
+      const trimmedName = processedRealName.trim();
       // 檢查是否包含 @ 或看起來像 email
       if (trimmedName.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedName)) {
-        console.warn(`警告：real_name 看起來像 email，將其設為 null (UID: ${uid}, real_name: ${real_name})`);
-        real_name = null;
+        console.warn(`警告：real_name 看起來像 email，將其設為 null (UID: ${uid}, real_name: ${processedRealName})`);
+        processedRealName = null;
       } else {
-        real_name = trimmedName;
+        processedRealName = trimmedName;
       }
     }
+    real_name = processedRealName;
 
     // 統一處理空字符串為 null
-    if (bio === '') bio = null;
-    if (spirit_animal === '') spirit_animal = null;
+    if (bio === '') {
+      bio = null;
+    }
+    if (spirit_animal === '') {
+      spirit_animal = null;
+    }
 
     if (role && !['user', 'vendor', 'admin'].includes(role)) {
       return res.status(400).json({
@@ -50,7 +58,11 @@ router.post('/', async (req, res) => {
     }
 
     // 根據 role 強制設置 vendor_id
-    const finalRole = role || 'user';
+    // 使用臨時變數來計算 finalRole
+    let finalRole = 'user';
+    if (role && ['user', 'vendor', 'admin'].includes(role)) {
+      finalRole = role;
+    }
     let finalVendorId = vendor_id;
 
     if (finalRole === 'user' || finalRole === 'admin') {
@@ -70,7 +82,9 @@ router.post('/', async (req, res) => {
       // 如果沒有 vendor_id，允許為 null（註冊時可能還沒有創建 vendor 資料）
     }
 
+    console.log('[Users API] 準備查詢現有用戶，UID:', uid)
     const existingUser = await pool.query('SELECT uid, role, vendor_id FROM users WHERE uid = $1', [uid]);
+    console.log('[Users API] 查詢結果：', existingUser.rows.length > 0 ? '用戶已存在' : '新用戶')
 
     if (existingUser.rows.length > 0) {
       const currentRole = existingUser.rows[0].role || 'user';
@@ -139,6 +153,18 @@ router.post('/', async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
+      console.log('[Users API] 準備執行 INSERT 查詢')
+      console.log('[Users API] 查詢參數：', {
+        uid,
+        email,
+        nickname: nickname || null,
+        real_name: real_name || null,
+        avatar: avatar || null,
+        bio: bio || null,
+        spirit_animal: spirit_animal || null,
+        role: finalRole,
+        vendor_id: finalVendorId
+      })
       const result = await pool.query(insertQuery, [
         uid,
         email,
@@ -160,8 +186,9 @@ router.post('/', async (req, res) => {
       res.status(201).json(result.rows[0]);
     }
   } catch (error) {
-    console.error('創建/更新用戶失敗：', error);
-    console.error('錯誤詳情：', {
+    console.error('[Users API] 創建/更新用戶失敗：', error);
+    console.error('[Users API] 錯誤詳情：', {
+      name: error.name,
       code: error.code,
       constraint: error.constraint,
       detail: error.detail,
@@ -169,6 +196,17 @@ router.post('/', async (req, res) => {
       stack: error.stack
     });
 
+    // 處理資料庫連接錯誤
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      console.error('[Users API] 資料庫連接錯誤')
+      return res.status(503).json({
+        error: '資料庫連接失敗',
+        message: '無法連接到資料庫，請稍後再試',
+        details: error.message
+      });
+    }
+
+    // 處理 PostgreSQL 外鍵約束錯誤
     if (error.code === '23503' && error.constraint === 'fk_users_vendor') {
       return res.status(400).json({
         error: '無效的廠商 ID',
@@ -176,6 +214,7 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // 處理唯一約束錯誤
     if (error.code === '23505') {
       return res.status(400).json({
         error: '用戶已存在',
@@ -183,9 +222,21 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // 處理其他資料庫錯誤
+    if (error.code && error.code.startsWith('23')) {
+      return res.status(400).json({
+        error: '資料庫約束錯誤',
+        message: error.detail || error.message,
+        code: error.code,
+        constraint: error.constraint
+      });
+    }
+
+    // 處理一般錯誤
     res.status(500).json({
       error: '創建/更新用戶失敗',
-      details: error?.message || String(error),
+      message: error.message || '未知錯誤',
+      details: error.detail || String(error),
       code: error.code,
       constraint: error.constraint
     });

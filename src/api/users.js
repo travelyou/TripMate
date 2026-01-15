@@ -17,12 +17,24 @@ export async function createOrUpdateUser(userData) {
     console.log('[Users API] 回應狀態：', response.status, response.statusText)
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      let errorData
+      try {
+        errorData = await response.json()
+      } catch (parseError) {
+        errorData = { 
+          error: '未知錯誤', 
+          message: `HTTP ${response.status}: ${response.statusText}` 
+        }
+      }
+      
       console.error('[Users API] 錯誤回應：', errorData)
+      console.error('[Users API] 回應狀態：', response.status)
 
       // 創建一個包含更多資訊的錯誤物件
-      const error = new Error(errorData.error || errorData.details || '創建/更新用戶失敗')
+      const errorMessage = errorData.message || errorData.error || errorData.details || '創建/更新用戶失敗'
+      const error = new Error(errorMessage)
       error.response = { data: errorData, status: response.status }
+      error.code = errorData.code
       throw error
     }
 
