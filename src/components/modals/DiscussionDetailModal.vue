@@ -177,22 +177,22 @@ onMounted(async () => {
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <button
-        class="absolute right-full top-24 z-0 bg-amber-100 text-amber-800 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-amber-200 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-amber-300"
-        @click="scrollToTop"
+        class="absolute right-full top-24 z-0 bg-red-50 text-red-700 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-red-100 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-red-200"
         title="回到內文"
+        @click="scrollToTop"
       >
         <FileTextIcon class="w-5 h-5 fill-current" />
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
         >
-          內文　
+          內文
         </span>
       </button>
 
       <button
         class="absolute right-full top-40 z-0 bg-amber-400 text-amber-900 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-amber-300 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-amber-500/20"
-        @click="scrollToCommentsSection"
         title="跳轉至留言區"
+        @click="scrollToCommentsSection"
       >
         <MessageCircleIcon class="w-5 h-5 fill-current" />
         <span
@@ -252,6 +252,7 @@ onMounted(async () => {
               </span>
             </div>
 
+            <!-- eslint-disable-next-line vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-secondary-800 rich-content"
               v-html="processedContent"
