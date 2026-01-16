@@ -16,6 +16,8 @@ const isDragging = ref(false)
 const draggedBall = ref(null)
 const mousePos = ref({ x: 0, y: 0 })
 const isMobile = ref(window.innerWidth < 768)
+const ballRadius = ref(32) // Responsive ball radius
+const windowWidth = ref(window.innerWidth) // Track window width for reactive classes
 
 // Lottery ball colors - background matches border color
 const BALL_COLORS = [
@@ -192,6 +194,24 @@ class Ball {
   }
 }
 
+// Calculate responsive ball radius
+const calculateBallRadius = () => {
+  const width = window.innerWidth
+  if (width < 640) {
+    // Small mobile
+    return 20
+  } else if (width < 768) {
+    // Large mobile
+    return 24
+  } else if (width < 1024) {
+    // Tablet
+    return 28
+  } else {
+    // Desktop
+    return 32
+  }
+}
+
 // Initialize balls
 const initBalls = () => {
   if (!ballContainer.value || props.wishlist.length === 0) {
@@ -204,8 +224,36 @@ const initBalls = () => {
   const containerWidth = rect.width
   const containerHeight = rect.height
 
+  // Update ball radius based on screen size
+  ballRadius.value = calculateBallRadius()
+  const radius = ballRadius.value
+
+      // If balls already exist, update their radius and reposition if needed
+      if (balls.value.length > 0) {
+        balls.value.forEach((ball) => {
+          // Update radius
+          ball.radius = radius
+          ball.mass = radius * radius * 0.01
+
+          // Ensure ball is within bounds
+          ball.x = Math.max(radius, Math.min(containerWidth - radius, ball.x))
+          ball.y = Math.max(radius, Math.min(containerHeight - radius, ball.y))
+        })
+
+    // Update DOM elements
+    nextTick(() => {
+      const ballElements = container.querySelectorAll('.wish-ball')
+      ballElements.forEach((el, index) => {
+        if (balls.value[index]) {
+          balls.value[index].element = el
+        }
+      })
+    })
+    return
+  }
+
+  // Create new balls
   balls.value = props.wishlist.map((item, index) => {
-    const radius = isMobile.value ? 24 : 32 // Responsive size
     const x = Math.random() * (containerWidth - radius * 2) + radius
     const y = Math.random() * (containerHeight - radius * 2) + radius
     return new Ball(x, y, radius, item, index)
@@ -328,14 +376,38 @@ watch(
 )
 
 onMounted(() => {
-  // Update mobile detection on resize
+  // Update mobile detection and reinitialize balls on resize
+  let resizeTimeout
   const handleResize = () => {
-    isMobile.value = window.innerWidth < 768
+    // Debounce resize to avoid too many recalculations
+    clearTimeout(resizeTimeout)
+    resizeTimeout = setTimeout(() => {
+      const newWidth = window.innerWidth
+      isMobile.value = newWidth < 768
+      windowWidth.value = newWidth // Update reactive window width
+
+      // If screen size category changed, reinitialize balls
+      const newRadius = calculateBallRadius()
+      if (newRadius !== ballRadius.value) {
+        initBalls()
+      } else {
+        // Even if radius didn't change, ensure balls are within bounds
+        if (ballContainer.value && balls.value.length > 0) {
+          const rect = ballContainer.value.getBoundingClientRect()
+          balls.value.forEach(ball => {
+            ball.x = Math.max(ball.radius, Math.min(rect.width - ball.radius, ball.x))
+            ball.y = Math.max(ball.radius, Math.min(rect.height - ball.radius, ball.y))
+          })
+        }
+      }
+    }, 150)
   }
+
   window.addEventListener('resize', handleResize)
 
   initBalls()
-  animate()
+  // Start animation loop
+  animationFrameId.value = requestAnimationFrame(animate)
 
   // Add global mouse event listeners for dragging
   document.addEventListener('mousemove', handleMouseMove)
@@ -344,6 +416,9 @@ onMounted(() => {
   // Cleanup on unmount
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout)
+    }
   })
 })
 
@@ -372,10 +447,16 @@ onUnmounted(() => {
         <div
           v-for="(item, index) in wishlist"
           :key="index"
-          class="wish-ball absolute rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold select-none z-10 text-center leading-tight p-0.5 md:p-1 break-words will-change-transform"
+          class="wish-ball absolute rounded-full flex items-center justify-center font-bold select-none z-10 text-center leading-tight break-words will-change-transform"
+          :class="{
+            'text-[8px] p-0.5': windowWidth < 640,
+            'text-[9px] p-0.5': windowWidth >= 640 && windowWidth < 768,
+            'text-[10px] p-0.5 md:p-1': windowWidth >= 768 && windowWidth < 1024,
+            'text-xs p-1': windowWidth >= 1024,
+          }"
           :style="{
-            width: isMobile ? '48px' : '64px',
-            height: isMobile ? '48px' : '64px',
+            width: `${ballRadius * 2}px`,
+            height: `${ballRadius * 2}px`,
             textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
             fontWeight: '700',
             left: '0',

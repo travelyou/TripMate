@@ -85,6 +85,7 @@ export async function getUserProfile(uid) {
 // 更新用戶資料
 export async function updateUserProfile(uid, userData) {
   try {
+    console.log('[Users API] 更新用戶資料：', { uid, userData })
     const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
       method: 'PUT',
       headers: {
@@ -94,9 +95,11 @@ export async function updateUserProfile(uid, userData) {
     })
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      console.error('[Users API] 更新失敗：', errorData)
       throw new Error(errorData.error || errorData.details || '更新用戶資料失敗')
     }
     const data = await response.json()
+    console.log('[Users API] 更新成功：', data)
     return data
   } catch (error) {
     console.error('更新用戶資料錯誤：', error)

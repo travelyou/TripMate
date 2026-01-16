@@ -12,6 +12,7 @@ import ProfileHeader from '@/components/profile/ProfileHeader.vue'
 import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
 import FriendListModal from '@/components/profile/FriendListModal.vue'
 import EditProfileModal from '@/components/profile/EditProfileModal.vue'
+import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
 import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
 import TabVisitedPlaces from '@/components/profile/tabs/TabVisitedPlaces.vue'
 import TabPosts from '@/components/profile/tabs/TabPosts.vue'
@@ -70,6 +71,9 @@ const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
 const isPersonalityModalOpen = ref(false)
+const isAvatarCropOpen = ref(false)
+const avatarFileToCrop = ref(null)
+const avatarCropModalRef = ref(null)
 
 // Data Preparation
 const activeTabsData = computed(() => {
@@ -120,9 +124,14 @@ const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
 
-const handleChat = (friend) => {
-  console.log('Chat with:', friend.name)
+const handleChat = () => {
+  console.log('Chat with:', user.value.name || user.value.nickname)
   // Future: 導向聊天頁面
+}
+
+const handleAddFriend = () => {
+  console.log('Add friend:', user.value.name || user.value.nickname)
+  // Future: 發送加好友請求
 }
 
 const openDetail = (post, focusComment = false) => {
@@ -181,9 +190,18 @@ const handleSaveProfile = async (formData) => {
     // 更新用戶基本資料
     const { updateUserProfile } = await import('@/api/users')
     // 確保 location 有值，如果為空或未定義則使用 '台灣'
-    const locationValue = profileData.location && profileData.location.trim()
+    const locationValue = (profileData.location && typeof profileData.location === 'string' && profileData.location.trim())
       ? profileData.location.trim()
       : '台灣'
+
+    console.log('準備更新用戶資料：', {
+      uid: user.value.uid,
+      nickname: profileData.nickname || profileData.name,
+      location: locationValue,
+      avatar: profileData.avatar,
+      bio: profileData.bio,
+      spirit_animal: profileData.spiritAnimal,
+    })
 
     await updateUserProfile(user.value.uid, {
       nickname: profileData.nickname || profileData.name,
@@ -193,11 +211,27 @@ const handleSaveProfile = async (formData) => {
       spirit_animal: profileData.spiritAnimal,
     })
 
-    // 更新本地狀態（包括 tags）
+    // 更新本地狀態（包括 tags 和 location）
+    // 優先使用 name（因為這是用戶在輸入框中修改的值），如果沒有則使用 nickname
+    const nicknameValue = profileData.name || profileData.nickname || ''
     userStore.updateProfile({
       ...profileData,
+      name: nicknameValue, // 確保 name 和 nickname 同步
+      nickname: nicknameValue,
+      location: locationValue, // 明確更新 location
       tags: tags || [],
     })
+    
+    // 如果是本人，也要更新 viewingUser（如果存在）
+    if (isCurrentUser.value && viewingUser.value) {
+      viewingUser.value = {
+        ...viewingUser.value,
+        name: nicknameValue,
+        nickname: nicknameValue,
+        location: locationValue,
+        tags: tags || [],
+      }
+    }
 
     // 更新許願球池
     const { updateWishlist } = await import('@/api/profile')
@@ -297,11 +331,61 @@ const handleRemovePlace = async ({ type, id, index }) => {
 
 const handleUpdateAvatar = (file) => {
   if (!isCurrentUser.value || !file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    userStore.updateProfile({ avatar: e.target.result })
+  // Open crop modal instead of directly updating
+  avatarFileToCrop.value = file
+  isAvatarCropOpen.value = true
+}
+
+const handleAvatarCrop = async (croppedFile) => {
+  if (!isCurrentUser.value || !croppedFile) return
+
+  try {
+    // Upload cropped image
+    const { uploadImage } = await import('@/api/storage')
+    const { compressImage } = await import('@/utils/imageCompress')
+
+    // Compress the cropped image
+    const compressedFile = await compressImage(croppedFile, {
+      maxWidth: 400,
+      maxHeight: 400,
+      quality: 0.9,
+      maxSizeMB: 1
+    })
+
+    // Upload to Firebase Storage with progress
+    const avatarUrl = await uploadImage(compressedFile, 'avatars', (progress) => {
+      console.log('上傳進度：', progress + '%')
+    })
+
+    // Update user profile
+    const { updateUserProfile } = await import('@/api/users')
+    await updateUserProfile(user.value.uid, {
+      avatar: avatarUrl
+    })
+
+    // Update local store
+    userStore.updateProfile({ avatar: avatarUrl })
+
+    // Close modal
+    isAvatarCropOpen.value = false
+    avatarFileToCrop.value = null
+    // Reset upload state in modal
+    if (avatarCropModalRef.value) {
+      avatarCropModalRef.value.resetUploadState()
+    }
+  } catch (error) {
+    console.error('上傳頭貼失敗：', error)
+    alert('上傳頭貼失敗，請重試')
+    // Reset upload state on error
+    if (avatarCropModalRef.value) {
+      avatarCropModalRef.value.resetUploadState()
+    }
   }
-  reader.readAsDataURL(file)
+}
+
+const handleCloseAvatarCrop = () => {
+  isAvatarCropOpen.value = false
+  avatarFileToCrop.value = null
 }
 
 const openPersonalityResult = () => {
@@ -354,6 +438,7 @@ const loadProfileData = async () => {
           nickname: profileData.user.nickname,
           avatar: profileData.user.avatar,
           bio: profileData.user.bio,
+          location: profileData.user.location || '台灣',
           spiritAnimal: profileData.user.spirit_animal,
           role: profileData.user.role,
           vendorId: profileData.user.vendor_id,
@@ -410,6 +495,8 @@ onMounted(() => {
       @edit-bio="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
       @open-friends="handleOpenFriends"
+      @chat="handleChat"
+      @add-friend="handleAddFriend"
     />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -429,13 +516,13 @@ onMounted(() => {
       <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
         <!-- Tab Navigation -->
         <div
-          class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1.5 md:p-2 flex space-x-1"
+          class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1 md:p-1.5 lg:p-2 flex space-x-1 overflow-x-auto"
         >
           <button
             v-for="tab in tabs"
             :key="tab.k"
             :class="[
-              'flex-1 py-2 md:py-3 text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2',
+              'flex-1 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1 sm:gap-2 shrink-0',
               activeTab === tab.k
                 ? 'bg-primary-50 text-primary-600 shadow-sm'
                 : 'text-secondary-500 hover:bg-secondary-50 hover:text-secondary-700',
@@ -443,9 +530,9 @@ onMounted(() => {
             @click="activeTab = tab.k"
           >
             <!-- Mobile Label -->
-            <span class="md:hidden">{{ tab.s }}</span>
+            <span class="md:hidden whitespace-nowrap">{{ tab.s }}</span>
             <!-- Desktop Label -->
-            <span class="hidden md:inline">{{ tab.l }}</span>
+            <span class="hidden md:inline whitespace-nowrap">{{ tab.l }}</span>
           </button>
         </div>
 
@@ -516,6 +603,13 @@ onMounted(() => {
       v-if="isPersonalityModalOpen"
       :result="personalityResult"
       @close="closePersonalityResult"
+    />
+
+    <AvatarCropModal
+      :is-open="isAvatarCropOpen"
+      :image-file="avatarFileToCrop"
+      @close="handleCloseAvatarCrop"
+      @crop="handleAvatarCrop"
     />
   </div>
 </template>

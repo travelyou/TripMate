@@ -71,11 +71,26 @@ function save() {
   if (isSaving.value) return
   isSaving.value = true
   // 確保 wishlist 和 tags 是數組
+  // 確保 location 有值，如果為空則使用 '台灣'
+  const locationValue = (editForm.location && typeof editForm.location === 'string' && editForm.location.trim())
+    ? editForm.location.trim()
+    : '台灣'
+  
+  // 確保 name 和 nickname 同步（優先使用 name，因為這是用戶在輸入框中修改的值）
+  // 同時確保長度不超過 35 字
+  const nameValue = (editForm.name || editForm.nickname || '').trim()
+  const nicknameValue = nameValue.length > 35 ? nameValue.substring(0, 35) : nameValue
+  
   const formData = {
     ...editForm,
+    name: nicknameValue, // 確保 name 是正確的值（已截斷）
+    nickname: nicknameValue, // 確保 nickname 和 name 同步
+    location: locationValue, // 明確設置 location
     wishlist: Array.isArray(editForm.wishlist) ? editForm.wishlist : [],
     tags: Array.isArray(editForm.tags) ? editForm.tags : [],
   }
+  
+  console.log('EditProfileModal save() - formData:', formData)
   emit('save', formData)
 }
 
@@ -162,57 +177,57 @@ function restoreStamp(key) {
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
   >
     <div
-      class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in-up"
+      class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl animate-fade-in-up flex flex-col mx-4"
     >
       <div
-        class="p-6 border-b border-secondary-100 flex justify-between items-center sticky top-0 bg-white z-10"
+        class="p-3 sm:p-4 md:p-6 border-b border-secondary-100 flex justify-between items-center shrink-0"
       >
-        <h2 class="text-xl font-bold text-secondary-900">編輯個人資料</h2>
+        <h2 class="text-lg sm:text-xl font-bold text-secondary-900">編輯個人資料</h2>
         <button
-          class="p-2 hover:bg-secondary-50 rounded-full transition"
+          class="p-1.5 sm:p-2 hover:bg-secondary-50 rounded-full transition"
           @click="$emit('close')"
         >
-          <X class="w-6 h-6 text-secondary-500" />
+          <X class="w-5 h-5 sm:w-6 sm:h-6 text-secondary-500" />
         </button>
       </div>
-      <div class="p-6 space-y-6">
+      <div class="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 overflow-y-auto flex-1 min-h-0">
         <!-- Basic Info -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="min-w-0">
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-medium text-secondary-700 flex-shrink-0">顯示名稱</label>
-              <span class="text-xs text-secondary-500 flex-shrink-0 ml-2">{{ (editForm.name || '').length }}/35</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+          <div class="min-w-0 w-full">
+            <div class="flex items-center justify-between mb-1.5 sm:mb-2 gap-1.5 sm:gap-2">
+              <label class="block text-xs sm:text-sm font-medium text-secondary-700 flex-shrink-0">顯示名稱</label>
+              <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.name || '').length }}/35</span>
             </div>
             <input
               v-model="editForm.name"
               type="text"
               maxlength="35"
-              class="w-full px-4 py-2 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border"
+              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border"
             />
           </div>
-          <div class="min-w-0">
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-medium text-secondary-700 flex-shrink-0">地區</label>
-              <span class="text-xs text-secondary-500 flex-shrink-0 ml-2">{{ (editForm.location || '').length }}/35</span>
+          <div class="min-w-0 w-full">
+            <div class="flex items-center justify-between mb-1.5 sm:mb-2 gap-1.5 sm:gap-2">
+              <label class="block text-xs sm:text-sm font-medium text-secondary-700 flex-shrink-0">地區</label>
+              <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.location || '').length }}/35</span>
             </div>
             <input
               v-model="editForm.location"
               type="text"
               placeholder="台灣"
               maxlength="35"
-              class="w-full px-4 py-2 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border"
+              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border"
             />
           </div>
-          <div class="md:col-span-2 min-w-0">
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-medium text-secondary-700 flex-shrink-0">個人簡介</label>
-              <span class="text-xs text-secondary-500 flex-shrink-0 ml-2">{{ (editForm.bio || '').length }}/100</span>
+          <div class="md:col-span-2 min-w-0 w-full">
+            <div class="flex items-center justify-between mb-1.5 sm:mb-2 gap-1.5 sm:gap-2">
+              <label class="block text-xs sm:text-sm font-medium text-secondary-700 flex-shrink-0">個人簡介</label>
+              <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.bio || '').length }}/100</span>
             </div>
             <textarea
               v-model="editForm.bio"
               rows="3"
               maxlength="100"
-              class="w-full px-4 py-2 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none resize-none box-border"
+              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none resize-none box-border break-words"
             ></textarea>
           </div>
 
@@ -259,7 +274,7 @@ function restoreStamp(key) {
 
         <!-- Wishlist Management in Modal -->
         <div>
-          <label class="block text-sm font-medium text-secondary-700 mb-2">許願球池 (最多5個，每個最多10字)</label>
+          <label class="block text-xs sm:text-sm font-medium text-secondary-700 mb-1.5 sm:mb-2">許願球池 (最多5個，每個最多10字)</label>
           <div class="flex flex-wrap gap-2 mb-3">
             <span
               v-for="(wish, idx) in editForm.wishlist"
@@ -323,19 +338,19 @@ function restoreStamp(key) {
           </div>
         </div>
       </div>
-      <div class="p-6 border-t border-secondary-100 bg-secondary-50 flex justify-end">
+      <div class="p-3 sm:p-4 md:p-6 border-t border-secondary-100 bg-secondary-50 flex justify-end gap-2 sm:gap-3 shrink-0">
         <button
-          class="px-6 py-2 text-secondary-600 font-medium hover:underline mr-4"
+          class="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base text-secondary-600 font-medium hover:underline"
           @click="$emit('close')"
         >
           取消
         </button>
         <button
           :disabled="isSaving"
-          class="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-lg shadow-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="px-4 sm:px-6 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-lg shadow-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 sm:gap-2"
           @click="save"
         >
-          <Loader2 v-if="isSaving" class="w-4 h-4 animate-spin" />
+          <Loader2 v-if="isSaving" class="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
           <span>{{ isSaving ? '儲存中...' : '儲存變更' }}</span>
         </button>
       </div>

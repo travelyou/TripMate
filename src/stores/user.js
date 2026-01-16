@@ -234,7 +234,24 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const updateProfile = (newData) => {
-    currentUser.value = { ...currentUser.value, ...newData }
+    // 確保 name 和 nickname 同步更新
+    if (newData.nickname !== undefined) {
+      currentUser.value = { 
+        ...currentUser.value, 
+        ...newData,
+        name: newData.nickname, // 同步更新 name
+        nickname: newData.nickname
+      }
+    } else if (newData.name !== undefined) {
+      currentUser.value = { 
+        ...currentUser.value, 
+        ...newData,
+        nickname: newData.name, // 同步更新 nickname
+        name: newData.name
+      }
+    } else {
+      currentUser.value = { ...currentUser.value, ...newData }
+    }
   }
 
   const addVisitedPlace = (place, type = 'domestic') => {
