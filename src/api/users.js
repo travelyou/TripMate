@@ -20,8 +20,6 @@ function normalizeUserData(data) {
     location: data.location || '',
     email: data.email || '',
 
-    // ★★★ 關鍵救命符：確保 stats 永遠存在 ★★★
-    // 這能防止 "Cannot read properties of undefined (reading 'followers')" 錯誤
     stats: data.stats || {
       followers: 0,
       following: 0,

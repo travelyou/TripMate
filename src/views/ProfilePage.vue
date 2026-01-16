@@ -55,7 +55,6 @@ const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
 const isPersonalityModalOpen = ref(false)
 
-// Data Preparation (★ 修正核心：加入空值檢查)
 const activeTabsData = computed(() => {
   // 如果使用者資料還沒載入，回傳空結構以防崩潰
   if (!user.value) {
@@ -96,7 +95,6 @@ const activeTabsData = computed(() => {
   }
 })
 
-// Stats for Header (★ 修正核心：依賴安全的 activeTabsData)
 const stats = computed(() => ({
   hosted: activeTabsData.value.hostedTrips.length,
   posts: activeTabsData.value.posts.length,
