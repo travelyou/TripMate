@@ -40,93 +40,66 @@ router.post('/', async (req, res) => {
       finalVendorId = null;
     } else if (finalRole === 'vendor') {
       try {
-        const allVendorIdsFromUsers = await pool.query(
-          "SELECT vendor_id FROM users WHERE vendor_id IS NOT NULL AND vendor_id LIKE 'vendor-%' ORDER BY vendor_id DESC"
-        );
-        const allVendorIdsFromVendors = await pool.query(
-          "SELECT id FROM vendors WHERE id LIKE 'vendor-%' ORDER BY id DESC"
-        );
+        const vendorName = nickname || email?.split('@')[0] || '未命名廠商';
+        const vendorAvatar = avatar || null;
 
-        const allVendorIds = new Set();
-        allVendorIdsFromUsers.rows.forEach(row => {
-          if (row.vendor_id) allVendorIds.add(row.vendor_id);
-        });
-        allVendorIdsFromVendors.rows.forEach(row => {
-          if (row.id) allVendorIds.add(row.id);
-        });
+        await pool.query(`
+          CREATE SEQUENCE IF NOT EXISTS vendor_id_seq;
+        `);
 
-        let newVendorId;
-        if (allVendorIds.size === 0) {
-          newVendorId = 'vendor-001';
-        } else {
-          let maxNumber = 0;
-          for (const vendorId of allVendorIds) {
-            const match = vendorId.match(/^vendor-(\d+)$/);
-            if (match) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNumber) {
-                maxNumber = num;
-              }
-            }
+        const initSeqResult = await pool.query(`
+          SELECT last_value, is_called FROM vendor_id_seq;
+        `);
+
+        if (!initSeqResult.rows[0].is_called || initSeqResult.rows[0].last_value <= 1) {
+          const maxIdResult = await pool.query(`
+            SELECT MAX(CAST(SUBSTRING(id FROM 'vendor-(\\d+)') AS INTEGER)) as max_num
+            FROM vendors
+            WHERE id ~ '^vendor-\\d+$'
+          `);
+          const maxNum = maxIdResult.rows[0]?.max_num || 0;
+          if (maxNum > 0) {
+            await pool.query(`SELECT setval('vendor_id_seq', $1, true)`, [maxNum]);
           }
-
-          const nextNumber = maxNumber + 1;
-          newVendorId = `vendor-${String(nextNumber).padStart(3, '0')}`;
         }
 
-        const existingVendorInVendors = await pool.query('SELECT id FROM vendors WHERE id = $1', [newVendorId]);
-        const existingVendorInUsers = await pool.query('SELECT vendor_id FROM users WHERE vendor_id = $1', [newVendorId]);
-        const exists = existingVendorInVendors.rows.length > 0 || existingVendorInUsers.rows.length > 0;
+        const maxRetries = 5;
+        let retryCount = 0;
+        let createdVendorId = null;
 
-        if (!exists) {
-          const vendorName = nickname || email?.split('@')[0] || '未命名廠商';
-          const vendorAvatar = avatar || null;
+        while (retryCount < maxRetries && !createdVendorId) {
+          try {
+            const seqResult = await pool.query('SELECT nextval(\'vendor_id_seq\') AS next_val');
+            const nextNumber = parseInt(seqResult.rows[0].next_val, 10);
+            const newVendorId = `vendor-${String(nextNumber).padStart(3, '0')}`;
 
-          const insertVendorQuery = `
-            INSERT INTO vendors (id, name, avatar, created_at, updated_at)
-            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            RETURNING id
-          `;
+            const insertVendorQuery = `
+              INSERT INTO vendors (id, name, avatar, created_at, updated_at)
+              VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              RETURNING id
+            `;
 
-          await pool.query(insertVendorQuery, [
-            newVendorId,
-            vendorName,
-            vendorAvatar
-          ]);
-
-          finalVendorId = newVendorId;
-        } else {
-          let attemptNumber = parseInt(newVendorId.match(/^vendor-(\d+)$/)[1], 10) + 1;
-          let foundAvailableId = false;
-          while (!foundAvailableId && attemptNumber < 1000) {
-            const candidateId = `vendor-${String(attemptNumber).padStart(3, '0')}`;
-            const checkVendor = await pool.query('SELECT id FROM vendors WHERE id = $1', [candidateId]);
-            const checkUser = await pool.query('SELECT vendor_id FROM users WHERE vendor_id = $1', [candidateId]);
-            if (checkVendor.rows.length === 0 && checkUser.rows.length === 0) {
-              newVendorId = candidateId;
-              foundAvailableId = true;
-
-              const vendorName = nickname || email?.split('@')[0] || '未命名廠商';
-              const vendorAvatar = avatar || null;
-              const insertVendorQuery = `
-                INSERT INTO vendors (id, name, avatar, created_at, updated_at)
-                VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                RETURNING id
-              `;
-              await pool.query(insertVendorQuery, [newVendorId, vendorName, vendorAvatar]);
+            await pool.query(insertVendorQuery, [newVendorId, vendorName, vendorAvatar]);
+            createdVendorId = newVendorId;
+            finalVendorId = newVendorId;
+          } catch (insertError) {
+            if (insertError.code === '23505') {
+              retryCount++;
+              if (retryCount >= maxRetries) {
+                throw new Error('無法生成唯一的 vendor_id，請稍後再試');
+              }
+              await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, retryCount - 1)));
             } else {
-              attemptNumber++;
+              throw insertError;
             }
           }
+        }
 
-          if (!foundAvailableId) {
-            return res.status(500).json({
-              error: '無法找到可用的 vendor_id',
-              message: '無法找到可用的 vendor_id，請聯繫管理員'
-            });
-          }
-
-          finalVendorId = newVendorId;
+        if (!createdVendorId) {
+          return res.status(500).json({
+            error: '創建廠商記錄失敗',
+            message: '無法生成唯一的 vendor_id，請稍後再試'
+          });
         }
       } catch (vendorCreateError) {
         return res.status(500).json({

@@ -197,29 +197,52 @@ router.get('/user/:uid', async (req, res) => {
         WHERE l.author_uid = $1 AND l.board = 'discussion' AND d.deleted_at IS NULL
         ORDER BY l.created_at DESC
       `
+    } else if (board === 'traveler') {
+      query = `
+        SELECT
+          t.*,
+          'traveler' as type,
+          l.created_at as liked_at,
+          (SELECT COUNT(*) FROM public.likes WHERE post_id = t.id AND board = 'traveler') as likes_count,
+          (SELECT COUNT(*) FROM public.comments WHERE post_id = t.id AND post_type = 'traveler') as comments_count
+        FROM public.likes l
+        JOIN travelers.travelers t ON l.post_id = t.id
+        WHERE l.author_uid = $1 AND l.board = 'traveler' AND t.deleted_at IS NULL
+        ORDER BY l.created_at DESC
+      `
     } else {
-      // 預設或是擴充其他類型 (暫時只回傳空的或通用查詢)
-      // 如果你有 traveler 表，這裡要寫類似上面的 JOIN
       return res.json([])
     }
 
     const result = await pool.query(query, params)
 
     // 整理回傳格式以符合前端 Card
-    const favorites = result.rows.map((row) => ({
-      id: row.id,
-      type: row.type,
-      title: row.title,
-      content: row.content,
-      banner: row.banner,
-      image_urls: row.image_urls || [],
-      tags: row.tags || [],
-      likes: parseInt(row.likes_count) || 0,
-      comments: parseInt(row.comments_count) || 0,
-      author: row.author_uid, // 這裡建議之後 JOIN users 表拿 nickname
-      time: new Date(row.created_at).toLocaleDateString(),
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + row.author_uid, // 暫時用頭像
-    }))
+    const favorites = result.rows.map((row) => {
+      const baseData = {
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        content: row.content || '',
+        banner: row.banner || row.banner_image || null,
+        image_urls: row.image_urls || [],
+        tags: row.tags || [],
+        likes: parseInt(row.likes_count) || 0,
+        comments: parseInt(row.comments_count) || 0,
+        author: row.author_uid || row.author_uid,
+        time: new Date(row.created_at).toLocaleDateString(),
+        avatar: row.author_avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
+      }
+
+      if (row.type === 'traveler') {
+        baseData.location = row.location || ''
+        baseData.start_date = row.start_date || null
+        baseData.end_date = row.end_date || null
+        baseData.max_people = row.max_people || 0
+        baseData.status = row.status || '招募中'
+      }
+
+      return baseData
+    })
 
     console.log(`✅ [Backend Likes GET User] 找到 ${favorites.length} 筆收藏`)
     res.json(favorites)

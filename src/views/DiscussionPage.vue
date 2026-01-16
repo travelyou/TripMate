@@ -106,6 +106,8 @@ const handlePostLike = async (post) => {
     const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
     post.isLiked = result.liked
     post.likes = result.likesCount
+
+    await userStore.fetchFavorites()
   } catch (error) {
     console.error('按讚操作失敗：', error)
     alert('按讚操作失敗，請稍後再試')
@@ -259,7 +261,7 @@ const getPostData = (post) => ({
             />
             <div>
               <div class="flex items-center space-x-2">
-                <span 
+                <span
                   class="font-bold text-secondary-800 cursor-pointer hover:text-primary-600 transition"
                   @click.stop="handleAvatarClick(post)"
                 >{{ post.author }}</span>

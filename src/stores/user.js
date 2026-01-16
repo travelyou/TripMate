@@ -46,10 +46,19 @@ export const useUserStore = defineStore('user', () => {
     if (!targetUid) return
 
     try {
-      const response = await axios.get(`${API_BASE_URL}/likes/user/${targetUid}`, {
-        params: { board: 'discussion' },
-      })
-      favorites.value = response.data
+      const [discussionResponse, travelerResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/likes/user/${targetUid}`, {
+          params: { board: 'discussion' },
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/likes/user/${targetUid}`, {
+          params: { board: 'traveler' },
+        }).catch(() => ({ data: [] })),
+      ])
+
+      favorites.value = [
+        ...(discussionResponse.data || []),
+        ...(travelerResponse.data || []),
+      ]
     } catch (error) {
       console.error('獲取收藏失敗:', error)
     }
@@ -76,8 +85,10 @@ export const useUserStore = defineStore('user', () => {
       await axios.post(`${API_BASE_URL}/likes`, {
         post_id: item.id,
         author_uid: targetUid,
-        board: 'discussion',
+        board: itemType === 'traveler' ? 'traveler' : 'discussion',
       })
+
+      await fetchFavorites()
     } catch (error) {
       console.error('按讚 API 失敗，正在回滾...', error)
       if (action === 'remove') {
@@ -235,15 +246,15 @@ export const useUserStore = defineStore('user', () => {
   const updateProfile = (newData) => {
     // 確保 name 和 nickname 同步更新
     if (newData.nickname !== undefined) {
-      currentUser.value = { 
-        ...currentUser.value, 
+      currentUser.value = {
+        ...currentUser.value,
         ...newData,
         name: newData.nickname, // 同步更新 name
         nickname: newData.nickname
       }
     } else if (newData.name !== undefined) {
-      currentUser.value = { 
-        ...currentUser.value, 
+      currentUser.value = {
+        ...currentUser.value,
         ...newData,
         nickname: newData.name, // 同步更新 nickname
         name: newData.name
