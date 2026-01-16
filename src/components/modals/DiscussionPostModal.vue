@@ -41,14 +41,17 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 
+import CharacterCount from '@tiptap/extension-character-count'
+
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
 const currentStep = ref('edit')
 const formError = ref('')
+const CHARACTER_LIMIT = 100000
 
 // --- Banner 位置調整邏輯 ---
-const bannerPositionY = ref(50) // 預設居中 (50%)
+const bannerPositionY = ref(50)
 const isDraggingBanner = ref(false)
 const dragStartY = ref(0)
 
@@ -59,7 +62,6 @@ const startDragBanner = (event) => {
 
 const onDragBanner = (event) => {
   if (!isDraggingBanner.value) return
-
   const deltaY = event.clientY - dragStartY.value
   dragStartY.value = event.clientY
   const sensitivity = 0.5
@@ -71,7 +73,7 @@ const stopDragBanner = () => {
   isDraggingBanner.value = false
 }
 
-// --- 顏色選擇器設定 (16色) ---
+// --- 顏色選擇器設定 ---
 const showColorPicker = ref(false)
 const commonColors = [
   '#000000',
@@ -129,30 +131,17 @@ const errors = ref({
 
 const tagSearch = ref('')
 
-// --- [優化] 換行邏輯擴充功能 ---
-// 這裡確保只有在必要時才轉換段落，避免畫面跳動
+// --- [優化修正] 換行邏輯擴充功能 ---
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
-  addPriority: 100,
+  addPriority: 1000,
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        // 1. 如果在清單中，讓系統自己處理
         if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
           return false
         }
-
-        // 2. 建立指令鏈
-        const chain = editor.chain().splitBlock()
-
-        // 3. 只有當目前是「標題」時，才強制轉為「段落」
-        // (如果原本就是段落，就不執行這一步，避免無謂的重新渲染造成不順暢)
-        if (editor.isActive('heading')) {
-          chain.setParagraph()
-        }
-
-        // 4. 清除格式並執行
-        return chain.unsetAllMarks().run()
+        return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
       },
     }
   },
@@ -175,6 +164,10 @@ const editor = useEditor({
       allowBase64: true,
     }),
     ResetStyleOnEnter,
+
+    CharacterCount.configure({
+      limit: CHARACTER_LIMIT,
+    }),
   ],
   editorProps: {
     attributes: {
@@ -296,11 +289,6 @@ const validateForm = () => {
       errors.value.content = '請輸入內容'
       isValid = false
     }
-  }
-
-  if (postData.value.content.length > 20000) {
-    errors.value.content = `內容過長`
-    isValid = false
   }
 
   if (!isValid) {
@@ -801,6 +789,21 @@ onMounted(() => {
           <div>
             <div class="flex items-center justify-between mb-2">
               <label class="block text-sm font-bold text-gray-700">內容</label>
+              <span
+                v-if="editor"
+                class="text-xs"
+                :class="{
+                  'text-gray-400':
+                    editor.storage.characterCount.characters() < CHARACTER_LIMIT * 0.9,
+                  'text-orange-500 font-bold':
+                    editor.storage.characterCount.characters() >= CHARACTER_LIMIT * 0.9 &&
+                    editor.storage.characterCount.characters() < CHARACTER_LIMIT,
+                  'text-red-500 font-bold':
+                    editor.storage.characterCount.characters() >= CHARACTER_LIMIT,
+                }"
+              >
+                {{ editor.storage.characterCount.characters() }} / {{ CHARACTER_LIMIT }}
+              </span>
             </div>
             <div
               class="border-2 rounded-xl overflow-hidden transition flex flex-col bg-white"
@@ -1165,7 +1168,6 @@ onMounted(() => {
   background: #94a3b8;
 }
 
-/* Tiptap Editor Styles */
 :deep(.ProseMirror) {
   outline: none;
   min-height: 300px;
@@ -1173,18 +1175,16 @@ onMounted(() => {
   font-size: 16px;
 }
 
-/* ★ 核心修正：強制歸零間距，解決「看起來像兩行」的問題 */
 :deep(.ProseMirror p) {
   margin: 0 !important;
   padding: 0;
   min-height: 1.5em;
 }
 
-/* 讓標題有適當的間距，不要跟內文黏太緊 */
 :deep(.ProseMirror h2) {
   font-size: 1.5rem;
   font-weight: 800;
-  margin: 0 !important; /* ★ 修正：標題間距歸零 */
+  margin: 0 !important;
   line-height: 1.2;
   color: #111827;
 }
@@ -1192,9 +1192,17 @@ onMounted(() => {
 :deep(.ProseMirror h3) {
   font-size: 1.25rem;
   font-weight: 700;
-  margin: 0 !important; /* ★ 修正：標題間距歸零 */
+  margin: 0 !important;
   line-height: 1.2;
   color: #1f2937;
+}
+
+:deep(.ProseMirror strong) {
+  font-weight: bold !important;
+}
+
+:deep(.ProseMirror em) {
+  font-style: italic !important;
 }
 
 :deep(.ProseMirror ul) {
@@ -1209,7 +1217,6 @@ onMounted(() => {
   margin-bottom: 0.5em;
 }
 
-/* 強制圖片置左，不使用 auto margin */
 :deep(.ProseMirror img) {
   display: block;
   max-width: 100%;
@@ -1217,8 +1224,8 @@ onMounted(() => {
   border-radius: 0.5rem;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
-  margin-left: 0; /* 強制靠左 */
-  margin-right: auto; /* 右邊自動 */
+  margin-left: 0;
+  margin-right: auto;
 }
 
 :deep(.ProseMirror hr) {

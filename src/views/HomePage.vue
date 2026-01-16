@@ -1,7 +1,7 @@
 <script setup>
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
-import DiscussionCard from '@/components/cards/DiscussionCard.vue' // ★ 引入卡片
+import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
 import { useUserStore } from '@/stores/user'

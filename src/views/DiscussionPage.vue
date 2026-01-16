@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, computed } from 'vue' // ★ 記得引入 computed
+import { ref, onMounted, computed } from 'vue'
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useUserStore } from '@/stores/user'
@@ -100,7 +100,6 @@ const filterOptions = ref([
 ])
 const activeFilter = ref('全部')
 
-// ★ 核心修改：新增過濾邏輯 ★
 const filteredDiscussions = computed(() => {
   // 如果選的是「全部」，就回傳所有文章
   if (activeFilter.value === '全部') {

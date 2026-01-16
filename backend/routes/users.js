@@ -11,8 +11,6 @@ router.get('/:id', async (req, res) => {
     if (result.rows.length > 0) {
       const user = result.rows[0]
 
-      // ★★★ 關鍵修改 1：將資料庫的底線欄位 (display_name) 轉換為前端需要的駝峰欄位 (displayName) ★★★
-      // ★★★ 關鍵修改 2：補上 stats 預設值，防止前端讀取不到報錯 ★★★
       const responseData = {
         uid: user.firebase_uid,
         displayName: user.display_name || '未命名用戶', // 防止 null
