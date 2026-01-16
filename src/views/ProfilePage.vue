@@ -28,7 +28,17 @@ const personalityStore = usePersonalityStore()
 const router = useRouter()
 const route = useRoute()
 
-const targetUid = computed(() => route.params.uid || userStore.currentUser?.uid)
+const targetUid = computed(() => {
+  // 如果路由中有 uid 參數，優先使用它
+  if (route.params.uid) {
+    return route.params.uid
+  }
+  // 只有在沒有路由參數且用戶已登入時，才使用當前用戶的 UID
+  if (userStore.isLoggedIn && userStore.currentUser?.uid) {
+    return userStore.currentUser.uid
+  }
+  return null
+})
 const isCurrentUser = computed(() => {
   if (!userStore.currentUser?.uid || !targetUid.value) return false
   return userStore.currentUser.uid === targetUid.value
@@ -422,9 +432,11 @@ const loadProfileData = async () => {
           email: profileData.user.email,
           avatar: profileData.user.avatar,
           bio: profileData.user.bio,
+          location: profileData.user.location || '台灣',
           spiritAnimal: profileData.user.spirit_animal,
           role: profileData.user.role,
           vendorId: profileData.user.vendor_id,
+          tags: profileData.user.tags || [],
           friends: profileData.friends,
           reviews: profileData.reviews,
           visitedPlaces: profileData.visitedPlaces,
@@ -442,12 +454,14 @@ const loadProfileData = async () => {
           spiritAnimal: profileData.user.spirit_animal,
           role: profileData.user.role,
           vendorId: profileData.user.vendor_id,
+          tags: profileData.user.tags || [],
         })
 
         userStore.visitedPlaces = profileData.visitedPlaces
         userStore.wishlist = profileData.wishlist
         userStore.currentUser.friends = profileData.friends
         userStore.currentUser.reviews = profileData.reviews
+        userStore.currentUser.tags = profileData.user.tags || []
       }
 
       // 更新統計資料

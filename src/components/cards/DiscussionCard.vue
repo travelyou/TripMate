@@ -12,9 +12,12 @@ const router = useRouter()
 
 const handleAvatarClick = (e) => {
   e.stopPropagation()
-  const authorUid = props.post.author_uid
+  e.preventDefault()
+  const authorUid = props.post.author_uid || props.post.authorUid
   if (authorUid) {
-    router.push(`/profile/${authorUid}`)
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+  } else {
+    console.warn('無法跳轉：找不到作者 UID', props.post)
   }
 }
 

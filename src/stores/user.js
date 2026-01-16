@@ -296,6 +296,7 @@ export const useUserStore = defineStore('user', () => {
         spiritAnimal: profileData.spiritAnimal || currentUser.value.spiritAnimal,
         role: profileData.role || 'user',
         vendorId: profileData.vendorId || null,
+        tags: profileData.tags !== undefined ? (Array.isArray(profileData.tags) ? profileData.tags : []) : (currentUser.value.tags || []),
       }
     }
   }

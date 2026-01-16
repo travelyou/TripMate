@@ -61,21 +61,21 @@ const shouldMarquee = computed(() => {
     <div class="absolute inset-0 bg-gradient-to-br from-primary-500/50 to-primary-800/60"></div>
 
     <!-- Chat and Add Friend Buttons (Bottom Right) -->
-    <div v-if="!isCurrentUser" class="absolute bottom-4 right-4 md:bottom-6 md:right-6 flex items-center gap-2 z-20">
+    <div v-if="!isCurrentUser" class="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2 z-20">
       <button
-        class="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium backdrop-blur-sm"
+        class="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
         title="聊聊"
         @click="$emit('chat')"
       >
-        <MessageCircle class="w-3.5 h-3.5 md:w-4 md:h-4" />
+        <MessageCircle class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
         <span class="hidden sm:inline">聊聊</span>
       </button>
       <button
-        class="px-3 py-1.5 md:px-4 md:py-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium backdrop-blur-sm"
+        class="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
         title="加好友"
         @click="$emit('add-friend')"
       >
-        <UserPlus class="w-3.5 h-3.5 md:w-4 md:h-4" />
+        <UserPlus class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
         <span class="hidden sm:inline">加好友</span>
       </button>
     </div>
@@ -144,7 +144,7 @@ const shouldMarquee = computed(() => {
 
             <!-- Compact Stats (Label Top, Number Bottom) -->
             <!-- Compact Stats (Label Top, Number Bottom) -->
-             <div class="flex gap-2 sm:gap-4 self-start">
+             <div class="flex gap-2 sm:gap-4 self-start" :class="{ 'mb-12 sm:mb-14': !isCurrentUser }">
                <button class="text-center group" @click="$emit('open-friends')">
                  <div class="text-[9px] sm:text-[10px] text-primary-100 group-hover:text-white transition">好友</div>
                  <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition">{{ stats.friends }}</div>
@@ -255,7 +255,7 @@ const shouldMarquee = computed(() => {
         </div>
 
         <!-- Quick Stats -->
-        <div class="flex flex-col items-end gap-3">
+        <div class="flex flex-col items-end gap-3" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
           <div
             class="flex gap-4 lg:gap-8 bg-white/10 rounded-2xl p-4 lg:p-6 border border-white/20"
           >

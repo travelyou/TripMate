@@ -150,6 +150,17 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
+const handleAvatarClick = (post) => {
+  const authorUid = post.author_uid || post.authorUid
+  if (authorUid) {
+    // 使用 replace 而不是 push，避免瀏覽器歷史記錄問題
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+  } else {
+    console.warn('無法跳轉：找不到作者 UID', post)
+    console.log('貼文資料：', post)
+  }
+}
+
 // --- 篩選/搜尋狀態 ---
 const filterOptions = ref(['全部', '有圖', '新貼文', '找旅伴', '找話題'])
 const activeFilter = ref('全部')
@@ -242,11 +253,16 @@ const getPostData = (post) => ({
           <div class="flex items-center space-x-3 mb-4">
             <img
               :src="post.avatar"
-              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
+              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+              alt="作者頭像"
+              @click.stop="handleAvatarClick(post)"
             />
             <div>
               <div class="flex items-center space-x-2">
-                <span class="font-bold text-secondary-800">{{ post.author }}</span>
+                <span 
+                  class="font-bold text-secondary-800 cursor-pointer hover:text-primary-600 transition"
+                  @click.stop="handleAvatarClick(post)"
+                >{{ post.author }}</span>
                 <span
                   class="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full"
                 >
