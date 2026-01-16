@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config'
+import { auth } from '@/firebase/config'
 
 // 按讚/取消按讚
 export async function toggleLike(postId, authorUid, board = 'discussion') {
@@ -9,6 +10,17 @@ export async function toggleLike(postId, authorUid, board = 'discussion') {
     const url = `${API_BASE_URL}/likes`
     console.log('[Likes API] 請求 URL:', url)
 
+    // 獲取 Firebase 認證 token
+    let token = null
+    if (auth.currentUser) {
+      try {
+        token = await auth.currentUser.getIdToken()
+        console.log('[Likes API] 已獲取認證 token')
+      } catch (tokenError) {
+        console.warn('[Likes API] 獲取 token 失敗:', tokenError)
+      }
+    }
+
     const payload = {
       post_id: postId,
       author_uid: authorUid,
@@ -16,11 +28,16 @@ export async function toggleLike(postId, authorUid, board = 'discussion') {
     }
     console.log('[Likes API] Payload:', payload)
 
+    const headers = {
+      'Content-Type': 'application/json',
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify(payload),
     })
 
@@ -58,7 +75,26 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
 
     console.log('[Likes API] 請求 URL:', url)
 
-    const response = await fetch(url)
+    // 獲取 Firebase 認證 token
+    let token = null
+    if (auth.currentUser) {
+      try {
+        token = await auth.currentUser.getIdToken()
+        console.log('[Likes API] 已獲取認證 token')
+      } catch (tokenError) {
+        console.warn('[Likes API] 獲取 token 失敗:', tokenError)
+      }
+    }
+
+    const headers = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    })
     console.log('[Likes API] HTTP 狀態:', response.status, response.statusText)
 
     if (!response.ok) {

@@ -77,11 +77,12 @@ const handleLike = async () => {
     return
   }
   try {
-    const result = await toggleLike(props.post.id, currentUserUid.value)
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
-  } catch {
-    // Error handling
+  } catch (error) {
+    console.error('按讚操作失敗：', error)
+    alert('按讚操作失敗，請稍後再試')
   }
 }
 
