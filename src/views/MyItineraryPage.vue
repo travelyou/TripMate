@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
 import {
   Calendar as CalendarIcon,
@@ -12,6 +12,7 @@ import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
 const myItineraryStore = useMyItineraryStore()
 const route = useRoute() // 獲取當前路由資訊，用於讀取網址參數
+const router = useRouter() // 用於導航
 
 const { myItineraries, drafts } = storeToRefs(myItineraryStore)
 
@@ -114,9 +115,8 @@ const handleDeleteItinerary = (id) => {
   }
 }
 
-// 當組件掛載完成（頁面載入）時執行
-onMounted(() => {
-  // 從網址中尋找是否有 'openDraft' 這個參數
+// 開啟草稿的函數（可重複使用）
+const tryOpenDraft = () => {
   const draftId = route.query.openDraft
   if (draftId) {
     // 在草稿清單中找出 ID 符合的那筆
@@ -124,7 +124,24 @@ onMounted(() => {
     if (draft) {
       // 如果找到了，就自動幫使用者開啟這個草稿
       openDraft(draft)
+      // 清除查詢參數，避免重複打開
+      router.replace({ path: '/my-itinerary', query: {} })
     }
+  }
+}
+
+// 當組件掛載完成（頁面載入）時執行
+onMounted(() => {
+  tryOpenDraft()
+})
+
+// 監聽路由變化，確保從其他頁面跳轉過來時也能打開草稿
+watch(() => route.query.openDraft, (newDraftId) => {
+  if (newDraftId) {
+    // 使用 nextTick 確保組件已完全渲染
+    nextTick(() => {
+      tryOpenDraft()
+    })
   }
 })
 </script>

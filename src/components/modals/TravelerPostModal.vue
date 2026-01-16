@@ -24,6 +24,13 @@ import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 
+const props = defineProps({
+  draftData: {
+    type: Object,
+    default: null
+  }
+})
+
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
@@ -905,7 +912,62 @@ if (postData.value.itinerary.days.length === 0) {
   postData.value.itinerary.days.push({ day: 1, date: '', activities: [] })
 }
 
+// 監聽草稿數據，當有草稿時載入到表單
+watch(() => props.draftData, (newDraft) => {
+  if (newDraft && newDraft.data) {
+    const draft = newDraft.data
+    // 載入基本資料
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.location = draft.location || ''
+    postData.value.start_date = draft.start_date || ''
+    postData.value.end_date = draft.end_date || ''
+    postData.value.max_people = draft.max_people || 2
+    postData.value.tags = draft.tags || []
+    
+    // 載入行程資料
+    if (draft.itinerary && draft.itinerary.days) {
+      postData.value.itinerary.days = draft.itinerary.days
+    }
+    
+    // 載入打包清單
+    if (draft.packingList && Array.isArray(draft.packingList)) {
+      postData.value.packingList = draft.packingList
+    }
+    
+    // 載入橫幅圖片
+    if (draft.banner_image) {
+      postData.value.banner_image = draft.banner_image
+      bannerPreview.value = draft.banner_image
+    }
+  }
+}, { immediate: true })
+
 onMounted(() => {
+  // 如果有草稿數據，載入到表單
+  if (props.draftData && props.draftData.data) {
+    const draft = props.draftData.data
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.location = draft.location || ''
+    postData.value.start_date = draft.start_date || ''
+    postData.value.end_date = draft.end_date || ''
+    postData.value.max_people = draft.max_people || 2
+    postData.value.tags = draft.tags || []
+    
+    if (draft.itinerary && draft.itinerary.days) {
+      postData.value.itinerary.days = draft.itinerary.days
+    }
+    
+    if (draft.packingList && Array.isArray(draft.packingList)) {
+      postData.value.packingList = draft.packingList
+    }
+    
+    if (draft.banner_image) {
+      postData.value.banner_image = draft.banner_image
+      bannerPreview.value = draft.banner_image
+    }
+  }
   // 監聽頁面卸載事件，提示用戶
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {

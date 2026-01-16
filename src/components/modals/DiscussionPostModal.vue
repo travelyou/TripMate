@@ -19,6 +19,13 @@ import { createPost } from '@/api/discussions'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 
+const props = defineProps({
+  draftData: {
+    type: Object,
+    default: null
+  }
+})
+
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
@@ -584,7 +591,36 @@ const handleFinalSubmit = async () => {
   executeSubmit()
 }
 
+// 監聽草稿數據，當有草稿時載入到表單
+watch(() => props.draftData, (newDraft) => {
+  if (newDraft && newDraft.data) {
+    const draft = newDraft.data
+    postData.value.category = draft.category || ''
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.tags = draft.tags || []
+    
+    // 如果有圖片預覽數據
+    if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
+      imagePreviews.value = draft.imagePreviews
+    }
+  }
+}, { immediate: true })
+
 onMounted(() => {
+  // 如果有草稿數據，載入到表單
+  if (props.draftData && props.draftData.data) {
+    const draft = props.draftData.data
+    postData.value.category = draft.category || ''
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.tags = draft.tags || []
+    
+    if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
+      imagePreviews.value = draft.imagePreviews
+    }
+  }
+
   // 監聽頁面卸載事件，提示用戶
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {

@@ -234,8 +234,13 @@ const handleSelectDraft = (draft) => {
   // 如果是行程相關的草稿
   if (draft.type === 'my_itinerary' || draft.type === 'itinerary') {
     // 跳轉到「我的行程」頁面，並透過 Query Parameter (查詢參數) 傳遞草稿 ID
-    // 這樣目標頁面就可以知道要自動開啟哪一個草稿
     router.push({ path: '/my-itinerary', query: { openDraft: draft.id } })
+  } else if (draft.type === 'discussion') {
+    // 討論區草稿：跳轉到討論區頁面並傳遞草稿 ID
+    router.push({ path: '/discussion', query: { openDraft: draft.id } })
+  } else if (draft.type === 'traveler') {
+    // 找旅伴草稿：跳轉到找旅伴頁面並傳遞草稿 ID
+    router.push({ path: '/traveler', query: { openDraft: draft.id } })
   } else {
     // 其他類型的草稿暫時只跳出提示
     alert(

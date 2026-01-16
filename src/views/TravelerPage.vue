@@ -1,14 +1,23 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import { getTravelers } from '@/api/travelers'
+import { useMyItineraryStore } from '@/stores/myItinerary'
+
+const myItineraryStore = useMyItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const { drafts } = storeToRefs(myItineraryStore)
 
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const selectedTraveler = ref(null)
+const selectedDraft = ref(null) // 用於存儲要打開的草稿
 const shouldScrollToComments = ref(false)
 const travelers = ref([])
 const isLoading = ref(false)
@@ -57,11 +66,47 @@ const handleTravelerUpdated = () => {
 // 處理發文成功
 const handlePostSuccess = () => {
   isPostingModalOpen.value = false
+  selectedDraft.value = null
   loadTravelers()
+}
+
+// 開啟草稿編輯
+const openDraft = (draft) => {
+  if (draft.type === 'traveler' && draft.data) {
+    // 設置草稿數據並打開 Modal
+    selectedDraft.value = draft
+    isPostingModalOpen.value = true
+  }
+}
+
+// 嘗試打開草稿的函數
+const tryOpenDraft = () => {
+  const draftId = route.query.openDraft
+  if (draftId) {
+    const draft = drafts.value.find((d) => String(d.id) === String(draftId))
+    if (draft && draft.type === 'traveler') {
+      nextTick(() => {
+        openDraft(draft)
+        // 清除查詢參數
+        router.replace({ path: '/traveler', query: {} })
+      })
+    }
+  }
 }
 
 onMounted(() => {
   loadTravelers()
+  // 檢查是否有草稿需要打開
+  tryOpenDraft()
+})
+
+// 監聽路由變化
+watch(() => route.query.openDraft, (newDraftId) => {
+  if (newDraftId) {
+    nextTick(() => {
+      tryOpenDraft()
+    })
+  }
 })
 </script>
 
@@ -135,7 +180,8 @@ onMounted(() => {
 
   <TravelerPostModal
     v-if="isPostingModalOpen"
-    @close="isPostingModalOpen = false"
+    :draft-data="selectedDraft"
+    @close="isPostingModalOpen = false; selectedDraft = null"
     @success="handlePostSuccess"
   />
 

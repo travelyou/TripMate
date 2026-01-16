@@ -1,5 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Plus as PlusIcon,
   Heart as HeartIcon,
@@ -9,9 +10,11 @@ import {
 } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useUserStore } from '@/stores/user'
+import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { toggleLike } from '@/api/likes'
+import { storeToRefs } from 'pinia'
 
 // 引入組件
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
@@ -20,6 +23,10 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 
 const discussionsStore = useDiscussionsStore()
 const userStore = useUserStore()
+const myItineraryStore = useMyItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const { drafts } = storeToRefs(myItineraryStore)
 
 const currentUserUid = ref(null)
 
@@ -73,8 +80,19 @@ onMounted(async () => {
         }),
       )
     }
+    // 檢查是否有草稿需要打開
+    tryOpenDraft()
   } catch (error) {
     console.error('載入貼文失敗：', error)
+  }
+})
+
+// 監聽路由變化
+watch(() => route.query.openDraft, (newDraftId) => {
+  if (newDraftId) {
+    nextTick(() => {
+      tryOpenDraft()
+    })
   }
 })
 
@@ -104,6 +122,7 @@ const handlePostSuccess = async () => {
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
+const selectedDraft = ref(null) // 用於存儲要打開的草稿
 
 const selectedPost = ref(null)
 const shareLink = ref('')
@@ -134,6 +153,30 @@ const closeShareModal = () => {
 // --- 篩選/搜尋狀態 ---
 const filterOptions = ref(['全部', '有圖', '新貼文', '找旅伴', '找話題'])
 const activeFilter = ref('全部')
+
+// 開啟草稿編輯
+const openDraft = (draft) => {
+  if (draft.type === 'discussion' && draft.data) {
+    // 設置草稿數據並打開 Modal
+    selectedDraft.value = draft
+    isPostingModalOpen.value = true
+  }
+}
+
+// 嘗試打開草稿的函數
+const tryOpenDraft = () => {
+  const draftId = route.query.openDraft
+  if (draftId) {
+    const draft = drafts.value.find((d) => String(d.id) === String(draftId))
+    if (draft && draft.type === 'discussion') {
+      nextTick(() => {
+        openDraft(draft)
+        // 清除查詢參數
+        router.replace({ path: '/discussion', query: {} })
+      })
+    }
+  }
+}
 
 // Helper
 const getPostData = (post) => ({
@@ -321,7 +364,8 @@ const getPostData = (post) => ({
 
   <DiscussionPostModal
     v-if="isPostingModalOpen"
-    @close="isPostingModalOpen = false"
+    :draft-data="selectedDraft"
+    @close="isPostingModalOpen = false; selectedDraft = null"
     @success="handlePostSuccess"
   />
 
