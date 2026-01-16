@@ -73,11 +73,10 @@ export const useUserStore = defineStore('user', () => {
 
     try {
       const targetUid = currentUser.value.uid || currentUser.value.id
-      const board = itemType === 'traveler' ? 'traveler' : 'discussion'
       await axios.post(`${API_BASE_URL}/likes`, {
         post_id: item.id,
         author_uid: targetUid,
-        board: board,
+        board: 'discussion',
       })
     } catch (error) {
       console.error('按讚 API 失敗，正在回滾...', error)

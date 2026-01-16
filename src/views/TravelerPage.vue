@@ -155,13 +155,17 @@ watch(() => route.query.openDraft, (newDraftId) => {
         ></div>
       </div>
 
-      <div v-else-if="travelers.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <TravelerCard
-          v-for="traveler in travelers"
-          :key="traveler.id"
-          :traveler="traveler"
-          @click="openTravelerDetail(traveler, false)"
-        />
+      <div
+        v-else-if="travelers.length > 0"
+        class="grid grid-cols-1 gap-6 sm:grid-cols-2 auto-rows-fr items-stretch"
+      >
+        <div v-for="traveler in travelers" :key="traveler.id" class="h-full">
+          <TravelerCard
+            class="h-full w-full"
+            :traveler="traveler"
+            @click="openTravelerDetail(traveler, false)"
+          />
+        </div>
       </div>
 
       <div v-else class="text-center py-20">

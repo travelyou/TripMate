@@ -1,6 +1,6 @@
-// src/stores/itinerary.js
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { getItineraries, getItineraryById } from '@/api/itinerary'
 
 export const useItineraryStore = defineStore('itinerary', () => {
   const myItineraries = ref([])
@@ -22,8 +22,11 @@ export const useItineraryStore = defineStore('itinerary', () => {
   }
 
   return {
-    myItineraries,
-    createItinerary,
-    deleteItinerary,
+    itineraries,
+    currentItinerary,
+    loading,
+    error,
+    fetchItineraries,
+    fetchItineraryDetail,
   }
 })

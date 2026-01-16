@@ -59,18 +59,15 @@ const handleAuthorClick = () => {
 // 建立一個本地變數來存「完整資料」，預設先用傳進來的 props 擋著
 const localTravelerData = ref({ ...props.traveler })
 
-// ★★★ 修改重點 1：計算屬性現在改看 localTravelerData ★★★
 const itineraryData = computed(() => {
   // 優先使用後端抓回來的完整行程
   if (localTravelerData.value.itinerary && localTravelerData.value.itinerary.days) {
     return {
       days: localTravelerData.value.itinerary.days,
-      // 把散落在外面的 packingList 整合進來，讓樣板讀得到
       packingList: localTravelerData.value.packingList || [],
     }
   }
 
-  // 如果真的沒有資料（例如讀取失敗），才顯示「暫無行程」或保持空白，不要顯示假資料了
   return {
     days: [],
     packingList: [],
@@ -128,7 +125,6 @@ const loadLikesInfo = async () => {
   }
 }
 
-// ★★★ 修改重點 2：抓取完整資料的函式 ★★★
 const fetchFullTravelerDetails = async () => {
   try {
     console.log('正在抓取詳細資料 ID:', props.traveler.id)
@@ -137,8 +133,8 @@ const fetchFullTravelerDetails = async () => {
     if (response.success) {
       // 更新本地資料
       localTravelerData.value = {
-        ...localTravelerData.value, // 保留原本的
-        ...response.data, // 用新的詳細資料覆蓋 (包含 itinerary, packingList)
+        ...localTravelerData.value,
+        ...response.data,
       }
       console.log('詳細資料更新成功:', localTravelerData.value)
 
@@ -285,7 +281,6 @@ onMounted(async () => {
     likesCount.value = props.traveler.likes || 0
     localComments.value = props.traveler.commentsData || []
 
-    // ★★★ 一掛載就去抓詳細資料 ★★★
     await fetchFullTravelerDetails()
 
     if (currentUserUid.value) {
@@ -400,11 +395,13 @@ onMounted(async () => {
               </div>
 
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
-                <div class="flex items-center text-primary-600 mb-1">
-                  <EyeIcon class="w-4 h-4 mr-1" />
-                  <span class="text-xs font-bold text-secondary-500">瀏覽</span>
+                <div class="flex items-center text-accent-500 mb-1">
+                  <BookmarkIcon class="w-4 h-4 mr-1" />
+                  <span class="text-xs font-bold text-secondary-500">收藏</span>
                 </div>
-                <div class="font-bold text-secondary-900">{{ localTravelerData.views_count || 0 }}</div>
+                <div class="font-bold text-secondary-900">
+                  {{ localTravelerData.totalSaves || 0 }}
+                </div>
               </div>
             </div>
           </div>

@@ -1,32 +1,29 @@
 ﻿<script setup>
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia' // 🟢 1. 引入這個確保響應性
+import { storeToRefs } from 'pinia'
 import {
   Calendar as CalendarIcon,
   Briefcase as BriefcaseIcon,
   Plus as PlusIcon,
 } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
-import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
+import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.vue'
 
 const myItineraryStore = useMyItineraryStore()
-const route = useRoute() // 獲取當前路由資訊，用於讀取網址參數
-const router = useRouter() // 用於導航
+const route = useRoute()
+const router = useRouter()
 
 const { myItineraries, drafts } = storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
 
-// 開啟行程詳情 (編輯)
 const openItineraryDetail = (itinerary) => {
-  // 深拷貝一份，避免直接修改到原始資料
   selectedItinerary.value = JSON.parse(JSON.stringify(itinerary))
   isDetailModalOpen.value = true
 }
 
-// 開啟新增行程 (空白)
 const openAddItineraryModal = () => {
   selectedItinerary.value = {
     id: Date.now(),
@@ -34,7 +31,6 @@ const openAddItineraryModal = () => {
     startDate: '',
     endDate: '',
     status: 'planning',
-
     days: [{ day: 1, date: '', activities: [] }],
     packingList: [
       { category: '證件', items: [] },
@@ -45,64 +41,26 @@ const openAddItineraryModal = () => {
   isDetailModalOpen.value = true
 }
 
-/**
- * 開啟草稿編輯彈窗
- * @param {Object} draft - 要編輯的草稿
- */
 const openDraft = (draft) => {
-  // 判斷草稿類型，如果是行程草稿就打開編輯
   if (
     (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
     (draft.data || draft.rawItinerary)
   ) {
-    // 獲取草稿內的行程數據
     const dataToLoad = draft.data || draft.rawItinerary
-    // 深拷貝一份資料，避免直接改到 Store 裡的原始草稿
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
-    // 開啟編輯 Modal
     isDetailModalOpen.value = true
   }
 }
 
-// 處理「暫存草稿」
-const handleSaveDraft = (draftItinerary) => {
-  // 呼叫 Store 裡面的 addDraft (這是我們上一步新增的功能)
-  myItineraryStore.addDraft({
-    type: 'itinerary',
-    typeLabel: '我的行程',
-    title: draftItinerary.title || '(未命名行程)',
-    content: `日期: ${draftItinerary.startDate || '?'} ~ ${draftItinerary.endDate || '?'}`,
-    rawItinerary: draftItinerary, // 把整包資料存起來
-  })
-
-  isDetailModalOpen.value = false
-}
-
-// 處理儲存 (發布/更新行程)
 const handleSaveItinerary = (updatedItinerary) => {
   if (!updatedItinerary.title.trim()) updatedItinerary.title = '新旅程'
 
-  // 1. 檢查是「修改」還是「新增」
   const index = myItineraryStore.myItineraries.findIndex((i) => i.id === updatedItinerary.id)
 
   if (index !== -1) {
-    // 如果是舊的，就更新它
     myItineraryStore.myItineraries[index] = updatedItinerary
   } else {
-    // 如果是新的，就放到最前面
     myItineraryStore.myItineraries.unshift(updatedItinerary)
-  }
-
-  // 2. 從草稿夾移除 (如果這個行程原本是草稿)
-  // (這裡簡單過濾掉 id 相同的草稿)
-  const draftIndex = myItineraryStore.drafts.findIndex(
-    (d) =>
-      (d.data && d.data.id === updatedItinerary.id) ||
-      (d.rawItinerary && d.rawItinerary.id === updatedItinerary.id),
-  )
-
-  if (draftIndex !== -1) {
-    myItineraryStore.drafts.splice(draftIndex, 1)
   }
 
   isDetailModalOpen.value = false
@@ -115,30 +73,23 @@ const handleDeleteItinerary = (id) => {
   }
 }
 
-// 開啟草稿的函數（可重複使用）
 const tryOpenDraft = () => {
   const draftId = route.query.openDraft
   if (draftId) {
-    // 在草稿清單中找出 ID 符合的那筆
     const draft = drafts.value.find((d) => String(d.id) === String(draftId))
     if (draft) {
-      // 如果找到了，就自動幫使用者開啟這個草稿
       openDraft(draft)
-      // 清除查詢參數，避免重複打開
       router.replace({ path: '/my-itinerary', query: {} })
     }
   }
 }
 
-// 當組件掛載完成（頁面載入）時執行
 onMounted(() => {
   tryOpenDraft()
 })
 
-// 監聽路由變化，確保從其他頁面跳轉過來時也能打開草稿
 watch(() => route.query.openDraft, (newDraftId) => {
   if (newDraftId) {
-    // 使用 nextTick 確保組件已完全渲染
     nextTick(() => {
       tryOpenDraft()
     })
@@ -147,9 +98,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
 </script>
 
 <template>
-  <!-- 最外層容器：限制最大寬度 (max-width 5xl) 並置中 (mx-auto)，讓畫面在寬螢幕上更美觀 -->
   <div class="p-4 max-w-5xl mx-auto">
-    <!-- 使用 space-y-6 讓子元素之間自動產生垂直間距 -->
     <div class="space-y-6 pt-4">
       <div class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center">
         <h1 class="text-2xl font-black text-secondary-50 flex items-center gap-3">
@@ -227,14 +176,12 @@ watch(() => route.query.openDraft, (newDraftId) => {
         </button>
       </div>
     </div>
-    <!-- End of space-y-6 container -->
 
-    <ItineraryDetailModal
+    <MyItineraryDetailModal
       v-if="isDetailModalOpen"
       :itinerary="selectedItinerary"
       @close="isDetailModalOpen = false"
       @save="handleSaveItinerary"
-      @save-draft="handleSaveDraft"
       @delete="handleDeleteItinerary"
     />
   </div>

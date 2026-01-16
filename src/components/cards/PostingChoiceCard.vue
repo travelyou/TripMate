@@ -8,7 +8,7 @@ import {
 } from 'lucide-vue-next'
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
-import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
+import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.vue'
 
 const emit = defineEmits(['close'])
 

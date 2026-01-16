@@ -9,6 +9,8 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const discussions = ref([])
   const loading = ref(false)
   const error = ref(null)
+  const userInfoCache = new Map()
+
 
   // 格式化時間
   const formatTime = (timestamp) => {
@@ -75,11 +77,15 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   // 從 Firestore 獲取用戶資訊
   const getUserInfoFromFirestore = async (uid) => {
     if (!uid) return null
+    if (userInfoCache.has(uid)) return userInfoCache.get(uid)
+
     try {
       const userDocRef = doc(db, 'users', uid)
       const userDoc = await getDoc(userDocRef)
       if (userDoc.exists()) {
-        return userDoc.data()
+        const data = userDoc.data()
+        userInfoCache.set(uid, data)
+        return data
       }
     } catch (error) {
       console.error(`獲取用戶 ${uid} 資訊失敗：`, error)
@@ -118,8 +124,14 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     error.value = null
     try {
       const data = await fetchPosts(page, limit, category)
-      const enrichedPosts = await enrichPostsWithUserInfo(data.posts)
-      discussions.value = enrichedPosts.map(transformPost)
+      discussions.value = data.posts.map(transformPost)
+      enrichPostsWithUserInfo(data.posts)
+        .then((enrichedPosts) => {
+          discussions.value = enrichedPosts.map(transformPost)
+        })
+        .catch((err) => {
+          console.error('loadDiscussions enrich failed:', err)
+        })
       return data
     } catch (err) {
       error.value = err.message

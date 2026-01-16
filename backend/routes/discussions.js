@@ -29,16 +29,21 @@ router.get('/', async (req, res) => {
     const discussionsQuery = `
       SELECT
         d.*,
-        COALESCE(COUNT(DISTINCT l.id), 0) as likes_count,
-        COALESCE(COUNT(DISTINCT c.id), 0) as comments_count
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.likes l
+          WHERE l.post_id = d.id AND l.board = 'discussion'
+        ), 0) as likes_count,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.comments c
+          WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
+        ), 0) as comments_count
       FROM discussion.discussion d
-      LEFT JOIN public.likes l ON d.id = l.post_id AND l.board = 'discussion'
-      LEFT JOIN public.comments c ON c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
       WHERE ${whereClause}
-      GROUP BY d.id
       ORDER BY d.created_at DESC
       LIMIT $1 OFFSET $2
-    `
+`
 
     console.log('🔵 [Backend GET / Step 3] 執行查詢')
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
@@ -93,9 +98,10 @@ router.get('/', async (req, res) => {
       })
     }
 
-    const errorDetails = error.name === 'AggregateError' && error.errors
-      ? error.errors.map(e => e.message || String(e)).join('; ')
-      : error?.message || String(error)
+    const errorDetails =
+      error.name === 'AggregateError' && error.errors
+        ? error.errors.map((e) => e.message || String(e)).join('; ')
+        : error?.message || String(error)
 
     res.status(500).json({
       error: '獲取討論失敗',
@@ -239,14 +245,19 @@ router.get('/:id', async (req, res) => {
     const discussionQuery = `
       SELECT
         d.*,
-        COALESCE(COUNT(DISTINCT l.id), 0) as likes_count,
-        COALESCE(COUNT(DISTINCT c.id), 0) as comments_count
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.likes l
+          WHERE l.post_id = d.id AND l.board = 'discussion'
+        ), 0) as likes_count,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.comments c
+          WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
+        ), 0) as comments_count
       FROM discussion.discussion d
-      LEFT JOIN public.likes l ON d.id = l.post_id AND l.board = 'discussion'
-      LEFT JOIN public.comments c ON c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
       WHERE d.id = $1 AND d.deleted_at IS NULL
-      GROUP BY d.id
-    `
+`
 
     console.log('🔵 [Backend GET /:id] 執行查詢')
     const discussionResult = await pool.query(discussionQuery, [idNum])

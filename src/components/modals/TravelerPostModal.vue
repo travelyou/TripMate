@@ -316,10 +316,10 @@ const handleBannerSelect = async (event) => {
     })
 
     bannerFile.value = compressedFile
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    bannerPreview.value = e.target.result
-  }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      bannerPreview.value = e.target.result
+    }
     reader.readAsDataURL(compressedFile)
 
     isUploading.value = false
@@ -435,7 +435,6 @@ const addTag = (tagText) => {
   tagSearch.value = ''
 }
 const removeTag = (index) => postData.value.tags.splice(index, 1)
-
 
 const validateItinerary = () => {
   fieldErrors.value.itinerary = ''
@@ -827,7 +826,7 @@ const executeSubmit = async () => {
           body: '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
-    } else {
+      } else {
         alert('旅伴招募發布成功！')
       }
       window.location.reload()
@@ -924,17 +923,17 @@ watch(() => props.draftData, (newDraft) => {
     postData.value.end_date = draft.end_date || ''
     postData.value.max_people = draft.max_people || 2
     postData.value.tags = draft.tags || []
-    
+
     // 載入行程資料
     if (draft.itinerary && draft.itinerary.days) {
       postData.value.itinerary.days = draft.itinerary.days
     }
-    
+
     // 載入打包清單
     if (draft.packingList && Array.isArray(draft.packingList)) {
       postData.value.packingList = draft.packingList
     }
-    
+
     // 載入橫幅圖片
     if (draft.banner_image) {
       postData.value.banner_image = draft.banner_image
@@ -954,15 +953,15 @@ onMounted(() => {
     postData.value.end_date = draft.end_date || ''
     postData.value.max_people = draft.max_people || 2
     postData.value.tags = draft.tags || []
-    
+
     if (draft.itinerary && draft.itinerary.days) {
       postData.value.itinerary.days = draft.itinerary.days
     }
-    
+
     if (draft.packingList && Array.isArray(draft.packingList)) {
       postData.value.packingList = draft.packingList
     }
-    
+
     if (draft.banner_image) {
       postData.value.banner_image = draft.banner_image
       bannerPreview.value = draft.banner_image
@@ -1286,15 +1285,15 @@ onMounted(() => {
                 </div>
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                <input
-                  v-model="activity.title"
-                  placeholder="活動名稱"
+                    <input
+                      v-model="activity.title"
+                      placeholder="活動名稱"
                       :class="[
                         'w-full font-bold text-lg focus:outline-none',
                         activity.title && activity.title.trim().length > 50 ? 'text-red-500' : '',
                       ]"
                       maxlength="50"
-                />
+                    />
                     <span
                       :class="[
                         'text-xs ml-2',
@@ -1315,16 +1314,16 @@ onMounted(() => {
                 </div>
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                <textarea
-                  v-model="activity.desc"
-                  placeholder="活動描述..."
-                  rows="2"
+                    <textarea
+                      v-model="activity.desc"
+                      placeholder="活動描述..."
+                      rows="2"
                       :class="[
                         'w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none',
                         activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
                       ]"
                       maxlength="500"
-                ></textarea>
+                    ></textarea>
                     <span
                       :class="[
                         'text-xs ml-2 self-start pt-1',
@@ -1376,9 +1375,9 @@ onMounted(() => {
               <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 mr-2">
                   <div class="flex items-center justify-between">
-                <input
-                  v-model="category.category"
-                  placeholder="分類名稱"
+                    <input
+                      v-model="category.category"
+                      placeholder="分類名稱"
                       :class="[
                         'bg-transparent font-bold text-gray-800 focus:outline-none w-full',
                         category.category && category.category.trim().length > 30
@@ -1386,7 +1385,7 @@ onMounted(() => {
                           : '',
                       ]"
                       maxlength="30"
-                />
+                    />
                     <span
                       :class="[
                         'text-xs ml-2',
@@ -1419,15 +1418,15 @@ onMounted(() => {
                   class="bg-white p-2 rounded border border-gray-100"
                 >
                   <div class="flex items-center gap-2">
-                  <input
-                    v-model="item.name"
-                    placeholder="物品名稱"
+                    <input
+                      v-model="item.name"
+                      placeholder="物品名稱"
                       :class="[
                         'flex-1 text-sm focus:outline-none',
                         item.name && item.name.trim().length > 50 ? 'text-red-500' : '',
                       ]"
                       maxlength="50"
-                  />
+                    />
                     <span
                       :class="[
                         'text-xs',
@@ -1438,12 +1437,12 @@ onMounted(() => {
                     >
                       {{ (item.name || '').length }}/50
                     </span>
-                  <button
-                    class="text-gray-300 hover:text-red-500"
-                    @click="removePackingItem(catIndex, itemIndex)"
-                  >
-                    <XIcon class="w-3 h-3" />
-                  </button>
+                    <button
+                      class="text-gray-300 hover:text-red-500"
+                      @click="removePackingItem(catIndex, itemIndex)"
+                    >
+                      <XIcon class="w-3 h-3" />
+                    </button>
                   </div>
                   <p
                     v-if="item.name && item.name.trim().length > 50"

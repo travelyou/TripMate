@@ -29,7 +29,7 @@ export async function createOrUpdateUser(userData) {
     }
 
     const data = await response.json()
-    return data
+    return data.data || data
   } catch (error) {
     if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
       const networkError = new Error('無法連接到後端伺服器，請確認後端服務是否運行')

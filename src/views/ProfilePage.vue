@@ -4,6 +4,8 @@ import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
 import { usePersonalityStore } from '@/stores/personality'
+
+// Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 

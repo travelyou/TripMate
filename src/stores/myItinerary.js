@@ -1,8 +1,8 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMyItineraryStore = defineStore('myItinerary', () => {
-  // 1. 我的行程詳細數據
+  // 1. 我的行程
   const myItineraries = ref([
     {
       id: 1,
@@ -187,20 +187,25 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
   }
 
-  // 新增草稿
-  const addDraft = (draftData) => {
-    const newDraft = {
-      id: Date.now(),
-      saveTime: new Date().toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      ...draftData,
-    }
-    drafts.value.unshift(newDraft)
+  const updateFeaturedRating = ({ id, rating, comment }) => {
+    const target = featuredItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    target.rating = rating === 0 ? null : rating
+    if (comment !== undefined) target.comment = comment
+  }
+
+  const clearFeaturedRating = (id) => {
+    const target = featuredItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    target.rating = null
+    target.comment = ''
+  }
+
+  const updatePartnerItinerary = ({ id, comment, reviewLabel }) => {
+    const target = partnerItineraries.value.find((item) => item.id === id)
+    if (!target) return
+    if (comment !== undefined) target.comment = comment
+    if (reviewLabel !== undefined) target.reviewLabel = reviewLabel
   }
 
   // 儲存行程（新增或更新）
@@ -224,10 +229,14 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
 
   return {
     myItineraries,
-    drafts,
+    featuredItineraries,
+    partnerItineraries,
     addItinerary,
     deleteItinerary,
-    addDraft,
+    updateFeaturedRating,
+    clearFeaturedRating,
+    updatePartnerItinerary,
     saveItinerary,
   }
 })
+

@@ -1,14 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { getVendorProfile } from '@/api/vendor'
+import { createItinerary as createItineraryApi } from '@/api/itinerary'
 
 export const useVendorStore = defineStore('vendor', () => {
   const currentVendor = ref(null)
   const vendorPosts = ref([])
   const vendorItineraries = ref([])
+  const vendorReviews = ref([])
   const loading = ref(false)
   const error = ref(null)
 
-  // 🔴 MOCK DATA - 廠商基本資料
   const mockVendor = {
     id: 'vendor001',
     name: '環遊世界旅行社',
@@ -24,7 +26,6 @@ export const useVendorStore = defineStore('vendor', () => {
     isVerified: true,
   }
 
-  // 🔴 MOCK DATA - 貼文
   const mockPosts = [
     {
       id: 1,
@@ -64,7 +65,6 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // 🔴 MOCK DATA - 行程
   const mockItineraries = [
     {
       id: 1,
@@ -152,7 +152,6 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // 🔴 MOCK DATA - 評價
   const mockReviews = [
     {
       id: 1,
@@ -180,50 +179,28 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  const vendorReviews = ref([])
-
-  // ========================================
-  // 前台 Actions
-  // ========================================
-
-  /**
-   * 📡 API ENDPOINT: GET /api/vendors/:vendorId
-   * Supabase: SELECT * FROM vendors WHERE id = :vendorId
-   */
   const fetchVendorProfile = async (id) => {
     loading.value = true
     error.value = null
     try {
-      // 🔴 MOCK DATA
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      console.log(`Fetching vendor profile for ID: ${id}`)
+      const res = await getVendorProfile(id)
+      if (res.success && res.data && res.data.name !== '預設廠商') {
+        currentVendor.value = res.data
+      } else {
+        currentVendor.value = { ...mockVendor, id }
+      }
+    } catch {
       currentVendor.value = { ...mockVendor, id }
-    } catch (err) {
-      error.value = err.message
-      console.error('Error fetching vendor profile:', err)
     } finally {
       loading.value = false
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: GET /api/vendors/:vendorId/posts
-   */
-  const fetchVendorPosts = async (id) => {
-    // 🔴 MOCK DATA
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    console.log(`Fetching posts for vendor: ${id}`)
+  const fetchVendorPosts = async () => {
     vendorPosts.value = mockPosts
   }
 
-  /**
-   * 📡 API ENDPOINT: GET /api/vendors/:vendorId/itineraries
-   */
   const fetchVendorItineraries = async (id, filter = {}) => {
-    // 🔴 MOCK DATA
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    console.log(`Fetching itineraries for vendor: ${id}`)
-
     let result = [...mockItineraries]
 
     if (filter.region && filter.region !== '全部') {
@@ -233,38 +210,15 @@ export const useVendorStore = defineStore('vendor', () => {
     vendorItineraries.value = result
   }
 
-  /**
-   * 📡 API ENDPOINT: GET /api/vendors/:vendorId/reviews
-   */
-  const fetchVendorReviews = async (id) => {
-    // 🔴 MOCK DATA
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    console.log(`Fetching reviews for vendor: ${id}`)
+  const fetchVendorReviews = async () => {
     vendorReviews.value = mockReviews
   }
 
-  // ========================================
-  // 廠商後台 CRUD Actions
-  // ========================================
-
-  /**
-   * 📡 API ENDPOINT: PUT /api/vendors/:vendorId
-   * Supabase: UPDATE vendors SET ... WHERE id = :vendorId
-   * 用途: 更新廠商基本資料
-   */
   const updateVendorProfile = async (vendorId, profileData) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
       await new Promise((resolve) => setTimeout(resolve, 500))
       currentVendor.value = { ...currentVendor.value, ...profileData }
-
-      // 📡 未來實作:
-      // const { data, error } = await supabase
-      //   .from('vendors')
-      //   .update(profileData)
-      //   .eq('id', vendorId)
-      // if (error) throw error
 
       return { success: true }
     } catch (err) {
@@ -275,23 +229,33 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: POST /api/vendors/:vendorId/itineraries
-   * Supabase: INSERT INTO itineraries (...)
-   */
   const createItinerary = async (vendorId, itineraryData) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      const newItinerary = {
-        id: Date.now(),
+      const res = await createItineraryApi({
         ...itineraryData,
-        vendorId,
+        author_uid: vendorId,
+      })
+
+      if (!res.success) {
+        throw new Error(res.message || '發布失敗')
+      }
+
+      const newItinerary = {
+        id: res.id,
+        name: itineraryData.title,
+        title: itineraryData.title,
+        image: itineraryData.coverImage || 'https://picsum.photos/400/300?random=new',
+        price: itineraryData.price,
+        days: itineraryData.durationDays,
         rating: 0,
         reviewCount: 0,
+        region: '最新發布',
+        tags: itineraryData.tags || ['新行程'],
+        highlights: [],
       }
-      vendorItineraries.value.push(newItinerary)
+
+      vendorItineraries.value.unshift(newItinerary)
 
       return { success: true, data: newItinerary }
     } catch (err) {
@@ -302,14 +266,9 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: PUT /api/itineraries/:itineraryId
-   * Supabase: UPDATE itineraries SET ... WHERE id = :itineraryId
-   */
   const updateItinerary = async (itineraryId, itineraryData) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
       await new Promise((resolve) => setTimeout(resolve, 500))
       const index = vendorItineraries.value.findIndex((i) => i.id === itineraryId)
       if (index !== -1) {
@@ -328,14 +287,9 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: DELETE /api/itineraries/:itineraryId
-   * Supabase: DELETE FROM itineraries WHERE id = :itineraryId
-   */
   const deleteItinerary = async (itineraryId) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
       await new Promise((resolve) => setTimeout(resolve, 500))
       vendorItineraries.value = vendorItineraries.value.filter((i) => i.id !== itineraryId)
 
@@ -348,24 +302,24 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: POST /api/vendors/:vendorId/posts
-   * Supabase: INSERT INTO vendor_posts (...)
-   */
   const createPost = async (vendorId, postData) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      const mockRes = { success: true, id: Date.now() }
+
       const newPost = {
-        id: Date.now(),
-        ...postData,
-        vendorId,
+        id: mockRes.id,
+        title: postData.title,
+        content: postData.content,
+        image: postData.image || 'https://picsum.photos/600/400?random=newpost',
         likes: 0,
         collects: 0,
         comments: 0,
         time: new Date().toISOString().split('T')[0],
+        tags: postData.tags || [],
       }
+
       vendorPosts.value.unshift(newPost)
 
       return { success: true, data: newPost }
@@ -377,14 +331,9 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: PUT /api/posts/:postId
-   * Supabase: UPDATE vendor_posts SET ... WHERE id = :postId
-   */
   const updatePost = async (postId, postData) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
       await new Promise((resolve) => setTimeout(resolve, 500))
       const index = vendorPosts.value.findIndex((p) => p.id === postId)
       if (index !== -1) {
@@ -403,14 +352,9 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: DELETE /api/posts/:postId
-   * Supabase: DELETE FROM vendor_posts WHERE id = :postId
-   */
   const deletePost = async (postId) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
       await new Promise((resolve) => setTimeout(resolve, 500))
       vendorPosts.value = vendorPosts.value.filter((p) => p.id !== postId)
 
@@ -423,28 +367,12 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 📡 API ENDPOINT: POST /api/upload
-   * Firebase Storage: uploadBytes(ref(storage, path), file)
-   * 用途: 上傳圖片並回傳 URL
-   */
-  const uploadVendorImage = async (file, type) => {
+  // eslint-disable-next-line no-unused-vars
+  const uploadVendorImage = async (_file, _type) => {
     loading.value = true
     try {
-      // 🔴 MOCK DATA
-      // 暫時忽略未使用的參數
-      console.log('Uploading file:', file?.name, 'type:', type)
-
       await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // 模擬回傳 URL (使用假圖)
       const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
-
-      // 📡 未來實作:
-      // const storageRef = ref(storage, `vendors/${currentVendor.value.id}/${type}/${file.name}`)
-      // await uploadBytes(storageRef, file)
-      // const downloadURL = await getDownloadURL(storageRef)
-      // return downloadURL
 
       return mockUrl
     } catch (err) {
@@ -462,17 +390,15 @@ export const useVendorStore = defineStore('vendor', () => {
     vendorReviews,
     loading,
     error,
-    // 前台 Actions
     fetchVendorProfile,
     fetchVendorPosts,
     fetchVendorItineraries,
     fetchVendorReviews,
-    // 廠商後台 CRUD Actions
     updateVendorProfile,
     createItinerary,
+    createPost,
     updateItinerary,
     deleteItinerary,
-    createPost,
     updatePost,
     deletePost,
     uploadVendorImage,

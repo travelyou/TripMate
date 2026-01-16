@@ -2,54 +2,21 @@
 import { onMounted, computed, ref } from 'vue'
 import { useVendorStore } from '@/stores/vendor'
 import { Plus, Edit, Trash2, MapPin, Calendar, Star } from 'lucide-vue-next'
-import ItineraryModal from '@/components/vendor-dashboard/modals/ItineraryModal.vue'
+// 移除原本內部的 ItineraryModal，改用父層控制
+// import ItineraryModal from '@/components/vendor-dashboard/modals/ItineraryModal.vue'
+
+// 定義可以發送的訊號
+const emit = defineEmits(['create', 'edit', 'delete'])
 
 const vendorStore = useVendorStore()
 const itineraries = computed(() => vendorStore.vendorItineraries)
 const currentVendor = computed(() => vendorStore.currentVendor)
-
-const isModalOpen = ref(false)
-const editingItinerary = ref(null)
-
-// 開啟新增 Modal
-const handleCreate = () => {
-  // editingItinerary.value = null
-  // isModalOpen.value = true
-  alert('功能即將開放，敬請期待！')
-}
-
-// 開啟編輯 Modal
-const handleEdit = () => {
-  // editingItinerary.value = item
-  // isModalOpen.value = true
-  alert('功能即將開放，敬請期待！')
-}
-
-// 儲存行程 (新增或更新)
-const handleSave = async (formData) => {
-  try {
-    if (editingItinerary.value) {
-      // 編輯模式
-      await vendorStore.updateItinerary(editingItinerary.value.id, formData)
-    } else {
-      // 新增模式
-      await vendorStore.createItinerary(currentVendor.value.id, formData)
-    }
-    isModalOpen.value = false
-    // 重新取得資料
-    await vendorStore.fetchVendorItineraries(currentVendor.value.id)
-  } catch (error) {
-    console.error('儲存失敗:', error)
-    alert('儲存失敗，請稍後再試')
-  }
-}
 
 // 刪除確認
 const handleDelete = async (id) => {
   if (confirm('確定要刪除此行程嗎？此動作無法復原。')) {
     try {
       await vendorStore.deleteItinerary(id)
-      // 重新取得資料
       await vendorStore.fetchVendorItineraries(currentVendor.value.id)
     } catch (error) {
       console.error('刪除失敗:', error)
@@ -58,16 +25,14 @@ const handleDelete = async (id) => {
   }
 }
 
-// 格式化價格
 const formatPrice = (price) => {
   return new Intl.NumberFormat('zh-TW', {
     style: 'currency',
     currency: 'TWD',
-    minimumFractionDigits: 0
+    minimumFractionDigits: 0,
   }).format(price)
 }
 
-// 載入資料
 onMounted(() => {
   if (currentVendor.value?.id) {
     vendorStore.fetchVendorItineraries(currentVendor.value.id)
@@ -77,7 +42,6 @@ onMounted(() => {
 
 <template>
   <div>
-    <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
         <h2 class="text-xl font-bold text-gray-900">行程管理</h2>
@@ -87,36 +51,35 @@ onMounted(() => {
       </div>
       <button
         class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all flex items-center gap-2"
-        @click="handleCreate"
+        @click="$emit('create')"
       >
         <Plus class="w-4 h-4" />
         新增行程
       </button>
     </div>
 
-    <!-- 列表 -->
     <div v-if="itineraries.length > 0" class="grid grid-cols-1 gap-4">
       <div
         v-for="item in itineraries"
         :key="item.id"
         class="bg-white border border-gray-200 rounded-xl p-4 flex gap-6 hover:shadow-md transition-shadow group"
       >
-        <!-- 圖片 -->
         <div class="w-48 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
           <img
-            :src="item.image"
+            :src="item.image || item.coverImage || 'https://picsum.photos/400/300'"
             :alt="item.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
 
-        <!-- 內容 -->
         <div class="flex-1 flex flex-col justify-between">
           <div class="flex justify-between items-start">
             <div>
               <div class="flex items-center gap-2 mb-1">
-                <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                  {{ item.region }}
+                <span
+                  class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium"
+                >
+                  {{ item.region || '未分類' }}
                 </span>
                 <span v-if="item.tags && item.tags.length" class="flex gap-1">
                   <span
@@ -128,37 +91,34 @@ onMounted(() => {
                   </span>
                 </span>
               </div>
-              <h3 class="text-lg font-bold text-gray-900 mb-1 group-hover:text-amber-600 transition-colors">
-                {{ item.name }}
+              <h3
+                class="text-lg font-bold text-gray-900 mb-1 group-hover:text-amber-600 transition-colors"
+              >
+                {{ item.name || item.title }}
               </h3>
               <div class="flex items-center gap-4 text-sm text-gray-500">
                 <div class="flex items-center gap-1">
                   <Calendar class="w-4 h-4" />
-                  {{ item.days }} 天 {{ item.nights }} 夜
+                  {{ item.days || item.durationDays || 1 }} 天
                 </div>
                 <div class="flex items-center gap-1">
                   <Star class="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                  {{ item.rating }} ({{ item.reviewCount }})
+                  {{ item.rating || 0 }} ({{ item.reviewCount || 0 }})
                 </div>
               </div>
             </div>
 
-            <!-- 價格 -->
             <div class="text-right">
               <div class="text-xl font-bold text-amber-600">
                 {{ formatPrice(item.price) }}
               </div>
-              <div v-if="item.originalPrice" class="text-xs text-gray-400 line-through">
-                {{ formatPrice(item.originalPrice) }}
-              </div>
             </div>
           </div>
 
-          <!-- 操作按鈕 -->
           <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
             <button
               class="text-gray-500 hover:text-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-50 text-sm font-medium transition-colors flex items-center gap-1"
-              @click="handleEdit"
+              @click="$emit('edit', item)"
             >
               <Edit class="w-4 h-4" />
               編輯
@@ -175,8 +135,10 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 無資料狀態 -->
-    <div v-else class="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+    <div
+      v-else
+      class="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"
+    >
       <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <MapPin class="w-8 h-8 text-gray-400" />
       </div>
@@ -184,19 +146,11 @@ onMounted(() => {
       <p class="text-gray-500 mb-6">開始新增您的第一個旅遊行程商品吧！</p>
       <button
         class="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors inline-flex items-center gap-2"
-        @click="handleCreate"
+        @click="$emit('create')"
       >
         <Plus class="w-4 h-4" />
         新增行程
       </button>
     </div>
-
-    <!-- 行程表單 Modal -->
-    <ItineraryModal
-      :is-open="isModalOpen"
-      :initial-data="editingItinerary"
-      @close="isModalOpen = false"
-      @save="handleSave"
-    />
   </div>
 </template>

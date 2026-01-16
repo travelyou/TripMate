@@ -1,34 +1,108 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   X as XIcon,
-  Trash2 as TrashIcon,
-  Plus as PlusIcon,
-  Camera as CameraIcon,
-  Coffee as CoffeeIcon,
+  Heart as HeartIcon,
+  MessageCircle as MessageCircleIcon,
+  Bookmark as BookmarkIcon,
   MapPin as MapPinIcon,
-  CheckSquare as CheckSquareIcon,
-  Save as SaveIcon,
+  Calendar as CalendarIcon,
+  Users as UsersIcon,
   Map as MapIcon,
-  FileText as FileTextIcon,
+  Coffee as CoffeeIcon,
+  Camera as CameraIcon,
+  CheckSquare as CheckSquareIcon,
+  DollarSign as DollarSignIcon,
+  Building as BuildingIcon,
 } from 'lucide-vue-next'
+import { useUserStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
+import { getItineraryById } from '@/api/itinerary'
 
-const props = defineProps({ itinerary: { type: Object, required: true } })
-const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
-const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
-const activeDayIndex = ref(0)
-const activeDay = computed(() => {
-  const days = localItinerary.value.days || []
-  return days[activeDayIndex.value] || { activities: [] }
+const userStore = useUserStore()
+const router = useRouter()
+
+const props = defineProps({
+  itinerary: {
+    type: Object,
+    required: true,
+  },
+  scrollToComments: {
+    type: Boolean,
+    default: false,
+  },
 })
-const getDayLabel = (index) => {
-  const startDateStr = localItinerary.value.startDate
-  if (!startDateStr) return `Day ${index + 1}`
-  const [year, month, day] = startDateStr.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  date.setDate(date.getDate() + index)
-  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+
+const emit = defineEmits(['close'])
+
+const activeTab = ref('itinerary')
+const localItineraryData = ref({ ...props.itinerary })
+const activeDayIndex = ref(0)
+const isLoadingDetails = ref(false)
+
+// 整合資料結構
+const itineraryDetails = computed(() => {
+  if (localItineraryData.value.itinerary && localItineraryData.value.itinerary.days) {
+    return {
+      days: localItineraryData.value.itinerary.days,
+      packingList: localItineraryData.value.packingList || [],
+    }
+  }
+  return { days: [], packingList: [] }
+})
+
+const activeDay = computed(() => {
+  if (!itineraryDetails.value.days || itineraryDetails.value.days.length === 0)
+    return { activities: [] }
+  return itineraryDetails.value.days[activeDayIndex.value] || { activities: [] }
+})
+
+// 智慧日期顯示邏輯
+const displayDate = computed(() => {
+  const { start_date, end_date, durationDays } = localItineraryData.value
+
+  if (start_date && end_date) {
+    const d1 = new Date(start_date)
+    const d2 = new Date(end_date)
+
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return `${durationDays || 1} 天`
+
+    const pad = (n) => n.toString().padStart(2, '0')
+    const y1 = d1.getFullYear()
+    const m1 = pad(d1.getMonth() + 1)
+    const day1 = pad(d1.getDate())
+    const y2 = d2.getFullYear()
+    const m2 = pad(d2.getMonth() + 1)
+    const day2 = pad(d2.getDate())
+
+    // 同一天
+    if (y1 === y2 && m1 === m2 && day1 === day2) return `${y1}/${m1}/${day1}`
+    // 同一年 -> 省略後面的年份
+    if (y1 === y2) return `${y1}/${m1}/${day1} - ${m2}/${day2}`
+    // 不同年 -> 完整顯示
+    return `${y1}/${m1}/${day1} - ${y2}/${m2}/${day2}`
+  }
+
+  return `${durationDays || 1} 天`
+})
+
+// 呼叫後端 API 獲取詳細資料
+const fetchFullItineraryDetails = async () => {
+  if (!props.itinerary.id) return
+
+  isLoadingDetails.value = true
+  try {
+    const response = await getItineraryById(props.itinerary.id)
+    if (response.success) {
+      localItineraryData.value = { ...localItineraryData.value, ...response.data }
+    }
+  } catch (error) {
+    console.error('抓取詳細資料失敗:', error)
+  } finally {
+    isLoadingDetails.value = false
+  }
 }
+
 const getIconComponent = (iconName) => {
   switch (iconName) {
     case 'camera':
@@ -41,235 +115,310 @@ const getIconComponent = (iconName) => {
       return MapIcon
   }
 }
-const addDay = () => {
-  if (!localItinerary.value.days) localItinerary.value.days = []
-  localItinerary.value.days.push({
-    day: localItinerary.value.days.length + 1,
-    date: '',
-    activities: [],
-  })
-  activeDayIndex.value = localItinerary.value.days.length - 1
+
+const formatPrice = (price) => {
+  if (!price) return '洽詢'
+  return `NT$ ${Number(price).toLocaleString()}`
 }
-const deleteItem = (categoryIndex, itemIndex) =>
-  localItinerary.value.packingList[categoryIndex].items.splice(itemIndex, 1)
-const addItem = (categoryIndex) =>
-  localItinerary.value.packingList[categoryIndex].items.push({
-    id: Date.now(),
-    name: '新物品',
-    checked: false,
-  })
-const addCategory = () => localItinerary.value.packingList.push({ category: '新分類', items: [] })
-const deleteCategory = (index) => localItinerary.value.packingList.splice(index, 1)
-const deleteActivity = (actIndex) => activeDay.value.activities.splice(actIndex, 1)
-const addActivity = () => {
-  if (!activeDay.value.activities) activeDay.value.activities = []
-  activeDay.value.activities.push({
-    id: Date.now(),
-    time: '09:00',
-    icon: 'map-pin',
-    title: '',
-    desc: '',
-  })
-}
-const handleSave = () => emit('save', localItinerary.value)
-const handleSaveDraft = () => emit('save-draft', localItinerary.value)
-const handleDelete = () => {
-  if (confirm('確定要刪除？')) emit('delete', localItinerary.value.id)
-}
+
+onMounted(async () => {
+  await fetchFullItineraryDetails()
+
+  if (props.scrollToComments) {
+    activeTab.value = 'comments'
+  }
+})
 </script>
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 z-[200] flex justify-center items-center p-4 backdrop-blur-sm"
+    class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
     @click.self="emit('close')"
   >
     <div
-      class="bg-gray-50 w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+      class="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-xl border-2 border-primary overflow-hidden relative"
     >
-      <div class="p-4 border-b border-gray-200 flex justify-between items-start bg-white">
-        <div class="flex-1">
-          <div class="flex items-center space-x-2 mb-2">
-            <MapIcon class="w-6 h-6 text-indigo-600" />
-            <input
-              v-model="localItinerary.title"
-              class="text-2xl font-bold text-gray-800 bg-transparent focus:outline-none w-full placeholder-gray-300"
-              placeholder="請輸入行程標題"
-            />
+      <button
+        class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
+        @click="emit('close')"
+      >
+        <XIcon class="w-6 h-6" />
+      </button>
+
+      <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <div class="relative w-full h-72 overflow-hidden">
+          <img
+            :src="
+              localItineraryData.coverImage ||
+              localItineraryData.image ||
+              'https://picsum.photos/800/400'
+            "
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+
+          <div
+            class="absolute top-4 left-4 bg-primary-600 text-white px-4 py-2 font-bold text-lg rounded-full border-2 border-white shadow-lg flex items-center"
+          >
+            <DollarSignIcon class="w-5 h-5 mr-1" />
+            {{ formatPrice(localItineraryData.price) }}
           </div>
-          <div class="flex items-center space-x-2 text-sm text-gray-500">
-            <input
-              v-model="localItinerary.startDate"
-              type="date"
-              class="bg-transparent hover:bg-gray-100 rounded px-1"
-            />
-            <span>-</span>
-            <input
-              v-model="localItinerary.endDate"
-              type="date"
-              class="bg-transparent hover:bg-gray-100 rounded px-1"
-            />
+
+          <div class="absolute bottom-4 left-4 text-white">
+            <div class="flex items-center space-x-2 mb-1" v-if="localItineraryData.agencyName">
+              <BuildingIcon class="w-4 h-4 text-primary-300" />
+              <span class="font-bold text-primary-100 text-sm tracking-wider"
+                >由 {{ localItineraryData.agencyName }} 提供</span
+              >
+            </div>
+            <h1 class="text-3xl font-black text-white shadow-sm">
+              {{ localItineraryData.title }}
+            </h1>
           </div>
         </div>
-        <button
-          class="p-2 hover:bg-gray-100 rounded-full transition text-gray-400 hover:text-gray-600"
-          @click="emit('close')"
-        >
-          <XIcon class="w-6 h-6" />
-        </button>
-      </div>
 
-      <div class="flex-1 flex overflow-hidden">
-        <div class="w-2/3 flex flex-col border-r border-gray-200 bg-gray-50">
-          <div class="flex overflow-x-auto p-4 space-x-2 bg-white border-b border-gray-100">
-            <button
-              v-for="(day, index) in localItinerary.days"
-              :key="index"
-              :class="[
-                'px-4 py-2 rounded-lg font-bold transition whitespace-nowrap text-sm',
-                activeDayIndex === index
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
-              ]"
-              @click="activeDayIndex = index"
-            >
-              {{ getDayLabel(index) }}
-            </button>
-            <button
-              class="px-3 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
-              @click="addDay"
-            >
-              <PlusIcon class="w-4 h-4" />
-            </button>
+        <div class="p-6">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+              <div class="flex items-center text-primary-600 mb-1">
+                <MapPinIcon class="w-4 h-4 mr-1" />
+                <span class="text-xs font-bold text-secondary-500">地點</span>
+              </div>
+              <div class="font-bold text-secondary-900 truncate">
+                {{
+                  Array.isArray(localItineraryData.destinations)
+                    ? localItineraryData.destinations.join(',')
+                    : localItineraryData.destinations || localItineraryData.location || '多個地點'
+                }}
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+              <div class="flex items-center text-secondary-500 mb-1">
+                <CalendarIcon class="w-4 h-4 mr-1" />
+                <span class="text-xs font-bold text-secondary-500">日期</span>
+              </div>
+              <div class="font-bold text-secondary-900 text-sm truncate">
+                {{ displayDate }}
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+              <div class="flex items-center text-primary-500 mb-1">
+                <UsersIcon class="w-4 h-4 mr-1" />
+                <span class="text-xs font-bold text-secondary-500">參與人數</span>
+              </div>
+              <div class="font-bold text-primary-600">
+                上限 {{ localItineraryData.max_people || 20 }} 人
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+              <div class="flex items-center text-blue-500 mb-1">
+                <MessageCircleIcon class="w-4 h-4 mr-1" />
+                <span class="text-xs font-bold text-secondary-500">留言</span>
+              </div>
+              <div class="font-bold text-secondary-900">
+                {{ localItineraryData.comments_count || 0 }} 則
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
+              <div class="flex items-center text-accent-500 mb-1">
+                <BookmarkIcon class="w-4 h-4 mr-1" />
+                <span class="text-xs font-bold text-secondary-500">收藏</span>
+              </div>
+              <div class="font-bold text-secondary-900">
+                {{ localItineraryData.totalSaves || 0 }}
+              </div>
+            </div>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-6 space-y-4">
-            <div v-if="activeDay.activities?.length > 0">
-              <div
-                v-for="(activity, index) in activeDay.activities"
-                :key="activity.id"
-                class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 relative group mb-4"
+          <div
+            v-if="localItineraryData.tags && localItineraryData.tags.length"
+            class="flex flex-wrap gap-2 mb-6"
+          >
+            <span
+              v-for="tag in localItineraryData.tags"
+              :key="tag"
+              class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
+            >
+              #{{ tag }}
+            </span>
+          </div>
+
+          <div class="prose prose-lg max-w-none mb-6">
+            <h3 class="font-bold text-xl mb-2 text-secondary-900">行程特色</h3>
+            <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
+              {{ localItineraryData.description || localItineraryData.content || '暫無詳細介紹' }}
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6">
+            <button
+              class="flex items-center space-x-1 text-secondary-400 hover:text-accent-600 transition"
+            >
+              <HeartIcon class="w-6 h-6" />
+            </button>
+            <button
+              class="flex items-center space-x-1 text-secondary-400 hover:text-primary-600 transition"
+            >
+              <BookmarkIcon class="w-6 h-6" />
+            </button>
+
+            <div class="ml-auto flex gap-3">
+              <button
+                class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
               >
-                <div class="flex gap-4">
+                立即諮詢
+              </button>
+              <button
+                class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
+              >
+                立即預訂
+              </button>
+            </div>
+          </div>
+
+          <div class="border-b-2 border-primary-200 mb-6">
+            <div class="flex space-x-1">
+              <button
+                :class="[
+                  'px-6 py-3 font-bold transition relative',
+                  activeTab === 'itinerary'
+                    ? 'text-primary-600 border-b-4 border-primary-600'
+                    : 'text-secondary-400 hover:text-secondary-600',
+                ]"
+                @click="activeTab = 'itinerary'"
+              >
+                <MapIcon class="w-5 h-5 inline mr-2" />
+                每日行程
+              </button>
+              <button
+                :class="[
+                  'px-6 py-3 font-bold transition relative',
+                  activeTab === 'comments'
+                    ? 'text-primary-600 border-b-4 border-primary-600'
+                    : 'text-secondary-400 hover:text-secondary-600',
+                ]"
+                @click="activeTab = 'comments'"
+              >
+                <MessageCircleIcon class="w-5 h-5 inline mr-2" />
+                留言討論
+              </button>
+            </div>
+          </div>
+
+          <div v-if="activeTab === 'itinerary'" class="space-y-6">
+            <div v-if="isLoadingDetails" class="text-center py-10 text-primary-600">
+              正在載入詳細行程...
+            </div>
+            <div v-else-if="itineraryDetails.days && itineraryDetails.days.length > 0">
+              <div class="flex overflow-x-auto space-x-2 pb-2">
+                <button
+                  v-for="(day, index) in itineraryDetails.days"
+                  :key="index"
+                  :class="[
+                    'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
+                    activeDayIndex === index
+                      ? 'bg-primary-600 text-white border-primary-700'
+                      : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
+                  ]"
+                  @click="activeDayIndex = index"
+                >
+                  Day {{ index + 1 }}
+                </button>
+              </div>
+
+              <div class="space-y-4">
+                <div v-if="activeDay.activities && activeDay.activities.length > 0">
                   <div
-                    class="w-24 shrink-0 border-r border-gray-100 pr-4 flex flex-col justify-center"
+                    v-for="(activity, actIndex) in activeDay.activities"
+                    :key="actIndex"
+                    class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm relative overflow-hidden"
                   >
-                    <input
-                      v-model="activity.time"
-                      type="time"
-                      class="text-xl font-bold text-indigo-600 bg-transparent focus:outline-none w-full"
-                    />
-                    <div class="mt-2 flex items-center text-gray-400">
-                      <component :is="getIconComponent(activity.icon)" class="w-4 h-4 mr-1" />
-                      <span class="text-xs">Icon</span>
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-500"></div>
+                    <div class="flex gap-4">
+                      <div class="w-16 shrink-0 text-right">
+                        <div class="text-xl font-black text-primary-600">
+                          {{ activity.time || 'All Day' }}
+                        </div>
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-2">
+                          <component
+                            :is="getIconComponent(activity.icon)"
+                            class="w-5 h-5 text-primary-500"
+                          />
+                          <h4 class="text-lg font-bold text-secondary-900">{{ activity.title }}</h4>
+                        </div>
+                        <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
+                      </div>
                     </div>
                   </div>
-                  <div class="flex-1">
-                    <input
-                      v-model="activity.title"
-                      class="w-full text-lg font-bold text-gray-800 focus:outline-none mb-1 placeholder-gray-300"
-                      placeholder="活動標題"
-                    />
-                    <textarea
-                      v-model="activity.desc"
-                      class="w-full text-sm text-gray-500 bg-transparent resize-none focus:outline-none"
-                      rows="2"
-                      placeholder="備註..."
-                    ></textarea>
-                  </div>
-                  <button
-                    class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
-                    @click="deleteActivity(index)"
-                  >
-                    <TrashIcon class="w-4 h-4" />
-                  </button>
                 </div>
-              </div>
-            </div>
-            <div v-else class="text-center text-gray-400 py-10">尚無活動</div>
-            <button
-              class="w-full py-3 border border-dashed border-indigo-200 text-indigo-500 rounded-xl hover:bg-indigo-50 transition font-bold"
-              @click="addActivity"
-            >
-              + 新增活動
-            </button>
-          </div>
-        </div>
-
-        <div class="w-1/3 flex flex-col bg-white">
-          <div class="p-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 class="font-bold text-gray-700 flex items-center">
-              <CheckSquareIcon class="w-5 h-5 mr-2 text-indigo-500" /> 物品清單
-            </h3>
-            <button
-              class="text-indigo-600 bg-indigo-50 p-1 rounded hover:bg-indigo-100 transition"
-              @click="addCategory"
-            >
-              <PlusIcon class="w-4 h-4" />
-            </button>
-          </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <div
-              v-for="(cat, catIndex) in localItinerary.packingList"
-              :key="catIndex"
-              class="bg-gray-50 rounded-xl p-3"
-            >
-              <div class="flex justify-between items-center mb-2">
-                <input
-                  v-model="cat.category"
-                  class="font-bold text-gray-700 bg-transparent focus:outline-none text-sm"
-                  placeholder="分類名稱"
-                />
-                <button class="text-gray-400 hover:text-red-500" @click="deleteCategory(catIndex)">
-                  <TrashIcon class="w-3 h-3" />
-                </button>
-              </div>
-              <div class="space-y-1">
                 <div
-                  v-for="(item, itemIndex) in cat.items"
-                  :key="item.id"
-                  class="flex items-center group"
+                  v-else
+                  class="text-center text-gray-500 py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200"
                 >
-                  <input v-model="item.checked" type="checkbox" class="accent-indigo-600 mr-2" />
-                  <input
-                    v-model="item.name"
-                    class="flex-1 bg-transparent text-sm focus:outline-none text-gray-600"
-                  />
-                  <button
-                    class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"
-                    @click="deleteItem(catIndex, itemIndex)"
-                  >
-                    <XIcon class="w-3 h-3" />
-                  </button>
+                  本日無特定行程安排，享受自由時間！
                 </div>
-                <button class="text-xs text-indigo-500 font-bold mt-2" @click="addItem(catIndex)">
-                  + 新增物品
-                </button>
+              </div>
+            </div>
+            <div v-else class="text-center text-gray-400 py-10 bg-gray-50 rounded-lg">
+              尚未建立詳細行程表
+            </div>
+
+            <div
+              v-if="itineraryDetails.packingList && itineraryDetails.packingList.length > 0"
+              class="mt-8 pt-6 border-t border-secondary-200"
+            >
+              <h3 class="font-black text-lg text-secondary-900 flex items-center mb-4">
+                <CheckSquareIcon class="w-5 h-5 mr-2 text-primary" />
+                建議攜帶物品 (官方建議)
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div
+                  v-for="(cat, catIndex) in itineraryDetails.packingList"
+                  :key="catIndex"
+                  class="bg-white border-2 border-secondary-200 rounded-lg p-4"
+                >
+                  <h4 class="font-bold text-secondary-700 mb-3">{{ cat.category }}</h4>
+                  <div class="space-y-2">
+                    <div
+                      v-for="(item, itemIndex) in cat.items"
+                      :key="itemIndex"
+                      class="flex items-center"
+                    >
+                      <div class="w-2 h-2 rounded-full bg-primary-400 mr-2"></div>
+                      <span class="text-sm text-secondary-700">
+                        {{ item.name || item }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div class="p-4 border-t border-gray-200 bg-white flex justify-end gap-3">
-        <button
-          class="px-4 py-2 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition mr-auto flex items-center"
-          @click="handleSaveDraft"
-        >
-          <FileTextIcon class="w-4 h-4 mr-2" /> 草稿
-        </button>
-        <button
-          class="px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-lg transition"
-          @click="handleDelete"
-        >
-          刪除
-        </button>
-        <button
-          class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md flex items-center"
-          @click="handleSave"
-        >
-          <SaveIcon class="w-4 h-4 mr-2" /> 儲存
-        </button>
+          <div v-if="activeTab === 'comments'" class="py-10 text-center text-secondary-500">
+            這裡可以放置針對此行程的留言討論
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+</style>
