@@ -361,47 +361,17 @@ router.put('/:uid', async (req, res) => {
       tags = Array.isArray(tags) ? [...tags] : [];
     }
 
-    let hasLocationColumn = false;
-    let hasTagsColumn = false;
-    try {
-      const checkColumnQuery = `
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name = 'users' AND column_name IN ('location', 'tags')
-      `;
-      const columnCheck = await pool.query(checkColumnQuery);
-      hasLocationColumn = columnCheck.rows.some(row => row.column_name === 'location');
-      hasTagsColumn = columnCheck.rows.some(row => row.column_name === 'tags');
-
-      if (!hasTagsColumn) {
-        try {
-          await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT \'{}\'');
-          hasTagsColumn = true;
-        } catch {
-          hasTagsColumn = false;
-        }
-      }
-    } catch {
-      hasLocationColumn = false;
-      hasTagsColumn = false;
-    }
-
-    let updateQuery;
-    let queryParams;
-    let paramIndex = 2;
-
     const setClauses = [];
     const params = [uid];
+    let paramIndex = 2;
 
     setClauses.push(`nickname = COALESCE($${paramIndex}, nickname)`);
     params.push(nickname);
     paramIndex++;
 
-    if (hasLocationColumn) {
-      setClauses.push(`location = COALESCE($${paramIndex}, location, '台灣')`);
-      params.push(location);
-      paramIndex++;
-    }
+    setClauses.push(`location = COALESCE($${paramIndex}, location, '台灣')`);
+    params.push(location);
+    paramIndex++;
 
     setClauses.push(`avatar = COALESCE($${paramIndex}, avatar)`);
     params.push(avatar);
@@ -415,22 +385,20 @@ router.put('/:uid', async (req, res) => {
     params.push(spirit_animal);
     paramIndex++;
 
-    if (hasTagsColumn) {
-      const tagsValue = Array.isArray(tags) ? tags : (tags ? [tags] : []);
-      setClauses.push(`tags = $${paramIndex}`);
-      params.push(tagsValue);
-      paramIndex++;
-    }
+    const tagsValue = Array.isArray(tags) ? tags : (tags ? [tags] : []);
+    setClauses.push(`tags = $${paramIndex}`);
+    params.push(tagsValue);
+    paramIndex++;
 
     setClauses.push('updated_at = CURRENT_TIMESTAMP');
 
-    updateQuery = `
+    const updateQuery = `
       UPDATE users
       SET ${setClauses.join(', ')}
       WHERE uid = $1
       RETURNING *
     `;
-    queryParams = params;
+    const queryParams = params;
 
     const result = await pool.query(updateQuery, queryParams);
 
@@ -472,14 +440,14 @@ router.put('/:uid', async (req, res) => {
         paramIndex++;
       }
 
-      if (hasLocationColumn && location) {
+      if (location) {
         insertClauses.push('location');
         insertParams.push(location);
         insertPlaceholders.push(`$${paramIndex}`);
         paramIndex++;
       }
 
-      if (hasTagsColumn && tags && Array.isArray(tags)) {
+      if (tags && Array.isArray(tags)) {
         insertClauses.push('tags');
         insertParams.push(tags);
         insertPlaceholders.push(`$${paramIndex}`);
@@ -496,14 +464,10 @@ router.put('/:uid', async (req, res) => {
         const insertResult = await pool.query(insertQuery, insertParams);
 
         const userData = insertResult.rows[0];
-        if (hasTagsColumn) {
-          if (userData.tags === null || userData.tags === undefined) {
-            userData.tags = [];
-          } else if (!Array.isArray(userData.tags)) {
-            userData.tags = typeof userData.tags === 'string' ? JSON.parse(userData.tags) : [userData.tags];
-          }
-        } else {
+        if (userData.tags === null || userData.tags === undefined) {
           userData.tags = [];
+        } else if (!Array.isArray(userData.tags)) {
+          userData.tags = typeof userData.tags === 'string' ? JSON.parse(userData.tags) : [userData.tags];
         }
 
         return res.json(userData);
@@ -517,14 +481,10 @@ router.put('/:uid', async (req, res) => {
     }
 
     const userData = result.rows[0];
-    if (hasTagsColumn) {
-      if (userData.tags === null || userData.tags === undefined) {
-        userData.tags = [];
-      } else if (!Array.isArray(userData.tags)) {
-        userData.tags = typeof userData.tags === 'string' ? JSON.parse(userData.tags) : [userData.tags];
-      }
-    } else {
+    if (userData.tags === null || userData.tags === undefined) {
       userData.tags = [];
+    } else if (!Array.isArray(userData.tags)) {
+      userData.tags = typeof userData.tags === 'string' ? JSON.parse(userData.tags) : [userData.tags];
     }
 
     res.json(userData);
