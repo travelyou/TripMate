@@ -86,6 +86,7 @@ export async function getUserProfile(uid) {
 export async function updateUserProfile(uid, userData) {
   try {
     console.log('[Users API] 更新用戶資料：', { uid, userData })
+    console.log('[Users API] tags 內容：', userData.tags)
     const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
       method: 'PUT',
       headers: {
@@ -100,6 +101,7 @@ export async function updateUserProfile(uid, userData) {
     }
     const data = await response.json()
     console.log('[Users API] 更新成功：', data)
+    console.log('[Users API] 返回的 tags：', data.tags)
     return data
   } catch (error) {
     console.error('更新用戶資料錯誤：', error)

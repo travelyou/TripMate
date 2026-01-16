@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
@@ -45,7 +45,32 @@ const isCurrentUser = computed(() => {
 })
 
 const viewingUser = ref(null)
-const user = computed(() => viewingUser.value || userStore.currentUser)
+const user = computed(() => {
+  // 如果正在查看其他用戶的檔案
+  if (targetUid.value && targetUid.value !== userStore.currentUser?.uid) {
+    // 如果 viewingUser 還沒載入，返回一個空對象而不是 null，避免模板錯誤
+    return viewingUser.value || {
+      id: null,
+      uid: targetUid.value,
+      name: '',
+      nickname: '',
+      email: '',
+      avatar: '',
+      bio: '',
+      location: '台灣',
+      spiritAnimal: '',
+      role: 'user',
+      vendorId: null,
+      tags: [],
+      friends: [],
+      reviews: [],
+      visitedPlaces: { domestic: [], international: [] },
+      wishlist: [],
+    }
+  }
+  // 如果是查看自己的檔案，使用當前用戶
+  return viewingUser.value || userStore.currentUser
+})
 const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
 
 // 用於實時連動許願球池的臨時狀態
@@ -93,9 +118,9 @@ const activeTabsData = computed(() => {
       title: trip.title,
       content: trip.description,
       image: trip.image,
-      author: user.value.name,
-      avatar: user.value.avatar,
-      spiritAnimal: user.value.spiritAnimal || '🦁 樂天派',
+      author: user.value?.name || '',
+      avatar: user.value?.avatar || '',
+      spiritAnimal: user.value?.spiritAnimal || '🦁 樂天派',
       location: trip.location || '台灣',
       date: trip.startDate,
       status: trip.status || '招募中',
@@ -106,11 +131,13 @@ const activeTabsData = computed(() => {
       commentsData: [],
     })),
     posts: discussionsStore.discussions.filter((p) =>
-      p.author === user.value.name ||
-      p.author === user.value.nickname ||
-      p.author_uid === user.value.uid
+      user.value && (
+        p.author === user.value.name ||
+        p.author === user.value.nickname ||
+        p.author_uid === user.value.uid
+      )
     ),
-    reviews: user.value.reviews || [],
+    reviews: (user.value && user.value.reviews) || [],
   }
 })
 
@@ -126,7 +153,7 @@ const stats = computed(() => ({
   hosted: profileStats.value.hosted || activeTabsData.value.hostedTrips.length,
   posts: profileStats.value.posts || activeTabsData.value.posts.length,
   reviews: profileStats.value.reviews || activeTabsData.value.reviews.length,
-  friends: profileStats.value.friends || (user.value.friends ? user.value.friends.length : 0),
+  friends: profileStats.value.friends || (user.value && user.value.friends ? user.value.friends.length : 0),
 }))
 
 // Methods
@@ -204,6 +231,7 @@ const handleSaveProfile = async (formData) => {
       ? profileData.location.trim()
       : '台灣'
 
+    const tagsToSave = Array.isArray(tags) ? tags : (tags || [])
     console.log('準備更新用戶資料：', {
       uid: user.value.uid,
       nickname: profileData.nickname || profileData.name,
@@ -211,6 +239,7 @@ const handleSaveProfile = async (formData) => {
       avatar: profileData.avatar,
       bio: profileData.bio,
       spirit_animal: profileData.spiritAnimal,
+      tags: tagsToSave,
     })
 
     await updateUserProfile(user.value.uid, {
@@ -219,6 +248,7 @@ const handleSaveProfile = async (formData) => {
       avatar: profileData.avatar,
       bio: profileData.bio,
       spirit_animal: profileData.spiritAnimal,
+      tags: tagsToSave,
     })
 
     // 更新本地狀態（包括 tags 和 location）
@@ -409,17 +439,39 @@ const closePersonalityResult = () => {
 // 載入個人檔案資料
 const loading = ref(false)
 const loadProfileData = async () => {
-  if (!targetUid.value) {
+  // 先清空 viewingUser，避免顯示舊資料
+  viewingUser.value = null
+  
+  // 優先使用路由參數中的 uid
+  const uidToLoad = route.params.uid || (userStore.isLoggedIn && userStore.currentUser?.uid ? userStore.currentUser.uid : null)
+  
+  console.log('ProfilePage loadProfileData:', { 
+    routeParamsUid: route.params.uid, 
+    uidToLoad, 
+    targetUid: targetUid.value,
+    isCurrentUser: isCurrentUser.value 
+  })
+  
+  if (!uidToLoad) {
+    console.warn('ProfilePage: 沒有 UID 可載入')
     if (!userStore.isLoggedIn) {
       router.push('/login')
     }
     return
   }
 
+  // 確保 targetUid 與要載入的 uid 一致
+  if (targetUid.value !== uidToLoad) {
+    // 如果 targetUid 還沒更新，等待一下
+    await new Promise(resolve => setTimeout(resolve, 0))
+  }
+
   loading.value = true
   try {
+    console.log('ProfilePage: 開始載入個人檔案，UID:', uidToLoad)
     const { getProfile } = await import('@/api/profile')
-    const profileData = await getProfile(targetUid.value)
+    const profileData = await getProfile(uidToLoad)
+    console.log('ProfilePage: 載入成功，資料:', profileData ? '有資料' : '無資料')
 
     if (profileData) {
       // 如果是查看其他用戶，創建一個新的用戶物件
@@ -472,15 +524,21 @@ const loadProfileData = async () => {
         friends: 0
       }
     } else {
-      // 如果找不到用戶資料，且不是當前用戶，跳轉到首頁
+      // 如果找不到用戶資料，且不是當前用戶，顯示錯誤但不跳轉
       if (!isCurrentUser.value) {
-        router.push('/')
+        console.error('找不到用戶資料，UID:', uidToLoad)
+        // 不自動跳轉，讓用戶看到錯誤訊息
+        // router.push('/')
       }
     }
   } catch (error) {
     console.error('載入個人檔案資料失敗：', error)
-    if (!isCurrentUser.value) {
-      router.push('/')
+    console.error('嘗試載入的 UID:', uidToLoad)
+    // 只有在確實是錯誤的情況下才跳轉，而不是因為找不到用戶
+    if (!isCurrentUser.value && error.message && !error.message.includes('404') && !error.message.includes('Not Found')) {
+      // 只有真正的錯誤才跳轉，404 不跳轉
+      console.error('載入個人檔案時發生錯誤，但不跳轉到首頁')
+      // router.push('/')
     }
   } finally {
     loading.value = false
@@ -488,13 +546,28 @@ const loadProfileData = async () => {
 }
 
 // 監聽路由變化
-watch(() => route.params.uid, () => {
-  viewingUser.value = null
-  loadProfileData()
-}, { immediate: true })
+watch(() => route.params.uid, (newUid, oldUid) => {
+  // 只有在 uid 真正改變時才重新載入
+  if (newUid !== oldUid) {
+    viewingUser.value = null
+    loadProfileData()
+  }
+}, { immediate: false })
+
+// 監聽 targetUid 變化
+watch(() => targetUid.value, (newUid, oldUid) => {
+  // 只有在 uid 真正改變時才重新載入
+  if (newUid !== oldUid && newUid) {
+    viewingUser.value = null
+    loadProfileData()
+  }
+}, { immediate: false })
 
 onMounted(() => {
-  loadProfileData()
+  // 延遲載入，確保路由參數已經更新
+  nextTick(() => {
+    loadProfileData()
+  })
 })
 </script>
 

@@ -13,14 +13,6 @@ import {
 
 const router = useRouter()
 
-const handleAvatarClick = (e) => {
-  e.stopPropagation()
-  const authorUid = props.traveler.author_uid
-  if (authorUid) {
-    router.push(`/profile/${authorUid}`)
-  }
-}
-
 const props = defineProps({
   traveler: {
     type: Object,
@@ -28,7 +20,36 @@ const props = defineProps({
   },
 })
 
+defineEmits(['open-detail'])
+
 const userStore = useUserStore()
+
+const handleAvatarClick = (e) => {
+  e.stopPropagation()
+  e.preventDefault()
+
+  const authorUid = props.traveler.author_uid || props.traveler.authorUid
+  const vendorId = props.traveler.vendor_id || props.traveler.vendorId
+
+  console.log('TravelerCard handleAvatarClick:', { authorUid, vendorId, traveler: props.traveler })
+
+  // 如果有 vendor_id，跳轉到廠商頁面
+  if (vendorId) {
+    console.log('跳轉到廠商頁面:', vendorId)
+    router.push({ path: `/vendor/${vendorId}`, replace: false })
+    return
+  }
+
+  // 如果有 author_uid，跳轉到個人檔案頁面
+  if (authorUid) {
+    console.log('跳轉到個人檔案頁面:', authorUid)
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+    return
+  }
+
+  // 如果都沒有，記錄警告但不跳轉
+  console.warn('無法跳轉：找不到作者 UID 或廠商 ID', props.traveler)
+}
 
 const itemData = computed(() => ({
   id: props.traveler.id,
@@ -88,7 +109,7 @@ const getStatusClasses = (status) => {
             />
             <div>
               <div class="flex items-center space-x-1">
-                <span 
+                <span
                   class="font-bold text-sm text-secondary-900 cursor-pointer hover:text-primary-600 transition"
                   @click.stop="handleAvatarClick"
                 >{{ traveler.author }}</span>

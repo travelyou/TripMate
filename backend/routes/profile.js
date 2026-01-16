@@ -348,7 +348,7 @@ router.get('/:uid', async (req, res) => {
         spirit_animal: user.spirit_animal,
         role: user.role,
         vendor_id: user.vendor_id,
-        tags: user.tags || [],
+        tags: Array.isArray(user.tags) ? user.tags : (user.tags ? [user.tags] : []),
         created_at: user.created_at,
         updated_at: user.updated_at
       },

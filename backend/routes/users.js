@@ -280,10 +280,6 @@ router.post('/', async (req, res) => {
         vendor_id: finalVendorId
       });
 
-      // 確保所有參數都正確對應到資料庫欄位
-      // 根據資料庫表結構，可能包含：uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id
-      // 注意：created_at 和 updated_at 應該有默認值，不需要在 INSERT 中指定
-      // 如果表中有 vendor 或 conversation 外鍵欄位，需要確認是否需要處理
       const insertQuery = `
         INSERT INTO users (uid, email, nickname, avatar, bio, spirit_animal, role, vendor_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -521,12 +517,14 @@ router.get('/:uid', async (req, res) => {
 router.put('/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    let { nickname, location, avatar, bio, spirit_animal } = req.body;
+    let { nickname, location, avatar, bio, spirit_animal, tags } = req.body;
+
+    console.log('[Users API PUT] 收到請求，tags:', tags, '類型:', typeof tags, '是數組:', Array.isArray(tags));
 
     // 統一處理空字符串為 null
     if (bio === '') bio = null;
     if (spirit_animal === '') spirit_animal = null;
-    
+
     // 處理 location，如果沒有提供或為空字符串則設為 '台灣'
     if (location === undefined || location === null || (typeof location === 'string' && location.trim() === '')) {
       location = '台灣';
@@ -534,62 +532,142 @@ router.put('/:uid', async (req, res) => {
       location = location.trim();
     }
 
-    // 檢查 location 欄位是否存在
+    // 處理 tags，確保是數組格式
+    if (tags !== undefined && !Array.isArray(tags)) {
+      console.log('[Users API PUT] tags 不是數組，轉換為空數組');
+      tags = [];
+    }
+    if (tags === undefined || tags === null) {
+      console.log('[Users API PUT] tags 未定義或為 null，設為空數組');
+      tags = [];
+    } else {
+      // 將 Proxy 或類數組對象轉換為普通數組
+      tags = Array.isArray(tags) ? [...tags] : [];
+      console.log('[Users API PUT] tags 處理後:', tags, '類型:', typeof tags, '是數組:', Array.isArray(tags), '長度:', tags.length);
+    }
+
+    // 檢查 location 和 tags 欄位是否存在
     let hasLocationColumn = false;
+    let hasTagsColumn = false;
     try {
       const checkColumnQuery = `
         SELECT column_name
         FROM information_schema.columns
-        WHERE table_name = 'users' AND column_name = 'location'
+        WHERE table_name = 'users' AND column_name IN ('location', 'tags')
       `;
       const columnCheck = await pool.query(checkColumnQuery);
-      hasLocationColumn = columnCheck.rows.length > 0;
+      hasLocationColumn = columnCheck.rows.some(row => row.column_name === 'location');
+      hasTagsColumn = columnCheck.rows.some(row => row.column_name === 'tags');
+      console.log('[Users API PUT] 欄位檢查結果:', { hasLocationColumn, hasTagsColumn });
+
+      // 如果 tags 欄位不存在，自動創建
+      if (!hasTagsColumn) {
+        console.log('[Users API PUT] tags 欄位不存在，嘗試自動創建...');
+        try {
+          await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT \'{}\'');
+          hasTagsColumn = true;
+          console.log('[Users API PUT] tags 欄位創建成功');
+        } catch (alterError) {
+          console.error('[Users API PUT] 創建 tags 欄位失敗:', alterError.message);
+        }
+      }
     } catch (error) {
-      console.warn('檢查 location 欄位時發生錯誤，假設欄位不存在:', error.message);
+      console.warn('檢查欄位時發生錯誤，假設欄位不存在:', error.message);
       hasLocationColumn = false;
+      hasTagsColumn = false;
     }
 
     // 根據欄位是否存在構建不同的 SQL 查詢
     let updateQuery;
     let queryParams;
+    let paramIndex = 2;
 
+    const setClauses = [];
+    const params = [uid];
+
+    // nickname
+    setClauses.push(`nickname = COALESCE($${paramIndex}, nickname)`);
+    params.push(nickname);
+    paramIndex++;
+
+    // location
     if (hasLocationColumn) {
-      updateQuery = `
-        UPDATE users
-        SET
-          nickname = COALESCE($2, nickname),
-          location = COALESCE($3, location, '台灣'),
-          avatar = COALESCE($4, avatar),
-          bio = COALESCE($5, bio),
-          spirit_animal = COALESCE($6, spirit_animal),
-          updated_at = CURRENT_TIMESTAMP
-        WHERE uid = $1
-        RETURNING *
-      `;
-      queryParams = [uid, nickname, location, avatar, bio, spirit_animal];
-    } else {
-      // 如果 location 欄位不存在，不更新它
-      updateQuery = `
-        UPDATE users
-        SET
-          nickname = COALESCE($2, nickname),
-          avatar = COALESCE($3, avatar),
-          bio = COALESCE($4, bio),
-          spirit_animal = COALESCE($5, spirit_animal),
-          updated_at = CURRENT_TIMESTAMP
-        WHERE uid = $1
-        RETURNING *
-      `;
-      queryParams = [uid, nickname, avatar, bio, spirit_animal];
+      setClauses.push(`location = COALESCE($${paramIndex}, location, '台灣')`);
+      params.push(location);
+      paramIndex++;
     }
 
+    // avatar
+    setClauses.push(`avatar = COALESCE($${paramIndex}, avatar)`);
+    params.push(avatar);
+    paramIndex++;
+
+    // bio
+    setClauses.push(`bio = COALESCE($${paramIndex}, bio)`);
+    params.push(bio);
+    paramIndex++;
+
+    // spirit_animal
+    setClauses.push(`spirit_animal = COALESCE($${paramIndex}, spirit_animal)`);
+    params.push(spirit_animal);
+    paramIndex++;
+
+    // tags
+    if (hasTagsColumn) {
+      // 確保 tags 是數組格式，即使是空數組也要傳遞
+      const tagsValue = Array.isArray(tags) ? tags : (tags ? [tags] : []);
+      setClauses.push(`tags = $${paramIndex}`);
+      params.push(tagsValue);
+      console.log('[Users API PUT] 準備更新 tags:', JSON.stringify(tagsValue), '參數索引:', paramIndex, 'tags 類型:', typeof tagsValue, '是數組:', Array.isArray(tagsValue), '長度:', tagsValue?.length);
+      paramIndex++;
+    } else {
+      console.log('[Users API PUT] tags 欄位不存在，跳過更新');
+    }
+
+    setClauses.push('updated_at = CURRENT_TIMESTAMP');
+
+    updateQuery = `
+      UPDATE users
+      SET ${setClauses.join(', ')}
+      WHERE uid = $1
+      RETURNING *
+    `;
+    queryParams = params;
+
+    console.log('[Users API PUT] 執行 SQL:', updateQuery);
+    console.log('[Users API PUT] 查詢參數:', JSON.stringify(queryParams, null, 2));
+    console.log('[Users API PUT] 查詢參數詳細信息:', queryParams.map((param, index) => ({
+      index: index + 1,
+      value: param,
+      type: typeof param,
+      isArray: Array.isArray(param),
+      length: Array.isArray(param) ? param.length : undefined
+    })));
     const result = await pool.query(updateQuery, queryParams);
+    console.log('[Users API PUT] 更新結果，tags:', result.rows[0]?.tags, '類型:', typeof result.rows[0]?.tags, '是數組:', Array.isArray(result.rows[0]?.tags), '原始值:', JSON.stringify(result.rows[0]?.tags));
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' });
     }
 
-    res.json(result.rows[0]);
+    // 確保返回的 tags 是數組格式
+    const userData = result.rows[0];
+    if (hasTagsColumn) {
+      // 如果 tags 欄位存在，確保返回的是數組
+      if (userData.tags === null || userData.tags === undefined) {
+        userData.tags = [];
+      } else if (!Array.isArray(userData.tags)) {
+        // 如果 tags 不是數組，嘗試轉換
+        userData.tags = typeof userData.tags === 'string' ? JSON.parse(userData.tags) : [userData.tags];
+      }
+      console.log('[Users API PUT] 返回的 tags（已處理）:', userData.tags, '類型:', typeof userData.tags, '是數組:', Array.isArray(userData.tags));
+    } else {
+      // 如果 tags 欄位不存在，返回空數組
+      userData.tags = [];
+      console.log('[Users API PUT] tags 欄位不存在，返回空數組');
+    }
+
+    res.json(userData);
   } catch (error) {
     console.error('更新用戶資料失敗：', error);
     res.status(500).json({ error: '更新用戶資料失敗', details: error?.message || String(error) });

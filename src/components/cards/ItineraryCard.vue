@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   MapPin as MapPinIcon,
@@ -11,6 +12,8 @@ import {
   Repeat2 as Repeat2Icon,
 } from 'lucide-vue-next'
 
+const router = useRouter()
+
 const props = defineProps({
   itinerary: {
     type: Object,
@@ -21,6 +24,23 @@ const props = defineProps({
 
 const userStore = useUserStore()
 const emit = defineEmits(['open-detail', 'open-share'])
+
+const handleAgencyClick = (e) => {
+  e.stopPropagation()
+  e.preventDefault()
+  const vendorId = props.itinerary.vendor_id || props.itinerary.vendorId
+  const authorUid = props.itinerary.author_uid || props.itinerary.authorUid
+  
+  // 如果有 vendor_id，跳轉到廠商頁面
+  if (vendorId) {
+    router.push({ path: `/vendor/${vendorId}`, replace: false })
+  } else if (authorUid) {
+    // 否則跳轉到個人檔案頁面
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+  } else {
+    console.warn('無法跳轉：找不到廠商 ID 或作者 UID', props.itinerary)
+  }
+}
 
 const itemData = computed(() => ({
   id: props.itinerary.id,
@@ -89,7 +109,8 @@ const formatPrice = (price) => {
     <div class="p-4 flex flex-col space-y-3">
       <div
         v-if="props.itinerary.agencyName"
-        class="text-xs font-bold text-primary-600 tracking-wider"
+        class="text-xs font-bold text-primary-600 tracking-wider cursor-pointer hover:text-primary-700 transition"
+        @click.stop="handleAgencyClick"
       >
         由 {{ props.itinerary.agencyName }} 服務
       </div>

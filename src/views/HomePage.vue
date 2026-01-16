@@ -17,13 +17,31 @@ import {
   Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
 const userStore = useUserStore()
+const router = useRouter()
 
 // 當前用戶 UID
 const currentUserUid = ref(null)
+
+// 處理頭像點擊
+const handleAvatarClick = (post) => {
+  const authorUid = post.author_uid || post.authorUid
+  const vendorId = post.vendor_id || post.vendorId
+  
+  // 如果有 vendor_id，跳轉到廠商頁面
+  if (vendorId) {
+    router.push({ path: `/vendor/${vendorId}`, replace: false })
+  } else if (authorUid) {
+    // 否則跳轉到個人檔案頁面
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+  } else {
+    console.warn('無法跳轉：找不到作者 UID 或廠商 ID', post)
+  }
+}
 
 // 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
@@ -276,11 +294,16 @@ const getPostData = (post) => ({
             <div class="flex items-center space-x-3 mb-4">
               <img
                 :src="post.avatar"
-                class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+                alt="作者頭像"
+                @click.stop="handleAvatarClick(post)"
               />
               <div>
                 <div class="flex items-center space-x-2">
-                  <span class="font-bold text-gray-800">{{ post.author }}</span>
+                  <span 
+                    class="font-bold text-gray-800 cursor-pointer hover:text-primary-600 transition"
+                    @click.stop="handleAvatarClick(post)"
+                  >{{ post.author }}</span>
                   <span
                     class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
                   >
