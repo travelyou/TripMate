@@ -25,7 +25,7 @@ const itemData = computed(() => ({
   id: props.post.id,
   type: 'discussion',
   title: props.post.title,
-  image: props.post.banner, // 使用 banner 作為主圖
+  image: props.post.banner,
   banner: props.post.banner,
   author: props.post.author,
   avatar: props.post.avatar,
@@ -35,6 +35,34 @@ const itemData = computed(() => ({
   likes: likesCount.value,
   comments: props.post.comments,
 }))
+
+// --- [核心邏輯] HTML 渲染 + 圖片替換 ---
+const previewContent = computed(() => {
+  if (!props.post.content) return ''
+
+  let content = props.post.content
+
+  // 1. 【解碼】: 如果資料庫存的是 &lt;h2&gt;，必須先轉回 <h2>
+  // 這樣 v-html 才能正確識別它是標籤，而不是純文字
+  try {
+    const txt = document.createElement('textarea')
+    txt.innerHTML = content
+    content = txt.value
+  } catch (e) {
+    console.error('Decode error', e)
+  }
+
+  // 2. 【替換圖片】: 把所有 <img ...> 標籤換成一個灰色的 "【圖片】" 文字 span
+  // 這樣就不會載入圖片，但保留了 "這裡有張圖" 的資訊
+  content = content.replace(
+    /<img[^>]*>/gi,
+    '<span class="text-gray-400 text-xs mx-1 inline-block border border-gray-200 rounded px-1 bg-gray-50">🖼️ 圖片</span>',
+  )
+
+  // 3. 回傳處理過的 HTML 字串
+  return content
+})
+// -------------------------------------
 
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
@@ -48,7 +76,6 @@ const loadLikesInfo = async () => {
   }
 }
 
-// 處理按讚
 const handlePostLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -71,10 +98,8 @@ const handlePostLike = async () => {
   }
 }
 
-// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
-
   if (currentUserUid.value && props.post?.id) {
     await loadLikesInfo()
   } else {
@@ -82,7 +107,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 })
 
-// 組件掛載時載入按讚狀態
 onMounted(async () => {
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
@@ -113,7 +137,7 @@ onMounted(async () => {
             {{ post.spiritAnimal }}
           </span>
         </div>
-        <div class="text-xs text-gray-400">{{ post.time }} • 討論區</div>
+        <div class="text-xs text-gray-400">{{ post.time }} • 討論區1213</div>
       </div>
     </div>
 
@@ -121,9 +145,10 @@ onMounted(async () => {
       {{ post.title }}
     </h3>
 
-    <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
-      {{ post.content }}
-    </p>
+    <div
+      class="text-gray-600 text-sm mb-4 line-clamp-5 leading-relaxed overflow-hidden"
+      v-html="previewContent"
+    ></div>
 
     <div
       v-if="post.banner"
@@ -213,5 +238,24 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* pixel-card replaced by Tailwind classes in template */
+/* 為了讓 v-html 裡的標籤有一些基本樣式，可以加上這些 scoped CSS */
+:deep(h2) {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  color: #1f2937;
+}
+:deep(h3) {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 0.4em 0;
+  color: #374151;
+}
+:deep(p) {
+  margin: 0.3em 0;
+}
+/* 強制讓圖片提示在同一行，不換行 */
+:deep(.img-placeholder) {
+  display: inline-block;
+}
 </style>

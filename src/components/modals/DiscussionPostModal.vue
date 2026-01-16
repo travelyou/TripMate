@@ -32,11 +32,11 @@ import { compressImage } from '@/utils/imageCompress'
 
 // --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-import { Extension } from '@tiptap/core' // 引入 Extension 用於自定義功能
+import { Extension } from '@tiptap/core' // 記得引入 Extension
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import ImageExtension from '@tiptap/extension-image'
-import { TextStyle } from '@tiptap/extension-text-style' // 修正：使用具名匯出
+import { TextStyle } from '@tiptap/extension-text-style'
 import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
@@ -55,10 +55,10 @@ const postData = ref({
 })
 
 const fileInputRef = ref(null)
-const editorFileInputRef = ref(null) // 內文圖片上傳專用
+const editorFileInputRef = ref(null)
 const imagePreviews = ref([])
-const imageFiles = ref([]) // 保存原始 File 對象
-const uploadedImageUrls = ref([]) // 保存已上傳的圖片 URL
+const imageFiles = ref([])
+const uploadedImageUrls = ref([])
 const uploadProgress = ref(0)
 const isUploading = ref(false)
 const submitProgress = ref(0)
@@ -74,19 +74,25 @@ const errors = ref({
 
 const tagSearch = ref('')
 
-// --- 自定義擴充：換行後重置樣式 ---
+// --- [修正] 換行邏輯擴充功能 ---
+// 使用 Extension 是唯一正確且安全的方法
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        // 1. 如果在清單(List)中，保留預設行為(新增項目)
+        // 1. 如果在清單中，讓系統自己處理 (return false)
         if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
           return false
         }
 
-        // 2. 如果是標題或有格式，按下 Enter 後：強制換行 -> 變回段落 -> 清除所有樣式(粗體/顏色等)
-        return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
+        // 2. 正常換行邏輯：換行 + 清除樣式 + 確保是段落
+        return editor
+          .chain()
+          .splitBlock() // 動作1: 換行
+          .unsetAllMarks() // 動作2: 清除粗體/顏色
+          .setParagraph() // 動作3: 確保新的一行是普通段落(P)，而不是標題(H2)
+          .run()
       },
     }
   },
@@ -108,11 +114,12 @@ const editor = useEditor({
       inline: true,
       allowBase64: true,
     }),
-    ResetStyleOnEnter, // 加入自定義擴充
+    ResetStyleOnEnter, // 加入我們定義好的擴充
   ],
   editorProps: {
     attributes: {
-      class: 'prose prose-sm sm:prose-base focus:outline-none min-h-[300px] px-4 py-2 max-w-none', // max-w-none 讓內容撐滿寬度
+      // 這裡只設定基本樣式，不再依賴 prose
+      class: 'focus:outline-none min-h-[300px] px-4 py-2 text-gray-800 text-base',
     },
   },
   onUpdate: ({ editor }) => {
@@ -123,7 +130,7 @@ const editor = useEditor({
   },
 })
 
-// 設定標楷體 (修正：移除字串中的雙引號)
+// 設定標楷體
 const setFontKai = () => {
   if (editor.value) {
     editor.value.chain().focus().setFontFamily('BiauKai, DFKai-SB, 標楷體').run()
@@ -1110,30 +1117,31 @@ onMounted(() => {
 :deep(.ProseMirror) {
   outline: none;
   min-height: 300px;
+  line-height: 1.5; /* 單倍行高是 1，1.5 比較舒適 */
+  font-size: 16px;
 }
 
-/* --- 這裡做了修改 --- */
+/* ★ 核心修正：強制歸零間距，解決「看起來像兩行」的問題 */
 :deep(.ProseMirror p) {
-  margin-bottom: 0.2em; /* 縮小段落間距 */
-  margin-top: 0;
-  font-size: 1rem;
-  line-height: 1.6;
+  margin: 0 !important;
+  padding: 0;
+  min-height: 1.5em; /* 確保空行也有高度 */
 }
-/* ------------------ */
 
+/* 讓標題有適當的間距，不要跟內文黏太緊 */
 :deep(.ProseMirror h2) {
   font-size: 1.5rem;
   font-weight: 800;
-  margin-top: 1.2em;
+  margin-top: 1em;
   margin-bottom: 0.5em;
   color: #111827;
-  line-height: 1.3;
+  line-height: 1.2;
 }
 
 :deep(.ProseMirror h3) {
   font-size: 1.25rem;
   font-weight: 700;
-  margin-top: 1em;
+  margin-top: 0.8em;
   margin-bottom: 0.4em;
   color: #1f2937;
 }
@@ -1141,7 +1149,7 @@ onMounted(() => {
 :deep(.ProseMirror ul) {
   list-style-type: disc;
   padding-left: 1.5em;
-  margin-bottom: 0.5em; /* 列表間距也稍微縮小 */
+  margin-bottom: 0.5em;
 }
 
 :deep(.ProseMirror ol) {
@@ -1155,13 +1163,13 @@ onMounted(() => {
   max-width: 100%;
   height: auto;
   border-radius: 0.5rem;
-  margin: 0.5em 0; /* 圖片間距稍微縮小 */
+  margin: 0.5em 0;
 }
 
 :deep(.ProseMirror hr) {
   border: none;
   border-top: 2px solid #e5e7eb;
-  margin: 1.5em 0;
+  margin: 1em 0;
 }
 
 :deep(.ProseMirror [style*='font-family: BiauKai']) {
