@@ -58,6 +58,7 @@ const goCheckout = async () => {
   if (!selected) {
     // 沒選到就退回（或提示）
     alert('請先選擇一個要結帳的行程！')
+    return
   }
   checkoutStore.selectedTour = { ...selected } // 建議拷貝
 

@@ -23,16 +23,16 @@ const displayPrice = computed(() => {
 
 <template>
   <section v-if="tour">
-    <div class="bg-white rounded-xl p-5 flex flex-col gap-5 justify-between sm:flex-row">
+    <div class="bg-white rounded-xl p-5 flex flex-col gap-2 justify-between sm:flex-row">
       <div class="flex gap-5 flex-col sm:flex-row">
-        <div class="w-48 h-32 rounded-lg overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+        <div class="w-44 h-28 rounded-lg overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
           <img v-if="tour.image" :src="tour.image" alt="旅遊圖片" />
         </div>
         <div class="space-y-2">
           <h1 class="text-lg font-bold sm:text-xl">{{ tour.title }}</h1>
           <p class="text-sm">{{ tour.description }}</p>
 
-          <div class="text-sm mt-3 flex flex-col gap-1 xl:flex-row xl:justify-between">
+          <div class="text-sm mt-3 flex flex-col xl:gap-5 xl:flex-row">
             <p>行程日期：{{ tour.date }}</p>
             <p>人數：{{ tour.persons }} 人</p>
           </div>

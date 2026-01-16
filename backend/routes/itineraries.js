@@ -193,9 +193,9 @@ router.get('/', async (req, res) => {
     if (!ids) {
       const r = await pool.query(
         `SELECT id, title, content, banner_image, start_date, end_date, price, status
-         FROM itineraries
-         ORDER BY id DESC
-         LIMIT 50`,
+          FROM itinerary.itineraries
+          ORDER BY id DESC
+          LIMIT 50`,
       )
       return res.json({ ok: true, items: r.rows })
     }
@@ -212,9 +212,9 @@ router.get('/', async (req, res) => {
     // 用 ANY($1) 一次查多筆
     const r = await pool.query(
       `SELECT id, title, content, banner_image, start_date, end_date, price, status
-       FROM itineraries
-       WHERE id = ANY($1::int[])
-       ORDER BY id`,
+        FROM itinerary.itineraries
+        WHERE id = ANY($1::int[])
+        ORDER BY id`,
       [idList],
     )
 
@@ -235,8 +235,8 @@ router.get('/:id', async (req, res) => {
 
     const r = await pool.query(
       `SELECT id, title, content, banner_image, start_date, end_date, price, status
-       FROM itineraries
-       WHERE id = $1`,
+        FROM itinerary.itineraries
+        WHERE id = $1`,
       [id],
     )
 

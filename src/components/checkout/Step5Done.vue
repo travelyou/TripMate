@@ -48,7 +48,7 @@ const tourForBlock = computed(() => {
 
   return {
     title: it.title ?? '',
-    image: it.bannerImage ?? '', 
+    image: it.bannerImage ?? '',
     date,
     persons: Number(order.value.persons ?? 1),
   }
@@ -111,7 +111,7 @@ function goHome() {
 </script>
 
 <template>
-  <section class="max-w-3xl mx-auto text-center bg-white p-10 rounded-xl">
+  <section class="max-w-4xl mx-auto text-center bg-white p-10 rounded-xl">
     <h2 class="text-3xl font-bold mb-4">✔️ 訂單完成</h2>
     <p class="text-gray-500 mb-8">感謝您的訂購，以下是您的訂單資訊</p>
 
