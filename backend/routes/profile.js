@@ -4,8 +4,6 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/connection');
 
-// 更具體的路由應該放在通用路由之前
-// POST /api/profile/:uid/visited-places - 新增去過的地方
 router.post('/:uid/visited-places', async (req, res) => {
   try {
     const { uid } = req.params;
@@ -36,7 +34,6 @@ router.post('/:uid/visited-places', async (req, res) => {
   }
 });
 
-// DELETE /api/profile/:uid/visited-places/:id - 刪除去過的地方
 router.delete('/:uid/visited-places/:id', async (req, res) => {
   try {
     const { uid, id } = req.params;
@@ -60,7 +57,6 @@ router.delete('/:uid/visited-places/:id', async (req, res) => {
   }
 });
 
-// POST /api/profile/:uid/wishlist - 新增許願球池項目
 router.post('/:uid/wishlist', async (req, res) => {
   try {
     const { uid } = req.params;
@@ -92,7 +88,6 @@ router.post('/:uid/wishlist', async (req, res) => {
   }
 });
 
-// DELETE /api/profile/:uid/wishlist/:id - 刪除許願球池項目
 router.delete('/:uid/wishlist/:id', async (req, res) => {
   try {
     const { uid, id } = req.params;
@@ -116,21 +111,17 @@ router.delete('/:uid/wishlist/:id', async (req, res) => {
   }
 });
 
-// PUT /api/profile/:uid/wishlist - 批量更新許願球池
 router.put('/:uid/wishlist', async (req, res) => {
   const client = await pool.connect();
   try {
-    console.log('收到更新許願球池請求:', req.method, req.path, req.params);
     const { uid } = req.params;
     let { items } = req.body;
-    console.log('UID:', uid, 'Items:', items);
 
     if (!Array.isArray(items)) {
       client.release();
       return res.status(400).json({ error: 'items 必須是陣列' });
     }
 
-    // 去除重複項目（保持順序，保留第一個出現的）
     const uniqueItems = [];
     const seen = new Set();
     for (const item of items) {
@@ -141,14 +132,9 @@ router.put('/:uid/wishlist', async (req, res) => {
       }
     }
 
-    console.log('去重後的 Items:', uniqueItems);
-
     await client.query('BEGIN');
 
-    // 刪除現有的許願球池
     await client.query('DELETE FROM wishlist WHERE user_uid = $1', [uid]);
-
-    // 插入新的許願球池（使用去重後的項目）
     if (uniqueItems.length > 0) {
       const values = uniqueItems.map((item, index) => {
         const paramIndex = index * 2 + 1;
@@ -166,16 +152,9 @@ router.put('/:uid/wishlist', async (req, res) => {
 
     res.json({ success: true, message: '許願球池已更新', count: uniqueItems.length });
   } catch (error) {
-    await client.query('ROLLBACK').catch(() => {}); // Ignore rollback errors
+    await client.query('ROLLBACK').catch(() => {});
     client.release();
     console.error('更新許願球池失敗：', error);
-    console.error('錯誤詳情：', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint,
-      position: error.position
-    });
     res.status(500).json({
       error: '更新許願球池失敗',
       message: error.message || '未知錯誤',
@@ -184,7 +163,6 @@ router.put('/:uid/wishlist', async (req, res) => {
   }
 });
 
-// GET /api/profile/:uid - 獲取用戶完整個人檔案資料（放在最後，作為通用路由）
 router.get('/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
@@ -193,7 +171,6 @@ router.get('/:uid', async (req, res) => {
       return res.status(400).json({ error: 'UID 不能為空' });
     }
 
-    // 獲取用戶基本資料
     const userResult = await pool.query('SELECT * FROM users WHERE uid = $1', [uid]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' });
@@ -201,7 +178,6 @@ router.get('/:uid', async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // 獲取去過的地方
     const visitedPlacesResult = await pool.query(
       'SELECT name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
       [uid]
@@ -220,18 +196,14 @@ router.get('/:uid', async (req, res) => {
       }))
     };
 
-    // 獲取許願球池
     const wishlistResult = await pool.query(
       'SELECT item FROM wishlist WHERE user_uid = $1 ORDER BY created_at DESC',
       [uid]
     );
     const wishlist = wishlistResult.rows.map(row => row.item);
 
-    // 獲取好友列表（已接受的好友）
-    // 先檢查 friends 表是否存在以及是否有 status 欄位
     let friendsResult;
     try {
-      // 嘗試查詢 status 欄位
       const checkStatusQuery = `
         SELECT column_name
         FROM information_schema.columns
@@ -240,7 +212,6 @@ router.get('/:uid', async (req, res) => {
       const statusCheck = await pool.query(checkStatusQuery);
 
       if (statusCheck.rows.length > 0) {
-        // 有 status 欄位，使用完整查詢
         friendsResult = await pool.query(
           `SELECT u.uid, u.nickname, u.avatar, u.email
            FROM friends f
@@ -250,7 +221,6 @@ router.get('/:uid', async (req, res) => {
           [uid]
         );
       } else {
-        // 沒有 status 欄位，查詢所有好友
         friendsResult = await pool.query(
           `SELECT u.uid, u.nickname, u.avatar, u.email
            FROM friends f
@@ -261,7 +231,6 @@ router.get('/:uid', async (req, res) => {
         );
       }
     } catch (error) {
-      // 如果 friends 表不存在，返回空陣列
       if (error.code === '42P01') {
         friendsResult = { rows: [] };
       } else {
@@ -276,7 +245,6 @@ router.get('/:uid', async (req, res) => {
       email: f.email
     }));
 
-    // 獲取評價（好評）
     const reviewsResult = await pool.query(
       `SELECT r.*,
               u1.nickname as author_name, u1.avatar as author_avatar,
@@ -301,10 +269,8 @@ router.get('/:uid', async (req, res) => {
       date: r.created_at
     }));
 
-    // 獲取統計資料
     let friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1) as friends_count`;
     try {
-      // 檢查 friends 表是否有 status 欄位
       const checkStatusQuery = `
         SELECT column_name
         FROM information_schema.columns
@@ -313,11 +279,9 @@ router.get('/:uid', async (req, res) => {
       const statusCheck = await pool.query(checkStatusQuery);
 
       if (statusCheck.rows.length > 0) {
-        // 有 status 欄位，過濾已接受的好友
         friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1 AND status = 'accepted') as friends_count`;
       }
     } catch {
-      // 如果查詢失敗，使用簡單的 COUNT
       friendsCountQuery = `(SELECT 0) as friends_count`;
     }
 

@@ -7,7 +7,6 @@ import { usePersonalityStore } from '@/stores/personality'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
-// Import New Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
 import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
 import FriendListModal from '@/components/profile/FriendListModal.vue'
@@ -20,7 +19,6 @@ import TabReviews from '@/components/profile/tabs/TabReviews.vue'
 import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
 import { useRouter, useRoute } from 'vue-router'
 
-// Store setup
 const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
 const itineraryStore = useItineraryStore()
@@ -29,11 +27,9 @@ const router = useRouter()
 const route = useRoute()
 
 const targetUid = computed(() => {
-  // 如果路由中有 uid 參數，優先使用它
   if (route.params.uid) {
     return route.params.uid
   }
-  // 只有在沒有路由參數且用戶已登入時，才使用當前用戶的 UID
   if (userStore.isLoggedIn && userStore.currentUser?.uid) {
     return userStore.currentUser.uid
   }
@@ -46,9 +42,7 @@ const isCurrentUser = computed(() => {
 
 const viewingUser = ref(null)
 const user = computed(() => {
-  // 如果正在查看其他用戶的檔案
   if (targetUid.value && targetUid.value !== userStore.currentUser?.uid) {
-    // 如果 viewingUser 還沒載入，返回一個空對象而不是 null，避免模板錯誤
     return viewingUser.value || {
       id: null,
       uid: targetUid.value,
@@ -68,22 +62,18 @@ const user = computed(() => {
       wishlist: [],
     }
   }
-  // 如果是查看自己的檔案，使用當前用戶
   return viewingUser.value || userStore.currentUser
 })
 const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
 
-// 用於實時連動許願球池的臨時狀態
 const tempWishlist = ref(null)
 const displayWishlist = computed(() => {
-  // 如果編輯彈窗打開且有臨時狀態，使用臨時狀態；否則使用 store 中的數據
   if (isEditingProfile.value && tempWishlist.value !== null) {
     return tempWishlist.value
   }
   return isCurrentUser.value ? userStore.wishlist : (user.value.wishlist || [])
 })
 
-// Tab State
 const activeTab = ref('hosted_trips')
 const tabs = computed(() => {
   const baseTabs = [
@@ -92,14 +82,12 @@ const tabs = computed(() => {
   { k: 'posts', l: '貼文', s: '貼文' },
   { k: 'reviews', l: '好評', s: '好評' },
   ]
-  // 只有本人才顯示草稿夾
   if (isCurrentUser.value) {
     baseTabs.push({ k: 'drafts', l: '草稿夾', s: '草稿' })
   }
   return baseTabs
 })
 
-// Modal State
 const isDetailModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
@@ -110,7 +98,6 @@ const isAvatarCropOpen = ref(false)
 const avatarFileToCrop = ref(null)
 const avatarCropModalRef = ref(null)
 
-// Data Preparation
 const activeTabsData = computed(() => {
   return {
     hostedTrips: itineraryStore.myItineraries.map((trip) => ({
@@ -141,7 +128,6 @@ const activeTabsData = computed(() => {
   }
 })
 
-// Stats for Header
 const profileStats = ref({
   hosted: 0,
   posts: 0,
@@ -156,19 +142,14 @@ const stats = computed(() => ({
   friends: profileStats.value.friends || (user.value && user.value.friends ? user.value.friends.length : 0),
 }))
 
-// Methods
 const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
 
 const handleChat = () => {
-  console.log('Chat with:', user.value.name || user.value.nickname)
-  // Future: 導向聊天頁面
 }
 
 const handleAddFriend = () => {
-  console.log('Add friend:', user.value.name || user.value.nickname)
-  // Future: 發送加好友請求
 }
 
 const openDetail = (post, focusComment = false) => {
@@ -204,7 +185,6 @@ const handleSaveField = async ({ field, data }) => {
         userStore.updateProfile({ bio: data.bio })
         break
       case 'tags':
-        // 標籤目前可能只是本地狀態，如果需要保存到後端，可以在這裡添加
         userStore.updateProfile({ tags: data.tags })
         break
       case 'wishlist':
@@ -224,23 +204,12 @@ const handleSaveProfile = async (formData) => {
   const { wishlist, hiddenStamps, tags, ...profileData } = formData
 
   try {
-    // 更新用戶基本資料
     const { updateUserProfile } = await import('@/api/users')
-    // 確保 location 有值，如果為空或未定義則使用 '台灣'
     const locationValue = (profileData.location && typeof profileData.location === 'string' && profileData.location.trim())
       ? profileData.location.trim()
       : '台灣'
 
     const tagsToSave = Array.isArray(tags) ? tags : (tags || [])
-    console.log('準備更新用戶資料：', {
-      uid: user.value.uid,
-      nickname: profileData.nickname || profileData.name,
-      location: locationValue,
-      avatar: profileData.avatar,
-      bio: profileData.bio,
-      spirit_animal: profileData.spiritAnimal,
-      tags: tagsToSave,
-    })
 
     await updateUserProfile(user.value.uid, {
       nickname: profileData.nickname || profileData.name,
@@ -251,18 +220,15 @@ const handleSaveProfile = async (formData) => {
       tags: tagsToSave,
     })
 
-    // 更新本地狀態（包括 tags 和 location）
-    // 優先使用 name（因為這是用戶在輸入框中修改的值），如果沒有則使用 nickname
     const nicknameValue = profileData.name || profileData.nickname || ''
     userStore.updateProfile({
       ...profileData,
-      name: nicknameValue, // 確保 name 和 nickname 同步
+      name: nicknameValue,
       nickname: nicknameValue,
-      location: locationValue, // 明確更新 location
+      location: locationValue,
       tags: tags || [],
     })
-    
-    // 如果是本人，也要更新 viewingUser（如果存在）
+
     if (isCurrentUser.value && viewingUser.value) {
       viewingUser.value = {
         ...viewingUser.value,
@@ -273,55 +239,39 @@ const handleSaveProfile = async (formData) => {
       }
     }
 
-    // 更新許願球池
     const { updateWishlist } = await import('@/api/profile')
     const wishlistArray = Array.isArray(wishlist) ? wishlist : []
     await updateWishlist(user.value.uid, wishlistArray)
     userStore.wishlist = wishlistArray
 
-    // Update Hidden Stamps (本地狀態)
     userStore.hiddenStamps = hiddenStamps
 
-    // 重新載入個人檔案資料以確保數據同步
     await loadProfileData()
 
-    // 關閉編輯彈窗
     handleCloseEditModal()
   } catch (error) {
     console.error('儲存個人檔案失敗：', error)
-    // 即使發生錯誤也關閉彈窗
     handleCloseEditModal()
   }
 }
 
 const handleUpdateWishlist = (wishlist) => {
-  // 更新臨時狀態，實現實時連動
   tempWishlist.value = wishlist
 }
 
 const handleCloseEditModal = () => {
   isEditingProfile.value = false
-  // 重置臨時狀態
   tempWishlist.value = null
 }
 
-/**
- * 處理從 TabDrafts 分頁傳來的 'select-draft' 事件
- * @param {Object} draft - 使用者選中的草稿
- */
 const handleSelectDraft = (draft) => {
-  // 如果是行程相關的草稿
   if (draft.type === 'my_itinerary' || draft.type === 'itinerary') {
-    // 跳轉到「我的行程」頁面，並透過 Query Parameter (查詢參數) 傳遞草稿 ID
     router.push({ path: '/my-itinerary', query: { openDraft: draft.id } })
   } else if (draft.type === 'discussion') {
-    // 討論區草稿：跳轉到討論區頁面並傳遞草稿 ID
     router.push({ path: '/discussion', query: { openDraft: draft.id } })
   } else if (draft.type === 'traveler') {
-    // 找旅伴草稿：跳轉到找旅伴頁面並傳遞草稿 ID
     router.push({ path: '/traveler', query: { openDraft: draft.id } })
   } else {
-    // 其他類型的草稿暫時只跳出提示
     alert(
       `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
     )
@@ -355,12 +305,10 @@ const handleRemovePlace = async ({ type, id, index }) => {
       : (type === 'domestic' ? user.value.visitedPlaces?.domestic : user.value.visitedPlaces?.international)
 
     if (id) {
-      // 如果有 id，從資料庫刪除
       const { removeVisitedPlace } = await import('@/api/profile')
       await removeVisitedPlace(user.value.uid, id)
     }
 
-    // 從本地狀態刪除
     if (places && typeof index === 'number' && index >= 0 && index < places.length) {
   places.splice(index, 1)
     }
@@ -371,7 +319,6 @@ const handleRemovePlace = async ({ type, id, index }) => {
 
 const handleUpdateAvatar = (file) => {
   if (!isCurrentUser.value || !file) return
-  // Open crop modal instead of directly updating
   avatarFileToCrop.value = file
   isAvatarCropOpen.value = true
 }
@@ -380,11 +327,9 @@ const handleAvatarCrop = async (croppedFile) => {
   if (!isCurrentUser.value || !croppedFile) return
 
   try {
-    // Upload cropped image
     const { uploadImage } = await import('@/api/storage')
     const { compressImage } = await import('@/utils/imageCompress')
 
-    // Compress the cropped image
     const compressedFile = await compressImage(croppedFile, {
       maxWidth: 400,
       maxHeight: 400,
@@ -392,31 +337,23 @@ const handleAvatarCrop = async (croppedFile) => {
       maxSizeMB: 1
     })
 
-    // Upload to Firebase Storage with progress
-    const avatarUrl = await uploadImage(compressedFile, 'avatars', (progress) => {
-      console.log('上傳進度：', progress + '%')
-    })
+    const avatarUrl = await uploadImage(compressedFile, 'avatars')
 
-    // Update user profile
     const { updateUserProfile } = await import('@/api/users')
     await updateUserProfile(user.value.uid, {
       avatar: avatarUrl
     })
 
-    // Update local store
     userStore.updateProfile({ avatar: avatarUrl })
 
-    // Close modal
     isAvatarCropOpen.value = false
     avatarFileToCrop.value = null
-    // Reset upload state in modal
     if (avatarCropModalRef.value) {
       avatarCropModalRef.value.resetUploadState()
     }
   } catch (error) {
     console.error('上傳頭貼失敗：', error)
     alert('上傳頭貼失敗，請重試')
-    // Reset upload state on error
     if (avatarCropModalRef.value) {
       avatarCropModalRef.value.resetUploadState()
     }
@@ -436,45 +373,29 @@ const closePersonalityResult = () => {
   isPersonalityModalOpen.value = false
 }
 
-// 載入個人檔案資料
 const loading = ref(false)
 const loadProfileData = async () => {
-  // 先清空 viewingUser，避免顯示舊資料
   viewingUser.value = null
-  
-  // 優先使用路由參數中的 uid
+
   const uidToLoad = route.params.uid || (userStore.isLoggedIn && userStore.currentUser?.uid ? userStore.currentUser.uid : null)
-  
-  console.log('ProfilePage loadProfileData:', { 
-    routeParamsUid: route.params.uid, 
-    uidToLoad, 
-    targetUid: targetUid.value,
-    isCurrentUser: isCurrentUser.value 
-  })
-  
+
   if (!uidToLoad) {
-    console.warn('ProfilePage: 沒有 UID 可載入')
     if (!userStore.isLoggedIn) {
       router.push('/login')
     }
     return
   }
 
-  // 確保 targetUid 與要載入的 uid 一致
   if (targetUid.value !== uidToLoad) {
-    // 如果 targetUid 還沒更新，等待一下
     await new Promise(resolve => setTimeout(resolve, 0))
   }
 
   loading.value = true
   try {
-    console.log('ProfilePage: 開始載入個人檔案，UID:', uidToLoad)
     const { getProfile } = await import('@/api/profile')
     const profileData = await getProfile(uidToLoad)
-    console.log('ProfilePage: 載入成功，資料:', profileData ? '有資料' : '無資料')
 
     if (profileData) {
-      // 如果是查看其他用戶，創建一個新的用戶物件
       if (!isCurrentUser.value) {
         viewingUser.value = {
           id: profileData.user.uid,
@@ -495,7 +416,6 @@ const loadProfileData = async () => {
           wishlist: profileData.wishlist,
         }
       } else {
-        // 如果是本人，更新 store 中的資料
         userStore.setUserProfile({
           uid: profileData.user.uid,
           email: profileData.user.email,
@@ -516,47 +436,28 @@ const loadProfileData = async () => {
         userStore.currentUser.tags = profileData.user.tags || []
       }
 
-      // 更新統計資料
       profileStats.value = profileData.stats || {
         hosted: 0,
         posts: 0,
         reviews: 0,
         friends: 0
       }
-    } else {
-      // 如果找不到用戶資料，且不是當前用戶，顯示錯誤但不跳轉
-      if (!isCurrentUser.value) {
-        console.error('找不到用戶資料，UID:', uidToLoad)
-        // 不自動跳轉，讓用戶看到錯誤訊息
-        // router.push('/')
-      }
     }
   } catch (error) {
     console.error('載入個人檔案資料失敗：', error)
-    console.error('嘗試載入的 UID:', uidToLoad)
-    // 只有在確實是錯誤的情況下才跳轉，而不是因為找不到用戶
-    if (!isCurrentUser.value && error.message && !error.message.includes('404') && !error.message.includes('Not Found')) {
-      // 只有真正的錯誤才跳轉，404 不跳轉
-      console.error('載入個人檔案時發生錯誤，但不跳轉到首頁')
-      // router.push('/')
-    }
   } finally {
     loading.value = false
   }
 }
 
-// 監聽路由變化
 watch(() => route.params.uid, (newUid, oldUid) => {
-  // 只有在 uid 真正改變時才重新載入
   if (newUid !== oldUid) {
     viewingUser.value = null
     loadProfileData()
   }
 }, { immediate: false })
 
-// 監聽 targetUid 變化
 watch(() => targetUid.value, (newUid, oldUid) => {
-  // 只有在 uid 真正改變時才重新載入
   if (newUid !== oldUid && newUid) {
     viewingUser.value = null
     loadProfileData()
@@ -564,7 +465,6 @@ watch(() => targetUid.value, (newUid, oldUid) => {
 }, { immediate: false })
 
 onMounted(() => {
-  // 延遲載入，確保路由參數已經更新
   nextTick(() => {
     loadProfileData()
   })
@@ -573,7 +473,6 @@ onMounted(() => {
 
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 animate-fade-in">
-    <!-- Header -->
     <ProfileHeader
       :user="user"
       :is-current-user="isCurrentUser"
@@ -587,7 +486,6 @@ onMounted(() => {
     />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Right Column: Sidebar (First on Mobile, Right on Desktop) -->
       <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
         <ProfileSidebar
           :user="user"
@@ -599,9 +497,7 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Left Column: Tabs & Content (Second on Mobile, Left on Desktop) -->
       <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
-        <!-- Tab Navigation -->
         <div
           class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1 md:p-1.5 lg:p-2 flex space-x-1 overflow-x-auto"
         >
@@ -616,14 +512,11 @@ onMounted(() => {
             ]"
             @click="activeTab = tab.k"
           >
-            <!-- Mobile Label -->
             <span class="md:hidden whitespace-nowrap">{{ tab.s }}</span>
-            <!-- Desktop Label -->
             <span class="hidden md:inline whitespace-nowrap">{{ tab.l }}</span>
           </button>
         </div>
 
-        <!-- Tab Content Container -->
         <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 min-h-[400px] p-6">
           <TabVisitedPlaces
             v-if="activeTab === 'visited_places'"
@@ -653,13 +546,11 @@ onMounted(() => {
             @open-post="openDetail({ id: $event, title: 'Mock Post', content: 'Loading...' })"
           />
 
-          <!-- 草稿分頁內容：監聽選中草稿事件 -->
           <TabDrafts v-if="activeTab === 'drafts'" @select-draft="handleSelectDraft" />
         </div>
       </div>
     </div>
 
-    <!-- Modals -->
     <EditProfileModal
       v-if="isCurrentUser"
       :is-open="isEditingProfile"

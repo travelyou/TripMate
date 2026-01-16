@@ -404,10 +404,7 @@ const handleLogin = async () => {
     }
 
     try {
-      // 登入時同步資料，根據 role 設置 vendor_id
       const userRole = userData.role || 'user'
-      // 一般用戶和管理員的 vendor_id 必須是 null
-      // 廠商角色：如果 Firestore 中有 vendorId 就使用，否則設為 null（後端會處理）
       const vendorId = (userRole === 'user' || userRole === 'admin')
         ? null
         : (userData.vendorId || userData.vendor_id || null)
@@ -497,10 +494,8 @@ const handleRegister = async () => {
 
     registerForm.value.email = sanitizeEmail(registerForm.value.email)
 
-    // 驗證 email 格式的正則表達式
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-    // 清理 nickname（去除空格）
     if (registerForm.value.nickname) {
       registerForm.value.nickname = registerForm.value.nickname.trim()
     }
@@ -581,14 +576,7 @@ const handleRegister = async () => {
       const finalRole = registerForm.value.role || 'user'
       const vendorId = finalRole === 'vendor' ? null : null
 
-      console.log('準備同步用戶資料到 Neon 資料庫：', {
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-        nickname: userData.nickname,
-        role: finalRole
-      })
-
-      const result = await createOrUpdateUser({
+      await createOrUpdateUser({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         nickname: userData.nickname,
@@ -600,23 +588,11 @@ const handleRegister = async () => {
         vendor_id: vendorId,
       })
 
-      console.log('用戶資料已成功同步到 Neon 資料庫：', result)
-
-      // 標記用戶為最近註冊，避免 onAuthStateChanged 立即查詢導致 404
       userStore.markAsRecentlyRegistered(userCredential.user.uid)
     } catch (syncError) {
       console.error('同步到 Neon 資料庫失敗：', syncError)
-      console.error('錯誤詳情：', {
-        message: syncError.message,
-        stack: syncError.stack,
-        response: syncError.response?.data
-      })
-
-      // 顯示錯誤訊息給用戶
       const errorMessage = syncError.response?.data?.error || syncError.response?.data?.details || syncError.message || '未知錯誤'
       registerErrors.value.general = '註冊成功，但資料同步到資料庫失敗：' + errorMessage
-
-      // 不阻止註冊流程，但讓用戶知道需要重新登入以同步資料
     }
 
     applyUserProfileToStore({
@@ -636,7 +612,6 @@ const handleRegister = async () => {
   } catch (error) {
     console.error('註冊失敗：', error.code, error.message)
 
-    // 重置所有錯誤訊息
     registerErrors.value = {
       realName: '',
       nickname: '',
@@ -646,7 +621,6 @@ const handleRegister = async () => {
       general: '',
     }
 
-    // 根據錯誤類型顯示對應的錯誤訊息
     if (error.code === 'auth/email-already-in-use') {
       registerErrors.value.email = '此電子信箱已被註冊使用，請使用其他電子信箱或直接登入'
     } else if (error.code === 'auth/weak-password') {

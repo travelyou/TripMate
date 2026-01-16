@@ -169,7 +169,7 @@ const handleMobileNavClick = (item) => {
           :to="item.isCustomRoute ? currentUserProfilePath : { name: item.name, params: item.params }"
           :class="[
             'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            item.isCustomRoute 
+            item.isCustomRoute
               ? (isProfileActive ? 'bg-primary-50 shadow-md' : 'hover:shadow-md')
               : (route.name === item.name ? 'bg-primary-50 shadow-md' : 'hover:shadow-md'),
           ]"

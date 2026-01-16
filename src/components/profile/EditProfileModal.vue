@@ -247,7 +247,7 @@ function restoreStamp(key) {
               </span>
             </div>
             <div class="relative">
-              <input
+               <input
                 v-model="tagInputValue"
                 :placeholder="editForm.tags?.length >= 5 ? '已達標籤上限 (5/5)' : '輸入標籤按 Enter 新增 (最多10字，例如：登山、攝影)'"
                 maxlength="10"

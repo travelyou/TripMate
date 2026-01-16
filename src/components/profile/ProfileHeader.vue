@@ -35,15 +35,6 @@ const handleFileChange = (event) => {
   }
 }
 
-// 處理地區顯示：如果超過15字，顯示前15字並加上跑馬燈
-const locationDisplay = computed(() => {
-  const location = props.user.location || '台灣'
-  if (location.length > 15) {
-    return location.substring(0, 15)
-  }
-  return location
-})
-
 const locationFull = computed(() => {
   return props.user.location || '台灣'
 })
@@ -57,10 +48,8 @@ const shouldMarquee = computed(() => {
   <div
     class="bg-primary-600 rounded-3xl p-5 md:p-8 mb-4 md:mb-8 text-white relative overflow-hidden shadow-sm border border-primary-700"
   >
-    <!-- Background Decor (Optional or subtle) -->
     <div class="absolute inset-0 bg-gradient-to-br from-primary-500/50 to-primary-800/60"></div>
 
-    <!-- Chat and Add Friend Buttons (Bottom Right) -->
     <div v-if="!isCurrentUser" class="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2 z-20">
       <button
         class="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
@@ -81,11 +70,8 @@ const shouldMarquee = computed(() => {
     </div>
 
     <div class="relative z-10">
-      <!-- Mobile Layout Wrapper (Hidden on Desktop) -->
       <div class="md:hidden flex flex-col gap-4">
-        <!-- Top Row: Avatar + Info + Stats -->
         <div class="flex items-start gap-4">
-          <!-- Avatar with Tags -->
           <div class="flex flex-col items-center shrink-0 -mt-2">
             <div class="relative group">
               <img
@@ -108,7 +94,6 @@ const shouldMarquee = computed(() => {
                 <Camera class="w-3 h-3 text-white" />
               </button>
             </div>
-            <!-- Tags under Avatar -->
             <div v-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-2 w-20 sm:w-24" style="gap: 0;">
               <span
                 v-for="tag in user.tags"
@@ -121,7 +106,6 @@ const shouldMarquee = computed(() => {
             </div>
           </div>
 
-          <!-- Right Info Area -->
           <div class="flex-1 min-w-0 flex flex-col justify-center h-20">
             <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
               <div class="flex-1 min-w-0">
@@ -129,8 +113,8 @@ const shouldMarquee = computed(() => {
                   <h1 class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1">{{ user.name || user.nickname || '用戶' }}</h1>
                 </div>
                 <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  <span 
-                    class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]" 
+                  <span
+                    class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
                     :title="locationFull"
                   >
                     <span v-if="!shouldMarquee" class="inline-block truncate">@{{ locationFull }}</span>
@@ -142,8 +126,6 @@ const shouldMarquee = computed(() => {
               </div>
             </div>
 
-            <!-- Compact Stats (Label Top, Number Bottom) -->
-            <!-- Compact Stats (Label Top, Number Bottom) -->
              <div class="flex gap-2 sm:gap-4 self-start" :class="{ 'mb-12 sm:mb-14': !isCurrentUser }">
                <button class="text-center group" @click="$emit('open-friends')">
                  <div class="text-[9px] sm:text-[10px] text-primary-100 group-hover:text-white transition">好友</div>
@@ -165,7 +147,6 @@ const shouldMarquee = computed(() => {
                  <div class="text-sm sm:text-base font-bold text-white leading-tight">{{ stats.reviews }}</div>
                </div>
              </div>
-             <!-- Edit Bio and Settings Buttons -->
              <div v-if="isCurrentUser" class="flex items-center gap-1.5 sm:gap-2 self-end mt-1">
                <button
                  class="p-1 sm:p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
@@ -185,7 +166,6 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <!-- Bottom Row: Bio -->
         <div class="text-xs sm:text-sm">
            <div class="flex items-start gap-1.5 sm:gap-2 mb-2 relative">
              <p class="text-primary-100 font-light leading-relaxed line-clamp-2 flex-1 break-words">
@@ -195,9 +175,7 @@ const shouldMarquee = computed(() => {
         </div>
       </div>
 
-      <!-- Desktop Layout Wrapper (Hidden on Mobile) -->
       <div class="hidden md:flex items-start gap-6">
-        <!-- Avatar with Tags -->
         <div class="flex flex-col items-center shrink-0 -mt-2">
           <div class="relative group">
             <img
@@ -220,7 +198,6 @@ const shouldMarquee = computed(() => {
               <Camera class="w-4 h-4 text-white" />
             </button>
           </div>
-          <!-- Tags under Avatar -->
           <div v-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36" style="gap: 0;">
             <span
               v-for="tag in user.tags"
@@ -233,12 +210,11 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <!-- User Info -->
         <div class="flex-1 text-left min-w-0">
           <div class="flex items-center justify-start gap-2 lg:gap-3 mb-2 flex-wrap">
             <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0">{{ user.name || user.nickname || '用戶' }}</h1>
-            <span 
-              class="px-2 md:px-3 lg:px-4 py-0.5 md:py-1 lg:py-1.5 bg-white/10 rounded text-[10px] md:text-xs lg:text-sm font-medium text-white border border-white/20 flex items-center shrink-0 overflow-hidden relative max-w-[150px] md:max-w-[180px] lg:max-w-[200px]" 
+            <span
+              class="px-2 md:px-3 lg:px-4 py-0.5 md:py-1 lg:py-1.5 bg-white/10 rounded text-[10px] md:text-xs lg:text-sm font-medium text-white border border-white/20 flex items-center shrink-0 overflow-hidden relative max-w-[150px] md:max-w-[180px] lg:max-w-[200px]"
               :title="locationFull"
             >
               <span v-if="!shouldMarquee" class="inline-block truncate">@{{ locationFull }}</span>
@@ -254,7 +230,6 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <!-- Quick Stats -->
         <div class="flex flex-col items-end gap-3" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
           <div
             class="flex gap-4 lg:gap-8 bg-white/10 rounded-2xl p-4 lg:p-6 border border-white/20"
@@ -276,7 +251,6 @@ const shouldMarquee = computed(() => {
                <div class="text-2xl lg:text-3xl font-bold text-white leading-none">{{ stats.reviews }}</div>
             </div>
           </div>
-          <!-- Edit Bio and Settings Buttons -->
           <div v-if="isCurrentUser" class="flex items-center gap-2">
             <button
               class="p-1.5 md:p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
@@ -312,7 +286,6 @@ const shouldMarquee = computed(() => {
   padding-left: 0;
 }
 
-/* Mobile: max-w-[80px] */
 @keyframes marquee-mobile {
   0% {
     transform: translateX(0);
@@ -325,12 +298,11 @@ const shouldMarquee = computed(() => {
   }
 }
 
-/* Small mobile: max-w-[120px] */
 @media (min-width: 640px) {
   .location-marquee-text {
     animation: marquee-sm 8s linear infinite;
   }
-  
+
   @keyframes marquee-sm {
     0% {
       transform: translateX(0);
@@ -344,12 +316,11 @@ const shouldMarquee = computed(() => {
   }
 }
 
-/* Tablet: max-w-[150px] */
 @media (min-width: 768px) {
   .location-marquee-text {
     animation: marquee-md 10s linear infinite;
   }
-  
+
   @keyframes marquee-md {
     0% {
       transform: translateX(0);
@@ -363,12 +334,11 @@ const shouldMarquee = computed(() => {
   }
 }
 
-/* Desktop: max-w-[180px] */
 @media (min-width: 1024px) {
   .location-marquee-text {
     animation: marquee-lg 10s linear infinite;
   }
-  
+
   @keyframes marquee-lg {
     0% {
       transform: translateX(0);
@@ -382,12 +352,11 @@ const shouldMarquee = computed(() => {
   }
 }
 
-/* Large Desktop: max-w-[200px] */
 @media (min-width: 1280px) {
   .location-marquee-text {
     animation: marquee-xl 12s linear infinite;
   }
-  
+
   @keyframes marquee-xl {
     0% {
       transform: translateX(0);
