@@ -161,6 +161,8 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   ])
 
   const drafts = ref([])
+  const featuredItineraries = ref([])
+  const partnerItineraries = ref([])
 
   // 新增行程
   const addItinerary = () => {
@@ -185,6 +187,16 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   // 刪除行程
   const deleteItinerary = (id) => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
+  }
+
+  // 新增草稿
+  const addDraft = (draftData) => {
+    const newDraft = {
+      id: Date.now(),
+      saveTime: new Date().toLocaleString('zh-TW'),
+      ...draftData,
+    }
+    drafts.value.unshift(newDraft)
   }
 
   const updateFeaturedRating = ({ id, rating, comment }) => {
@@ -229,10 +241,12 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
 
   return {
     myItineraries,
+    drafts,
     featuredItineraries,
     partnerItineraries,
     addItinerary,
     deleteItinerary,
+    addDraft,
     updateFeaturedRating,
     clearFeaturedRating,
     updatePartnerItinerary,

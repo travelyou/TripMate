@@ -102,7 +102,7 @@ const avatarCropModalRef = ref(null)
 
 const activeTabsData = computed(() => {
   return {
-    hostedTrips: itineraryStore.myItineraries.map((trip) => ({
+    hostedTrips: (itineraryStore.myItineraries || []).map((trip) => ({
       id: trip.id,
       title: trip.title,
       content: trip.description,
@@ -119,7 +119,7 @@ const activeTabsData = computed(() => {
       isAuthor: true,
       commentsData: [],
     })),
-    posts: discussionsStore.discussions.filter((p) =>
+    posts: (discussionsStore.discussions || []).filter((p) =>
       user.value && (
         p.author === user.value.name ||
         p.author === user.value.nickname ||

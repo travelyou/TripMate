@@ -22,11 +22,8 @@ export const useItineraryStore = defineStore('itinerary', () => {
   }
 
   return {
-    itineraries,
-    currentItinerary,
-    loading,
-    error,
-    fetchItineraries,
-    fetchItineraryDetail,
+    myItineraries,
+    createItinerary,
+    deleteItinerary,
   }
 })
