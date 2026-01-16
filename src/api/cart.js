@@ -34,5 +34,3 @@ export async function removeCartItem(itineraryId) {
   if (!data?.ok) throw new Error(data?.message || 'removeCartItem failed')
   return data
 }
-
-console.log('API_BASE_URL =', API_BASE_URL)

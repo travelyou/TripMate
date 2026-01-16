@@ -149,9 +149,6 @@ app.use('/api/payments', paymentsRouter)
 // 訂單路由
 app.use('/api/orders', ordersRouter)
 
-// 行程路由
-app.use('/api/itineraries', itinerariesRouter)
-
 // 購物車路由
 app.use('/api/cart', cartRouter)
 app.use('/discussions', discussionsRouter)
