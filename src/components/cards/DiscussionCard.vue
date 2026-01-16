@@ -36,31 +36,25 @@ const itemData = computed(() => ({
   comments: props.post.comments,
 }))
 
-// --- [核心邏輯] HTML 渲染 + 圖片替換 ---
+// --- [最終版] 純文字清洗邏輯 ---
 const previewContent = computed(() => {
   if (!props.post.content) return ''
 
   let content = props.post.content
 
-  // 1. 【解碼】: 如果資料庫存的是 &lt;h2&gt;，必須先轉回 <h2>
-  // 這樣 v-html 才能正確識別它是標籤，而不是純文字
-  try {
-    const txt = document.createElement('textarea')
-    txt.innerHTML = content
-    content = txt.value
-  } catch (e) {
-    console.error('Decode error', e)
-  }
+  // 1. 預處理：把會造成換行的 HTML 標籤替換成換行符號 \n
+  // 這樣之後剝除標籤時，段落之間才會有空行，不會黏在一起
+  content = content.replace(/<br\s*\/?>/gi, '\n')
+  content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
 
-  // 2. 【替換圖片】: 把所有 <img ...> 標籤換成一個灰色的 "【圖片】" 文字 span
-  // 這樣就不會載入圖片，但保留了 "這裡有張圖" 的資訊
-  content = content.replace(
-    /<img[^>]*>/gi,
-    '<span class="text-gray-400 text-xs mx-1 inline-block border border-gray-200 rounded px-1 bg-gray-50">🖼️ 圖片</span>',
-  )
+  // 2. 強力剝除：建立一個暫存 DOM，利用 textContent 取得純文字
+  // 這一步會自動移除 <img>, <b>, <h2> 等所有標籤，只留下文字內容
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = content
+  const plainText = tempDiv.textContent || tempDiv.innerText || ''
 
-  // 3. 回傳處理過的 HTML 字串
-  return content
+  // 3. 回傳修剪後的純文字
+  return plainText.trim()
 })
 // -------------------------------------
 
@@ -137,7 +131,7 @@ onMounted(async () => {
             {{ post.spiritAnimal }}
           </span>
         </div>
-        <div class="text-xs text-gray-400">{{ post.time }} • 討論區1213</div>
+        <div class="text-xs text-gray-400">{{ post.time }} • 討論區</div>
       </div>
     </div>
 
@@ -145,10 +139,9 @@ onMounted(async () => {
       {{ post.title }}
     </h3>
 
-    <div
-      class="text-gray-600 text-sm mb-4 line-clamp-5 leading-relaxed overflow-hidden"
-      v-html="previewContent"
-    ></div>
+    <p class="text-gray-600 text-sm mb-4 line-clamp-5 whitespace-pre-wrap leading-relaxed">
+      {{ previewContent }}
+    </p>
 
     <div
       v-if="post.banner"
@@ -238,24 +231,5 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* 為了讓 v-html 裡的標籤有一些基本樣式，可以加上這些 scoped CSS */
-:deep(h2) {
-  font-size: 1.1em;
-  font-weight: bold;
-  margin: 0.5em 0;
-  color: #1f2937;
-}
-:deep(h3) {
-  font-size: 1em;
-  font-weight: bold;
-  margin: 0.4em 0;
-  color: #374151;
-}
-:deep(p) {
-  margin: 0.3em 0;
-}
-/* 強制讓圖片提示在同一行，不換行 */
-:deep(.img-placeholder) {
-  display: inline-block;
-}
+/* pixel-card replaced by Tailwind classes in template */
 </style>

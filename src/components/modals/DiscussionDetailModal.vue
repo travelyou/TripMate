@@ -13,6 +13,7 @@ import { auth } from '@/firebase/config'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { formatTime } from '@/utils/time'
+import { onAuthStateChanged } from 'firebase/auth'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -56,6 +57,22 @@ const totalCommentCount = computed(() => {
   return total
 })
 
+// --- HTML 內容解碼處理 ---
+const processedContent = computed(() => {
+  const content = localPostData.value.content || ''
+
+  // 解碼 (Decode): 將資料庫中的 &lt;h2&gt; 轉回 <h2>
+  try {
+    const txt = document.createElement('textarea')
+    txt.innerHTML = content
+    return txt.value
+  } catch (e) {
+    console.error('HTML Decode Error', e)
+    return content
+  }
+})
+// ------------------------------------
+
 // 初始化載入按讚資訊
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
@@ -75,7 +92,7 @@ const handleLike = async () => {
     return
   }
   try {
-    const result = await toggleLike(props.post.id, currentUserUid.value)
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -122,7 +139,6 @@ const submitComment = async () => {
 }
 
 // 監聽 Auth
-import { onAuthStateChanged } from 'firebase/auth'
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
   if (currentUserUid.value) {
@@ -163,29 +179,34 @@ onMounted(async () => {
 
       <div class="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div class="mb-6">
+          <div v-if="localPostData.banner" class="-mx-6 -mt-6 h-64 sm:h-80 overflow-hidden mb-6">
+            <img :src="localPostData.banner" class="w-full h-full object-cover" alt="文章封面" />
+          </div>
+
           <div class="flex items-center space-x-3 mb-4">
             <img
               :src="
                 localPostData.authorAvatar ||
+                localPostData.avatar ||
                 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
               "
               class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
             />
             <div>
               <div class="font-bold text-secondary-900">
-                {{ localPostData.authorName || '匿名用戶' }}
+                {{ localPostData.authorName || localPostData.author || '匿名用戶' }}
               </div>
               <div class="text-sm text-secondary-500">
-                {{ formatTime(localPostData.createdAt || localPostData.time) }}
+                {{ formatTime(localPostData.time) }}
               </div>
             </div>
           </div>
 
-          <h1 class="text-2xl font-black text-secondary-900 mb-4">{{ localPostData.title }}</h1>
+          <h1 class="text-3xl font-black text-secondary-900 mb-4">{{ localPostData.title }}</h1>
 
           <div
             v-if="localPostData.tags && localPostData.tags.length"
-            class="flex flex-wrap gap-2 mb-4"
+            class="flex flex-wrap gap-2 mb-6"
           >
             <span
               v-for="tag in localPostData.tags"
@@ -196,23 +217,10 @@ onMounted(async () => {
             </span>
           </div>
 
-          <div class="prose prose-lg max-w-none mb-6">
-            <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
-              {{ localPostData.content }}
-            </p>
-          </div>
-
           <div
-            v-if="localPostData.images && localPostData.images.length"
-            class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
-          >
-            <img
-              v-for="(img, idx) in localPostData.images"
-              :key="idx"
-              :src="img"
-              class="rounded-lg border-2 border-secondary-200 w-full h-64 object-cover"
-            />
-          </div>
+            class="prose prose-lg max-w-none mb-8 text-secondary-800 rich-content"
+            v-html="processedContent"
+          ></div>
 
           <div class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6">
             <button
@@ -311,5 +319,70 @@ onMounted(async () => {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
+}
+
+/* ★ 富文本樣式重置與美化 ★ */
+:deep(.rich-content) {
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+:deep(.rich-content h2) {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-top: 2em;
+  margin-bottom: 1em;
+  color: #111827;
+  /* border-left: 4px solid #f59e0b; */
+  /* padding-left: 0.5rem; */
+}
+
+:deep(.rich-content h3) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+  color: #374151;
+}
+
+:deep(.rich-content p) {
+  margin-bottom: 1.25em;
+  font-size: 1.1rem;
+}
+
+:deep(.rich-content ul) {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin-bottom: 1.25em;
+}
+
+:deep(.rich-content ol) {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin-bottom: 1.25em;
+}
+
+:deep(.rich-content blockquote) {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1em;
+  color: #4b5563;
+  font-style: italic;
+  margin: 1.5em 0;
+}
+
+/* ★ 修改重點：強制圖片置左，不使用 auto margin */
+:deep(.rich-content img) {
+  border-radius: 0.5rem;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  margin-left: 0; /* 強制靠左 */
+  margin-right: auto; /* 右邊自動 (確保不會置中) */
+  max-width: 100%;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: block;
+}
+
+:deep(.rich-content [style*='font-family: BiauKai']) {
+  font-family: BiauKai, 'DFKai-SB', 標楷體, serif;
 }
 </style>

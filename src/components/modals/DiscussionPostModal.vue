@@ -32,7 +32,7 @@ import { compressImage } from '@/utils/imageCompress'
 
 // --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-import { Extension } from '@tiptap/core' // 記得引入 Extension
+import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import ImageExtension from '@tiptap/extension-image'
@@ -46,6 +46,60 @@ const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
 const currentStep = ref('edit')
 const formError = ref('')
+
+// --- Banner 位置調整邏輯 ---
+const bannerPositionY = ref(50) // 預設居中 (50%)
+const isDraggingBanner = ref(false)
+const dragStartY = ref(0)
+
+const startDragBanner = (event) => {
+  isDraggingBanner.value = true
+  dragStartY.value = event.clientY
+}
+
+const onDragBanner = (event) => {
+  if (!isDraggingBanner.value) return
+
+  const deltaY = event.clientY - dragStartY.value
+  dragStartY.value = event.clientY
+  const sensitivity = 0.5
+  let newPos = bannerPositionY.value - deltaY * sensitivity
+  bannerPositionY.value = Math.max(0, Math.min(100, newPos))
+}
+
+const stopDragBanner = () => {
+  isDraggingBanner.value = false
+}
+
+// --- 顏色選擇器設定 (16色) ---
+const showColorPicker = ref(false)
+const commonColors = [
+  '#000000',
+  '#4B5563',
+  '#9CA3AF',
+  '#DC2626',
+  '#EA580C',
+  '#D97706',
+  '#CA8A04',
+  '#16A34A',
+  '#059669',
+  '#0891B2',
+  '#2563EB',
+  '#4F46E5',
+  '#7C3AED',
+  '#DB2777',
+  '#9333EA',
+  '#ffffff',
+]
+
+const toggleColorPicker = () => {
+  showColorPicker.value = !showColorPicker.value
+}
+
+const setColor = (color) => {
+  editor.value.chain().focus().setColor(color).run()
+  showColorPicker.value = false
+}
 
 const postData = ref({
   category: '',
@@ -70,29 +124,35 @@ const errors = ref({
   title: '',
   content: '',
   tags: '',
+  banner: '',
 })
 
 const tagSearch = ref('')
 
-// --- [修正] 換行邏輯擴充功能 ---
-// 使用 Extension 是唯一正確且安全的方法
+// --- [優化] 換行邏輯擴充功能 ---
+// 這裡確保只有在必要時才轉換段落，避免畫面跳動
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
+  addPriority: 100,
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        // 1. 如果在清單中，讓系統自己處理 (return false)
+        // 1. 如果在清單中，讓系統自己處理
         if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
           return false
         }
 
-        // 2. 正常換行邏輯：換行 + 清除樣式 + 確保是段落
-        return editor
-          .chain()
-          .splitBlock() // 動作1: 換行
-          .unsetAllMarks() // 動作2: 清除粗體/顏色
-          .setParagraph() // 動作3: 確保新的一行是普通段落(P)，而不是標題(H2)
-          .run()
+        // 2. 建立指令鏈
+        const chain = editor.chain().splitBlock()
+
+        // 3. 只有當目前是「標題」時，才強制轉為「段落」
+        // (如果原本就是段落，就不執行這一步，避免無謂的重新渲染造成不順暢)
+        if (editor.isActive('heading')) {
+          chain.setParagraph()
+        }
+
+        // 4. 清除格式並執行
+        return chain.unsetAllMarks().run()
       },
     }
   },
@@ -114,11 +174,10 @@ const editor = useEditor({
       inline: true,
       allowBase64: true,
     }),
-    ResetStyleOnEnter, // 加入我們定義好的擴充
+    ResetStyleOnEnter,
   ],
   editorProps: {
     attributes: {
-      // 這裡只設定基本樣式，不再依賴 prose
       class: 'focus:outline-none min-h-[300px] px-4 py-2 text-gray-800 text-base',
     },
   },
@@ -130,19 +189,16 @@ const editor = useEditor({
   },
 })
 
-// 設定標楷體
 const setFontKai = () => {
   if (editor.value) {
     editor.value.chain().focus().setFontFamily('BiauKai, DFKai-SB, 標楷體').run()
   }
 }
 
-// 觸發內文圖片選擇
 const triggerEditorImageUpload = () => {
   editorFileInputRef.value?.click()
 }
 
-// 處理內文圖片上傳
 const handleEditorImageSelect = async (event) => {
   const file = event.target.files[0]
   if (!file) return
@@ -184,16 +240,7 @@ onBeforeUnmount(() => {
   editor.value?.destroy()
 })
 
-const categories = [
-  '亞洲旅遊',
-  '歐洲旅遊',
-  '美洲旅遊',
-  '窮遊省錢',
-  '美食分享',
-  '住宿推薦',
-  '行程請益',
-  '簽證問題',
-]
+const categories = ['國內旅遊', '國外旅遊', '攝影交流', '美食分享', '住宿推薦', '交通機票', '其他']
 
 const suggestedTags = [
   '日本',
@@ -214,7 +261,7 @@ const filteredTags = computed(() => {
 })
 
 const clearAllErrors = () => {
-  errors.value = { category: '', title: '', content: '', tags: '' }
+  errors.value = { category: '', title: '', content: '', tags: '', banner: '' }
   formError.value = ''
 }
 
@@ -232,6 +279,11 @@ const validateForm = () => {
     isValid = false
   } else if (postData.value.title.trim().length > 35) {
     errors.value.title = `標題不能超過 35 字`
+    isValid = false
+  }
+
+  if (imagePreviews.value.length === 0) {
+    errors.value.banner = '請上傳封面圖片'
     isValid = false
   }
 
@@ -308,7 +360,6 @@ const prevStep = () => {
   }
 }
 
-// 底部封面圖片邏輯 (限制 1 張)
 const triggerFileSelect = () => {
   if (imagePreviews.value.length >= 1 || isUploading.value) {
     return
@@ -320,13 +371,12 @@ const handleImageSelect = async (event) => {
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
 
-  // 限制 1 張
   if (imagePreviews.value.length >= 1) {
     if (fileInputRef.value) fileInputRef.value.value = ''
     return
   }
 
-  const file = files[0] // 只取第一張
+  const file = files[0]
 
   if (!file.type.startsWith('image/')) {
     alert(`${file.name} 不是有效的圖片`)
@@ -340,6 +390,8 @@ const handleImageSelect = async (event) => {
 
   isUploading.value = true
   uploadProgress.value = 0
+  if (errors.value.banner) errors.value.banner = ''
+  bannerPositionY.value = 50
 
   try {
     submitStatus.value = `正在處理圖片...`
@@ -372,7 +424,7 @@ const handleImageSelect = async (event) => {
   } catch (error) {
     console.error('[圖片上傳] 上傳失敗：', error)
     alert('圖片上傳失敗：' + error.message)
-    imagePreviews.value = [] // 清空預覽
+    imagePreviews.value = []
   } finally {
     isUploading.value = false
     uploadProgress.value = 0
@@ -387,6 +439,7 @@ const removeImage = (index) => {
   imagePreviews.value.splice(index, 1)
   imageFiles.value.splice(index, 1)
   uploadedImageUrls.value.splice(index, 1)
+  bannerPositionY.value = 50
 }
 
 const addTag = (tagText) => {
@@ -515,7 +568,6 @@ const executeSubmit = async () => {
       submitProgress.value = 60
       submitStatus.value = '圖片已準備完成'
       bannerUrl = uploadedImageUrls.value[0]
-      // 雖然現在限制一張，但保留陣列結構以防萬一
       if (uploadedImageUrls.value.length > 1) {
         imageUrls = uploadedImageUrls.value.slice(1)
       }
@@ -528,6 +580,7 @@ const executeSubmit = async () => {
       content: postData.value.content,
       tags: postData.value.tags,
       banner: bannerUrl,
+      banner_position_y: Math.round(bannerPositionY.value),
       image_urls: imageUrls,
       author_uid: auth.currentUser.uid,
     }
@@ -540,6 +593,7 @@ const executeSubmit = async () => {
     submitStatus.value = '發布成功！'
 
     if (response) {
+      alert('發文成功')
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
       window.location.reload()
@@ -550,7 +604,8 @@ const executeSubmit = async () => {
     isSubmitting.value = false
     submitProgress.value = 0
     submitStatus.value = ''
-    alert('發文失敗：' + (error.message || '請稍後再試'))
+    alert('發文失敗')
+    console.error(error)
   }
 }
 
@@ -634,9 +689,9 @@ onMounted(() => {
       >
         <div v-if="currentStep === 'edit'" class="space-y-6">
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">
-              選擇看板 <span class="text-red-500">*</span>
-            </label>
+            <label class="block text-sm font-bold text-gray-700 mb-2"
+              >選擇看板 <span class="text-red-500">*</span></label
+            >
             <select
               v-model="postData.category"
               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
@@ -652,17 +707,16 @@ onMounted(() => {
 
           <div>
             <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-bold text-gray-700">
-                標題 <span class="text-red-500">*</span>
-              </label>
+              <label class="block text-sm font-bold text-gray-700"
+                >標題 <span class="text-red-500">*</span></label
+              >
               <span
                 :class="[
                   'text-xs',
                   postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
                 ]"
+                >{{ postData.title.trim().length }}/35</span
               >
-                {{ postData.title.trim().length }}/35
-              </span>
             </div>
             <input
               v-model="postData.title"
@@ -679,11 +733,75 @@ onMounted(() => {
             <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
           </div>
 
+          <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700"
+              >封面圖片 <span class="text-red-500">*</span></label
+            >
+            <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
+              <div
+                v-for="(url, index) in imagePreviews"
+                :key="index"
+                class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
+                @mousedown.prevent="startDragBanner"
+                @mousemove="onDragBanner"
+                @mouseup="stopDragBanner"
+                @mouseleave="stopDragBanner"
+              >
+                <img
+                  :src="url"
+                  alt="預覽"
+                  class="w-full h-full object-cover pointer-events-none"
+                  :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                />
+                <div
+                  class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
+                >
+                  上下拖曳調整位置
+                </div>
+                <button
+                  class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
+                  @click.stop="removeImage(index)"
+                >
+                  <XIcon class="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div v-if="isUploading" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+              <div
+                class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+                :style="{ width: uploadProgress + '%' }"
+              >
+                <span class="text-xs font-bold text-white">{{ uploadProgress }}%</span>
+              </div>
+            </div>
+            <p v-if="isUploading" class="text-sm text-center text-primary-600 font-bold mb-2">
+              {{ submitStatus }}
+            </p>
+            <button
+              :disabled="isUploading || imagePreviews.length >= 1"
+              class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              :class="{ 'border-red-500 text-red-500 bg-red-50': errors.banner }"
+              @click="triggerFileSelect"
+            >
+              <ImageIcon class="w-6 h-6" /><span v-if="!isUploading && imagePreviews.length < 1"
+                >上傳封面圖片</span
+              ><span v-else-if="isUploading">上傳中...</span><span v-else>已設定封面圖片</span>
+            </button>
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              :disabled="isUploading || imagePreviews.length >= 1"
+              @change="handleImageSelect"
+            />
+            <p v-if="errors.banner" class="text-red-500 text-xs mt-1">{{ errors.banner }}</p>
+          </div>
+
           <div>
             <div class="flex items-center justify-between mb-2">
               <label class="block text-sm font-bold text-gray-700">內容</label>
             </div>
-
             <div
               class="border-2 rounded-xl overflow-hidden transition flex flex-col bg-white"
               :class="
@@ -702,7 +820,6 @@ onMounted(() => {
                 >
                   <Heading2Icon class="w-4 h-4" />
                 </button>
-
                 <button
                   @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 3 }) }"
@@ -711,9 +828,7 @@ onMounted(() => {
                 >
                   <Heading3Icon class="w-4 h-4" />
                 </button>
-
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
-
                 <button
                   @click="editor.chain().focus().toggleBold().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('bold') }"
@@ -722,7 +837,6 @@ onMounted(() => {
                 >
                   <BoldIcon class="w-4 h-4" />
                 </button>
-
                 <button
                   @click="editor.chain().focus().toggleItalic().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('italic') }"
@@ -731,7 +845,6 @@ onMounted(() => {
                 >
                   <ItalicIcon class="w-4 h-4" />
                 </button>
-
                 <button
                   @click="editor.chain().focus().toggleUnderline().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('underline') }"
@@ -740,7 +853,6 @@ onMounted(() => {
                 >
                   <UnderlineIcon class="w-4 h-4" />
                 </button>
-
                 <button
                   @click="editor.chain().focus().toggleStrike().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('strike') }"
@@ -749,9 +861,7 @@ onMounted(() => {
                 >
                   <StrikethroughIcon class="w-4 h-4" />
                 </button>
-
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
-
                 <button
                   @click="editor.chain().focus().setTextAlign('left').run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'left' }) }"
@@ -760,7 +870,6 @@ onMounted(() => {
                 >
                   <AlignLeftIcon class="w-4 h-4" />
                 </button>
-
                 <button
                   @click="editor.chain().focus().setTextAlign('center').run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'center' }) }"
@@ -769,24 +878,41 @@ onMounted(() => {
                 >
                   <AlignCenterIcon class="w-4 h-4" />
                 </button>
-
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
-
-                <div
-                  class="relative flex items-center p-2 rounded hover:bg-gray-200 transition group cursor-pointer"
-                  title="文字顏色"
-                >
-                  <PaletteIcon class="w-4 h-4 text-gray-600" />
-                  <input
-                    type="color"
-                    class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    @input="editor.chain().focus().setColor($event.target.value).run()"
-                    :value="editor.getAttributes('textStyle').color || '#000000'"
-                  />
+                <div class="relative">
+                  <button
+                    @click="toggleColorPicker"
+                    class="p-2 rounded hover:bg-gray-200 transition text-gray-600 flex items-center"
+                    title="文字顏色"
+                  >
+                    <PaletteIcon class="w-4 h-4" />
+                    <div
+                      class="w-2 h-2 rounded-full ml-1 border border-gray-300"
+                      :style="{
+                        backgroundColor: editor.getAttributes('textStyle').color || '#000000',
+                      }"
+                    ></div>
+                  </button>
+                  <div
+                    v-if="showColorPicker"
+                    class="absolute top-full left-0 mt-2 p-2 bg-white rounded-lg shadow-xl border border-gray-200 grid grid-cols-4 gap-2 z-50 w-40"
+                  >
+                    <button
+                      v-for="color in commonColors"
+                      :key="color"
+                      @click="setColor(color)"
+                      class="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 transition shadow-sm"
+                      :style="{ backgroundColor: color }"
+                      :title="color"
+                    ></button>
+                  </div>
+                  <div
+                    v-if="showColorPicker"
+                    class="fixed inset-0 z-40"
+                    @click="showColorPicker = false"
+                  ></div>
                 </div>
-
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
-
                 <button
                   @click="editor.chain().focus().setHorizontalRule().run()"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
@@ -794,9 +920,7 @@ onMounted(() => {
                 >
                   <MinusIcon class="w-4 h-4" />
                 </button>
-
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
-
                 <button
                   @click="setFontKai"
                   :class="{
@@ -807,12 +931,9 @@ onMounted(() => {
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 flex items-center gap-1 transition"
                   title="標楷體"
                 >
-                  <TypeIcon class="w-4 h-4" />
-                  <span class="text-xs font-bold">楷</span>
+                  <TypeIcon class="w-4 h-4" /><span class="text-xs font-bold">楷</span>
                 </button>
-
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
-
                 <button
                   @click="triggerEditorImageUpload"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
@@ -828,62 +949,10 @@ onMounted(() => {
                   @change="handleEditorImageSelect"
                 />
               </div>
-
               <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white" />
             </div>
-
             <p v-if="errors.content" class="mt-1 text-sm text-red-500">{{ errors.content }}</p>
           </div>
-          <div v-if="imagePreviews.length > 0" class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">封面圖片</label>
-            <div class="flex flex-wrap gap-3">
-              <div
-                v-for="(url, index) in imagePreviews"
-                :key="index"
-                class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group"
-              >
-                <img :src="url" alt="預覽" class="w-full h-full object-cover" />
-                <button
-                  class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
-                  @click="removeImage(index)"
-                >
-                  <XIcon class="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <p class="text-xs text-gray-400">已選擇封面圖片</p>
-          </div>
-
-          <div v-if="isUploading" class="w-full bg-gray-200 rounded-full h-3 mb-2">
-            <div
-              class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
-              :style="{ width: uploadProgress + '%' }"
-            >
-              <span class="text-xs font-bold text-white">{{ uploadProgress }}%</span>
-            </div>
-          </div>
-          <p v-if="isUploading" class="text-sm text-center text-primary-600 font-bold mb-2">
-            {{ submitStatus }}
-          </p>
-
-          <button
-            :disabled="isUploading || imagePreviews.length >= 1"
-            class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="triggerFileSelect"
-          >
-            <ImageIcon class="w-6 h-6" />
-            <span v-if="!isUploading && imagePreviews.length < 1">上傳封面圖片（單張）</span>
-            <span v-else-if="isUploading">上傳中...</span>
-            <span v-else>已設定封面圖片</span>
-          </button>
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            :disabled="isUploading || imagePreviews.length >= 1"
-            @change="handleImageSelect"
-          />
         </div>
 
         <div v-else-if="currentStep === 'tags'" class="space-y-6">
@@ -910,9 +979,8 @@ onMounted(() => {
                     ? 'text-red-500 font-bold'
                     : 'text-gray-400',
                 ]"
+                >{{ (tagSearch || '').length }}/30</span
               >
-                {{ (tagSearch || '').length }}/30
-              </span>
             </div>
             <p v-if="tagSearch && tagSearch.trim().length > 30" class="text-xs text-red-500 mt-1">
               標籤不能超過 30 字
@@ -922,7 +990,6 @@ onMounted(() => {
             <span class="text-xs text-gray-500">已選擇 {{ postData.tags.length }}/5 個標籤</span>
             <p v-if="errors.tags" class="text-xs text-red-500 mt-1">{{ errors.tags }}</p>
           </div>
-
           <div v-if="postData.tags.length > 0">
             <h4 class="text-sm font-bold text-gray-700 mb-2">已選標籤：</h4>
             <div class="flex flex-wrap gap-2">
@@ -930,15 +997,12 @@ onMounted(() => {
                 v-for="(tag, index) in postData.tags"
                 :key="index"
                 class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm font-bold border border-blue-100 flex items-center gap-1"
-              >
-                #{{ tag }}
-                <button class="hover:text-red-500 transition" @click="removeTag(index)">
-                  <XIcon class="w-3 h-3" />
-                </button>
-              </span>
+                >#{{ tag
+                }}<button class="hover:text-red-500 transition" @click="removeTag(index)">
+                  <XIcon class="w-3 h-3" /></button
+              ></span>
             </div>
           </div>
-
           <button
             v-if="tagSearch"
             class="w-full text-left p-3 hover:bg-blue-50 rounded-xl flex items-center gap-3 transition group"
@@ -951,7 +1015,6 @@ onMounted(() => {
             </div>
             <p class="font-bold text-blue-600">新增「{{ tagSearch }}」</p>
           </button>
-
           <div>
             <h4 class="text-sm font-bold text-gray-700 mb-3">推薦標籤</h4>
             <div class="flex flex-wrap gap-2">
@@ -984,35 +1047,33 @@ onMounted(() => {
                   }}</span>
                   <div class="text-xs text-secondary-400">
                     剛剛 • {{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}
-                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.board }} </span>
+                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.category }} </span>
                   </div>
                 </div>
               </div>
-
               <div
                 v-if="imagePreviews.length > 0"
                 class="w-full max-h-[500px] object-cover rounded-lg overflow-hidden mb-4 bg-secondary-100"
               >
-                <img :src="imagePreviews[0]" class="w-full h-full object-cover" />
+                <img
+                  :src="imagePreviews[0]"
+                  class="w-full h-full object-cover"
+                  :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                />
               </div>
-
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
-
               <div
                 class="text-secondary-700 text-base mb-4 leading-relaxed prose prose-lg max-w-none"
                 v-html="postData.content"
               ></div>
-
               <div class="flex flex-wrap gap-2 mb-4">
                 <span
                   v-for="tag in postData.tags"
                   :key="tag"
                   class="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-full"
+                  >#{{ tag }}</span
                 >
-                  #{{ tag }}
-                </span>
               </div>
-
               <div
                 class="flex items-center text-secondary-400 text-sm mt-4 border-t border-secondary-100 pt-3 opacity-50 cursor-not-allowed"
               >
@@ -1022,15 +1083,10 @@ onMounted(() => {
                 <div class="flex items-center space-x-1 mr-6">
                   <MessageCircleIcon class="w-4 h-4" /> <span>0 留言</span>
                 </div>
-                <div class="flex items-center space-x-1 mr-6">
-                  <BookmarkIcon class="w-4 h-4" />
-                </div>
-                <div class="ml-auto">
-                  <Repeat2Icon class="w-4 h-4" />
-                </div>
+                <div class="flex items-center space-x-1 mr-6"><BookmarkIcon class="w-4 h-4" /></div>
+                <div class="ml-auto"><Repeat2Icon class="w-4 h-4" /></div>
               </div>
             </div>
-
             <div
               class="text-center text-secondary-400 py-10 bg-gray-50 rounded-lg border border-dashed border-gray-200"
             >
@@ -1042,7 +1098,6 @@ onMounted(() => {
 
       <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
         <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
-
         <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
           <div
             class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
@@ -1054,7 +1109,6 @@ onMounted(() => {
         <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
           {{ submitStatus }}
         </p>
-
         <div class="flex gap-3">
           <button
             type="button"
@@ -1064,7 +1118,6 @@ onMounted(() => {
           >
             <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
           </button>
-
           <template v-if="currentStep === 'preview'">
             <button
               :disabled="isSubmitting"
@@ -1083,7 +1136,6 @@ onMounted(() => {
               <span v-else>發布中...</span>
             </button>
           </template>
-
           <button
             v-else
             :disabled="isUploading || isSubmitting"
@@ -1117,7 +1169,7 @@ onMounted(() => {
 :deep(.ProseMirror) {
   outline: none;
   min-height: 300px;
-  line-height: 1.5; /* 單倍行高是 1，1.5 比較舒適 */
+  line-height: 1.5;
   font-size: 16px;
 }
 
@@ -1125,24 +1177,23 @@ onMounted(() => {
 :deep(.ProseMirror p) {
   margin: 0 !important;
   padding: 0;
-  min-height: 1.5em; /* 確保空行也有高度 */
+  min-height: 1.5em;
 }
 
 /* 讓標題有適當的間距，不要跟內文黏太緊 */
 :deep(.ProseMirror h2) {
   font-size: 1.5rem;
   font-weight: 800;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  color: #111827;
+  margin: 0 !important; /* ★ 修正：標題間距歸零 */
   line-height: 1.2;
+  color: #111827;
 }
 
 :deep(.ProseMirror h3) {
   font-size: 1.25rem;
   font-weight: 700;
-  margin-top: 0.8em;
-  margin-bottom: 0.4em;
+  margin: 0 !important; /* ★ 修正：標題間距歸零 */
+  line-height: 1.2;
   color: #1f2937;
 }
 
@@ -1158,12 +1209,16 @@ onMounted(() => {
   margin-bottom: 0.5em;
 }
 
+/* 強制圖片置左，不使用 auto margin */
 :deep(.ProseMirror img) {
   display: block;
   max-width: 100%;
   height: auto;
   border-radius: 0.5rem;
-  margin: 0.5em 0;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  margin-left: 0; /* 強制靠左 */
+  margin-right: auto; /* 右邊自動 */
 }
 
 :deep(.ProseMirror hr) {
