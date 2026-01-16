@@ -376,6 +376,12 @@ onMounted(async () => {
   margin-top: 2em;
   margin-bottom: 1em;
   color: #111827;
+  border-left: 4px solid #2563eb;
+  padding-left: 1em;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  background-color: #eff6ff;
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 :deep(.rich-content h3) {
@@ -384,6 +390,12 @@ onMounted(async () => {
   margin-top: 1.5em;
   margin-bottom: 0.75em;
   color: #374151;
+  border-left: 4px solid #60a5fa;
+  padding-left: 0.875em;
+  padding-top: 0.375em;
+  padding-bottom: 0.375em;
+  background-color: #f0f9ff;
+  border-radius: 0 0.375rem 0.375rem 0;
 }
 
 :deep(.rich-content p) {

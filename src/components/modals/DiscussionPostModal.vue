@@ -29,8 +29,6 @@ import { auth } from '@/firebase/config'
 import { createPost } from '@/api/discussions'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
-
-// --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
@@ -50,7 +48,6 @@ const currentStep = ref('edit')
 const formError = ref('')
 const CHARACTER_LIMIT = 100000
 
-// --- Banner 位置調整邏輯 ---
 const bannerPositionY = ref(50)
 const isDraggingBanner = ref(false)
 const dragStartY = ref(0)
@@ -73,7 +70,6 @@ const stopDragBanner = () => {
   isDraggingBanner.value = false
 }
 
-// --- 顏色選擇器設定 ---
 const showColorPicker = ref(false)
 const commonColors = [
   '#000000',
@@ -131,7 +127,6 @@ const errors = ref({
 
 const tagSearch = ref('')
 
-// --- [優化修正] 換行邏輯擴充功能 ---
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
   addPriority: 1000,
@@ -141,13 +136,18 @@ const ResetStyleOnEnter = Extension.create({
         if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
           return false
         }
+        if (editor.isActive('heading', { level: 2 })) {
+          return editor.chain().splitBlock().setHeading({ level: 2 }).run()
+        }
+        if (editor.isActive('heading', { level: 3 })) {
+          return editor.chain().splitBlock().setHeading({ level: 3 }).run()
+        }
         return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
       },
     }
   },
 })
 
-// --- Tiptap 編輯器設定 ---
 const editor = useEditor({
   content: postData.value.content,
   extensions: [
@@ -203,15 +203,12 @@ const handleEditorImageSelect = async (event) => {
       quality: 0.8,
     })
 
-    const imageUrl = await uploadImage(compressedFile, 'discussions', (progress) => {
-      console.log(`內文圖片上傳: ${progress}%`)
-    })
+    const imageUrl = await uploadImage(compressedFile, 'discussions')
 
     if (imageUrl && editor.value) {
       editor.value.chain().focus().setImage({ src: imageUrl }).run()
     }
   } catch (error) {
-    console.error('內文圖片插入失敗', error)
     alert('圖片插入失敗：' + error.message)
   }
 
@@ -410,7 +407,6 @@ const handleImageSelect = async (event) => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     submitStatus.value = ''
   } catch (error) {
-    console.error('[圖片上傳] 上傳失敗：', error)
     alert('圖片上傳失敗：' + error.message)
     imagePreviews.value = []
   } finally {
@@ -586,14 +582,13 @@ const executeSubmit = async () => {
       sessionStorage.removeItem('submit_start_time')
       window.location.reload()
     }
-  } catch (error) {
+  } catch {
     sessionStorage.removeItem('is_submitting_discussion_post')
     sessionStorage.removeItem('submit_start_time')
     isSubmitting.value = false
     submitProgress.value = 0
     submitStatus.value = ''
     alert('發文失敗')
-    console.error(error)
   }
 }
 
@@ -816,77 +811,77 @@ onMounted(() => {
                 class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-20"
               >
                 <button
-                  @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 2 }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="標題 (H2)"
+                  @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
                 >
                   <Heading2Icon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 3 }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="標題 (H3)"
+                  @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
                 >
                   <Heading3Icon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().toggleBold().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('bold') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="粗體"
+                  @click="editor.chain().focus().toggleBold().run()"
                 >
                   <BoldIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleItalic().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('italic') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="斜體"
+                  @click="editor.chain().focus().toggleItalic().run()"
                 >
                   <ItalicIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleUnderline().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('underline') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="底線"
+                  @click="editor.chain().focus().toggleUnderline().run()"
                 >
                   <UnderlineIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleStrike().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('strike') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="刪除線"
+                  @click="editor.chain().focus().toggleStrike().run()"
                 >
                   <StrikethroughIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().setTextAlign('left').run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'left' }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="靠左"
+                  @click="editor.chain().focus().setTextAlign('left').run()"
                 >
                   <AlignLeftIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().setTextAlign('center').run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'center' }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="置中"
+                  @click="editor.chain().focus().setTextAlign('center').run()"
                 >
                   <AlignCenterIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <div class="relative">
                   <button
-                    @click="toggleColorPicker"
                     class="p-2 rounded hover:bg-gray-200 transition text-gray-600 flex items-center"
                     title="文字顏色"
+                    @click="toggleColorPicker"
                   >
                     <PaletteIcon class="w-4 h-4" />
                     <div
@@ -903,10 +898,10 @@ onMounted(() => {
                     <button
                       v-for="color in commonColors"
                       :key="color"
-                      @click="setColor(color)"
                       class="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 transition shadow-sm"
                       :style="{ backgroundColor: color }"
                       :title="color"
+                      @click="setColor(color)"
                     ></button>
                   </div>
                   <div
@@ -917,15 +912,14 @@ onMounted(() => {
                 </div>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().setHorizontalRule().run()"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="分隔線"
+                  @click="editor.chain().focus().setHorizontalRule().run()"
                 >
                   <MinusIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="setFontKai"
                   :class="{
                     'bg-gray-200 text-black': editor.isActive('textStyle', {
                       fontFamily: 'BiauKai, DFKai-SB, 標楷體',
@@ -933,20 +927,21 @@ onMounted(() => {
                   }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 flex items-center gap-1 transition"
                   title="標楷體"
+                  @click="setFontKai"
                 >
                   <TypeIcon class="w-4 h-4" /><span class="text-xs font-bold">楷</span>
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="triggerEditorImageUpload"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600 transition"
                   title="插入圖片"
+                  @click="triggerEditorImageUpload"
                 >
                   <ImageIcon class="w-4 h-4" />
                 </button>
                 <input
-                  type="file"
                   ref="editorFileInputRef"
+                  type="file"
                   class="hidden"
                   accept="image/*"
                   @change="handleEditorImageSelect"
@@ -1065,6 +1060,7 @@ onMounted(() => {
                 />
               </div>
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
+              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 class="text-secondary-700 text-base mb-4 leading-relaxed prose prose-lg max-w-none"
                 v-html="postData.content"
