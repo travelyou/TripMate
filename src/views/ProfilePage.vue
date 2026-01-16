@@ -79,10 +79,10 @@ const displayWishlist = computed(() => {
 const activeTab = ref('hosted_trips')
 const tabs = computed(() => {
   const baseTabs = [
-    { k: 'visited_places', l: '去過的地方', s: '足跡' },
-    { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
-    { k: 'posts', l: '貼文', s: '貼文' },
-    { k: 'reviews', l: '好評', s: '好評' },
+  { k: 'visited_places', l: '去過的地方', s: '足跡' },
+  { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
+  { k: 'posts', l: '貼文', s: '貼文' },
+  { k: 'reviews', l: '好評', s: '好評' },
   ]
   if (isCurrentUser.value) {
     baseTabs.push({ k: 'drafts', l: '草稿夾', s: '草稿' })

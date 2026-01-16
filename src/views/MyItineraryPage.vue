@@ -162,23 +162,23 @@ watch(() => route.query.openDraft, (newDraftId) => {
         </div>
 
         <!-- 根據 activeTab 切換顯示內容 -->
-        <MyItineraryTab
-          v-if="activeTab === 'my'"
-          :itineraries="myItineraries"
-          @open="openItineraryDetail"
-          @add="openAddItineraryModal"
-        />
-        <FeaturedItineraryTab
-          v-if="activeTab === 'featured'"
-          :itineraries="featuredItineraries"
-          @rate="handleFeaturedRate"
-          @clear="handleFeaturedClear"
-        />
-        <FindPartnerTab
-          v-if="activeTab === 'partner'"
-          :itineraries="partnerItineraries"
-          @update="handlePartnerUpdate"
-        />
+      <MyItineraryTab
+        v-if="activeTab === 'my'"
+        :itineraries="myItineraries"
+        @open="openItineraryDetail"
+        @add="openAddItineraryModal"
+      />
+      <FeaturedItineraryTab
+        v-if="activeTab === 'featured'"
+        :itineraries="featuredItineraries"
+        @rate="handleFeaturedRate"
+        @clear="handleFeaturedClear"
+      />
+      <FindPartnerTab
+        v-if="activeTab === 'partner'"
+        :itineraries="partnerItineraries"
+        @update="handlePartnerUpdate"
+      />
       </div>
     </div>
 

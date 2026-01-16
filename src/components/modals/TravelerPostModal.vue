@@ -110,7 +110,6 @@ const validateBasic = () => {
 
   let hasError = false
 
-  // 驗證標題
   if (!postData.value.title.trim()) {
     fieldErrors.value.title = '請輸入標題'
     hasError = true
@@ -119,7 +118,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證內容
   if (!postData.value.content.trim()) {
     fieldErrors.value.content = '請輸入內容'
     hasError = true
@@ -128,7 +126,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證地點
   if (!postData.value.location.trim()) {
     fieldErrors.value.location = '請輸入地點'
     hasError = true
@@ -137,7 +134,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證人數
   const maxPeopleNum = Number(postData.value.max_people)
   if (!maxPeopleNum || maxPeopleNum < 1) {
     fieldErrors.value.max_people = '請輸入有效的人數'
@@ -147,7 +143,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證開始日期
   if (!postData.value.start_date) {
     fieldErrors.value.start_date = '請選擇開始日期'
     hasError = true
@@ -161,7 +156,6 @@ const validateBasic = () => {
     }
   }
 
-  // 驗證結束日期
   if (!postData.value.end_date) {
     fieldErrors.value.end_date = '請選擇結束日期'
     hasError = true
@@ -325,7 +319,6 @@ const handleBannerSelect = async (event) => {
     isUploading.value = false
     uploadProgress.value = 0
   } catch (error) {
-    console.error('圖片壓縮失敗：', error)
     alert('圖片處理失敗：' + error.message)
     isUploading.value = false
     uploadProgress.value = 0
@@ -671,7 +664,6 @@ const executeSubmit = async () => {
         uploadProgress.value = 0
         submitProgress.value = 10
         submitStatus.value = '正在上傳圖片...'
-        console.log('[旅伴發文] 開始上傳 banner 圖片...')
         bannerImageUrl = await uploadImage(
           bannerFile.value,
           'travelers',
@@ -679,15 +671,12 @@ const executeSubmit = async () => {
             uploadProgress.value = progress
             submitProgress.value = 10 + Math.floor((progress / 100) * 50)
             submitStatus.value = `正在上傳圖片... ${progress}%`
-            console.log(`[旅伴發文] 上傳進度: ${progress}%`)
           }
         )
-        console.log('[旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
         uploadProgress.value = 100
         submitProgress.value = 60
         submitStatus.value = '圖片上傳完成'
       } catch (error) {
-        console.error('[旅伴發文] Banner 圖片上傳失敗：', error)
         isUploading.value = false
         uploadProgress.value = 0
         const shouldContinue = confirm(
@@ -729,7 +718,6 @@ const executeSubmit = async () => {
       spirit_animal: userStore.currentUser?.spiritAnimal || '樂天派',
     }
 
-    // 清理和优化数据
     const optimizedPayload = {
       title: payload.title.trim(),
       content: payload.content.trim(),
@@ -766,35 +754,8 @@ const executeSubmit = async () => {
     }
 
     const payloadSize = JSON.stringify(optimizedPayload).length
-    const payloadSizeMB = (payloadSize / 1024 / 1024).toFixed(2)
     const payloadSizeKB = (payloadSize / 1024).toFixed(2)
-    console.log('[旅伴發文] Payload 大小:', payloadSizeMB, 'MB (', payloadSizeKB, 'KB)')
-    console.log('[旅伴發文] Payload 詳細:', {
-      title: optimizedPayload.title,
-      contentLength: optimizedPayload.content?.length || 0,
-      itineraryDays: optimizedPayload.itinerary?.days?.length || 0,
-      packingListCount: optimizedPayload.packingList?.length || 0,
-      tagsCount: optimizedPayload.tags?.length || 0,
-      hasBanner: !!optimizedPayload.banner_image,
-    })
 
-    console.log('[診斷] Firebase Storage URL 長度:', bannerImageUrl?.length || 0)
-    console.log('[診斷] 完整 payload 結構分析:', {
-      bannerUrlLength: optimizedPayload.banner_image?.length || 0,
-      itinerarySize: JSON.stringify(optimizedPayload.itinerary).length,
-      packingListSize: JSON.stringify(optimizedPayload.packingList).length,
-      contentSize: optimizedPayload.content?.length || 0,
-      tagsSize: JSON.stringify(optimizedPayload.tags).length,
-      totalSize: payloadSize,
-      totalSizeKB: payloadSizeKB,
-      totalSizeMB: payloadSizeMB,
-    })
-
-    if (optimizedPayload.banner_image) {
-      console.log('[診斷] Banner URL 前 100 字符:', optimizedPayload.banner_image.substring(0, 100))
-    }
-
-    // Zeabur 通常限制为 1MB，我们设置为 900KB 作为安全边界
     if (payloadSize > 900 * 1024) {
       formError.value = `資料太大（${payloadSizeKB}KB），請減少行程天數、打包清單項目或內容長度`
       isSubmitting.value = false
@@ -805,12 +766,6 @@ const executeSubmit = async () => {
 
     submitProgress.value = 70
     submitStatus.value = '正在提交貼文...'
-    console.log('[旅伴發文] 提交 payload:', {
-      title: optimizedPayload.title,
-      hasBanner: !!optimizedPayload.banner_image,
-      bannerUrl: optimizedPayload.banner_image,
-      payloadSizeKB: payloadSizeKB,
-    })
 
     const response = await createTraveler(optimizedPayload)
 
@@ -849,15 +804,6 @@ const executeSubmit = async () => {
       submitStatus.value = ''
     }
   } catch (error) {
-    console.error('[旅伴發文] 提交失敗:', error)
-    console.error('[旅伴發文] 錯誤詳情:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      code: error.response?.data?.code,
-      detail: error.response?.data?.detail,
-    })
-
     sessionStorage.removeItem('is_submitting_traveler_post')
     sessionStorage.removeItem('submit_start_time')
 
@@ -896,14 +842,11 @@ const handleFinalSubmit = async () => {
     return
   }
 
-  // 立即關閉模態框
   emit('close')
 
-  // 設置提交標記
   sessionStorage.setItem('is_submitting_traveler_post', 'true')
   sessionStorage.setItem('submit_start_time', Date.now().toString())
 
-  // 在後台執行提交
   executeSubmit()
 }
 
@@ -911,11 +854,9 @@ if (postData.value.itinerary.days.length === 0) {
   postData.value.itinerary.days.push({ day: 1, date: '', activities: [] })
 }
 
-// 監聽草稿數據，當有草稿時載入到表單
 watch(() => props.draftData, (newDraft) => {
   if (newDraft && newDraft.data) {
     const draft = newDraft.data
-    // 載入基本資料
     postData.value.title = draft.title || ''
     postData.value.content = draft.content || ''
     postData.value.location = draft.location || ''
@@ -924,17 +865,14 @@ watch(() => props.draftData, (newDraft) => {
     postData.value.max_people = draft.max_people || 2
     postData.value.tags = draft.tags || []
 
-    // 載入行程資料
     if (draft.itinerary && draft.itinerary.days) {
       postData.value.itinerary.days = draft.itinerary.days
     }
 
-    // 載入打包清單
     if (draft.packingList && Array.isArray(draft.packingList)) {
       postData.value.packingList = draft.packingList
     }
 
-    // 載入橫幅圖片
     if (draft.banner_image) {
       postData.value.banner_image = draft.banner_image
       bannerPreview.value = draft.banner_image
@@ -943,7 +881,6 @@ watch(() => props.draftData, (newDraft) => {
 }, { immediate: true })
 
 onMounted(() => {
-  // 如果有草稿數據，載入到表單
   if (props.draftData && props.draftData.data) {
     const draft = props.draftData.data
     postData.value.title = draft.title || ''
@@ -967,7 +904,6 @@ onMounted(() => {
       bannerPreview.value = draft.banner_image
     }
   }
-  // 監聽頁面卸載事件，提示用戶
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
       e.preventDefault()
@@ -976,7 +912,6 @@ onMounted(() => {
     }
   })
 
-  // 請求通知權限
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
