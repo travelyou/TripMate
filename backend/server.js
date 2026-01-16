@@ -13,7 +13,6 @@ const travelersRoutes = require('./routes/travelers')
 const itinerariesRouter = require('./routes/itineraries')
 const paymentsRouter = require('./routes/payments')
 const ordersRouter = require('./routes/orders')
-const itinerariesRouter = require('./routes/itineraries')
 const cartRouter = require('./routes/cart')
 
 const app = express()
