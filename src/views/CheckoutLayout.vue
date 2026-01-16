@@ -1,9 +1,10 @@
 <script setup>
 import CheckoutProgress from '@/components/checkout/CheckoutProgress.vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { computed, onMounted } from 'vue'
 import { checkoutStore } from '@/stores/checkout'
 const route = useRoute()
+const router = useRouter()
 
 const currentStep = computed(() => {
   const match = route.name?.match(/\d+/)
@@ -25,7 +26,7 @@ onMounted(async () => {
   }
 
   // 3) 真的沒有商品 → 退回購物車
-  route.replace('/cart')
+  router.replace('/cart')
 })
 </script>
 <template>

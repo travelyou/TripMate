@@ -48,8 +48,12 @@ router.post('/items', async (req, res) => {
     const userId = getUserId(req)
     const cartId = await getOrCreateActiveCartId(userId)
     const { itineraryId, persons = 1 } = req.body || {}
+    const p = Number(persons)
 
     if (!itineraryId) return res.status(400).json({ ok: false, message: 'itineraryId required' })
+    if (!Number.isInteger(p) || p < 1) {
+      return res.status(400).json({ ok: false, message: '人數要是正數' })
+    }
 
     // upsert：同 itinerary 就累加 persons
     await pool.query(
@@ -58,7 +62,7 @@ router.post('/items', async (req, res) => {
       ON CONFLICT (cart_id, itinerary_id)
       DO UPDATE SET persons = commerce.cart_items.persons + EXCLUDED.persons,
                     updated_at = NOW()`,
-      [cartId, itineraryId, persons],
+      [cartId, itineraryId, p],
     )
 
     return res.json({ ok: true })

@@ -31,7 +31,7 @@ onMounted(async () => {
     // （可選）順便把 store 的 lastOrder 補齊，方便其他步驟用
     checkoutStore.lastOrder = {
       id: data.order.id,
-      orderNo: data.order.order_no,
+      orderNo: data.order.orderNo,
       amount: Number(data.order.amount ?? 0),
       status: data.order.status,
     }
@@ -143,6 +143,11 @@ async function confirmPayment() {
       valid = false
     }
     if (!valid) return
+  }
+
+  if (paymentMethod.value === 'mobile' && !mobileProvider.value) {
+    alert('請選擇行動支付方式')
+    return
   }
 
   // 把付款方式存到 store（可選）
