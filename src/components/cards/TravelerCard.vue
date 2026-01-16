@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   Calendar as CalendarIcon,
@@ -9,6 +10,16 @@ import {
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
+
+const router = useRouter()
+
+const handleAvatarClick = (e) => {
+  e.stopPropagation()
+  const authorUid = props.traveler.author_uid
+  if (authorUid) {
+    router.push(`/profile/${authorUid}`)
+  }
+}
 
 const props = defineProps({
   traveler: {
@@ -72,11 +83,15 @@ const getStatusClasses = (status) => {
           <div class="flex items-center space-x-3 mb-2">
             <img
               :src="traveler.avatar"
-              class="w-8 h-8 rounded-full object-cover border-2 border-secondary-200"
+              class="w-8 h-8 rounded-full object-cover border-2 border-secondary-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+              @click.stop="handleAvatarClick"
             />
             <div>
               <div class="flex items-center space-x-1">
-                <span class="font-bold text-sm text-secondary-900">{{ traveler.author }}</span>
+                <span 
+                  class="font-bold text-sm text-secondary-900 cursor-pointer hover:text-primary-600 transition"
+                  @click.stop="handleAvatarClick"
+                >{{ traveler.author }}</span>
                 <span
                   class="text-xs font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded-full"
                 >

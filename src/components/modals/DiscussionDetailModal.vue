@@ -24,6 +24,13 @@ const discussionsStore = useDiscussionsStore()
 
 // 當前用戶 UID
 const currentUserUid = ref(null)
+
+const handleAuthorClick = () => {
+  const authorUid = props.post.author_uid || props.post.author?.uid
+  if (authorUid) {
+    router.push(`/profile/${authorUid}`)
+  }
+}
 const isLiked = ref(false)
 const likesCount = ref(0)
 
@@ -390,10 +397,14 @@ onMounted(async () => {
           <div class="flex items-center space-x-3 mb-3">
             <img
               :src="post.avatar || post.author?.avatar"
-              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
+              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+              @click="handleAuthorClick"
             />
             <div>
-              <span class="font-bold text-secondary-800">{{
+              <span 
+                class="font-bold text-secondary-800 cursor-pointer hover:text-primary-600 transition"
+                @click="handleAuthorClick"
+              >{{
                 post.author?.nickname || post.author
               }}</span>
               <div class="text-xs text-secondary-400">

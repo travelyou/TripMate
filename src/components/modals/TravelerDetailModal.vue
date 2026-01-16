@@ -49,6 +49,13 @@ const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const localComments = ref([])
 
+const handleAuthorClick = () => {
+  const authorUid = props.traveler.author_uid || localTravelerData.value?.author_uid
+  if (authorUid) {
+    router.push(`/profile/${authorUid}`)
+  }
+}
+
 // 建立一個本地變數來存「完整資料」，預設先用傳進來的 props 擋著
 const localTravelerData = ref({ ...props.traveler })
 
@@ -338,11 +345,15 @@ onMounted(async () => {
             <div class="flex items-center space-x-3 mb-4">
               <img
                 :src="localTravelerData.avatar"
-                class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
+                class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+                @click="handleAuthorClick"
               />
               <div>
                 <div class="flex items-center space-x-2">
-                  <span class="font-bold text-secondary-900">{{ localTravelerData.author }}</span>
+                  <span 
+                    class="font-bold text-secondary-900 cursor-pointer hover:text-primary-600 transition"
+                    @click="handleAuthorClick"
+                  >{{ localTravelerData.author }}</span>
                   <span
                     class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
                   >

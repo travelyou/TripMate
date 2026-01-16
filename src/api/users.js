@@ -61,7 +61,8 @@ export async function getUserProfile(uid) {
     const response = await fetch(`${API_BASE_URL}/users/${uid}`)
     if (!response.ok) {
       if (response.status === 404) {
-        return null // 用戶不存在
+        // 404 是正常情況（用戶可能還沒在資料庫中），靜默返回 null
+        return null
       }
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
       throw new Error(errorData.error || errorData.details || '獲取用戶資料失敗')
@@ -69,7 +70,14 @@ export async function getUserProfile(uid) {
     const data = await response.json()
     return data
   } catch (error) {
+    // 只記錄非 404 錯誤
+    if (!error.message?.includes('404') && !error.message?.includes('Not Found')) {
     console.error('獲取用戶資料錯誤：', error)
+    }
+    // 如果是 404 相關錯誤，返回 null 而不是拋出錯誤
+    if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+      return null
+    }
     throw error
   }
 }

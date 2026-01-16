@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
@@ -16,29 +16,52 @@ import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
 import TabVisitedPlaces from '@/components/profile/tabs/TabVisitedPlaces.vue'
 import TabPosts from '@/components/profile/tabs/TabPosts.vue'
 import TabReviews from '@/components/profile/tabs/TabReviews.vue'
-import TabDrafts from '@/components/profile/tabs/TabDrafts.vue' // 引入新建立的草稿分頁組件
-import { useRouter } from 'vue-router' // 引入路由器，用於跳轉頁面
+import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
+import { useRouter, useRoute } from 'vue-router'
 
 // Store setup
 const userStore = useUserStore()
 const discussionsStore = useDiscussionsStore()
 const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
-const router = useRouter() // 初始化路由器
+const router = useRouter()
+const route = useRoute()
 
-const user = computed(() => userStore.currentUser)
+const targetUid = computed(() => route.params.uid || userStore.currentUser?.uid)
+const isCurrentUser = computed(() => {
+  if (!userStore.currentUser?.uid || !targetUid.value) return false
+  return userStore.currentUser.uid === targetUid.value
+})
+
+const viewingUser = ref(null)
+const user = computed(() => viewingUser.value || userStore.currentUser)
 const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
-const isCurrentUser = true // In real app, check if route param ID matches current user ID
+
+// 用於實時連動許願球池的臨時狀態
+const tempWishlist = ref(null)
+const displayWishlist = computed(() => {
+  // 如果編輯彈窗打開且有臨時狀態，使用臨時狀態；否則使用 store 中的數據
+  if (isEditingProfile.value && tempWishlist.value !== null) {
+    return tempWishlist.value
+  }
+  return isCurrentUser.value ? userStore.wishlist : (user.value.wishlist || [])
+})
 
 // Tab State
 const activeTab = ref('hosted_trips')
-const tabs = [
+const tabs = computed(() => {
+  const baseTabs = [
   { k: 'visited_places', l: '去過的地方', s: '足跡' },
   { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
   { k: 'posts', l: '貼文', s: '貼文' },
   { k: 'reviews', l: '好評', s: '好評' },
-  { k: 'drafts', l: '草稿夾', s: '草稿' }, // 在 Tabs 列表新增草稿分頁
-]
+  ]
+  // 只有本人才顯示草稿夾
+  if (isCurrentUser.value) {
+    baseTabs.push({ k: 'drafts', l: '草稿夾', s: '草稿' })
+  }
+  return baseTabs
+})
 
 // Modal State
 const isDetailModalOpen = ref(false)
@@ -68,17 +91,28 @@ const activeTabsData = computed(() => {
       isAuthor: true,
       commentsData: [],
     })),
-    posts: discussionsStore.discussions.filter((p) => p.author === user.value.name),
+    posts: discussionsStore.discussions.filter((p) =>
+      p.author === user.value.name ||
+      p.author === user.value.nickname ||
+      p.author_uid === user.value.uid
+    ),
     reviews: user.value.reviews || [],
   }
 })
 
 // Stats for Header
+const profileStats = ref({
+  hosted: 0,
+  posts: 0,
+  reviews: 0,
+  friends: 0
+})
+
 const stats = computed(() => ({
-  hosted: activeTabsData.value.hostedTrips.length,
-  posts: activeTabsData.value.posts.length,
-  reviews: activeTabsData.value.reviews.length,
-  friends: user.value.friends ? user.value.friends.length : 0,
+  hosted: profileStats.value.hosted || activeTabsData.value.hostedTrips.length,
+  posts: profileStats.value.posts || activeTabsData.value.posts.length,
+  reviews: profileStats.value.reviews || activeTabsData.value.reviews.length,
+  friends: profileStats.value.friends || (user.value.friends ? user.value.friends.length : 0),
 }))
 
 // Methods
@@ -97,19 +131,99 @@ const openDetail = (post, focusComment = false) => {
   isDetailModalOpen.value = true
 }
 
-const handleSaveProfile = (formData) => {
-  const { wishlist, hiddenStamps, ...profileData } = formData
+const handleSaveField = async ({ field, data }) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
 
-  // Update Profile
-  userStore.updateProfile(profileData)
+  try {
+    const { updateUserProfile } = await import('@/api/users')
+    const { updateWishlist } = await import('@/api/profile')
 
-  // Update Wishlist
-  userStore.wishlist = wishlist
+    switch (field) {
+      case 'name':
+        await updateUserProfile(user.value.uid, {
+          nickname: data.nickname || data.name,
+        })
+        userStore.updateProfile({ nickname: data.nickname || data.name })
+        break
+      case 'location':
+        await updateUserProfile(user.value.uid, {
+          location: data.location || '台灣',
+        })
+        userStore.updateProfile({ location: data.location || '台灣' })
+        break
+      case 'bio':
+        await updateUserProfile(user.value.uid, {
+          bio: data.bio,
+        })
+        userStore.updateProfile({ bio: data.bio })
+        break
+      case 'tags':
+        // 標籤目前可能只是本地狀態，如果需要保存到後端，可以在這裡添加
+        userStore.updateProfile({ tags: data.tags })
+        break
+      case 'wishlist':
+        await updateWishlist(user.value.uid, data.wishlist || [])
+        userStore.wishlist = data.wishlist || []
+        break
+    }
+  } catch (error) {
+    console.error(`保存 ${field} 失敗：`, error)
+    throw error
+  }
+}
 
-  // Update Hidden Stamps
-  userStore.hiddenStamps = hiddenStamps
+const handleSaveProfile = async (formData) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
 
+  const { wishlist, hiddenStamps, tags, ...profileData } = formData
+
+  try {
+    // 更新用戶基本資料
+    const { updateUserProfile } = await import('@/api/users')
+    await updateUserProfile(user.value.uid, {
+      nickname: profileData.nickname || profileData.name,
+      location: profileData.location || '台灣',
+      avatar: profileData.avatar,
+      bio: profileData.bio,
+      spirit_animal: profileData.spiritAnimal,
+    })
+
+    // 更新本地狀態（包括 tags）
+    userStore.updateProfile({
+      ...profileData,
+      tags: tags || [],
+    })
+
+    // 更新許願球池
+    const { updateWishlist } = await import('@/api/profile')
+    const wishlistArray = Array.isArray(wishlist) ? wishlist : []
+    await updateWishlist(user.value.uid, wishlistArray)
+    userStore.wishlist = wishlistArray
+
+    // Update Hidden Stamps (本地狀態)
+    userStore.hiddenStamps = hiddenStamps
+
+    // 重新載入個人檔案資料以確保數據同步
+    await loadProfileData()
+
+    // 關閉編輯彈窗
+    handleCloseEditModal()
+  } catch (error) {
+    console.error('儲存個人檔案失敗：', error)
+    // 即使發生錯誤也關閉彈窗
+    handleCloseEditModal()
+  }
+}
+
+const handleUpdateWishlist = (wishlist) => {
+  // 更新臨時狀態，實現實時連動
+  tempWishlist.value = wishlist
+}
+
+const handleCloseEditModal = () => {
   isEditingProfile.value = false
+  // 重置臨時狀態
+  tempWishlist.value = null
 }
 
 /**
@@ -130,27 +244,51 @@ const handleSelectDraft = (draft) => {
   }
 }
 
-const handleAddPlace = ({ type, name, date, icon }) => {
+const handleAddPlace = async ({ type, name, date, icon }) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
+
+  try {
+    const { addVisitedPlace } = await import('@/api/profile')
   const newPlaceObj = {
     name: name,
     date: date || new Date().toISOString().slice(0, 7).replace('-', '.'),
-    icon: icon, // Add icon support
-  }
+      type: type,
+      icon: icon,
+    }
+    const result = await addVisitedPlace(user.value.uid, newPlaceObj)
   userStore.addVisitedPlace(newPlaceObj, type)
+  } catch (error) {
+    console.error('新增去過的地方失敗：', error)
+  }
 }
 
-const handleRemovePlace = ({ type, index }) => {
-  const places =
-    type === 'domestic' ? userStore.visitedPlaces.domestic : userStore.visitedPlaces.international
+const handleRemovePlace = async ({ type, id, index }) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
+
+  try {
+    const places = isCurrentUser.value
+      ? (type === 'domestic' ? userStore.visitedPlaces.domestic : userStore.visitedPlaces.international)
+      : (type === 'domestic' ? user.value.visitedPlaces?.domestic : user.value.visitedPlaces?.international)
+
+    if (id) {
+      // 如果有 id，從資料庫刪除
+      const { removeVisitedPlace } = await import('@/api/profile')
+      await removeVisitedPlace(user.value.uid, id)
+    }
+
+    // 從本地狀態刪除
+    if (places && typeof index === 'number' && index >= 0 && index < places.length) {
   places.splice(index, 1)
+    }
+  } catch (error) {
+    console.error('刪除去過的地方失敗：', error)
+  }
 }
 
 const handleUpdateAvatar = (file) => {
-  if (!file) return
+  if (!isCurrentUser.value || !file) return
   const reader = new FileReader()
   reader.onload = (e) => {
-    // Update store directly for immediate feedback
-    // In a real app, you would upload to server first
     userStore.updateProfile({ avatar: e.target.result })
   }
   reader.readAsDataURL(file)
@@ -164,9 +302,90 @@ const closePersonalityResult = () => {
   isPersonalityModalOpen.value = false
 }
 
-// Ensure store consistency
+// 載入個人檔案資料
+const loading = ref(false)
+const loadProfileData = async () => {
+  if (!targetUid.value) {
+    if (!userStore.isLoggedIn) {
+      router.push('/login')
+    }
+    return
+  }
+
+  loading.value = true
+  try {
+    const { getProfile } = await import('@/api/profile')
+    const profileData = await getProfile(targetUid.value)
+
+    if (profileData) {
+      // 如果是查看其他用戶，創建一個新的用戶物件
+      if (!isCurrentUser.value) {
+        viewingUser.value = {
+          id: profileData.user.uid,
+          uid: profileData.user.uid,
+          name: profileData.user.nickname || '用戶',
+          nickname: profileData.user.nickname,
+          email: profileData.user.email,
+          avatar: profileData.user.avatar,
+          bio: profileData.user.bio,
+          spiritAnimal: profileData.user.spirit_animal,
+          role: profileData.user.role,
+          vendorId: profileData.user.vendor_id,
+          friends: profileData.friends,
+          reviews: profileData.reviews,
+          visitedPlaces: profileData.visitedPlaces,
+          wishlist: profileData.wishlist,
+        }
+      } else {
+        // 如果是本人，更新 store 中的資料
+        userStore.setUserProfile({
+          uid: profileData.user.uid,
+          email: profileData.user.email,
+          nickname: profileData.user.nickname,
+          avatar: profileData.user.avatar,
+          bio: profileData.user.bio,
+          spiritAnimal: profileData.user.spirit_animal,
+          role: profileData.user.role,
+          vendorId: profileData.user.vendor_id,
+        })
+
+        userStore.visitedPlaces = profileData.visitedPlaces
+        userStore.wishlist = profileData.wishlist
+        userStore.currentUser.friends = profileData.friends
+        userStore.currentUser.reviews = profileData.reviews
+      }
+
+      // 更新統計資料
+      profileStats.value = profileData.stats || {
+        hosted: 0,
+        posts: 0,
+        reviews: 0,
+        friends: 0
+      }
+    } else {
+      // 如果找不到用戶資料，且不是當前用戶，跳轉到首頁
+      if (!isCurrentUser.value) {
+        router.push('/')
+      }
+    }
+  } catch (error) {
+    console.error('載入個人檔案資料失敗：', error)
+    if (!isCurrentUser.value) {
+      router.push('/')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 監聽路由變化
+watch(() => route.params.uid, () => {
+  viewingUser.value = null
+  loadProfileData()
+}, { immediate: true })
+
 onMounted(() => {
-  // If needed, fetch data here
+  loadProfileData()
 })
 </script>
 
@@ -178,6 +397,7 @@ onMounted(() => {
       :is-current-user="isCurrentUser"
       :stats="stats"
       @edit-profile="isEditingProfile = true"
+      @edit-bio="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
       @open-friends="handleOpenFriends"
     />
@@ -187,9 +407,11 @@ onMounted(() => {
       <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
         <ProfileSidebar
           :user="user"
-          :wishlist="userStore.wishlist"
+          :wishlist="displayWishlist"
           :personality-result="personalityResult"
+          :is-current-user="isCurrentUser"
           @open-personality-result="openPersonalityResult"
+          @edit-wishlist="isEditingProfile = true"
         />
       </div>
 
@@ -221,7 +443,7 @@ onMounted(() => {
         <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 min-h-[400px] p-6">
           <TabVisitedPlaces
             v-if="activeTab === 'visited_places'"
-            :visited-places="userStore.visitedPlaces"
+            :visited-places="isCurrentUser ? userStore.visitedPlaces : (user.visitedPlaces || { domestic: [], international: [] })"
             :is-current-user="isCurrentUser"
             @add-place="handleAddPlace"
             @remove-place="handleRemovePlace"
@@ -255,12 +477,15 @@ onMounted(() => {
 
     <!-- Modals -->
     <EditProfileModal
+      v-if="isCurrentUser"
       :is-open="isEditingProfile"
       :user="user"
       :wishlist="userStore.wishlist"
       :hidden-stamps="userStore.hiddenStamps"
-      @close="isEditingProfile = false"
+      @close="handleCloseEditModal"
       @save="handleSaveProfile"
+      @save-field="handleSaveField"
+      @update-wishlist="handleUpdateWishlist"
     />
 
     <FriendListModal

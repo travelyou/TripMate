@@ -2,130 +2,41 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { API_BASE_URL } from '@/api/config'
+import { getUserProfile } from '@/api/users'
 import { auth, db } from '@/firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
-    id: 1,
-    uid: 'gDuCNAtHzhUj3So6rGB4LC6fD2h2',
-    name: 'Jovi',
-    nickname: 'Jovi',
-    email: 'jovi@example.com',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
-    bgImage: 'https://picsum.photos/1200/400?random=1',
-    bio: '熱愛攝影與獨自旅行的背包客。喜歡在巷弄間尋找驚喜。目前正在計畫環遊世界中！',
-    joinDate: '2023年5月',
-    location: '台北, 台灣',
-    website: 'https://jovitravels.com',
-    spiritAnimal: '觀察家',
+    id: null,
+    uid: null,
+    name: '',
+    nickname: '',
+    email: '',
+    avatar: '',
+    bgImage: '',
+    bio: '',
+    joinDate: '',
+    location: '',
+    website: '',
+    spiritAnimal: '',
     role: 'user',
     vendorId: null,
-    followers: 1250,
-    following: 340,
-    tripsHosted: 5,
-    tags: ['攝影', '背包客', '美食', '自由行'],
-    reviews: [
-      {
-        id: 1,
-        author: '小美',
-        target: 'Jovi',
-        avatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M',
-        sentiment: 'super_like',
-        tripTitle: '週末宜蘭溫泉放鬆之旅',
-        tripId: 101,
-        content: '主揪超讚！行程安排得很順暢，人也很隨和～',
-        date: '2024/11/20',
-      },
-      {
-        id: 2,
-        author: 'Tom',
-        target: 'Jovi',
-        avatar: 'https://placehold.co/100x100/87CEEB/ffffff?text=T',
-        sentiment: 'like',
-        tripTitle: '京都賞楓攝影團',
-        tripId: 102,
-        content: '很棒的旅伴，下次有機會再一起出遊！',
-        date: '2024/10/15',
-      },
-      {
-        id: 11,
-        author: 'Jovi',
-        target: '小美',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
-        targetAvatar: 'https://placehold.co/100x100/FFB6C1/ffffff?text=M',
-        sentiment: 'super_like',
-        tripTitle: '週末宜蘭溫泉放鬆之旅',
-        tripId: 101,
-        content: '小美是很棒的旅伴，很準時也很會照顧人！',
-        date: '2024/11/21',
-      },
-      {
-        id: 12,
-        author: 'Jovi',
-        target: 'David',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
-        targetAvatar: 'https://placehold.co/100x100/98FB98/ffffff?text=D',
-        sentiment: 'like',
-        tripTitle: '台東衝浪新手營',
-        tripId: 103,
-        content: '雖然是新手但學習態度很好，一起衝浪很開心。',
-        date: '2023/05/12',
-      },
-    ],
-    friends: [
-      {
-        id: 101,
-        name: 'Alice',
-        nickname: 'Ali',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
-      },
-      {
-        id: 102,
-        name: 'Bob',
-        nickname: 'Bobby',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
-      },
-      {
-        id: 103,
-        name: 'Charlie',
-        nickname: 'Char',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
-      },
-      {
-        id: 104,
-        name: 'David',
-        nickname: 'Dave',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David',
-      },
-      {
-        id: 105,
-        name: 'Eve',
-        nickname: 'Evie',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Eve',
-      },
-    ],
+    followers: 0,
+    following: 0,
+    tripsHosted: 0,
+    tags: [],
+    reviews: [],
+    friends: [],
   })
 
   const visitedPlaces = ref({
-    domestic: [
-      { name: '台北', date: '2024.01' },
-      { name: '台中', date: '2023.12' },
-      { name: '台南', date: '2023.10' },
-      { name: '花蓮', date: '2023.08' },
-      { name: '蘭嶼', date: '2023.07' },
-    ],
-    international: [
-      { name: '東京', date: '2023.11' },
-      { name: '大阪', date: '2023.09' },
-      { name: '首爾', date: '2023.05' },
-      { name: '曼谷', date: '2023.02' },
-      { name: '巴黎', date: '2022.12' },
-    ],
+    domestic: [],
+    international: [],
   })
 
-  const wishlist = ref(['冰島極光', '紐西蘭健行', '瑞士滑雪', '土耳其熱氣球'])
+  const wishlist = ref([])
   const likedPosts = ref([])
 
   const favorites = ref([])
@@ -194,22 +105,7 @@ export const useUserStore = defineStore('user', () => {
     { id: 'international', name: '國外旅遊', items: [] },
   ])
 
-  const participatedTrips = ref([
-    {
-      id: 201,
-      title: '澎湖花火節三天兩夜',
-      location: '澎湖, 台灣',
-      date: '2023-06-20',
-      type: 'participated',
-    },
-    {
-      id: 202,
-      title: '京都賞楓攝影團',
-      location: '京都, 日本',
-      date: '2023-11-15',
-      type: 'participated',
-    },
-  ])
+  const participatedTrips = ref([])
 
   const hiddenStamps = ref([])
 
@@ -269,21 +165,6 @@ export const useUserStore = defineStore('user', () => {
           type: 'participated',
           location: trip.location.split(',')[0],
           date: trip.date.slice(0, 7).replace('-', '.'),
-          title: trip.title,
-          source: 'system',
-          originalIndex: index,
-        })
-      }
-    })
-
-    const mockHosted = [{ title: '東京櫻花團', location: '東京', date: '2024-03' }]
-    mockHosted.forEach((trip, index) => {
-      const key = getKey('hosted', trip.location, trip.date.replace('-', '.'))
-      if (!hiddenStamps.value.includes(key)) {
-        entries.push({
-          type: 'hosted',
-          location: trip.location,
-          date: trip.date.replace('-', '.'),
           title: trip.title,
           source: 'system',
           originalIndex: index,
@@ -387,13 +268,14 @@ export const useUserStore = defineStore('user', () => {
         ...currentUser.value,
         id: profileData.uid,
         uid: profileData.uid,
-        name: profileData.realName || profileData.nickname || '用戶',
+        name: profileData.nickname || '用戶',
         nickname: profileData.nickname || profileData.email?.split('@')[0] || '用戶',
         email: profileData.email,
         avatar:
           profileData.avatar ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`,
         bio: profileData.bio || currentUser.value.bio,
+        location: profileData.location || '台灣',
         spiritAnimal: profileData.spiritAnimal || currentUser.value.spiritAnimal,
         role: profileData.role || 'user',
         vendorId: profileData.vendorId || null,
@@ -403,20 +285,18 @@ export const useUserStore = defineStore('user', () => {
 
   const loadUserProfile = async (uid) => {
     if (!uid) {
-      console.warn('[User Store] loadUserProfile: uid 為空，跳過載入')
       return
     }
 
     try {
       try {
-        const response = await axios.get(`${API_BASE_URL}/users/${uid}`)
-        const neonUserData = response.data
+        const neonUserData = await getUserProfile(uid)
 
+        if (neonUserData) {
         setUserProfile({
           uid: uid,
           email: firebaseUser.value?.email || neonUserData.email || '',
           nickname: neonUserData.nickname || '',
-          realName: neonUserData.real_name || '',
           avatar: neonUserData.avatar || '',
           bio: neonUserData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || '',
@@ -424,10 +304,12 @@ export const useUserStore = defineStore('user', () => {
           vendorId: neonUserData.vendor_id || null,
         })
         return
+        }
       } catch (neonError) {
-        // 404 錯誤是正常的（用戶可能還沒在資料庫中註冊，或剛註冊完成資料庫還在同步）
-        // 不需要記錄錯誤，靜默處理
-        if (neonError.response?.status !== 404) {
+        const is404Error = neonError.message?.includes('404') ||
+                          neonError.message?.includes('Not Found') ||
+                          neonError.response?.status === 404
+        if (!is404Error) {
           console.error('[User Store] 從 Neon 載入失敗，嘗試從 Firestore 載入：', neonError)
         }
       }
@@ -455,40 +337,57 @@ export const useUserStore = defineStore('user', () => {
   const isAdmin = computed(() => userRole.value === 'admin')
   const isRegularUser = computed(() => userRole.value === 'user')
 
+  const recentlyRegisteredUsers = new Set()
+
+  const markAsRecentlyRegistered = (uid) => {
+    recentlyRegisteredUsers.add(uid)
+    setTimeout(() => {
+      recentlyRegisteredUsers.delete(uid)
+    }, 2000)
+  }
+
   onAuthStateChanged(auth, async (user) => {
     firebaseUser.value = user
     isLoggedIn.value = user ? true : false
 
     if (user && user.uid) {
-      // 只有在用戶存在且有 uid 時才載入資料
       try {
-        await loadUserProfile(user.uid)
-        await fetchFavorites()
+        if (recentlyRegisteredUsers.has(user.uid)) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      await loadUserProfile(user.uid)
+      await fetchFavorites()
       } catch (error) {
-        // 靜默處理錯誤，避免在註冊流程中產生不必要的錯誤訊息
-        console.warn('[User Store] 載入用戶資料時發生錯誤（已靜默處理）：', error.message)
+        const is404Error = error.message?.includes('404') ||
+                          error.message?.includes('Not Found')
+        if (!is404Error) {
+          console.error('載入用戶資料失敗：', error)
+        }
       }
     } else {
       currentUser.value = {
-        id: 1,
-        name: 'Jovi',
-        nickname: 'Jovi',
-        email: 'jovi@example.com',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jovi',
-        bgImage: 'https://picsum.photos/1200/400?random=1',
-        bio: '熱愛攝影與獨自旅行的背包客。喜歡在巷弄間尋找驚喜。目前正在計畫環遊世界中！',
-        joinDate: '2023年5月',
-        location: '台北, 台灣',
-        website: 'https://jovitravels.com',
-        spiritAnimal: '觀察家',
+        id: null,
+        uid: null,
+        name: '',
+        nickname: '',
+        email: '',
+        avatar: '',
+        bgImage: '',
+        bio: '',
+        joinDate: '',
+        location: '',
+        website: '',
+        spiritAnimal: '',
         role: 'user',
         vendorId: null,
-        followers: 1250,
-        following: 340,
-        tripsHosted: 5,
-        tags: ['攝影', '背包客', '美食', '自由行'],
-        reviews: currentUser.value.reviews || [],
-        friends: currentUser.value.friends || [],
+        followers: 0,
+        following: 0,
+        tripsHosted: 0,
+        tags: [],
+        reviews: [],
+        friends: [],
       }
       favorites.value = []
     }
@@ -520,6 +419,7 @@ export const useUserStore = defineStore('user', () => {
     firebaseUser,
     setUserProfile,
     loadUserProfile,
+    markAsRecentlyRegistered,
     userRole,
     isVendor,
     isAdmin,

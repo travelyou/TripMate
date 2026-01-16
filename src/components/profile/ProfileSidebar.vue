@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { Pencil } from 'lucide-vue-next'
 
 const props = defineProps({
   user: {
@@ -14,9 +15,17 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  isCurrentUser: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['open-personality-result'])
+const emit = defineEmits(['open-personality-result', 'edit-wishlist'])
+
+const handleEditWishlist = () => {
+  emit('edit-wishlist')
+}
 
 const handleOpenPersonalityResult = () => {
   emit('open-personality-result')
@@ -105,7 +114,17 @@ function resetBalls() {
 
     <!-- Wishlist Ball Pool (Physics Effect) -->
     <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-3 md:p-6 overflow-hidden h-full flex flex-col justify-between">
-      <h3 class="text-sm md:text-lg font-bold text-gray-800 mb-2 md:mb-4 text-center w-full">🔮 許願球池</h3>
+      <div class="relative mb-2 md:mb-4">
+        <h3 class="text-sm md:text-lg font-bold text-gray-800 text-center w-full">🔮 許願球池</h3>
+        <button
+          v-if="isCurrentUser"
+          class="absolute top-0 right-0 p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-full transition"
+          title="編輯許願球池"
+          @click="handleEditWishlist"
+        >
+          <Pencil class="w-4 h-4" />
+        </button>
+      </div>
       <!-- Ball Container -->
       <div
         ref="ballContainer"

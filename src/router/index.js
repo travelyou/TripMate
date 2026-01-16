@@ -44,12 +44,11 @@ const router = createRouter({
       },
     },
     {
-      path: '/profile',
+      path: '/profile/:uid?',
       name: 'profile',
       component: () => import('@/views/ProfilePage.vue'),
       meta: {
         hideAd: true,
-        requiresAuth: true,
       },
     },
     {

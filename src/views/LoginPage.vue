@@ -169,7 +169,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="realName" class="text-sm sm:text-base">真實姓名</label>
+                <label for="realName" class="text-sm sm:text-base">姓名</label>
                 <input
                   id="realName"
                   v-model="registerForm.realName"
@@ -188,7 +188,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="nickname" class="text-sm sm:text-base">暱稱</label>
+                <label for="nickname" class="text-sm sm:text-base">暱稱(公開)</label>
                 <input
                   id="nickname"
                   v-model="registerForm.nickname"
@@ -389,7 +389,6 @@ const handleLogin = async () => {
         userData = userDoc.data()
       } else {
         userData = {
-          realName: '',
           nickname:
             userCredential.user.displayName || userCredential.user.email?.split('@')[0] || '用戶',
           email: userCredential.user.email,
@@ -417,10 +416,10 @@ const handleLogin = async () => {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         nickname: userData.nickname || '',
-        real_name: userData.realName || null,
+        location: userData.location || '台灣',
         avatar: userData.avatar || '',
-        bio: userData.bio || null, // 空字符串轉為 null
-        spirit_animal: userData.spiritAnimal || null, // 空字符串轉為 null
+        bio: userData.bio || null,
+        spirit_animal: userData.spiritAnimal || null,
         role: userRole,
         vendor_id: vendorId,
       })
@@ -435,7 +434,6 @@ const handleLogin = async () => {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           nickname: neonUserData.nickname || userData.nickname || '',
-          realName: neonUserData.real_name || userData.realName || '',
           avatar: neonUserData.avatar || userData.avatar || '',
           bio: neonUserData.bio || userData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || userData.spiritAnimal || '',
@@ -499,24 +497,8 @@ const handleRegister = async () => {
 
     registerForm.value.email = sanitizeEmail(registerForm.value.email)
 
-    // 清理 real_name（去除前后空格）
-    if (registerForm.value.realName) {
-      registerForm.value.realName = registerForm.value.realName.trim()
-    }
-
-    if (!registerForm.value.realName) {
-      registerErrors.value.realName = '請填寫真實姓名'
-      return
-    }
-
     // 驗證 email 格式的正則表達式
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-    // 驗證 real_name 不能是 email 格式
-    if (registerForm.value.realName.includes('@') || emailRegex.test(registerForm.value.realName)) {
-      registerErrors.value.realName = '真實姓名不能是電子信箱格式'
-      return
-    }
 
     // 清理 nickname（去除空格）
     if (registerForm.value.nickname) {
@@ -524,7 +506,7 @@ const handleRegister = async () => {
     }
 
     if (!registerForm.value.nickname) {
-      registerErrors.value.nickname = '請填暱稱'
+      registerErrors.value.nickname = '請填寫綽號'
       return
     }
     if (!registerForm.value.email) {
@@ -588,8 +570,8 @@ const handleRegister = async () => {
       nickname: registerForm.value.nickname.trim(),
       email: registerForm.value.email,
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
-      bio: null, // 使用 null 而不是空字符串
-      spiritAnimal: null, // 使用 null 而不是空字符串
+      bio: null,
+      spiritAnimal: null,
       role: registerForm.value.role || 'user',
       createdAt: new Date(),
     }
@@ -619,6 +601,9 @@ const handleRegister = async () => {
       })
 
       console.log('用戶資料已成功同步到 Neon 資料庫：', result)
+
+      // 標記用戶為最近註冊，避免 onAuthStateChanged 立即查詢導致 404
+      userStore.markAsRecentlyRegistered(userCredential.user.uid)
     } catch (syncError) {
       console.error('同步到 Neon 資料庫失敗：', syncError)
       console.error('錯誤詳情：', {
@@ -649,16 +634,31 @@ const handleRegister = async () => {
     registerForm.value.password = ''
     registerForm.value.confirmPassword = ''
   } catch (error) {
-    console.error('註冊失敗：', error.message)
+    console.error('註冊失敗：', error.code, error.message)
 
+    // 重置所有錯誤訊息
+    registerErrors.value = {
+      realName: '',
+      nickname: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      general: '',
+    }
+
+    // 根據錯誤類型顯示對應的錯誤訊息
     if (error.code === 'auth/email-already-in-use') {
-      registerErrors.value.email = '此電子信箱已被註冊使用'
+      registerErrors.value.email = '此電子信箱已被註冊使用，請使用其他電子信箱或直接登入'
     } else if (error.code === 'auth/weak-password') {
-      registerErrors.value.password = '密碼強度不夠'
+      registerErrors.value.password = '密碼強度不夠，請使用至少 6 個字元，包含大小寫字母和數字'
     } else if (error.code === 'auth/invalid-email') {
       registerErrors.value.email = '電子信箱格式錯誤（請確認沒有空白，並使用例如 name@example.com）'
+    } else if (error.code === 'auth/operation-not-allowed') {
+      registerErrors.value.general = '此操作不被允許，請聯繫管理員'
+    } else if (error.code === 'auth/network-request-failed') {
+      registerErrors.value.general = '網路連線失敗，請檢查您的網路連線後再試'
     } else {
-      registerErrors.value.general = '註冊失敗：' + error.message
+      registerErrors.value.general = '註冊失敗：' + (error.message || '未知錯誤，請稍後再試')
     }
   }
 }

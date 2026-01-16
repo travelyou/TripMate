@@ -10,6 +10,7 @@ const commentsRouter = require('./routes/comments')
 const likesRouter = require('./routes/likes')
 const usersRouter = require('./routes/users')
 const travelersRoutes = require('./routes/travelers')
+const profileRouter = require('./routes/profile')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -146,6 +147,9 @@ app.use('/api/travelers', travelersRoutes)
 
 // 使用用戶路由
 app.use('/api/users', usersRouter)
+
+// 使用個人檔案路由
+app.use('/api/profile', profileRouter)
 
 // 相容：若部署環境沒有 /api 前綴（或你想支援兩種路徑），也提供 /discussions
 app.use('/discussions', discussionsRouter)

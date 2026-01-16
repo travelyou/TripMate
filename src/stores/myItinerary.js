@@ -160,25 +160,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     },
   ])
 
-  // 2. 草稿夾數據
-  const drafts = ref([
-    {
-      id: 101,
-      type: 'discussion',
-      typeLabel: '討論區',
-      saveTime: '2024-12-05 14:30',
-      title: '詢問日本超商問題',
-      content: '下個月要去日本東京自由行，想在那邊買大研特享...',
-    },
-    {
-      id: 102,
-      type: 'traveler',
-      typeLabel: '找旅伴',
-      saveTime: '2024-12-04 10:12',
-      title: '徵求春天北海道旅伴',
-      content: '計畫明年4月去北海道賞櫻，想找志同道合的旅伴...',
-    },
-  ])
+  const drafts = ref([])
 
   // 新增行程
   const addItinerary = () => {

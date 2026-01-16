@@ -66,8 +66,8 @@ router.post('/', async (req, res) => {
 
       console.log('[Users API] ========== 開始處理 vendor 角色 ==========');
       console.log('[Users API] UID:', uid);
-      console.log('[Users API] real_name:', real_name);
       console.log('[Users API] nickname:', nickname);
+      console.log('[Users API] location:', location);
       console.log('[Users API] email:', email);
 
       try {
@@ -126,8 +126,8 @@ router.post('/', async (req, res) => {
 
         if (!exists) {
           // 創建新的 vendor 記錄
-          // 使用 real_name 或 nickname 作為 vendor 名稱
-          const vendorName = real_name || nickname || email?.split('@')[0] || '未命名廠商';
+          // 使用 nickname 作為 vendor 名稱
+          const vendorName = nickname || email?.split('@')[0] || '未命名廠商';
           const vendorAvatar = avatar || null;
 
           console.log('[Users API] 準備創建 vendor 記錄:');
@@ -168,7 +168,7 @@ router.post('/', async (req, res) => {
               console.log('[Users API] 找到可用的 vendor_id:', newVendorId);
 
               // 創建新的 vendor 記錄
-              const vendorName = real_name || nickname || email?.split('@')[0] || '未命名廠商';
+              const vendorName = nickname || email?.split('@')[0] || '未命名廠商';
               const vendorAvatar = avatar || null;
               const insertVendorQuery = `
                 INSERT INTO vendors (id, name, avatar, created_at, updated_at)
@@ -250,12 +250,11 @@ router.post('/', async (req, res) => {
         SET
           email = COALESCE($2, email),
           nickname = COALESCE($3, nickname),
-          real_name = COALESCE($4, real_name),
-          avatar = COALESCE($5, avatar),
-          bio = COALESCE($6, bio),
-          spirit_animal = COALESCE($7, spirit_animal),
-          role = $8,
-          vendor_id = $9,
+          avatar = COALESCE($4, avatar),
+          bio = COALESCE($5, bio),
+          spirit_animal = COALESCE($6, spirit_animal),
+          role = $7,
+          vendor_id = $8,
           updated_at = CURRENT_TIMESTAMP
         WHERE uid = $1
         RETURNING *
@@ -264,7 +263,6 @@ router.post('/', async (req, res) => {
         uid,
         email,
         nickname,
-        real_name,
         avatar,
         bio,
         spirit_animal,
@@ -287,8 +285,8 @@ router.post('/', async (req, res) => {
       // 注意：created_at 和 updated_at 應該有默認值，不需要在 INSERT 中指定
       // 如果表中有 vendor 或 conversation 外鍵欄位，需要確認是否需要處理
       const insertQuery = `
-        INSERT INTO users (uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO users (uid, email, nickname, avatar, bio, spirit_animal, role, vendor_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `;
 
@@ -296,12 +294,11 @@ router.post('/', async (req, res) => {
         uid,                    // $1: uid
         email,                  // $2: email
         nickname || null,       // $3: nickname
-        real_name || null,      // $4: real_name
-        avatar || null,         // $5: avatar
-        bio || null,            // $6: bio
-        spirit_animal || null,  // $7: spirit_animal
-        finalRole,              // $8: role
-        finalVendorId,          // $9: vendor_id
+        avatar || null,         // $4: avatar
+        bio || null,            // $5: bio
+        spirit_animal || null,  // $6: spirit_animal
+        finalRole,              // $7: role
+        finalVendorId,          // $8: vendor_id
       ];
 
       console.log('[Users API] ========== 準備插入新用戶 ==========');
@@ -524,7 +521,7 @@ router.get('/:uid', async (req, res) => {
 router.put('/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    let { nickname, real_name, avatar, bio, spirit_animal } = req.body;
+    let { nickname, real_name, location, avatar, bio, spirit_animal } = req.body;
 
     // 驗證 real_name 不能是 email 格式
     if (real_name) {
@@ -541,15 +538,21 @@ router.put('/:uid', async (req, res) => {
     // 統一處理空字符串為 null
     if (bio === '') bio = null;
     if (spirit_animal === '') spirit_animal = null;
+    
+    // 處理 location，如果沒有提供則設為 '台灣'
+    if (location === undefined || location === null || location === '') {
+      location = '台灣';
+    }
 
     const updateQuery = `
       UPDATE users
       SET
         nickname = COALESCE($2, nickname),
         real_name = COALESCE($3, real_name),
-        avatar = COALESCE($4, avatar),
-        bio = COALESCE($5, bio),
-        spirit_animal = COALESCE($6, spirit_animal),
+        location = COALESCE($4, location, '台灣'),
+        avatar = COALESCE($5, avatar),
+        bio = COALESCE($6, bio),
+        spirit_animal = COALESCE($7, spirit_animal),
         updated_at = CURRENT_TIMESTAMP
       WHERE uid = $1
       RETURNING *
@@ -559,6 +562,7 @@ router.put('/:uid', async (req, res) => {
       uid,
       nickname,
       real_name,
+      location,
       avatar,
       bio,
       spirit_animal,

@@ -2,10 +2,21 @@
 import { computed, ref, onMounted } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Heart, MessageCircle, Repeat2, Bookmark } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 import { useUserStore } from '@/stores/user'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
+
+const router = useRouter()
+
+const handleAvatarClick = (e) => {
+  e.stopPropagation()
+  const authorUid = props.post.author_uid
+  if (authorUid) {
+    router.push(`/profile/${authorUid}`)
+  }
+}
 
 const props = defineProps({
   post: {
@@ -100,12 +111,16 @@ onMounted(async () => {
     <div class="flex items-center space-x-3 mb-4">
       <img
         :src="post.avatar"
-        class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+        class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
         alt="作者頭像"
+        @click="handleAvatarClick"
       />
       <div>
         <div class="flex items-center space-x-2">
-          <span class="font-bold text-gray-800">{{ post.author }}</span>
+          <span 
+            class="font-bold text-gray-800 cursor-pointer hover:text-primary-600 transition"
+            @click="handleAvatarClick"
+          >{{ post.author }}</span>
           <span
             v-if="post.spiritAnimal"
             class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
