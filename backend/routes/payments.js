@@ -76,37 +76,90 @@ router.post('/create', async (req, res) => {
  */
 
 router.get('/mock-pay', async (req, res) => {
+  const client = await pool.connect()
   try {
     const { orderId } = req.query || {}
-    if (!orderId) return res.status(400).send('orderId is required')
+    if (!orderId) return res.status(400).json({ ok: false, message: 'orderId is required' })
 
-    // 確認訂單存在
-    const o = await pool.query('SELECT id, status FROM commerce.orders WHERE id = $1', [orderId])
-    if (o.rows.length === 0) {
-      return res.status(404).json({ ok: false, message: 'order not found' })
-    }
+    await client.query('BEGIN')
 
-    // 1) 更新最新一筆 payment 狀態為 PAID（若你希望一定要有 payment，這裡可加判斷）
-    await pool.query(
-      `UPDATE commerce.payments
-      SET status = 'PAID'
-      WHERE id = (
-        SELECT id
-        FROM commerce.payments
-        WHERE order_id = $1
-        ORDER BY created_at DESC
-        LIMIT 1
-      )`,
+    // 1) 鎖定訂單，避免同時有人對同一筆訂單 mock-pay
+    const orderResult = await client.query(
+      `SELECT id, status
+       FROM commerce.orders
+       WHERE id = $1
+       FOR UPDATE`,
       [orderId],
     )
 
-    // 2) 更新訂單狀態為 PAID
-    await pool.query(`UPDATE commerce.orders SET status = 'PAID' WHERE id = $1`, [orderId])
+    if (orderResult.rowCount === 0) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ ok: false, message: 'order not found' })
+    }
 
-    return res.json({ ok: true, message: 'mock payment success', orderId })
+    const order = orderResult.rows[0]
+
+    // 可選：避免重複付款（看你需求）
+    if (order.status === 'PAID') {
+      await client.query('ROLLBACK')
+      return res.status(409).json({ ok: false, message: 'order already paid', orderId })
+    }
+
+    // 2) 更新「最新一筆 payment」為 PAID
+    //    用 RETURNING 確認真的有更新到
+    const payResult = await client.query(
+      `UPDATE commerce.payments
+       SET status = 'PAID', updated_at = NOW()
+       WHERE id = (
+         SELECT id
+         FROM commerce.payments
+         WHERE order_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1
+       )
+       RETURNING id, status`,
+      [orderId],
+    )
+
+    if (payResult.rowCount === 0) {
+      // 代表這個 order 根本沒有 payment 可更新
+      await client.query('ROLLBACK')
+      return res.status(404).json({ ok: false, message: 'payment not found for this order', orderId })
+    }
+
+    // 3) 更新訂單狀態為 PAID（同樣檢查）
+    const orderUpdate = await client.query(
+      `UPDATE commerce.orders
+       SET status = 'PAID', updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, status`,
+      [orderId],
+    )
+
+    if (orderUpdate.rowCount === 0) {
+      // 理論上不會發生，因為前面 FOR UPDATE 已確認存在
+      throw new Error('order update failed unexpectedly')
+    }
+
+    await client.query('COMMIT')
+
+    return res.json({
+      ok: true,
+      message: 'mock payment success',
+      orderId,
+      paymentId: payResult.rows[0].id,
+    })
   } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch (e) {
+      // rollback 也可能失敗，但至少不要讓它吃掉原錯誤
+      console.error('[mock-pay] rollback error:', e)
+    }
     console.error('[GET /api/payments/mock-pay] error:', err)
     return res.status(500).json({ ok: false, message: 'server error' })
+  } finally {
+    client.release()
   }
 })
 
