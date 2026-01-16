@@ -79,10 +79,10 @@ const displayWishlist = computed(() => {
 const activeTab = ref('hosted_trips')
 const tabs = computed(() => {
   const baseTabs = [
-  { k: 'visited_places', l: '去過的地方', s: '足跡' },
-  { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
-  { k: 'posts', l: '貼文', s: '貼文' },
-  { k: 'reviews', l: '好評', s: '好評' },
+    { k: 'visited_places', l: '去過的地方', s: '足跡' },
+    { k: 'hosted_trips', l: '主揪的旅行', s: '主揪' },
+    { k: 'posts', l: '貼文', s: '貼文' },
+    { k: 'reviews', l: '好評', s: '好評' },
   ]
   if (isCurrentUser.value) {
     baseTabs.push({ k: 'drafts', l: '草稿夾', s: '草稿' })
@@ -266,6 +266,10 @@ const handleCloseEditModal = () => {
   tempWishlist.value = null
 }
 
+/**
+ * 處理從 TabDrafts 分頁傳來的 'select-draft' 事件
+ * @param {Object} draft - 使用者選中的草稿
+ */
 const handleSelectDraft = (draft) => {
   if (draft.type === 'my_itinerary' || draft.type === 'itinerary') {
     router.push({ path: '/my-itinerary', query: { openDraft: draft.id } })
@@ -274,9 +278,7 @@ const handleSelectDraft = (draft) => {
   } else if (draft.type === 'traveler') {
     router.push({ path: '/traveler', query: { openDraft: draft.id } })
   } else {
-    alert(
-      `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
-    )
+    alert(`這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`)
   }
 }
 
@@ -548,7 +550,10 @@ onMounted(() => {
             @open-post="openDetail({ id: $event, title: 'Mock Post', content: 'Loading...' })"
           />
 
-          <TabDrafts v-if="activeTab === 'drafts'" @select-draft="handleSelectDraft" />
+          <TabDrafts
+            v-if="activeTab === 'drafts'"
+            @select-draft="handleSelectDraft"
+          />
         </div>
       </div>
     </div>
