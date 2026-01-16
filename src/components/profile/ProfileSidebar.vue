@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue'
 import { Pencil } from 'lucide-vue-next'
+import WishBallPool from './WishBallPool.vue'
 
 const props = defineProps({
   user: {
@@ -29,45 +29,6 @@ const handleEditWishlist = () => {
 
 const handleOpenPersonalityResult = () => {
   emit('open-personality-result')
-}
-
-// Wishlist Physics Logic
-const ballContainer = ref(null)
-
-function handleMouseMove(e) {
-  if (!ballContainer.value) return
-  const balls = ballContainer.value.querySelectorAll('.wish-ball')
-  const rect = ballContainer.value.getBoundingClientRect()
-  const mouseX = e.clientX - rect.left
-  const mouseY = e.clientY - rect.top
-
-  balls.forEach((ball) => {
-    const ballRect = ball.getBoundingClientRect()
-    const ballX = ballRect.left - rect.left + ballRect.width / 2
-    const ballY = ballRect.top - rect.top + ballRect.height / 2
-
-    const dx = ballX - mouseX
-    const dy = ballY - mouseY
-    const dist = Math.sqrt(dx * dx + dy * dy)
-    const minDist = 100 // Interaction radius
-
-    if (dist < minDist) {
-      const force = (minDist - dist) / minDist
-      const moveX = (dx / dist) * force * 50 // Push strength
-      const moveY = (dy / dist) * force * 50
-
-      ball.style.transform = `translate(${moveX}px, ${moveY}px)`
-    } else {
-      ball.style.transform = 'translate(0, 0)'
-    }
-  })
-}
-
-function resetBalls() {
-  if (!ballContainer.value) return
-  ballContainer.value
-    .querySelectorAll('.wish-ball')
-    .forEach((b) => (b.style.transform = 'translate(0,0)'))
 }
 </script>
 
@@ -126,27 +87,7 @@ function resetBalls() {
         </button>
       </div>
       <!-- Ball Container -->
-      <div
-        ref="ballContainer"
-        class="relative flex-1 min-h-[160px] lg:min-h-[300px] bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 p-2 md:p-4 flex flex-wrap content-end items-end justify-center gap-1 md:gap-2 transition-all w-full"
-        @mousemove="handleMouseMove"
-        @mouseleave="resetBalls"
-      >
-        <div
-          v-if="wishlist.length === 0"
-          class="absolute inset-0 flex items-center justify-center text-gray-400 text-xs md:text-sm"
-        >
-          快去許願吧！
-        </div>
-
-        <div
-          v-for="(item, index) in wishlist"
-          :key="index"
-          class="wish-ball w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center text-[10px] md:text-xs font-bold text-primary-700 shadow-md border-2 border-white select-none transition-transform duration-300 ease-out z-10 text-center leading-tight p-0.5 md:p-1 break-words"
-        >
-          {{ item }}
-        </div>
-      </div>
+      <WishBallPool :wishlist="wishlist" />
     </div>
   </div>
 </template>

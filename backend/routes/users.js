@@ -521,52 +521,69 @@ router.get('/:uid', async (req, res) => {
 router.put('/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    let { nickname, real_name, location, avatar, bio, spirit_animal } = req.body;
-
-    // 驗證 real_name 不能是 email 格式
-    if (real_name) {
-      const trimmedName = real_name.trim();
-      // 檢查是否包含 @ 或看起來像 email
-      if (trimmedName.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedName)) {
-        console.warn(`警告：real_name 看起來像 email，不更新此欄位 (UID: ${uid}, real_name: ${real_name})`);
-        real_name = undefined;
-      } else {
-        real_name = trimmedName;
-      }
-    }
+    let { nickname, location, avatar, bio, spirit_animal } = req.body;
 
     // 統一處理空字符串為 null
     if (bio === '') bio = null;
     if (spirit_animal === '') spirit_animal = null;
     
-    // 處理 location，如果沒有提供則設為 '台灣'
-    if (location === undefined || location === null || location === '') {
+    // 處理 location，如果沒有提供或為空字符串則設為 '台灣'
+    if (location === undefined || location === null || (typeof location === 'string' && location.trim() === '')) {
       location = '台灣';
+    } else if (typeof location === 'string') {
+      location = location.trim();
     }
 
-    const updateQuery = `
-      UPDATE users
-      SET
-        nickname = COALESCE($2, nickname),
-        real_name = COALESCE($3, real_name),
-        location = COALESCE($4, location, '台灣'),
-        avatar = COALESCE($5, avatar),
-        bio = COALESCE($6, bio),
-        spirit_animal = COALESCE($7, spirit_animal),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE uid = $1
-      RETURNING *
-    `;
+    // 檢查 location 欄位是否存在
+    let hasLocationColumn = false;
+    try {
+      const checkColumnQuery = `
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'location'
+      `;
+      const columnCheck = await pool.query(checkColumnQuery);
+      hasLocationColumn = columnCheck.rows.length > 0;
+    } catch (error) {
+      console.warn('檢查 location 欄位時發生錯誤，假設欄位不存在:', error.message);
+      hasLocationColumn = false;
+    }
 
-    const result = await pool.query(updateQuery, [
-      uid,
-      nickname,
-      real_name,
-      location,
-      avatar,
-      bio,
-      spirit_animal,
-    ]);
+    // 根據欄位是否存在構建不同的 SQL 查詢
+    let updateQuery;
+    let queryParams;
+
+    if (hasLocationColumn) {
+      updateQuery = `
+        UPDATE users
+        SET
+          nickname = COALESCE($2, nickname),
+          location = COALESCE($3, location, '台灣'),
+          avatar = COALESCE($4, avatar),
+          bio = COALESCE($5, bio),
+          spirit_animal = COALESCE($6, spirit_animal),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE uid = $1
+        RETURNING *
+      `;
+      queryParams = [uid, nickname, location, avatar, bio, spirit_animal];
+    } else {
+      // 如果 location 欄位不存在，不更新它
+      updateQuery = `
+        UPDATE users
+        SET
+          nickname = COALESCE($2, nickname),
+          avatar = COALESCE($3, avatar),
+          bio = COALESCE($4, bio),
+          spirit_animal = COALESCE($5, spirit_animal),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE uid = $1
+        RETURNING *
+      `;
+      queryParams = [uid, nickname, avatar, bio, spirit_animal];
+    }
+
+    const result = await pool.query(updateQuery, queryParams);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' });

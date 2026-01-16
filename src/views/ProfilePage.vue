@@ -180,9 +180,14 @@ const handleSaveProfile = async (formData) => {
   try {
     // 更新用戶基本資料
     const { updateUserProfile } = await import('@/api/users')
+    // 確保 location 有值，如果為空或未定義則使用 '台灣'
+    const locationValue = profileData.location && profileData.location.trim()
+      ? profileData.location.trim()
+      : '台灣'
+
     await updateUserProfile(user.value.uid, {
       nickname: profileData.nickname || profileData.name,
-      location: profileData.location || '台灣',
+      location: locationValue,
       avatar: profileData.avatar,
       bio: profileData.bio,
       spirit_animal: profileData.spiritAnimal,
@@ -260,8 +265,8 @@ const handleAddPlace = async ({ type, name, date, icon }) => {
       type: type,
       icon: icon,
     }
-    const result = await addVisitedPlace(user.value.uid, newPlaceObj)
-  userStore.addVisitedPlace(newPlaceObj, type)
+    await addVisitedPlace(user.value.uid, newPlaceObj)
+    userStore.addVisitedPlace(newPlaceObj, type)
   } catch (error) {
     console.error('新增去過的地方失敗：', error)
   }

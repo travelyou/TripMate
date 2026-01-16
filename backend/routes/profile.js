@@ -118,43 +118,68 @@ router.delete('/:uid/wishlist/:id', async (req, res) => {
 
 // PUT /api/profile/:uid/wishlist - 批量更新許願球池
 router.put('/:uid/wishlist', async (req, res) => {
+  const client = await pool.connect();
   try {
     console.log('收到更新許願球池請求:', req.method, req.path, req.params);
     const { uid } = req.params;
-    const { items } = req.body;
+    let { items } = req.body;
     console.log('UID:', uid, 'Items:', items);
 
     if (!Array.isArray(items)) {
+      client.release();
       return res.status(400).json({ error: 'items 必須是陣列' });
     }
 
-    await pool.query('BEGIN');
+    // 去除重複項目（保持順序，保留第一個出現的）
+    const uniqueItems = [];
+    const seen = new Set();
+    for (const item of items) {
+      const trimmedItem = String(item).trim();
+      if (trimmedItem && !seen.has(trimmedItem)) {
+        seen.add(trimmedItem);
+        uniqueItems.push(trimmedItem);
+      }
+    }
+
+    console.log('去重後的 Items:', uniqueItems);
+
+    await client.query('BEGIN');
 
     // 刪除現有的許願球池
-    await pool.query('DELETE FROM wishlist WHERE user_uid = $1', [uid]);
+    await client.query('DELETE FROM wishlist WHERE user_uid = $1', [uid]);
 
-    // 插入新的許願球池
-    if (items.length > 0) {
-      const values = items.map((item, index) => {
+    // 插入新的許願球池（使用去重後的項目）
+    if (uniqueItems.length > 0) {
+      const values = uniqueItems.map((item, index) => {
         const paramIndex = index * 2 + 1;
         return `($${paramIndex}, $${paramIndex + 1}, CURRENT_TIMESTAMP)`;
       }).join(', ');
 
-      const params = items.flatMap(item => [uid, item]);
+      const params = uniqueItems.flatMap(item => [uid, item]);
       const query = `INSERT INTO wishlist (user_uid, item, created_at) VALUES ${values}`;
 
-      await pool.query(query, params);
+      await client.query(query, params);
     }
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
+    client.release();
 
-    res.json({ success: true, message: '許願球池已更新' });
+    res.json({ success: true, message: '許願球池已更新', count: uniqueItems.length });
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {}); // Ignore rollback errors
+    client.release();
     console.error('更新許願球池失敗：', error);
+    console.error('錯誤詳情：', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      position: error.position
+    });
     res.status(500).json({
       error: '更新許願球池失敗',
-      message: error.message || '未知錯誤'
+      message: error.message || '未知錯誤',
+      details: error.detail || String(error)
     });
   }
 });
