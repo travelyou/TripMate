@@ -140,20 +140,109 @@ const ResetStyleOnEnter = Extension.create({
     return {
       Enter: ({ editor }) => {
         try {
+          if (!editor || !editor.state || !editor.view) {
+            return false
+          }
+
+          const { state } = editor
+          const { selection } = state
+
+          const docSize = state.doc.content.size
+          if (selection.$from.pos < 0 || selection.$from.pos > docSize) {
+            return false
+          }
+
           if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
             return false
           }
+
           if (editor.isActive('heading', { level: 2 })) {
-            const result = editor.chain().focus().splitBlock().setHeading({ level: 2 }).run()
-            return result
-          }
-          if (editor.isActive('heading', { level: 3 })) {
-            const result = editor.chain().focus().splitBlock().setHeading({ level: 3 }).run()
-            return result
+            if (!editor.can().splitBlock()) {
+              return false
+            }
+            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
+            if (splitSuccess) {
+              requestAnimationFrame(() => {
+                try {
+                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
+                    const newState = editor.state
+                    const newSelection = newState.selection
+                    if (
+                      newSelection.$from.pos >= 0 &&
+                      newSelection.$from.pos <= newState.doc.content.size &&
+                      editor.can().setHeading({ level: 2 })
+                    ) {
+                      editor.chain().focus().setHeading({ level: 2 }).run()
+                    }
+                  }
+                } catch {
+                  // 忽略錯誤，避免無限循環
+                }
+              })
+            }
+            return splitSuccess
           }
 
-          const result = editor.chain().focus().splitBlock().setParagraph().unsetAllMarks().run()
-          return result
+          if (editor.isActive('heading', { level: 3 })) {
+            if (!editor.can().splitBlock()) {
+              return false
+            }
+            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
+            if (splitSuccess) {
+              requestAnimationFrame(() => {
+                try {
+                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
+                    const newState = editor.state
+                    const newSelection = newState.selection
+                    if (
+                      newSelection.$from.pos >= 0 &&
+                      newSelection.$from.pos <= newState.doc.content.size &&
+                      editor.can().setHeading({ level: 3 })
+                    ) {
+                      editor.chain().focus().setHeading({ level: 3 }).run()
+                    }
+                  }
+                } catch {
+                  // 忽略錯誤，避免無限循環
+                }
+              })
+            }
+            return splitSuccess
+          }
+
+          if (!editor.can().splitBlock()) {
+            return false
+          }
+
+          try {
+            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
+            if (splitSuccess) {
+              requestAnimationFrame(() => {
+                try {
+                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
+                    const currentState = editor.state
+                    const currentSelection = currentState.selection
+                    const currentDocSize = currentState.doc.content.size
+
+                    if (
+                      currentSelection.$from.pos >= 0 &&
+                      currentSelection.$from.pos <= currentDocSize &&
+                      currentSelection.$from.pos === currentSelection.$to.pos &&
+                      editor.can().unsetAllMarks()
+                    ) {
+                      editor.chain().focus().unsetAllMarks().run()
+                    }
+                  }
+                } catch {
+                  // 忽略錯誤，避免無限循環
+                }
+              })
+            }
+            return splitSuccess
+          } catch (error) {
+            console.error('[發文編輯器的] 普通段落 Enter 鍵出錯了:', error)
+            return false
+          }
         } catch (error) {
           console.error('[發文編輯器的] Enter 鍵出錯了:', error)
           return false
@@ -248,12 +337,11 @@ watch(
   (newContent) => {
     if (editor.value && newContent !== editor.value.getHTML()) {
       try {
-        // 只在编辑器为空且有新内容时才设置
         if (editor.value.getText().trim() === '' && newContent) {
           editor.value.commands.setContent(newContent, false)
         }
       } catch (error) {
-        console.error('[编辑器] 内容同步错误:', error)
+        console.error('[發文編輯器的] 內容同步出錯了:', error)
       }
     }
   },
@@ -314,7 +402,6 @@ const validateForm = () => {
     isValid = false
   }
 
-  // 驗證內容（使用富文本編輯器的HTML內容）
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = postData.value.content
   const textContent = tempDiv.textContent || tempDiv.innerText || ''
@@ -326,7 +413,6 @@ const validateForm = () => {
     }
   }
 
-  // 檢查字數限制（使用編輯器的字符計數）
   if (editor.value && editor.value.storage.characterCount.characters() > CHARACTER_LIMIT) {
     errors.value.content = `內容不能超過 ${CHARACTER_LIMIT} 字（目前 ${editor.value.storage.characterCount.characters()} 字）`
     isValid = false
@@ -390,7 +476,6 @@ const prevStep = () => {
 }
 
 const triggerFileSelect = () => {
-  // 如果已經達到上限或正在上傳，不觸發文件選擇
   if (imagePreviews.value.length >= 1 || isUploading.value) {
     return
   }
@@ -401,7 +486,6 @@ const handleImageSelect = async (event) => {
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
 
-  // 如果已經達到上限，直接返回
   if (imagePreviews.value.length >= 1) {
     if (fileInputRef.value) {
       fileInputRef.value.value = ''
@@ -414,7 +498,6 @@ const handleImageSelect = async (event) => {
   const remainingSlots = 1 - imagePreviews.value.length
   const filesToAdd = files.slice(0, remainingSlots)
 
-  // 驗證文件
   const validFiles = []
   for (const file of filesToAdd) {
     if (!file.type.startsWith('image/')) {
@@ -439,11 +522,9 @@ const handleImageSelect = async (event) => {
     return
   }
 
-  // 立即上傳圖片並顯示進度
   isUploading.value = true
   uploadProgress.value = 0
   if (errors.value.banner) errors.value.banner = ''
-  // 如果是第一張圖片，初始化 bannerPositionY
   if (imagePreviews.value.length === 0) {
     bannerPositionY.value = 50
   }
@@ -452,7 +533,6 @@ const handleImageSelect = async (event) => {
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i]
 
-      // 壓縮圖片
       submitStatus.value = `正在處理圖片 ${i + 1}/${validFiles.length}...`
       const compressedFile = await compressImage(file, {
         maxWidth: 1920,
@@ -461,20 +541,17 @@ const handleImageSelect = async (event) => {
         maxSizeMB: 2,
       })
 
-      // 先顯示預覽
       const reader = new FileReader()
       reader.onload = (e) => {
         imagePreviews.value.push(e.target.result)
       }
       reader.readAsDataURL(compressedFile)
 
-      // 上傳圖片（使用壓縮後的文件）
       submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}...`
       const imageUrl = await uploadImage(
         compressedFile,
         'discussions',
         (progress) => {
-          // 計算整體進度：已完成的文件 + 當前文件進度
           const baseProgress = (i / validFiles.length) * 100
           const currentFileProgress = (progress / 100) * (100 / validFiles.length)
           uploadProgress.value = Math.round(baseProgress + currentFileProgress)
@@ -482,7 +559,6 @@ const handleImageSelect = async (event) => {
         }
       )
 
-      // 保存上傳後的 URL 和原始文件（保存壓縮後的文件）
       imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
       console.log(`[圖片上傳] 第 ${i + 1} 張圖片上傳成功:`, imageUrl)
@@ -495,7 +571,6 @@ const handleImageSelect = async (event) => {
   } catch (error) {
     console.error('[圖片上傳] 上傳失敗：', error)
     alert('圖片上傳失敗：' + error.message)
-    // 移除失敗的預覽
     imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
   } finally {
     isUploading.value = false
@@ -510,9 +585,8 @@ const handleImageSelect = async (event) => {
 const removeImage = (index) => {
   console.log('[圖片移除] 移除第', index + 1, '張圖片')
   imagePreviews.value.splice(index, 1)
-  imageFiles.value.splice(index, 1) // 同時移除對應的 File 對象
-  uploadedImageUrls.value.splice(index, 1) // 同時移除對應的 URL
-  // 如果移除的是第一張圖片，重置 bannerPositionY
+  imageFiles.value.splice(index, 1)
+  uploadedImageUrls.value.splice(index, 1)
   if (index === 0 && imagePreviews.value.length > 0) {
     bannerPositionY.value = 50
   } else if (imagePreviews.value.length === 0) {
@@ -670,18 +744,14 @@ const executeSubmit = async () => {
     console.log('[發文] ========== 開始發文流程 ==========')
     console.log('[發文 Step 2] 開始上傳圖片到 Firebase Storage')
 
-    // 上傳圖片到 Firebase Storage
     let bannerUrl = null
     let imageUrls = []
 
-    // 使用已上傳的圖片 URL（在選擇時已上傳）
     if (uploadedImageUrls.value.length > 0) {
       submitProgress.value = 60
       submitStatus.value = '圖片已準備完成'
 
-      // 第一張作為 banner
       bannerUrl = uploadedImageUrls.value[0]
-      // 其餘作為 image_urls
       if (uploadedImageUrls.value.length > 1) {
         imageUrls = uploadedImageUrls.value.slice(1)
       }
@@ -794,18 +864,14 @@ const handleFinalSubmit = async () => {
   }
   console.log('[發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
 
-  // 立即關閉模態框
   emit('close')
 
-  // 設置提交標記
   sessionStorage.setItem('is_submitting_discussion_post', 'true')
   sessionStorage.setItem('submit_start_time', Date.now().toString())
 
-  // 在後台執行提交
   executeSubmit()
 }
 
-// 監聽草稿數據，當有草稿時載入到表單
 watch(() => props.draftData, (newDraft) => {
   if (newDraft && newDraft.data) {
     const draft = newDraft.data
@@ -814,7 +880,6 @@ watch(() => props.draftData, (newDraft) => {
     postData.value.content = draft.content || ''
     postData.value.tags = draft.tags || []
 
-    // 如果有圖片預覽數據
     if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
       imagePreviews.value = draft.imagePreviews
     }
@@ -822,7 +887,6 @@ watch(() => props.draftData, (newDraft) => {
 }, { immediate: true })
 
 onMounted(() => {
-  // 如果有草稿數據，載入到表單
   if (props.draftData && props.draftData.data) {
     const draft = props.draftData.data
     postData.value.category = draft.category || ''
@@ -835,7 +899,6 @@ onMounted(() => {
     }
   }
 
-  // 監聽頁面卸載事件，提示用戶
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
       e.preventDefault()
@@ -844,7 +907,6 @@ onMounted(() => {
     }
   })
 
-  // 請求通知權限
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
