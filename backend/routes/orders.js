@@ -37,48 +37,55 @@ router.post('/from-cart', async (req, res) => {
       `SELECT id
       FROM commerce.carts
       WHERE user_id=$1 AND status='active'
-      LIMIT 1`,
+      LIMIT 1
+      FOR UPDATE
+      `,
       [userId],
     )
 
     if (cartR.rows.length === 0) {
       await client.query('ROLLBACK')
-      return res.status(400).json({ ok: false, message: 'cart is empty (no active cart)' })
+      return res.status(400).json({ ok: false, message: '購物車是空的' })
     }
 
     const cartId = cartR.rows[0].id
 
     // 2) 讀 cart_items：可指定 itineraryId，不指定就取第一筆
-    let itemR
-    if (itineraryId) {
-      itemR = await client.query(
-        `SELECT itinerary_id AS "itineraryId", persons
-        FROM commerce.cart_items
-        WHERE cart_id=$1 AND itinerary_id=$2
-        LIMIT 1`,
-        [cartId, itineraryId],
-      )
-    } else {
-      itemR = await client.query(
-        `SELECT itinerary_id AS "itineraryId", persons
-        FROM commerce.cart_items
-        WHERE cart_id=$1
-        ORDER BY id ASC
-        LIMIT 1`,
-        [cartId],
-      )
+    if (!itineraryId) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({
+        ok: false,
+        message: '行程編號 itineraryId 為必填欄位',
+      })
+    }
+
+    const itemR = await client.query(
+      `SELECT itinerary_id AS "itineraryId", persons
+    FROM commerce.cart_items
+    WHERE cart_id=$1 AND itinerary_id=$2
+    LIMIT 1
+    FOR UPDATE`,
+      [cartId, itineraryId],
+    )
+
+    if (itemR.rows.length === 0) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({
+        ok: false,
+        message: '找不到購物車內的該行程，無法結帳',
+      })
     }
 
     if (itemR.rows.length === 0) {
       await client.query('ROLLBACK')
-      return res.status(400).json({ ok: false, message: 'cart item not found' })
+      return res.status(400).json({ ok: false, message: '找不到購物車內的該行程，無法結帳' })
     }
 
     const item = itemR.rows[0]
     const p = Number(item.persons)
     if (!Number.isInteger(p) || p <= 0) {
       await client.query('ROLLBACK')
-      return res.status(400).json({ ok: false, message: 'invalid persons in cart' })
+      return res.status(400).json({ ok: false, message: '購物車內的行程人數無效' })
     }
 
     // 3) 後端查 itinerary（用你現有 schema：itinerary.itineraries）
@@ -90,7 +97,7 @@ router.post('/from-cart', async (req, res) => {
     )
     if (itR.rows.length === 0) {
       await client.query('ROLLBACK')
-      return res.status(404).json({ ok: false, message: 'itinerary not found' })
+      return res.status(404).json({ ok: false, message: '行程不存在' })
     }
 
     const itinerary = itR.rows[0]
@@ -133,7 +140,9 @@ router.post('/from-cart', async (req, res) => {
     // 6) 從購物車移除該項（你們一次只結帳一個行程，移除該項就好）
     await client.query(
       `DELETE FROM commerce.cart_items
-      WHERE cart_id=$1 AND itinerary_id=$2`,
+      WHERE cart_id=$1 AND itinerary_id=$2
+      RETURNING itinerary_id
+      `,
       [cartId, itinerary.id],
     )
 
@@ -167,7 +176,7 @@ router.post('/from-cart', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('[POST /api/orders/from-cart] error:', err)
-    return res.status(500).json({ ok: false, message: 'server error' })
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   } finally {
     client.release()
   }
@@ -187,12 +196,14 @@ router.post('/', async (req, res) => {
     const { itineraryId, persons, contact, emergencyContact } = req.body || {}
 
     if (!itineraryId || !persons) {
-      return res.status(400).json({ ok: false, message: 'itineraryId and persons are required' })
+      return res
+        .status(400)
+        .json({ ok: false, message: '行程編號 itineraryId 與人數 persons 為必填欄位' })
     }
 
     const p = Number(persons)
     if (!Number.isInteger(p) || p <= 0) {
-      return res.status(400).json({ ok: false, message: 'persons must be a positive integer' })
+      return res.status(400).json({ ok: false, message: '人數必須為正整數' })
     }
 
     // 1) 後端查 itinerary（注意：你們行程表在 itinerary schema）
@@ -202,7 +213,7 @@ router.post('/', async (req, res) => {
     )
 
     if (it.rows.length === 0) {
-      return res.status(404).json({ ok: false, message: 'itinerary not found' })
+      return res.status(404).json({ ok: false, message: '行程不存在' })
     }
 
     const itinerary = it.rows[0]
@@ -250,7 +261,7 @@ router.post('/', async (req, res) => {
     })
   } catch (err) {
     console.error('[POST /api/orders] error:', err)
-    return res.status(500).json({ ok: false, message: 'server error' })
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   }
 })
 
@@ -263,7 +274,7 @@ router.get('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id)
     if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ ok: false, message: 'invalid order id' })
+      return res.status(400).json({ ok: false, message: '訂單 ID 無效' })
     }
 
     // 訂單主檔 + 行程資訊（跨 schema join）
@@ -289,7 +300,7 @@ router.get('/:id', async (req, res) => {
     )
 
     if (q.rows.length === 0) {
-      return res.status(404).json({ ok: false, message: 'order not found' })
+      return res.status(404).json({ ok: false, message: '訂單不存在' })
     }
 
     const row = q.rows[0]
@@ -337,7 +348,7 @@ router.get('/:id', async (req, res) => {
     })
   } catch (err) {
     console.error('[GET /api/orders/:id] error:', err)
-    return res.status(500).json({ ok: false, message: 'server error' })
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   }
 })
 
