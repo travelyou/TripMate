@@ -12,34 +12,73 @@ import {
   ChevronRight as ChevronRightIcon,
   Users as UsersIcon,
 } from 'lucide-vue-next'
-import { computed, ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
-const userStore = useUserStore()
+// HomePage 本身沒直接用到 userStore，但 DiscussionCard / 收藏流程可能會用到（先保留）
+useUserStore()
 
-const isPageLoading = computed(
-  () => discussionsStore.loading && discussionsStore.discussions.length === 0,
-)
-
+// 當前用戶 UID（用於同步每篇貼文的按讚狀態）
 const currentUserUid = ref(null)
+let likeSyncTimer = null
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// 依據目前登入者，把討論貼文的 isLiked / likes 做一次「批次同步」
+const scheduleLikesSync = (posts, uid) => {
+  if (!uid || !Array.isArray(posts) || posts.length === 0) return
+  if (likeSyncTimer) clearTimeout(likeSyncTimer)
+
+  likeSyncTimer = setTimeout(async () => {
+    for (const post of posts) {
+      try {
+        const { getLikesInfo } = await import('@/api/likes')
+        const info = await getLikesInfo(post.id, uid)
+        post.isLiked = info.isLiked
+        post.likes = info.likesCount ?? post.likes
+        await sleep(120)
+      } catch (error) {
+        console.error(`load likes failed for ${post.id}:`, error)
+      }
+    }
+  }, 800)
+}
+
+// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  // 重新載入資料邏輯... (略，保持原樣即可，Card 會自己處理按讚狀態)
+  // 用戶登入狀態改變：重新載入按讚狀態
+  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+    scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+  } else if (!currentUserUid.value) {
+    // 登出：清掉本地按讚狀態
+    discussionsStore.discussions?.forEach((post) => {
+      post.isLiked = false
+    })
+  }
 })
 
+// 在組件掛載時載入貼文
 onMounted(async () => {
   try {
     await discussionsStore.loadDiscussions()
+    if (currentUserUid.value) {
+      scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+    }
   } catch (error) {
     console.error('載入貼文失敗：', error)
   }
 })
 
+onBeforeUnmount(() => {
+  if (likeSyncTimer) clearTimeout(likeSyncTimer)
+})
+
 const scrollContainer = ref(null)
+
 const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
@@ -113,173 +152,136 @@ const getTagColor = (tagText) => {
 <template>
   <div class="p-4">
     <div class="w-full min-w-0">
-      <div v-if="isPageLoading">
-        <div
-          class="my-4 p-4 relative bg-white border-4 border-primary shadow-primary-tall rounded-xl"
-        >
-          <div class="animate-pulse">
-            <div class="h-8 w-40 bg-gray-200 rounded-xl mb-4"></div>
-            <div class="flex overflow-hidden space-x-4 p-4 rounded-2xl shadow-sm ml-2">
-              <div
-                v-for="n in 3"
-                :key="n"
-                class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 bg-gray-200"
-              ></div>
-            </div>
-          </div>
+      <!-- 旅伴推薦 (橫向滑動) -->
+      <div
+        class="my-4 p-4 relative group bg-white border-4 border-primary shadow-primary-tall rounded-xl"
+      >
+        <div>
+          <h2 class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl">
+            旅伴推薦
+          </h2>
         </div>
 
-        <div>
-          <div class="my-6 bg-primary p-5 rounded-xl shadow-primary-tall">
-            <div class="h-8 w-32 bg-white/60 rounded-xl animate-pulse"></div>
-          </div>
+        <button
+          class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          @click="scroll('left')"
+        >
+          <ChevronLeftIcon class="w-6 h-6" />
+        </button>
 
-          <div class="space-y-6">
+        <button
+          class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
+          @click="scroll('right')"
+        >
+          <ChevronRightIcon class="w-6 h-6" />
+        </button>
+
+        <div
+          ref="scrollContainer"
+          class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
+        >
+          <div
+            v-for="item in travelersStore.recommendations"
+            :key="item.id"
+            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
+            @click="openDiscussionDetailModal(item, false)"
+          >
+            <img
+              :src="item.image"
+              class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover/card:scale-110 opacity-90"
+            />
             <div
-              v-for="n in 3"
-              :key="n"
-              class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl"
-            >
-              <div class="animate-pulse">
-                <div class="flex items-center space-x-3 mb-4">
-                  <div class="w-10 h-10 rounded-full bg-gray-200"></div>
-                  <div class="space-y-2">
-                    <div class="h-3 w-24 bg-gray-200 rounded"></div>
-                    <div class="h-3 w-16 bg-gray-200 rounded"></div>
-                  </div>
+              class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"
+            ></div>
+
+            <div class="relative z-10 h-full flex flex-col justify-between">
+              <div class="flex justify-between items-start">
+                <span
+                  :class="[
+                    getTagColor(item.tag),
+                    'text-white border-2 border-white/50 px-2 py-0.5 text-[10px] font-bold rounded -rotate-2 shadow-sm',
+                  ]"
+                >
+                  {{ item.tag }}
+                </span>
+
+                <div
+                  class="flex items-center bg-red-500 text-white border-2 border-white px-2 py-0.5 text-[10px] font-bold rounded rotate-2 shadow-sm"
+                >
+                  <UsersIcon class="w-3 h-3 mr-1" />
+                  {{ item.people }}
                 </div>
-                <div class="h-4 w-2/3 bg-gray-200 rounded mb-3"></div>
-                <div class="space-y-2 mb-4">
-                  <div class="h-3 w-full bg-gray-200 rounded"></div>
-                  <div class="h-3 w-5/6 bg-gray-200 rounded"></div>
-                  <div class="h-3 w-2/3 bg-gray-200 rounded"></div>
-                </div>
-                <div class="w-full h-64 rounded-xl bg-gray-200 mb-4"></div>
-                <div class="flex gap-2 mb-4">
-                  <div class="h-5 w-12 bg-gray-200 rounded-full"></div>
-                  <div class="h-5 w-12 bg-gray-200 rounded-full"></div>
-                  <div class="h-5 w-12 bg-gray-200 rounded-full"></div>
-                </div>
-                <div class="flex items-center gap-4">
-                  <div class="h-4 w-14 bg-gray-200 rounded"></div>
-                  <div class="h-4 w-14 bg-gray-200 rounded"></div>
-                  <div class="h-4 w-14 bg-gray-200 rounded"></div>
-                  <div class="ml-auto h-4 w-8 bg-gray-200 rounded"></div>
-                </div>
+              </div>
+
+              <div class="mt-auto text-center">
+                <h3
+                  class="font-bold text-sm text-white leading-snug mb-2 line-clamp-2"
+                  style="text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8)"
+                >
+                  {{ item.title }}
+                </h3>
+                <button
+                  class="text-[10px] bg-white text-secondary px-3 py-1 rounded-full font-extrabold hover:bg-gray-100 shadow-lg transition"
+                >
+                  探索行程
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-else>
+      <!-- 最新動態 -->
+      <div>
+        <div class="my-6 bg-primary p-5 rounded-xl shadow-primary-tall">
+          <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
+            最新動態
+          </h2>
+        </div>
+
+        <!-- Skeleton：避免「先空白後跳出內容」讓使用者以為沒載入成功 -->
         <div
-          class="my-4 p-4 relative group bg-white border-4 border-primary shadow-primary-tall rounded-xl"
+          v-if="discussionsStore.loading && !discussionsStore.discussions.length"
+          class="space-y-6"
         >
-          <div>
-            <h2
-              class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2 rounded-xl"
-            >
-              旅伴推薦
-            </h2>
-          </div>
-
-          <button
-            class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
-            @click="scroll('left')"
-          >
-            <ChevronLeftIcon class="w-6 h-6" />
-          </button>
-
-          <button
-            class="absolute right-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-amber-900 p-2 rounded-full shadow-xl backdrop-blur-sm transition hover:scale-110 flex items-center justify-center opacity-0 group-hover:opacity-100 duration-300"
-            @click="scroll('right')"
-          >
-            <ChevronRightIcon class="w-6 h-6" />
-          </button>
-
           <div
-            ref="scrollContainer"
-            class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
+            v-for="n in 3"
+            :key="`skeleton-${n}`"
+            class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl animate-pulse"
           >
-            <div
-              v-for="item in travelersStore.recommendations"
-              :key="item.id"
-              class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
-              @click="openDiscussionDetailModal(item, false)"
-            >
-              <img
-                :src="item.image"
-                class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover/card:scale-110 opacity-90"
-              />
-              <div
-                class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"
-              ></div>
-
-              <div class="relative z-10 h-full flex flex-col justify-between">
-                <div class="flex justify-between items-start">
-                  <span
-                    :class="[
-                      getTagColor(item.tag),
-                      'text-white border-2 border-white/50 px-2 py-0.5 text-[10px] font-bold rounded -rotate-2 shadow-sm',
-                    ]"
-                  >
-                    {{ item.tag }}
-                  </span>
-
-                  <div
-                    class="flex items-center bg-red-500 text-white border-2 border-white px-2 py-0.5 text-[10px] font-bold rounded rotate-2 shadow-sm"
-                  >
-                    <UsersIcon class="w-3 h-3 mr-1" />
-                    {{ item.people }}
-                  </div>
-                </div>
-
-                <div class="mt-auto text-center">
-                  <h3
-                    class="font-bold text-sm text-white leading-snug mb-2 line-clamp-2"
-                    style="text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8)"
-                  >
-                    {{ item.title }}
-                  </h3>
-                  <button
-                    class="text-[10px] bg-white text-secondary px-3 py-1 rounded-full font-extrabold hover:bg-gray-100 shadow-lg transition"
-                  >
-                    探索行程
-                  </button>
-                </div>
+            <div class="flex items-center space-x-3 mb-4">
+              <div class="w-10 h-10 rounded-full bg-gray-200"></div>
+              <div class="space-y-2">
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-3 w-20 bg-gray-200 rounded"></div>
               </div>
             </div>
+            <div class="h-5 w-2/3 bg-gray-200 rounded mb-3"></div>
+            <div class="h-4 w-full bg-gray-200 rounded mb-2"></div>
+            <div class="h-4 w-5/6 bg-gray-200 rounded mb-4"></div>
+            <div class="w-full h-64 rounded-xl bg-gray-200"></div>
           </div>
         </div>
 
-        <div>
-          <div class="my-6 bg-primary p-5 rounded-xl shadow-primary-tall">
-            <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
-              最新動態
-            </h2>
-          </div>
-
-          <div class="space-y-6">
-            <DiscussionCard
-              v-for="post in discussionsStore.discussions"
-              :key="post.id"
-              :post="post"
-              @click="openDiscussionDetailModal(post, false)"
-              @comment="openDiscussionDetailModal(post, true)"
-              @share="openShareModal(post.id)"
-            />
-          </div>
+        <div v-else class="space-y-6">
+          <DiscussionCard
+            v-for="post in discussionsStore.discussions"
+            :key="post.id"
+            :post="post"
+            @click="openDiscussionDetailModal(post, false)"
+            @comment="openDiscussionDetailModal(post, true)"
+            @share="openShareModal(post.id)"
+          />
         </div>
       </div>
     </div>
-
-    <DiscussionDetailModal
-      v-if="isModalOpen"
-      :post="selectedPost"
-      :scroll-to-comments="shouldScrollToComments"
-      @close="closeDiscussionDetailModal"
-    />
-    <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
   </div>
+
+  <DiscussionDetailModal
+    v-if="isModalOpen"
+    :post="selectedPost"
+    :scroll-to-comments="shouldScrollToComments"
+    @close="closeDiscussionDetailModal"
+  />
+  <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
