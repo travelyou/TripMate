@@ -39,7 +39,7 @@ const itemData = computed(() => ({
   id: props.post.id,
   type: 'discussion',
   title: props.post.title,
-  image: props.post.banner, // 使用 banner 作為主圖
+  image: props.post.banner,
   banner: props.post.banner,
   author: props.post.author,
   avatar: props.post.avatar,
@@ -49,6 +49,28 @@ const itemData = computed(() => ({
   likes: likesCount.value,
   comments: props.post.comments,
 }))
+
+// --- [最終版] 純文字清洗邏輯 ---
+const previewContent = computed(() => {
+  if (!props.post.content) return ''
+
+  let content = props.post.content
+
+  // 1. 預處理：把會造成換行的 HTML 標籤替換成換行符號 \n
+  // 這樣之後剝除標籤時，段落之間才會有空行，不會黏在一起
+  content = content.replace(/<br\s*\/?>/gi, '\n')
+  content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
+
+  // 2. 強力剝除：建立一個暫存 DOM，利用 textContent 取得純文字
+  // 這一步會自動移除 <img>, <b>, <h2> 等所有標籤，只留下文字內容
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = content
+  const plainText = tempDiv.textContent || tempDiv.innerText || ''
+
+  // 3. 回傳修剪後的純文字
+  return plainText.trim()
+})
+// -------------------------------------
 
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
@@ -62,7 +84,6 @@ const loadLikesInfo = async () => {
   }
 }
 
-// 處理按讚
 const handlePostLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -85,10 +106,8 @@ const handlePostLike = async () => {
   }
 }
 
-// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
-
   if (currentUserUid.value && props.post?.id) {
     await loadLikesInfo()
   } else {
@@ -96,7 +115,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 })
 
-// 組件掛載時載入按讚狀態
 onMounted(async () => {
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
@@ -139,8 +157,8 @@ onMounted(async () => {
       {{ post.title }}
     </h3>
 
-    <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
-      {{ post.content }}
+    <p class="text-gray-600 text-sm mb-4 line-clamp-5 whitespace-pre-wrap leading-relaxed">
+      {{ previewContent }}
     </p>
 
     <div

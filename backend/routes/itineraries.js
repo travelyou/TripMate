@@ -11,8 +11,8 @@ router.get('/', async (req, res) => {
         title,
         price,
         agency_name as "agencyName",
-        start_date,        -- ★ 新增：回傳開始日期
-        end_date,          -- ★ 新增：回傳結束日期
+        start_date,
+        end_date,
         COALESCE(end_date - start_date + 1, 1) as "durationDays",
         banner_image as "coverImage",
         location as destinations,
@@ -45,8 +45,8 @@ router.get('/:id', async (req, res) => {
     const itineraryQuery = `
       SELECT
         id, title, price, agency_name as "agencyName",
-        start_date,        -- ★ 新增
-        end_date,          -- ★ 新增
+        start_date,
+        end_date,
         COALESCE(end_date - start_date + 1, 1) as "durationDays",
         banner_image as "coverImage",
         location,
