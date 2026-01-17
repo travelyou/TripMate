@@ -2,7 +2,8 @@
 import MainButton from '@/components/checkout/MainButton.vue'
 import SubButton from '@/components/checkout/SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { ShoppingCart as ShoppingCartIcon } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 onMounted(() => {
@@ -32,6 +33,11 @@ const isCartLoading = computed(() => checkoutStore.isCartLoading)
 const showCartList = computed(() => checkoutStore.tourGroups.length > 0)
 const isCartEmpty = computed(() => !isCartLoading.value && checkoutStore.tourGroups.length === 0)
 const showLoading = computed(() => isCartLoading.value && checkoutStore.tourGroups.length === 0)
+
+const showTestButtons = ref(false)
+const toggleTestButtons = () => {
+  showTestButtons.value = !showTestButtons.value
+}
 
 // 增加/減少人數
 function increasePersons(tour) {
@@ -73,27 +79,33 @@ function goToFeatured() {
 
 <template>
   <section class="max-w-5xl mx-auto mt-5 p-5 md:mr-0 xl:mr-20 rounded-2xl text-secondary-900">
-    <h1 class="text-3xl font-bold ml-8 mb-5">購物車</h1>
-    <button
-      type="button"
-      class="bg-primary text-white px-5 py-2 rounded-xl"
-      @click="checkoutStore.addToCart(1)"
-    >
-      加入itinerary #1 到購物車
-    </button>
-    <button
-      type="button"
-      class="bg-primary text-white px-5 py-2 rounded-xl"
-      @click="checkoutStore.addToCart(2)"
-    >
-      加入itinerary #2 到購物車
-    </button>
-    <button
-      class="bg-primary text-white px-5 py-2 rounded-xl"
-      @click="checkoutStore.loadCartFromDb()"
-    >
-      重新載入
-    </button>
+    <div class="ml-8 mb-5 flex items-center gap-1">
+      <button
+        type="button"
+        class="inline-flex items-center justify-center p-2 rounded-full text-primary"
+        aria-label="Toggle test buttons"
+        @click="toggleTestButtons"
+      >
+        <ShoppingCartIcon class="w-5 h-5" />
+      </button>
+      <h1 class="text-3xl font-bold">購物車</h1>
+    </div>
+    <div v-show="showTestButtons" class="flex flex-wrap gap-3">
+      <button
+        type="button"
+        class="bg-primary text-white px-5 py-2 rounded-xl"
+        @click="checkoutStore.addToCart(1)"
+      >
+        加入itinerary #1 到購物車
+      </button>
+      <button
+        type="button"
+        class="bg-primary text-white px-5 py-2 rounded-xl"
+        @click="checkoutStore.addToCart(2)"
+      >
+        加入itinerary #2 到購物車
+      </button>
+    </div>
     <!-- 購物車整個區塊 -->
 
     <!-- 載入骨架 -->
