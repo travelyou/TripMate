@@ -161,24 +161,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   ])
 
   // 草稿夾
-  const drafts = ref([
-    {
-      id: 101,
-      type: 'discussion',
-      typeLabel: '討論區',
-      title: '東京自由行請益',
-      content: '想請問大家關於東京地鐵的交通票券問題...',
-      saveTime: '2024-01-15 10:00',
-    },
-    {
-      id: 102,
-      type: 'traveler',
-      typeLabel: '找旅伴',
-      title: '徵求 2024 年底去北海道的旅伴',
-      content: '目前已經有兩個人，希望再徵求兩位...',
-      saveTime: '2024-01-14 15:30',
-    }
-  ])
+  const drafts = ref([])
   const featuredItineraries = ref([])
   const partnerItineraries = ref([])
 

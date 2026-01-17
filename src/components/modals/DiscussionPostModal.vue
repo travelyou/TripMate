@@ -493,8 +493,6 @@ const handleImageSelect = async (event) => {
     return
   }
 
-  console.log('[圖片上傳] 選擇了', files.length, '張圖片')
-
   const remainingSlots = 1 - imagePreviews.value.length
   const filesToAdd = files.slice(0, remainingSlots)
 
@@ -502,13 +500,11 @@ const handleImageSelect = async (event) => {
   for (const file of filesToAdd) {
     if (!file.type.startsWith('image/')) {
       alert(`${file.name} 不是有效的圖片`)
-      console.log('[圖片上傳] 檔案類型無效:', file.name, file.type)
       continue
     }
 
     if (file.size > 10 * 1024 * 1024) {
       alert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
-      console.log('[圖片上傳] 檔案過大:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB')
       continue
     }
 
@@ -561,7 +557,6 @@ const handleImageSelect = async (event) => {
 
       imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
-      console.log(`[圖片上傳] 第 ${i + 1} 張圖片上傳成功:`, imageUrl)
     }
 
     uploadProgress.value = 100
@@ -583,7 +578,6 @@ const handleImageSelect = async (event) => {
 }
 
 const removeImage = (index) => {
-  console.log('[圖片移除] 移除第', index + 1, '張圖片')
   imagePreviews.value.splice(index, 1)
   imageFiles.value.splice(index, 1)
   uploadedImageUrls.value.splice(index, 1)
@@ -618,15 +612,12 @@ const addTag = (tagText) => {
 
   errors.value.tags = ''
   postData.value.tags.push(cleanTag)
-  console.log('[標籤新增]', cleanTag, '，目前標籤數:', postData.value.tags.length)
   tagSearch.value = ''
 }
 
 const removeTag = (index) => {
-  const removedTag = postData.value.tags[index]
   postData.value.tags.splice(index, 1)
   errors.value.tags = ''
-  console.log('[標籤移除]', removedTag, '，剩餘標籤數:', postData.value.tags.length)
 }
 
 watch(
@@ -657,11 +648,8 @@ watch(
 )
 
 const handleSaveDraft = () => {
-  console.log('[草稿儲存] 開始儲存草稿')
-
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
-    console.log('[草稿儲存] 標題為空，無法儲存')
     return
   }
 
@@ -741,9 +729,6 @@ const executeSubmit = async () => {
   submitStatus.value = '準備中...'
 
   try {
-    console.log('[發文] ========== 開始發文流程 ==========')
-    console.log('[發文 Step 2] 開始上傳圖片到 Firebase Storage')
-
     let bannerUrl = null
     let imageUrls = []
 
@@ -755,14 +740,11 @@ const executeSubmit = async () => {
       if (uploadedImageUrls.value.length > 1) {
         imageUrls = uploadedImageUrls.value.slice(1)
       }
-
-      console.log('[發文 Step 2] 使用已上傳的圖片:', { bannerUrl, imageUrls })
     } else {
       submitProgress.value = 60
       submitStatus.value = '準備提交...'
     }
 
-    console.log('[發文 Step 3] 準備 payload')
     const payload = {
       board: 'discussion',
       category: postData.value.category,
@@ -775,31 +757,14 @@ const executeSubmit = async () => {
       author_uid: auth.currentUser.uid,
     }
 
-    console.log('[發文 Step 3] Payload 準備完成')
-    console.log('[發文 Payload] 詳細資料:', {
-      board: payload.board,
-      category: payload.category,
-      titleLength: payload.title.length,
-      contentLength: payload.content.length,
-      tagsCount: payload.tags.length,
-      hasBanner: !!payload.banner,
-      imageUrlsCount: payload.image_urls.length,
-      author_uid: payload.author_uid,
-    })
-
     submitProgress.value = 70
     submitStatus.value = '正在提交貼文...'
-    console.log('[發文 Step 4] 調用 createPost API')
     const response = await createPost(payload)
-
-    console.log('[發文 Step 4] API 回應成功')
-    console.log('[發文 Response]', response)
 
     submitProgress.value = 100
     submitStatus.value = '發布成功！'
 
     if (response) {
-      console.log('[發文 Step 5] 發文成功！')
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
 
@@ -814,9 +779,7 @@ const executeSubmit = async () => {
       window.location.reload()
     }
   } catch (error) {
-    console.error('[發文 Error] ========== 發文失敗 ==========')
-    console.error('[發文 Error] 錯誤訊息:', error.message)
-    console.error('[發文 Error] 完整錯誤:', error)
+    console.error('發文失敗:', error)
 
     sessionStorage.removeItem('is_submitting_discussion_post')
     sessionStorage.removeItem('submit_start_time')
@@ -824,11 +787,6 @@ const executeSubmit = async () => {
     isSubmitting.value = false
     submitProgress.value = 0
     submitStatus.value = ''
-
-    if (error.response) {
-      console.error('[發文 Error] HTTP 狀態:', error.response.status)
-      console.error('[發文 Error] 回應資料:', error.response.data)
-    }
 
     const errorMessage = '發文失敗：' + (error.message || '請稍後再試')
 
@@ -848,21 +806,14 @@ const handleFinalSubmit = async () => {
     return
   }
 
-  console.log('[發文] ========== 開始發文流程 ==========')
-  console.log('[發文 Step 0] 當前步驟:', currentStep.value)
-
   if (!validateForm()) {
-    console.log('[發文 Step 0] 表單驗證失敗，停止發文')
     return
   }
 
-  console.log('[發文 Step 1] 檢查用戶登入狀態')
   if (!auth.currentUser) {
     formError.value = '請先登入'
-    console.log('[發文 Step 1] 用戶未登入')
     return
   }
-  console.log('[發文 Step 1] 用戶已登入，UID:', auth.currentUser.uid)
 
   emit('close')
 
