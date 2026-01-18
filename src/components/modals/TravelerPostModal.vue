@@ -57,7 +57,15 @@ const postData = ref({
   banner_image: '',
   tags: [],
   itinerary: { days: [] },
-  packingList: [],
+  packingList: [
+    {
+      category: '盥洗用具',
+      items: [
+        { id: Date.now(), name: '牙刷', checked: false },
+        { id: Date.now() + 1, name: '體香劑', checked: false },
+      ],
+    },
+  ],
   status: 'published',
 })
 
@@ -78,6 +86,12 @@ const dateRange = computed({
     }
   },
 })
+
+// 禁止選擇今天以前的日期
+const disabledDate = (current) => {
+  // Can not select days before today
+  return current && current < dayjs().startOf('day')
+}
 
 const bannerPreview = ref('')
 const bannerFileInput = ref(null)
@@ -488,8 +502,8 @@ const addTag = (tagText) => {
     return
   }
 
-  if (cleanTag.length > 30) {
-    fieldErrors.value.tags = `標籤不能超過 30 字（目前 ${cleanTag.length} 字）`
+  if (cleanTag.length > 10) {
+    fieldErrors.value.tags = `標籤不能超過 10 字（目前 ${cleanTag.length} 字）`
     return
   }
 
@@ -549,16 +563,16 @@ const validatePackingList = () => {
   let totalItems = 0
   for (let i = 0; i < postData.value.packingList.length; i++) {
     const category = postData.value.packingList[i]
-    if (category.category && category.category.trim().length > 30) {
-      fieldErrors.value.packingList = `第 ${i + 1} 個分類名稱不能超過 30 字（目前 ${category.category.trim().length} 字）`
+    if (category.category && category.category.trim().length > 10) {
+      fieldErrors.value.packingList = `第 ${i + 1} 個分類名稱不能超過 10 字（目前 ${category.category.trim().length} 字）`
       return fieldErrors.value.packingList
     }
     if (category.items && Array.isArray(category.items)) {
       totalItems += category.items.length
       for (let j = 0; j < category.items.length; j++) {
         const item = category.items[j]
-        if (item.name && item.name.trim().length > 50) {
-          fieldErrors.value.packingList = `第 ${i + 1} 個分類第 ${j + 1} 個物品名稱不能超過 50 字（目前 ${item.name.trim().length} 字）`
+        if (item.name && item.name.trim().length > 10) {
+          fieldErrors.value.packingList = `第 ${i + 1} 個分類第 ${j + 1} 個物品名稱不能超過 10 字（目前 ${item.name.trim().length} 字）`
           return fieldErrors.value.packingList
         }
       }
@@ -1196,6 +1210,7 @@ const jumpToStep = (targetStep) => {
             <label class="block text-sm font-bold text-gray-700 mb-2">日期範圍</label>
             <a-range-picker
               v-model:value="dateRange"
+              :disabled-date="disabledDate"
               class="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-green-500 focus:border-green-500 transition shadow-none"
               :class="{'border-red-500': fieldErrors.start_date || fieldErrors.end_date}"
               :placeholder="['開始日期', '結束日期']"
@@ -1452,28 +1467,18 @@ const jumpToStep = (targetStep) => {
                   placeholder="分類名稱"
                       :class="[
                         'bg-transparent font-bold text-gray-800 focus:outline-none w-full',
-                        category.category && category.category.trim().length > 30
+                        category.category && category.category.trim().length > 10
                           ? 'text-red-500'
                           : '',
                       ]"
-                      maxlength="30"
+                      maxlength="10"
                 />
-                    <span
-                      :class="[
-                        'text-xs ml-2',
-                        category.category && category.category.trim().length > 30
-                          ? 'text-red-500 font-bold'
-                          : 'text-gray-400',
-                      ]"
-                    >
-                      {{ (category.category || '').length }}/30
-                    </span>
                   </div>
                   <p
-                    v-if="category.category && category.category.trim().length > 30"
+                    v-if="category.category && category.category.trim().length > 10"
                     class="text-xs text-red-500 mt-1"
                   >
-                    分類名稱不能超過 30 字
+                    分類名稱不能超過 10 字
                   </p>
                 </div>
                 <button
@@ -1495,20 +1500,10 @@ const jumpToStep = (targetStep) => {
                     placeholder="物品名稱"
                       :class="[
                         'flex-1 text-sm focus:outline-none',
-                        item.name && item.name.trim().length > 50 ? 'text-red-500' : '',
+                        item.name && item.name.trim().length > 10 ? 'text-red-500' : '',
                       ]"
-                      maxlength="50"
+                      maxlength="10"
                   />
-                    <span
-                      :class="[
-                        'text-xs',
-                        item.name && item.name.trim().length > 50
-                          ? 'text-red-500 font-bold'
-                          : 'text-gray-400',
-                      ]"
-                    >
-                      {{ (item.name || '').length }}/50
-                    </span>
                   <button
                     class="text-gray-300 hover:text-red-500"
                     @click="removePackingItem(catIndex, itemIndex)"
@@ -1517,10 +1512,10 @@ const jumpToStep = (targetStep) => {
                   </button>
                   </div>
                   <p
-                    v-if="item.name && item.name.trim().length > 50"
+                    v-if="item.name && item.name.trim().length > 10"
                     class="text-xs text-red-500 mt-1"
                   >
-                    物品名稱不能超過 50 字
+                    物品名稱不能超過 10 字
                   </p>
                 </div>
                 <button
@@ -1538,35 +1533,47 @@ const jumpToStep = (targetStep) => {
           <p v-if="fieldErrors.tags" class="text-sm text-red-500 mb-2">
             {{ fieldErrors.tags }}
           </p>
-          <div class="relative mb-6">
-            <input
-              v-model="tagSearch"
-              type="text"
-              placeholder="輸入標籤..."
-              :class="[
-                'w-full pl-10 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none',
-                tagSearch && tagSearch.trim().length > 30
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-200 focus:border-green-500',
-              ]"
-              maxlength="30"
-              @keyup.enter="addTag(tagSearch)"
-            />
-            <HashIcon class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
-            <div class="absolute right-3 top-3.5">
-              <span
+          <div class="relative mb-6 flex items-center gap-2">
+            <div class="relative flex-1">
+              <input
+                v-model="tagSearch"
+                type="text"
+                placeholder="輸入標籤..."
                 :class="[
-                  'text-xs',
-                  tagSearch && tagSearch.trim().length > 30
-                    ? 'text-red-500 font-bold'
-                    : 'text-gray-400',
+                  'w-full pl-10 pr-16 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none',
+                  tagSearch && tagSearch.trim().length > 10
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-200 focus:border-green-500',
                 ]"
-              >
-                {{ (tagSearch || '').length }}/30
-              </span>
+                maxlength="10"
+                @keyup.enter="addTag(tagSearch)"
+              />
+              <HashIcon class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+              <div class="absolute right-3 top-3.5 pointer-events-none">
+                <span
+                  :class="[
+                    'text-xs',
+                    tagSearch && tagSearch.trim().length > 10
+                      ? 'text-red-500 font-bold'
+                      : 'text-gray-400',
+                  ]"
+                >
+                  {{ (tagSearch || '').length }}/10
+                </span>
+              </div>
             </div>
-            <p v-if="tagSearch && tagSearch.trim().length > 30" class="text-xs text-red-500 mt-1">
-              標籤不能超過 30 字
+            <button
+              class="px-4 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              :disabled="!tagSearch.trim()"
+              @click="addTag(tagSearch)"
+            >
+              創建標籤
+            </button>
+            <p
+              v-if="tagSearch && tagSearch.trim().length > 10"
+              class="absolute -bottom-6 left-0 text-xs text-red-500"
+            >
+              標籤不能超過 10 字
             </p>
           </div>
           <div class="mb-2">
