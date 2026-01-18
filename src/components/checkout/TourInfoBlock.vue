@@ -2,29 +2,38 @@
 import { computed } from 'vue'
 import { checkoutStore } from '@/stores/checkout'
 
-const tour = computed(() => checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null)
+// 新增：允許外部傳 tour / price
+const props = defineProps({
+  tour: { type: Object, default: null },
+  price: { type: [Number, String], default: null },
+})
+
+// tour：先用 props.tour，沒有才回退到 store
+const tour = computed(
+  () => props.tour ?? checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null,
+)
+
+// displayPrice：先用 props.price，沒有才回退舊邏輯
 const displayPrice = computed(() => {
-  if (checkoutStore.selectedTour) return checkoutStore.totalPrice
-  return checkoutStore.lastOrder?.totalPrice ?? 0
+  if (props.price != null) return Number(props.price) || 0
+  if (checkoutStore.selectedTour) return checkoutStore.cartTotalPrice
+  return Number(checkoutStore.lastOrder?.cartTotalPrice ?? 0)
 })
 </script>
 
 <template>
   <section v-if="tour">
-    <div class="bg-white rounded-xl p-5 flex flex-col gap-5 justify-between sm:flex-row">
+    <div class="bg-white rounded-xl p-5 flex flex-col gap-2 justify-between sm:flex-row">
       <div class="flex gap-5 flex-col sm:flex-row">
-        <img
-          class="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 self-center flex sm:self-auto"
-          src="https://readdy.ai/api/search-image?query=taipei%20101%20observatory%20deck%20with%20panoramic%20city%20view%2C%20modern%20skyscraper%20interior%20with%20floor%20to%20ceiling%20windows%2C%20tourists%20enjoying%20the%20scenic%20vista%2C%20clean%20white%20background%20with%20soft%20lighting&width=300&height=300&seq=cart1&orientation=squarish"
-          alt=""
-        />
-        <div>
+        <div class="w-44 h-28 rounded-lg overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+          <img v-if="tour.image" :src="tour.image" alt="旅遊圖片" />
+        </div>
+        <div class="space-y-2">
           <h1 class="text-lg font-bold sm:text-xl">{{ tour.title }}</h1>
           <p class="text-sm">{{ tour.description }}</p>
 
-          <div class="text-sm mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-x-5">
-            <p>出發日期：{{ tour.date }}</p>
-            <p>行程時間：{{ tour.duration }}</p>
+          <div class="text-sm mt-3 flex flex-col xl:gap-5 xl:flex-row">
+            <p>行程日期：{{ tour.date }}</p>
             <p>人數：{{ tour.persons }} 人</p>
           </div>
         </div>

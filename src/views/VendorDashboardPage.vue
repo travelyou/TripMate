@@ -10,7 +10,6 @@ import TabBasicInfo from '@/components/vendor-dashboard/tabs/TabBasicInfo.vue'
 import TabItineraryList from '@/components/vendor-dashboard/tabs/TabItineraryList.vue'
 import TabPostList from '@/components/vendor-dashboard/tabs/TabPostList.vue'
 
-// ★★★ 1. 引入彈窗組件 ★★★
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 
@@ -20,7 +19,6 @@ const userStore = useUserStore()
 
 const activeTab = ref('basic_info')
 
-// ★★★ 2. 彈窗狀態控制 ★★★
 const showItineraryModal = ref(false)
 const showPostModal = ref(false)
 
@@ -37,7 +35,6 @@ const handleSwitchToFrontend = () => {
   router.push('/vendor')
 }
 
-// ★★★ 3. 開啟彈窗的方法 ★★★
 const openItineraryModal = () => {
   showItineraryModal.value = true
 }
@@ -46,7 +43,6 @@ const openPostModal = () => {
   showPostModal.value = true
 }
 
-// ★★★ 4. 發文成功的回調 ★★★
 const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
   // 重新抓取資料以更新列表

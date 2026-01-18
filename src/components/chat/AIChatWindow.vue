@@ -20,13 +20,34 @@ const messageInput = ref('')
 const messagesContainer = ref(null)
 const isLoading = ref(false)
 
-// 初始化 Google AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
-const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME })
+// 初始化 Gemini
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+let genAI = null
+let model = null
+let chat = null
 
-const chat = model.startChat({
-  history: TRIPMATE_SYSTEM_PROMPT,
-})
+if (!apiKey) {
+  console.error('❌ 沒有 VITE_GEMINI_API_KEY ！')
+  if (import.meta.env.PROD) {
+    console.error('⚠️ 生產環境：請檢查 GitHub Secrets 中的 VITE_GEMINI_API_KEY 是否已設置')
+  }
+}
+
+if (apiKey) {
+  try {
+    genAI = new GoogleGenerativeAI(apiKey)
+    model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME })
+    chat = model.startChat({
+      history: TRIPMATE_SYSTEM_PROMPT,
+    })
+    console.log('✅ AI 初始化成功，模型:', GEMINI_MODEL_NAME)
+  } catch (error) {
+    console.error('❌ AI 初始化失敗:', error)
+    if (error.message?.includes('API key') || error.message?.includes('API_KEY')) {
+      console.error('⚠️ API Key 可能無效或過期，請檢查 GitHub Secrets')
+    }
+  }
+}
 
 // 預設歡迎訊息
 const messages = ref([
@@ -49,6 +70,15 @@ const messages = ref([
 const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text || isLoading.value) return
+
+  if (!chat) {
+    messages.value.push({
+      id: Date.now() + 1,
+      type: 'bot',
+      content: '聊天功能沒有成功開始',
+    })
+    return
+  }
 
   // 1. 加入使用者訊息
   messages.value.push({
@@ -76,11 +106,32 @@ const sendMessage = async () => {
       content: sanitizedHtml,
     })
   } catch (error) {
-    console.error('AI Error:', error)
+    console.error('❌ AI Error:', error)
+
+    let errorMessage = '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫'
+
+    // 檢查特定錯誤類型
+    if (error.message?.includes('API key expired') || error.message?.includes('API_KEY_INVALID')) {
+      errorMessage = '⚠️ API Key 已過期或無效，請聯繫管理員更新'
+      console.error('⚠️ API Key 問題：', error.message)
+      if (import.meta.env.PROD) {
+        console.error('⚠️ 生產環境：請檢查 GitHub Secrets 中的 VITE_GEMINI_API_KEY')
+      }
+    } else if (error.message?.includes('404') || error.message?.includes('not found')) {
+      errorMessage = '⚠️ 模型名稱錯誤，請檢查配置'
+      console.error('⚠️ 模型問題：', error.message)
+    } else if (error.message?.includes('502') || error.message?.includes('Bad Gateway')) {
+      errorMessage = '⚠️ 網路連線問題，請稍後再試'
+      console.error('⚠️ 網路問題：', error.message)
+    } else if (error.message?.includes('400')) {
+      errorMessage = '⚠️ 請求格式錯誤，請稍後再試'
+      console.error('⚠️ 請求錯誤：', error.message)
+    }
+
     messages.value.push({
       id: Date.now() + 1,
       type: 'bot',
-      content: '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫',
+      content: errorMessage,
     })
   } finally {
     isLoading.value = false

@@ -58,23 +58,19 @@ const validateBasic = () => {
   if (!postData.value.title) return '請輸入行程標題'
   if (postData.value.title.length > 35) return '標題不能超過 35 個字元'
 
-  // 價格檢查
   if (postData.value.price === null || postData.value.price === '') return '請輸入價格'
   if (postData.value.price < 0) return '價格不能為負數'
   if (postData.value.price > 1000000) return '價格不能超過 1,000,000'
   if (!Number.isInteger(postData.value.price)) return '價格必須為整數'
 
-  // 廠商名稱字數
   if (!postData.value.agencyName) return '請輸入旅行社/提供者名稱'
   if (postData.value.agencyName.length > 15) return '廠商名稱不能超過 15 個字'
 
-  // 地點字數
   if (postData.value.location && postData.value.location.length > 10)
     return '地點名稱不能超過 10 個字'
 
   if (!postData.value.start_date || !postData.value.end_date) return '請選擇行程日期'
 
-  // 出發日期不能早於今天
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const startDate = new Date(postData.value.start_date)

@@ -26,25 +26,27 @@ function backCart() {
 
       <!-- 行程資訊 -->
       <div v-if="checkoutStore.selectedTour">
-        <div class="flex flex-col gap-10 bg-white rounded-xl p-10 sm:flex-row sm:justify-center">
+        <div class="flex flex-col gap-10 bg-white rounded-xl p-10 sm:flex-row">
           <!-- 圖片 -->
-          <img
-            class="w-36 h-36 rounded-lg overflow-hidden flex-shrink-0 self-center sm:self-start"
-            src="https://readdy.ai/api/search-image?query=taipei%20101%20observatory%20deck%20with%20panoramic%20city%20view%2C%20modern%20skyscraper%20interior%20with%20floor%20to%20ceiling%20windows%2C%20tourists%20enjoying%20the%20scenic%20vista%2C%20clean%20white%20background%20with%20soft%20lighting&width=300&height=300&seq=cart1&orientation=squarish"
-            alt=""
-          />
-          <!-- 資訊大區 -->
+          <div class="w-48 h-32 rounded-lg overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+            <img
+              v-if="checkoutStore.selectedTour.image"
+              :src="checkoutStore.selectedTour.image"
+              alt="旅遊圖片"
+            />
+          </div>
+
+          <!-- 資訊文字區 -->
           <div>
             <!-- 商品資訊區 -->
             <div>
               <h1 class="text-xl font-bold sm:text-3xl">{{ checkoutStore.selectedTour.title }}</h1>
-              <p class="text-sm mt-5 sm:text-base sm:mt-0">
+              <p class="text-sm mt-5 sm:text-base sm:mt-2 line-clamp-2">
                 {{ checkoutStore.selectedTour.description }}
               </p>
 
               <div class="grid grid-cols-1 mt-5 text-sm sm:text-base sm:grid-cols-2">
-                <p>出發日期：{{ checkoutStore.selectedTour.date }}</p>
-                <p>行程時間：{{ checkoutStore.selectedTour.duration }}</p>
+                <p>行程日期：{{ checkoutStore.selectedTour.date }}</p>
                 <p class="text-sm sm:text-base">
                   人數：{{ checkoutStore.selectedTour.persons }} 人
                 </p>
@@ -62,7 +64,7 @@ function backCart() {
               </div>
               <div class="flex justify-between py-2 mt-5 border-t">
                 <p>總計：</p>
-                <p>NT$ {{ checkoutStore.totalPrice }}</p>
+                <p>NT$ {{ checkoutStore.cartTotalPrice }}</p>
               </div>
             </div>
           </div>

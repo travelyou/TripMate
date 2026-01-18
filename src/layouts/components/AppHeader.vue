@@ -41,7 +41,11 @@
           <BellIcon class="w-6 h-6" />
         </button>
 
-        <router-link to="/cart" class="p-2 hover:bg-primary-600 rounded-full transition">
+        <router-link to="/cart" class="relative p-2 hover:bg-primary-600 rounded-full transition">
+          <span
+            v-if="hasCartItems"
+            class="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-primary-700"
+          ></span>
           <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-secondary-50" />
         </router-link>
 
@@ -131,6 +135,7 @@
 <script setup>
 import TripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 import { useUserStore } from '@/stores/user'
+import { checkoutStore } from '@/stores/checkout'
 import {
   Bell as BellIcon,
   LogOut as LogOutIcon,
@@ -142,13 +147,17 @@ import {
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const headerSearchQuery = ref('')
+
+const hasCartItems = computed(
+  () => (checkoutStore.cartItems?.length ?? 0) > 0 || checkoutStore.tourGroups.length > 0,
+)
 
 const handleDesktopSearch = () => {
   if (!headerSearchQuery.value.trim()) return
