@@ -5,6 +5,28 @@ const pool = require('../database/connection')
 // 1. 取得所有行程 (列表頁用)
 router.get('/', async (req, res) => {
   try {
+    const { ids } = req.query || {}
+
+    if (ids) {
+      const idList = String(ids)
+        .split(',')
+        .map((x) => Number(x.trim()))
+        .filter((n) => Number.isInteger(n))
+
+      if (idList.length === 0) {
+        return res.status(400).json({ ok: false, message: 'ids is invalid' })
+      }
+
+      const r = await pool.query(
+        `SELECT id, title, content, banner_image, start_date, end_date, price, status
+        FROM itinerary.itineraries
+        WHERE id = ANY($1::int[])
+        ORDER BY id`,
+        [idList],
+      )
+      return res.json({ ok: true, items: r.rows })
+    }
+
     const query = `
       SELECT
         id,
@@ -21,7 +43,7 @@ router.get('/', async (req, res) => {
         saves_count as "totalSaves",
         likes_count as likes,
         created_at
-      FROM itineraries
+      FROM itinerary.itineraries
       ORDER BY created_at DESC
     `
     const result = await pool.query(query)
@@ -56,7 +78,7 @@ router.get('/:id', async (req, res) => {
         saves_count as "totalSaves",
         likes_count as likes,
         author_name, author_avatar
-      FROM itineraries WHERE id = $1
+      FROM itinerary.itineraries WHERE id = $1
     `
     const itineraryResult = await pool.query(itineraryQuery, [id])
 
@@ -66,12 +88,12 @@ router.get('/:id', async (req, res) => {
     const itinerary = itineraryResult.rows[0]
 
     const daysResult = await pool.query(
-      'SELECT day_number as day, activities FROM itinerary_days WHERE itinerary_id = $1 ORDER BY day_number ASC',
+      'SELECT day_number as day, activities FROM itinerary.itinerary_days WHERE itinerary_id = $1 ORDER BY day_number ASC',
       [id],
     )
 
     const packingResult = await pool.query(
-      'SELECT category, items FROM itinerary_packing_lists WHERE itinerary_id = $1',
+      'SELECT category, items FROM itinerary.itinerary_packing_lists WHERE itinerary_id = $1',
       [id],
     )
 
@@ -122,7 +144,7 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN')
 
     const insertItineraryQuery = `
-      INSERT INTO itineraries
+      INSERT INTO itinerary.itineraries
       (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, author_uid, status, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING id
@@ -145,7 +167,7 @@ router.post('/', async (req, res) => {
 
     // 每日行程
     if (itinerary && itinerary.days) {
-      const dayInsertQuery = `INSERT INTO itinerary_days (itinerary_id, day_number, activities, created_at) VALUES ($1, $2, $3, NOW())`
+      const dayInsertQuery = `INSERT INTO itinerary.itinerary_days (itinerary_id, day_number, activities, created_at) VALUES ($1, $2, $3, NOW())`
       for (const day of itinerary.days) {
         await client.query(dayInsertQuery, [
           newItineraryId,
@@ -157,7 +179,7 @@ router.post('/', async (req, res) => {
 
     // 打包清單
     if (packingList) {
-      const packingInsertQuery = `INSERT INTO itinerary_packing_lists (itinerary_id, category, items, created_at) VALUES ($1, $2, $3, NOW())`
+      const packingInsertQuery = `INSERT INTO itinerary.itinerary_packing_lists (itinerary_id, category, items, created_at) VALUES ($1, $2, $3, NOW())`
       for (const list of packingList) {
         await client.query(packingInsertQuery, [
           newItineraryId,

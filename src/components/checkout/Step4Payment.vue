@@ -1,11 +1,47 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { checkoutStore } from '@/stores/checkout'
 import MainButton from './MainButton.vue'
 import SubButton from './SubButton.vue'
+import axios from 'axios'
+import { API_BASE_URL } from '@/api/config'
 
 const router = useRouter()
+const route = useRoute()
+
+const orderLoading = ref(false)
+const orderError = ref('')
+const payableAmount = ref(0)
+
+const orderId = computed(() => route.query.orderId || checkoutStore.lastOrder?.id)
+
+onMounted(async () => {
+  if (!orderId.value) return
+
+  orderLoading.value = true
+  orderError.value = ''
+  try {
+    const { data } = await axios.get(`${API_BASE_URL}/orders/${orderId.value}`)
+    if (!data?.ok) throw new Error(data?.message || '讀取訂單失敗')
+
+    // 後端訂單金額（不會因 cart 被清掉而變 0）
+    payableAmount.value = Number(data.order?.amount ?? 0)
+
+    // （可選）順便把 store 的 lastOrder 補齊，方便其他步驟用
+    checkoutStore.lastOrder = {
+      id: data.order.id,
+      orderNo: data.order.orderNo,
+      amount: Number(data.order.amount ?? 0),
+      status: data.order.status,
+    }
+  } catch (e) {
+    orderError.value = e?.message || '讀取訂單失敗'
+    payableAmount.value = 0
+  } finally {
+    orderLoading.value = false
+  }
+})
 
 // 付款方式
 const paymentMethod = ref('')
@@ -79,12 +115,13 @@ const showMobilePay = computed(() => paymentMethod.value === 'mobile')
 const showBankInfo = computed(() => paymentMethod.value === 'bank')
 
 // 前往完成訂單
-function confirmPayment() {
+async function confirmPayment() {
   if (!paymentMethod.value) {
     alert('請選擇付款方式')
     return
   }
-  // 若選擇信用卡，先驗證信用卡欄位格式
+
+  // 信用卡驗證（你原本的保留）
   if (paymentMethod.value === 'credit') {
     clearCardErrors()
     let valid = true
@@ -93,40 +130,52 @@ function confirmPayment() {
       cardNameError.value = '請輸入持卡人姓名'
       valid = false
     }
-
     if (!isValidCardNumber(cardNumber.value)) {
       cardNumberError.value = '請輸入正確卡號'
       valid = false
     }
-
     if (!isValidExpiry(cardExpiry.value)) {
-      cardExpiryError.value = '請輸入有效期限，格式 MM/YY，且未過期'
+      cardExpiryError.value = '請輸入有效期限'
       valid = false
     }
-
     if (!isValidCVV(cardCVV.value)) {
-      cardCVVError.value = '請輸入 3 或 4 位數安全碼'
+      cardCVVError.value = '請輸入 CVV'
       valid = false
     }
-
     if (!valid) return
   }
 
+  if (paymentMethod.value === 'mobile' && !mobileProvider.value) {
+    alert('請選擇行動支付方式')
+    return
+  }
+
+  // 把付款方式存到 store（可選）
   checkoutStore.paymentMethod = paymentMethod.value
-  if (paymentMethod.value === 'mobile') {
-    if (!mobileProvider.value) {
-      alert('請選擇行動支付方式')
-      return
-    }
-    checkoutStore.mobileProvider = mobileProvider.value
+  checkoutStore.mobileProvider = mobileProvider.value
+
+  // 🔑 取得 Step3 建好的 orderId
+  const orderId = route.query.orderId || checkoutStore.lastOrder?.id
+  if (!orderId) {
+    alert('找不到訂單編號，請重新結帳')
+    router.replace('/cart')
+    return
   }
 
-  // 儲存為已完成的訂單並清空 checkoutStore
-  if (typeof checkoutStore.completeOrder === 'function') {
-    checkoutStore.completeOrder()
-  }
+  try {
+    // 🔥 這裡用你後端的 mock-pay 模擬付款成功
+    const { data } = await axios.get(`${API_BASE_URL}/payments/mock-pay`, {
+      params: { orderId },
+    })
 
-  router.push('/checkout/step5')
+    if (!data?.ok) throw new Error(data?.message || '付款失敗')
+
+    // 成功 → 進 Step5，用 orderId 查狀態
+    router.push(`/checkout/step5?orderId=${orderId}`)
+  } catch (e) {
+    console.error(e)
+    alert(e?.message || '付款失敗')
+  }
 }
 
 // 上一步
@@ -137,7 +186,7 @@ function backStep() {
 
 <template>
   <section class="max-w-5xl mx-auto">
-    <div class="flex flex-col gap-10 md:flex-row">
+    <div class="flex flex-col gap-10 lg:flex-row">
       <!-- 左側：付款方式 -->
       <div class="flex-1 space-y-6">
         <!-- 安全提示 -->
@@ -296,7 +345,7 @@ function backStep() {
             </div>
             <div class="flex justify-between font-bold text-blue-600">
               <span>轉帳金額</span>
-              <span>NT$ {{ checkoutStore.totalPrice }}</span>
+              <span>NT$ {{ payableAmount }}</span>
             </div>
           </div>
 
@@ -308,14 +357,14 @@ function backStep() {
       <div class="min-w-64 bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
         <h3 class="text-xl font-bold">訂單摘要</h3>
 
-        <div class="space-y-2">
+        <div class="space-y-4">
           <div class="mb-12 text-md">
             <p class="text-gray-500">行程名稱</p>
             <p>{{ checkoutStore.selectedTour?.title }}</p>
           </div>
 
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">出發日期</span>
+          <div class="flex flex-col gap-2 justify-between text-sm">
+            <span class="text-gray-500">行程日期</span>
             <span>{{ checkoutStore.selectedTour?.date }}</span>
           </div>
 
@@ -325,16 +374,17 @@ function backStep() {
           </div>
 
           <hr />
-
-          <div class="flex justify-between font-bold text-blue-600 text-lg">
-            <span>應付金額</span>
-            <span>NT$ {{ checkoutStore.totalPrice }}</span>
+          <div v-if="orderLoading">訂單金額載入中...</div>
+          <div v-else-if="orderError">{{ orderError }}</div>
+          <div v-else>
+            <div class="flex justify-between font-bold text-blue-600 text-lg">
+              <span>應付金額</span>
+              <span>NT$ {{ payableAmount }}</span>
+            </div>
           </div>
         </div>
         <div class="flex flex-col gap-3">
-          <MainButton @click="confirmPayment">
-            確認付款 NT$ {{ checkoutStore.totalPrice }}
-          </MainButton>
+          <MainButton @click="confirmPayment"> 確認付款 </MainButton>
 
           <SubButton @click="backStep"> 上一步 </SubButton>
         </div>

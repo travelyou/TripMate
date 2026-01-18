@@ -12,33 +12,68 @@ import {
   ChevronRight as ChevronRightIcon,
   Users as UsersIcon,
 } from 'lucide-vue-next'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
-const userStore = useUserStore()
+useUserStore()
 const router = useRouter()
 
 const currentUserUid = ref(null)
+let likeSyncTimer = null
 
-// 監聽 Firebase 認證狀態
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const scheduleLikesSync = (posts, uid) => {
+  if (!uid || !Array.isArray(posts) || posts.length === 0) return
+  if (likeSyncTimer) clearTimeout(likeSyncTimer)
+
+  likeSyncTimer = setTimeout(async () => {
+    for (const post of posts) {
+      try {
+        const { getLikesInfo } = await import('@/api/likes')
+        const info = await getLikesInfo(post.id, uid)
+        post.isLiked = info.isLiked
+        post.likes = info.likesCount ?? post.likes
+        await sleep(120)
+      } catch (error) {
+        // Error loading likes
+      }
+    }
+  }, 800)
+}
+
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  // 重新載入資料邏輯... (略，保持原樣即可，Card 會自己處理按讚狀態)
+  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+    scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+  } else if (!currentUserUid.value) {
+    discussionsStore.discussions?.forEach((post) => {
+      post.isLiked = false
+    })
+  }
 })
 
 onMounted(async () => {
   try {
     await discussionsStore.loadDiscussions()
+    if (currentUserUid.value) {
+      scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
+    }
   } catch (error) {
-    console.error('載入貼文失敗：', error)
+    // Error loading posts
   }
 })
 
+onBeforeUnmount(() => {
+  if (likeSyncTimer) clearTimeout(likeSyncTimer)
+})
+
 const scrollContainer = ref(null)
+
 const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
@@ -78,7 +113,6 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// 根據標籤文字自動產生固定顏色
 const getTagColor = (tagText) => {
   const colors = [
     'bg-red-500 border-red-400',
@@ -197,7 +231,30 @@ const getTagColor = (tagText) => {
           </h2>
         </div>
 
-        <div class="space-y-6">
+        <div
+          v-if="discussionsStore.loading && !discussionsStore.discussions.length"
+          class="space-y-6"
+        >
+          <div
+            v-for="n in 3"
+            :key="`skeleton-${n}`"
+            class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl animate-pulse"
+          >
+            <div class="flex items-center space-x-3 mb-4">
+              <div class="w-10 h-10 rounded-full bg-gray-200"></div>
+              <div class="space-y-2">
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-3 w-20 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="h-5 w-2/3 bg-gray-200 rounded mb-3"></div>
+            <div class="h-4 w-full bg-gray-200 rounded mb-2"></div>
+            <div class="h-4 w-5/6 bg-gray-200 rounded mb-4"></div>
+            <div class="w-full h-64 rounded-xl bg-gray-200"></div>
+          </div>
+        </div>
+
+        <div v-else class="space-y-6">
           <DiscussionCard
             v-for="post in discussionsStore.discussions"
             :key="post.id"

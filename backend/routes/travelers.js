@@ -382,7 +382,6 @@ router.post('/', async (req, res) => {
         throw new Error('max_people 必須是 1-100 之間的整數')
       }
 
-      // 如果 spirit_animal 为空，尝试从 users 表中查询
       let finalSpiritAnimal = spirit_animal || null
       if (!finalSpiritAnimal && author_uid) {
         try {
@@ -392,10 +391,9 @@ router.post('/', async (req, res) => {
           )
           if (userQuery.rows.length > 0 && userQuery.rows[0].spirit_animal) {
             finalSpiritAnimal = userQuery.rows[0].spirit_animal
-            console.log('[Backend Travelers POST] 从 users 表获取 spirit_animal:', finalSpiritAnimal)
           }
         } catch (userQueryError) {
-          console.log('[Backend Travelers POST] 查询 users 表失败（不影响保存）:', userQueryError.message)
+          // Silent fail
         }
       }
 

@@ -12,6 +12,9 @@ const usersRouter = require('./routes/users')
 const travelersRoutes = require('./routes/travelers')
 const profileRouter = require('./routes/profile')
 const itinerariesRouter = require('./routes/itineraries')
+const paymentsRouter = require('./routes/payments')
+const ordersRouter = require('./routes/orders')
+const cartRouter = require('./routes/cart')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -113,7 +116,6 @@ app.get('/api/test-db', async (req, res) => {
   }
 })
 
-// 使用討論區路由
 app.use('/api/discussions', discussionsRouter)
 app.use('/api/posts', discussionsRouter)
 app.use('/api', commentsRouter)
@@ -121,14 +123,12 @@ app.use('/api/likes', likesRouter)
 app.use('/api/travelers', travelersRoutes)
 app.use('/api/itineraries', itinerariesRouter)
 app.use('/api/users', usersRouter)
-
-
 app.use('/api/profile', profileRouter)
-
-// 相容：若部署環境沒有 /api 前綴（或你想支援兩種路徑），也提供 /discussions
+app.use('/api/payments', paymentsRouter)
+app.use('/api/orders', ordersRouter)
+app.use('/api/cart', cartRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
-
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
@@ -154,7 +154,6 @@ app.use((err, req, res, next) => {
     })
   }
 
-  console.error('錯誤:', err.message)
   res.status(err.status || 500).json({
     error: err.message || '伺服器內部錯誤',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
@@ -175,5 +174,5 @@ app.use((req, res) => {
 })
 
 app.listen(PORT, HOST, () => {
-  console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
+  // Server started
 })
