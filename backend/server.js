@@ -24,6 +24,7 @@ const HOST = process.env.HOST || '0.0.0.0'
 const allowedOrigins = [
   'https://tripmate.zeabur.app',
   'https://tripmate-backend.zeabur.app',
+  'https://tripmate-mayoyo.com',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://trip-mate-xi.vercel.app', // 新增你的 Vercel 前端網址

@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global require, module, process */
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
@@ -327,8 +329,35 @@ router.post('/', async (req, res) => {
     console.log('📊 [Backend POST / Success] 新討論 ID:', newDiscussion.id)
     console.log('📊 [Backend POST / Success] 創建時間:', newDiscussion.created_at)
 
+    // 回傳最新作者資料，確保頭貼與個人檔案一致
+    const discussionQuery = `
+      SELECT
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
+        0 as likes_count,
+        0 as comments_count
+      FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
+      WHERE d.id = $1
+    `
+    const enrichedResult = await pool.query(discussionQuery, [newDiscussion.id])
+    const enrichedDiscussion = enrichedResult.rows[0] || newDiscussion
+
     console.log('🟢 [Backend POST /] ========== 完成 ==========')
-    res.status(201).json(newDiscussion)
+    res.status(201).json(enrichedDiscussion)
   } catch (error) {
     console.error('❌ [Backend POST /] ========== 失敗 ==========')
     console.error('❌ [Backend POST /] 錯誤類型:', error.name)
