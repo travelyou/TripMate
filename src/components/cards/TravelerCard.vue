@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   Calendar as CalendarIcon,
@@ -10,6 +11,8 @@ import {
   Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 
+const router = useRouter()
+
 const props = defineProps({
   traveler: {
     type: Object,
@@ -17,7 +20,27 @@ const props = defineProps({
   },
 })
 
+defineEmits(['open-detail'])
+
 const userStore = useUserStore()
+
+const handleAvatarClick = (e) => {
+  e.stopPropagation()
+  e.preventDefault()
+
+  const authorUid = props.traveler.author_uid || props.traveler.authorUid
+  const vendorId = props.traveler.vendor_id || props.traveler.vendorId
+
+  if (vendorId) {
+    router.push({ path: `/vendor/${vendorId}`, replace: false })
+    return
+  }
+
+  if (authorUid) {
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+    return
+  }
+}
 
 const itemData = computed(() => ({
   id: props.traveler.id,
@@ -62,7 +85,6 @@ const getStatusClasses = (status) => {
       </div>
 
       <div class="flex flex-col gap-3 h-full">
-        <!-- 圖片 + 覆蓋資訊 -->
         <div
           class="relative shrink-0 w-full overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
         >
@@ -75,24 +97,28 @@ const getStatusClasses = (status) => {
           <div
             class="absolute inset-x-0 bottom-0 h-[40%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/80 via-black/50 to-transparent flex flex-col justify-end"
           >
-            <!-- 中間區 -->
             <div>
-              <!-- 頭像/作者名稱 -->
               <div class="flex items-center space-x-3 mb-2">
                 <img
                   :src="traveler.avatar"
-                  class="w-8 h-8 rounded-full object-cover border-2 border-white/80"
+                  class="w-8 h-8 rounded-full object-cover border-2 border-white/80 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+                  @click.stop="handleAvatarClick"
                 />
                 <div>
-                  <div class="flex items-center space-x-1">
-                    <span class="font-bold text-sm text-white">{{ traveler.author }}</span>
-                    <span class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full">
+                  <div class="flex items-center space-x-1 flex-wrap gap-1">
+                    <span
+                      class="font-bold text-sm text-white cursor-pointer hover:text-primary-300 transition"
+                      @click.stop="handleAvatarClick"
+                    >{{ traveler.author }}</span>
+                    <span
+                      v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
+                      class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                    >
                       {{ traveler.spiritAnimal }}
                     </span>
                   </div>
                 </div>
               </div>
-              <!-- 標題/內容 -->
               <div>
                 <h3 class="text-xl font-bold mb-1 line-clamp-1">
                   {{ traveler.title }}
@@ -103,7 +129,6 @@ const getStatusClasses = (status) => {
               </div>
             </div>
 
-            <!-- 底部區 -->
             <div class="space-y-2 text-sm text-white/85">
               <div class="flex flex-wrap gap-1 overflow-hidden line-clamp-1 min-h-[1.25rem]">
                 <span

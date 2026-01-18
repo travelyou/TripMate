@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -54,6 +54,7 @@ const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
+const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 
 /*
 // 背景圖片陣列
@@ -93,11 +94,32 @@ const handleQuickAction = () => {
   isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
-const handleTogglePrivateChat = () => {
+const handleTogglePrivateChat = (user = null) => {
+  if (user) {
+    openChatWithUser.value = user
+  }
   isPrivateChatOpen.value = !isPrivateChatOpen.value
   isAiChatOpen.value = false
   isMobileActionMenuOpen.value = false
 }
+
+// 監聽全局事件來開啟聊天（從 ProfilePage 觸發）
+const handleOpenChat = (event) => {
+  if (event.detail && event.detail.user) {
+    openChatWithUser.value = event.detail.user
+    isPrivateChatOpen.value = true
+    isAiChatOpen.value = false
+    isMobileActionMenuOpen.value = false
+  }
+}
+
+// 在組件掛載時監聽全局事件
+onMounted(() => {
+  window.addEventListener('open-chat', handleOpenChat)
+})
+onUnmounted(() => {
+  window.removeEventListener('open-chat', handleOpenChat)
+})
 const handleToggleAiChat = () => {
   isAiChatOpen.value = !isAiChatOpen.value
   isPrivateChatOpen.value = false
@@ -322,7 +344,11 @@ const handleSubmitPost = async (postData) => {
       @select-find-traveler="handleSelectFindTraveler"
       @submit-post="handleSubmitPost"
     />
-    <PrivateChatWindow v-if="isPrivateChatOpen" @close="isPrivateChatOpen = false" />
+    <PrivateChatWindow 
+      v-if="isPrivateChatOpen" 
+      :open-chat-with-user="openChatWithUser"
+      @close="isPrivateChatOpen = false; openChatWithUser = null" 
+    />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
   </div>

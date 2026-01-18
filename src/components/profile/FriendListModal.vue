@@ -12,7 +12,7 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'chat'])
+defineEmits(['close', 'chat', 'open-profile'])
 </script>
 
 <template>
@@ -47,9 +47,14 @@ defineEmits(['close', 'chat'])
         <div
           v-for="friend in friends"
           :key="friend.id"
-          class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition group"
+          class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition group cursor-pointer"
+          @click="$emit('chat', friend)"
         >
-          <div class="flex items-center gap-3">
+          <button
+            class="flex items-center gap-3 text-left"
+            type="button"
+            @click.stop="$emit('open-profile', friend)"
+          >
             <img
               :src="friend.avatar"
               class="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100"
@@ -59,12 +64,12 @@ defineEmits(['close', 'chat'])
               <div class="font-bold text-gray-800 text-sm">{{ friend.name }}</div>
               <div class="text-xs text-gray-500">@{{ friend.nickname }}</div>
             </div>
-          </div>
+          </button>
 
           <button
             class="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition opacity-100 group-hover:opacity-100"
             title="聊聊"
-            @click="$emit('chat', friend)"
+            @click.stop="$emit('chat', friend)"
           >
             <MessageCircle class="w-4 h-4" />
           </button>

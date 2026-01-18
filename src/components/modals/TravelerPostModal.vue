@@ -24,6 +24,13 @@ import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 
+const props = defineProps({
+  draftData: {
+    type: Object,
+    default: null
+  }
+})
+
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
@@ -103,7 +110,6 @@ const validateBasic = () => {
 
   let hasError = false
 
-  // 驗證標題
   if (!postData.value.title.trim()) {
     fieldErrors.value.title = '請輸入標題'
     hasError = true
@@ -112,7 +118,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證內容
   if (!postData.value.content.trim()) {
     fieldErrors.value.content = '請輸入內容'
     hasError = true
@@ -121,7 +126,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證地點
   if (!postData.value.location.trim()) {
     fieldErrors.value.location = '請輸入地點'
     hasError = true
@@ -130,7 +134,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證人數
   const maxPeopleNum = Number(postData.value.max_people)
   if (!maxPeopleNum || maxPeopleNum < 1) {
     fieldErrors.value.max_people = '請輸入有效的人數'
@@ -140,7 +143,6 @@ const validateBasic = () => {
     hasError = true
   }
 
-  // 驗證開始日期
   if (!postData.value.start_date) {
     fieldErrors.value.start_date = '請選擇開始日期'
     hasError = true
@@ -154,7 +156,6 @@ const validateBasic = () => {
     }
   }
 
-  // 驗證結束日期
   if (!postData.value.end_date) {
     fieldErrors.value.end_date = '請選擇結束日期'
     hasError = true
@@ -309,16 +310,15 @@ const handleBannerSelect = async (event) => {
     })
 
     bannerFile.value = compressedFile
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    bannerPreview.value = e.target.result
-  }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      bannerPreview.value = e.target.result
+    }
     reader.readAsDataURL(compressedFile)
 
     isUploading.value = false
     uploadProgress.value = 0
   } catch (error) {
-    console.error('圖片壓縮失敗：', error)
     alert('圖片處理失敗：' + error.message)
     isUploading.value = false
     uploadProgress.value = 0
@@ -428,7 +428,6 @@ const addTag = (tagText) => {
   tagSearch.value = ''
 }
 const removeTag = (index) => postData.value.tags.splice(index, 1)
-
 
 const validateItinerary = () => {
   fieldErrors.value.itinerary = ''
@@ -665,7 +664,6 @@ const executeSubmit = async () => {
         uploadProgress.value = 0
         submitProgress.value = 10
         submitStatus.value = '正在上傳圖片...'
-        console.log('[旅伴發文] 開始上傳 banner 圖片...')
         bannerImageUrl = await uploadImage(
           bannerFile.value,
           'travelers',
@@ -673,15 +671,12 @@ const executeSubmit = async () => {
             uploadProgress.value = progress
             submitProgress.value = 10 + Math.floor((progress / 100) * 50)
             submitStatus.value = `正在上傳圖片... ${progress}%`
-            console.log(`[旅伴發文] 上傳進度: ${progress}%`)
           }
         )
-        console.log('[旅伴發文] Banner 圖片上傳成功:', bannerImageUrl)
         uploadProgress.value = 100
         submitProgress.value = 60
         submitStatus.value = '圖片上傳完成'
       } catch (error) {
-        console.error('[旅伴發文] Banner 圖片上傳失敗：', error)
         isUploading.value = false
         uploadProgress.value = 0
         const shouldContinue = confirm(
@@ -716,14 +711,13 @@ const executeSubmit = async () => {
       status: '招募中',
       banner_image: bannerImageUrl,
       author_uid: auth.currentUser.uid,
-      author_name: userStore.currentUser?.displayName || '匿名',
+      author_name: userStore.userProfile?.name || userStore.userProfile?.nickname || '匿名',
       author_avatar:
-        userStore.currentUser?.photoURL ||
+        userStore.userProfile?.avatar ||
         'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
-      spirit_animal: userStore.currentUser?.spiritAnimal || '樂天派',
+      spirit_animal: userStore.userProfile?.spiritAnimal || null,
     }
 
-    // 清理和优化数据
     const optimizedPayload = {
       title: payload.title.trim(),
       content: payload.content.trim(),
@@ -760,35 +754,8 @@ const executeSubmit = async () => {
     }
 
     const payloadSize = JSON.stringify(optimizedPayload).length
-    const payloadSizeMB = (payloadSize / 1024 / 1024).toFixed(2)
     const payloadSizeKB = (payloadSize / 1024).toFixed(2)
-    console.log('[旅伴發文] Payload 大小:', payloadSizeMB, 'MB (', payloadSizeKB, 'KB)')
-    console.log('[旅伴發文] Payload 詳細:', {
-      title: optimizedPayload.title,
-      contentLength: optimizedPayload.content?.length || 0,
-      itineraryDays: optimizedPayload.itinerary?.days?.length || 0,
-      packingListCount: optimizedPayload.packingList?.length || 0,
-      tagsCount: optimizedPayload.tags?.length || 0,
-      hasBanner: !!optimizedPayload.banner_image,
-    })
 
-    console.log('[診斷] Firebase Storage URL 長度:', bannerImageUrl?.length || 0)
-    console.log('[診斷] 完整 payload 結構分析:', {
-      bannerUrlLength: optimizedPayload.banner_image?.length || 0,
-      itinerarySize: JSON.stringify(optimizedPayload.itinerary).length,
-      packingListSize: JSON.stringify(optimizedPayload.packingList).length,
-      contentSize: optimizedPayload.content?.length || 0,
-      tagsSize: JSON.stringify(optimizedPayload.tags).length,
-      totalSize: payloadSize,
-      totalSizeKB: payloadSizeKB,
-      totalSizeMB: payloadSizeMB,
-    })
-
-    if (optimizedPayload.banner_image) {
-      console.log('[診斷] Banner URL 前 100 字符:', optimizedPayload.banner_image.substring(0, 100))
-    }
-
-    // Zeabur 通常限制为 1MB，我们设置为 900KB 作为安全边界
     if (payloadSize > 900 * 1024) {
       formError.value = `資料太大（${payloadSizeKB}KB），請減少行程天數、打包清單項目或內容長度`
       isSubmitting.value = false
@@ -799,12 +766,6 @@ const executeSubmit = async () => {
 
     submitProgress.value = 70
     submitStatus.value = '正在提交貼文...'
-    console.log('[旅伴發文] 提交 payload:', {
-      title: optimizedPayload.title,
-      hasBanner: !!optimizedPayload.banner_image,
-      bannerUrl: optimizedPayload.banner_image,
-      payloadSizeKB: payloadSizeKB,
-    })
 
     const response = await createTraveler(optimizedPayload)
 
@@ -820,7 +781,7 @@ const executeSubmit = async () => {
           body: '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
-    } else {
+      } else {
         alert('旅伴招募發布成功！')
       }
       window.location.reload()
@@ -843,15 +804,6 @@ const executeSubmit = async () => {
       submitStatus.value = ''
     }
   } catch (error) {
-    console.error('[旅伴發文] 提交失敗:', error)
-    console.error('[旅伴發文] 錯誤詳情:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      code: error.response?.data?.code,
-      detail: error.response?.data?.detail,
-    })
-
     sessionStorage.removeItem('is_submitting_traveler_post')
     sessionStorage.removeItem('submit_start_time')
 
@@ -890,14 +842,11 @@ const handleFinalSubmit = async () => {
     return
   }
 
-  // 立即關閉模態框
   emit('close')
 
-  // 設置提交標記
   sessionStorage.setItem('is_submitting_traveler_post', 'true')
   sessionStorage.setItem('submit_start_time', Date.now().toString())
 
-  // 在後台執行提交
   executeSubmit()
 }
 
@@ -905,8 +854,56 @@ if (postData.value.itinerary.days.length === 0) {
   postData.value.itinerary.days.push({ day: 1, date: '', activities: [] })
 }
 
+watch(() => props.draftData, (newDraft) => {
+  if (newDraft && newDraft.data) {
+    const draft = newDraft.data
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.location = draft.location || ''
+    postData.value.start_date = draft.start_date || ''
+    postData.value.end_date = draft.end_date || ''
+    postData.value.max_people = draft.max_people || 2
+    postData.value.tags = draft.tags || []
+
+    if (draft.itinerary && draft.itinerary.days) {
+      postData.value.itinerary.days = draft.itinerary.days
+    }
+
+    if (draft.packingList && Array.isArray(draft.packingList)) {
+      postData.value.packingList = draft.packingList
+    }
+
+    if (draft.banner_image) {
+      postData.value.banner_image = draft.banner_image
+      bannerPreview.value = draft.banner_image
+    }
+  }
+}, { immediate: true })
+
 onMounted(() => {
-  // 監聽頁面卸載事件，提示用戶
+  if (props.draftData && props.draftData.data) {
+    const draft = props.draftData.data
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.location = draft.location || ''
+    postData.value.start_date = draft.start_date || ''
+    postData.value.end_date = draft.end_date || ''
+    postData.value.max_people = draft.max_people || 2
+    postData.value.tags = draft.tags || []
+
+    if (draft.itinerary && draft.itinerary.days) {
+      postData.value.itinerary.days = draft.itinerary.days
+    }
+
+    if (draft.packingList && Array.isArray(draft.packingList)) {
+      postData.value.packingList = draft.packingList
+    }
+
+    if (draft.banner_image) {
+      postData.value.banner_image = draft.banner_image
+      bannerPreview.value = draft.banner_image
+    }
+  }
   window.addEventListener('beforeunload', (e) => {
     if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
       e.preventDefault()
@@ -915,7 +912,6 @@ onMounted(() => {
     }
   })
 
-  // 請求通知權限
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
@@ -1224,15 +1220,15 @@ onMounted(() => {
                 </div>
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                <input
-                  v-model="activity.title"
-                  placeholder="活動名稱"
+                    <input
+                      v-model="activity.title"
+                      placeholder="活動名稱"
                       :class="[
                         'w-full font-bold text-lg focus:outline-none',
                         activity.title && activity.title.trim().length > 50 ? 'text-red-500' : '',
                       ]"
                       maxlength="50"
-                />
+                    />
                     <span
                       :class="[
                         'text-xs ml-2',
@@ -1253,16 +1249,16 @@ onMounted(() => {
                 </div>
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                <textarea
-                  v-model="activity.desc"
-                  placeholder="活動描述..."
-                  rows="2"
+                    <textarea
+                      v-model="activity.desc"
+                      placeholder="活動描述..."
+                      rows="2"
                       :class="[
                         'w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none',
                         activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
                       ]"
                       maxlength="500"
-                ></textarea>
+                    ></textarea>
                     <span
                       :class="[
                         'text-xs ml-2 self-start pt-1',
@@ -1314,9 +1310,9 @@ onMounted(() => {
               <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 mr-2">
                   <div class="flex items-center justify-between">
-                <input
-                  v-model="category.category"
-                  placeholder="分類名稱"
+                    <input
+                      v-model="category.category"
+                      placeholder="分類名稱"
                       :class="[
                         'bg-transparent font-bold text-gray-800 focus:outline-none w-full',
                         category.category && category.category.trim().length > 30
@@ -1324,7 +1320,7 @@ onMounted(() => {
                           : '',
                       ]"
                       maxlength="30"
-                />
+                    />
                     <span
                       :class="[
                         'text-xs ml-2',
@@ -1357,15 +1353,15 @@ onMounted(() => {
                   class="bg-white p-2 rounded border border-gray-100"
                 >
                   <div class="flex items-center gap-2">
-                  <input
-                    v-model="item.name"
-                    placeholder="物品名稱"
+                    <input
+                      v-model="item.name"
+                      placeholder="物品名稱"
                       :class="[
                         'flex-1 text-sm focus:outline-none',
                         item.name && item.name.trim().length > 50 ? 'text-red-500' : '',
                       ]"
                       maxlength="50"
-                  />
+                    />
                     <span
                       :class="[
                         'text-xs',
@@ -1376,12 +1372,12 @@ onMounted(() => {
                     >
                       {{ (item.name || '').length }}/50
                     </span>
-                  <button
-                    class="text-gray-300 hover:text-red-500"
-                    @click="removePackingItem(catIndex, itemIndex)"
-                  >
-                    <XIcon class="w-3 h-3" />
-                  </button>
+                    <button
+                      class="text-gray-300 hover:text-red-500"
+                      @click="removePackingItem(catIndex, itemIndex)"
+                    >
+                      <XIcon class="w-3 h-3" />
+                    </button>
                   </div>
                   <p
                     v-if="item.name && item.name.trim().length > 50"
@@ -1485,19 +1481,20 @@ onMounted(() => {
               <div class="flex items-center space-x-3 mb-4">
                 <img
                   :src="
-                    userStore.currentUser?.photoURL ||
+                    userStore.currentUser?.avatar ||
                     'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                   "
                   class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
                 />
                 <div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-2 flex-wrap gap-2">
                     <span class="font-bold text-secondary-900">{{
-                      userStore.currentUser?.displayName || '你'
+                      userStore.userProfile?.name || userStore.userProfile?.nickname || '你'
                     }}</span>
                     <span
-                      class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
-                      >{{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}</span
+                      v-if="userStore.userProfile?.spiritAnimal && userStore.userProfile.spiritAnimal.trim()"
+                      class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
+                      >{{ userStore.userProfile.spiritAnimal }}</span
                     >
                   </div>
                   <div class="text-sm text-secondary-500">發布於 剛剛</div>

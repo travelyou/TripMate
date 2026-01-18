@@ -160,53 +160,10 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     },
   ])
 
-  // 2. 精選行程
-  const featuredItineraries = ref([
-    {
-      id: 101,
-      title: '沖繩海島放鬆之旅',
-      startDate: '2025-03-12',
-      endDate: '2025-03-16',
-      orderNumber: 'TM-20250312001',
-      orderDate: '2025-02-01',
-      status: 'joined',
-      rating: null,
-      comment: '',
-    },
-    {
-      id: 102,
-      title: '北海道滑雪體驗',
-      startDate: '2025-01-20',
-      endDate: '2025-01-25',
-      orderNumber: 'TM-20250120008',
-      orderDate: '2024-12-10',
-      status: 'not_joined',
-      rating: null,
-      comment: '',
-    },
-  ])
-
-  // 3. 找旅伴
-  const partnerItineraries = ref([
-    {
-      id: 201,
-      title: '清邁慢旅行',
-      startDate: '2025-05-05',
-      endDate: '2025-05-12',
-      status: 'joined',
-      comment: '',
-      reviewLabel: 'super_like',
-    },
-    {
-      id: 202,
-      title: '曼谷美食團',
-      startDate: '2025-07-08',
-      endDate: '2025-07-10',
-      status: 'not_joined',
-      comment: '',
-      reviewLabel: 'like',
-    },
-  ])
+  // 草稿夾
+  const drafts = ref([])
+  const featuredItineraries = ref([])
+  const partnerItineraries = ref([])
 
   // 新增行程
   const addItinerary = () => {
@@ -231,6 +188,16 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   // 刪除行程
   const deleteItinerary = (id) => {
     myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
+  }
+
+  // 新增草稿
+  const addDraft = (draftData) => {
+    const newDraft = {
+      id: Date.now(),
+      saveTime: new Date().toLocaleString('zh-TW'),
+      ...draftData,
+    }
+    drafts.value.unshift(newDraft)
   }
 
   const updateFeaturedRating = ({ id, rating, comment }) => {
@@ -273,46 +240,18 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     }
   }
 
-  // 4. 草稿夾 (補回來的功能)
-  const drafts = ref([
-    {
-      id: 101,
-      type: 'discussion',
-      typeLabel: '討論區',
-      title: '東京自由行請益',
-      content: '想請問大家關於東京地鐵的交通票券問題...',
-      saveTime: '2024-01-15 10:00',
-    },
-    {
-      id: 102,
-      type: 'traveler',
-      typeLabel: '找旅伴',
-      title: '徵求 2024 年底去北海道的旅伴',
-      content: '目前已經有兩個人，希望再徵求兩位...',
-      saveTime: '2024-01-14 15:30',
-    }
-  ])
-
-  const addDraft = (draftData) => {
-    draftData.id = Date.now()
-    if (!draftData.saveTime) {
-       draftData.saveTime = new Date().toLocaleString()
-    }
-    drafts.value.unshift(draftData)
-  }
-
   return {
     myItineraries,
+    drafts,
     featuredItineraries,
     partnerItineraries,
-    drafts, // 記得匯出
     addItinerary,
     deleteItinerary,
+    addDraft,
     updateFeaturedRating,
     clearFeaturedRating,
     updatePartnerItinerary,
     saveItinerary,
-    addDraft, // 記得匯出
   }
 })
 
