@@ -925,6 +925,33 @@ onMounted(() => {
     Notification.requestPermission()
   }
 })
+// 跳轉到指定步驟
+const jumpToStep = (targetStep) => {
+  // 如果當前正在提交，禁止跳轉
+  if (isUploading.value || isSubmitting.value) return
+
+  // 如果目標是基本資訊，直接跳轉 (隨時可以回去修)
+  if (targetStep === 'basic') {
+    currentStep.value = 'basic'
+    formError.value = ''
+    return
+  }
+
+  // 如果目標是其他步驟，必須先驗證基本資訊
+  const basicError = validateBasic()
+  if (basicError) {
+    // 如果有錯，強制跳回基本資訊頁並顯示錯誤
+    currentStep.value = 'basic'
+    formError.value = basicError
+    return
+  }
+
+  // 驗證通過，允許跳轉
+  currentStep.value = targetStep
+  formError.value = ''
+}
+
+// ... existing code ...
 </script>
 
 <template>
@@ -957,15 +984,17 @@ onMounted(() => {
 
       <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
         <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
-          <div
+          <button
             v-for="step in ['basic', 'itinerary', 'packing', 'tags', 'preview']"
             :key="step"
+            type="button"
             :class="[
-              'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
+              'py-3 border-b-2 transition cursor-pointer whitespace-nowrap capitalize focus:outline-none',
               currentStep === step
                 ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-400',
+                : 'border-transparent text-gray-400 hover:text-gray-600',
             ]"
+            @click="jumpToStep(step)"
           >
             {{
               step === 'basic'
@@ -978,7 +1007,7 @@ onMounted(() => {
                       ? '標籤'
                       : '預覽'
             }}
-          </div>
+          </button>
         </div>
       </div>
 
