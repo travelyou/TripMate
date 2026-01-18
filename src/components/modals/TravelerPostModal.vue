@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import dayjs from 'dayjs'
 import Draggable from 'vuedraggable'
 import {
@@ -103,6 +103,17 @@ const submitProgress = ref(0)
 const isSubmitting = ref(false)
 const submitStatus = ref('')
 const activeDayIndex = ref(0)
+// 基本資訊輸入框 Refs，用於 Enter 鍵切換焦點
+const titleInput = ref(null)
+const locationInput = ref(null)
+const maxPeopleInput = ref(null)
+
+// 打包清單物品輸入框 Refs [categoryIndex][itemIndex]
+const itemRefs = ref([])
+// 行程活動輸入框 Refs [activityIndex]
+const activityTitleRefs = ref([])
+const activityDescRefs = ref([])
+
 const tagSearch = ref('')
 const suggestedTags = [
   '省錢',
@@ -677,6 +688,41 @@ const prevStep = () => {
   else if (currentStep.value === 'itinerary') currentStep.value = 'basic'
 }
 
+// 監聽步驟變更，處理自動化邏輯
+watch(currentStep, (newStep, oldStep) => {
+  // 當離開「基本資訊」頁面時，自動產生行程天數
+  if (oldStep === 'basic' && newStep !== 'basic') {
+    // generateDays() // 這裡不需要，因為 nextStep 已經處理了
+  }
+
+  // 當離開「打包清單」頁面時，自動清理空白項目
+  if (oldStep === 'packing') {
+    // 移除未填寫的分類與物品
+    postData.value.packingList = postData.value.packingList.filter(cat => {
+        // 先過濾掉分類下空白的物品
+        if (cat.items) {
+            cat.items = cat.items.filter(item => item.name && item.name.trim())
+        }
+        // 保留規則：分類有名稱 OR 分類下還有物品
+        return (cat.category && cat.category.trim()) || (cat.items && cat.items.length > 0)
+    })
+  }
+})
+
+// 全域/Modal Enter 鍵導航處理
+const handleGlobalEnter = (e) => {
+  if (e.key !== 'Enter') return
+
+  // 如果焦點在輸入框或文字區域，則保留預設行為或由個別 handler 處理
+  const tagName = document.activeElement.tagName.toLowerCase()
+  if (tagName === 'input' || tagName === 'textarea') return
+
+  // 如果不在預覽頁，則 Enter 視為「下一步」
+  if (currentStep.value !== 'preview') {
+    nextStep()
+  }
+}
+
 const handleSaveDraft = () => {
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
@@ -1013,6 +1059,13 @@ onMounted(() => {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
+
+  // 註冊全域 Enter 鍵監聽
+  window.addEventListener('keydown', handleGlobalEnter)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleGlobalEnter)
 })
 // 跳轉到指定步驟
 const jumpToStep = (targetStep) => {
@@ -1120,6 +1173,7 @@ const jumpToStep = (targetStep) => {
               </span>
             </div>
             <input
+              ref="titleInput"
               v-model="postData.title"
               type="text"
               placeholder="例如：徵求一位女生分攤札幌住宿費"
@@ -1130,6 +1184,7 @@ const jumpToStep = (targetStep) => {
                   : 'border-gray-200 focus:border-green-500',
               ]"
               maxlength="35"
+              @keydown.enter.prevent="() => locationInput.focus()"
             />
             <p v-if="fieldErrors.title" class="mt-1 text-sm text-red-500">{{ fieldErrors.title }}</p>
           </div>
@@ -1173,6 +1228,7 @@ const jumpToStep = (targetStep) => {
                 </span>
               </div>
               <input
+                ref="locationInput"
                 v-model="postData.location"
                 type="text"
                 placeholder="例如：日本"
@@ -1182,6 +1238,7 @@ const jumpToStep = (targetStep) => {
                     ? 'border-red-500 focus:border-red-500'
                     : 'border-gray-200 focus:border-green-500',
                 ]"
+                @keydown.enter.prevent="() => maxPeopleInput.focus()"
               />
               <p v-if="fieldErrors.location" class="mt-1 text-sm text-red-500">
                 {{ fieldErrors.location }}
@@ -1190,6 +1247,7 @@ const jumpToStep = (targetStep) => {
             <div>
               <label class="block text-sm font-bold text-gray-700 mb-2">最多人數</label>
               <input
+                ref="maxPeopleInput"
                 v-model.number="postData.max_people"
                 type="number"
                 min="1"
@@ -1352,6 +1410,7 @@ const jumpToStep = (targetStep) => {
                               <div class="flex-1">
                                 <div class="relative">
                                   <input
+                                    :ref="(el) => { if (el) activityTitleRefs[actIndex] = el }"
                                     v-model="activity.title"
                                     placeholder="活動名稱"
                                     :class="[
@@ -1359,6 +1418,7 @@ const jumpToStep = (targetStep) => {
                                       activity.title && activity.title.trim().length > 50 ? 'text-red-500' : 'text-gray-800',
                                     ]"
                                     maxlength="50"
+                                    @keydown.enter.prevent="() => activityDescRefs[actIndex]?.focus()"
                                   />
                                   <span
                                     :class="[
@@ -1390,6 +1450,7 @@ const jumpToStep = (targetStep) => {
                             <div>
                               <div class="relative">
                                 <textarea
+                                  :ref="(el) => { if (el) activityDescRefs[actIndex] = el }"
                                   v-model="activity.desc"
                                   placeholder="添加備註..."
                                   rows="2"
@@ -1398,6 +1459,12 @@ const jumpToStep = (targetStep) => {
                                     activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
                                   ]"
                                   maxlength="500"
+                                  @keydown.enter.prevent="() => {
+                                      // Focus next activity title if exists
+                                      if (activityTitleRefs[actIndex + 1]) {
+                                          activityTitleRefs[actIndex + 1].focus()
+                                      }
+                                  }"
                                 ></textarea>
                                 <span
                                   :class="[
@@ -1472,6 +1539,15 @@ const jumpToStep = (targetStep) => {
                           : '',
                       ]"
                       maxlength="10"
+                      @keydown.enter.prevent="() => {
+                           // Focus first item input of this category if exists, or add one?
+                           // Request: Enter -> jump to item
+                           if (itemRefs[catIndex] && itemRefs[catIndex][0]) {
+                               itemRefs[catIndex][0].focus()
+                           } else {
+                               addPackingItem(catIndex)
+                           }
+                      }"
                 />
                   </div>
                   <p
@@ -1496,6 +1572,10 @@ const jumpToStep = (targetStep) => {
                 >
                   <div class="flex items-center gap-2">
                   <input
+                    :ref="(el) => {
+                        if (!itemRefs[catIndex]) itemRefs[catIndex] = []
+                        if (el) itemRefs[catIndex][itemIndex] = el
+                    }"
                     v-model="item.name"
                     placeholder="物品名稱"
                       :class="[
@@ -1503,6 +1583,9 @@ const jumpToStep = (targetStep) => {
                         item.name && item.name.trim().length > 10 ? 'text-red-500' : '',
                       ]"
                       maxlength="10"
+                      @keydown.enter.prevent="() => {
+                          addPackingItem(catIndex)
+                      }"
                   />
                   <button
                     class="text-gray-300 hover:text-red-500"
