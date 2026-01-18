@@ -115,66 +115,36 @@ const showMobilePay = computed(() => paymentMethod.value === 'mobile')
 const showBankInfo = computed(() => paymentMethod.value === 'bank')
 
 // 前往完成訂單
-async function confirmPayment() {
-  if (!paymentMethod.value) {
-    alert('請選擇付款方式')
-    return
-  }
-
-  // 信用卡驗證（你原本的保留）
-  if (paymentMethod.value === 'credit') {
-    clearCardErrors()
-    let valid = true
-
-    if (!cardName.value || !String(cardName.value).trim()) {
-      cardNameError.value = '請輸入持卡人姓名'
-      valid = false
-    }
-    if (!isValidCardNumber(cardNumber.value)) {
-      cardNumberError.value = '請輸入正確卡號'
-      valid = false
-    }
-    if (!isValidExpiry(cardExpiry.value)) {
-      cardExpiryError.value = '請輸入有效期限'
-      valid = false
-    }
-    if (!isValidCVV(cardCVV.value)) {
-      cardCVVError.value = '請輸入 CVV'
-      valid = false
-    }
-    if (!valid) return
-  }
-
-  if (paymentMethod.value === 'mobile' && !mobileProvider.value) {
-    alert('請選擇行動支付方式')
-    return
-  }
-
-  // 把付款方式存到 store（可選）
-  checkoutStore.paymentMethod = paymentMethod.value
-  checkoutStore.mobileProvider = mobileProvider.value
-
-  // 🔑 取得 Step3 建好的 orderId
-  const orderId = route.query.orderId || checkoutStore.lastOrder?.id
-  if (!orderId) {
-    alert('找不到訂單編號，請重新結帳')
-    router.replace('/cart')
+const confirmPayment = async () => {
+  if (!orderId.value) {
+    alert('找不到訂單編號 orderId')
     return
   }
 
   try {
-    // 🔥 這裡用你後端的 mock-pay 模擬付款成功
-    const { data } = await axios.get(`${API_BASE_URL}/payments/mock-pay`, {
-      params: { orderId },
+    // 1) 建立付款（拿 paymentId）
+    const createRes = await axios.post(`${API_BASE_URL}/payments/create`, {
+      orderId: orderId.value,
+      paymentMethod: paymentMethod.value, // 你目前選的方式
     })
 
-    if (!data?.ok) throw new Error(data?.message || '付款失敗')
+    if (!createRes.data?.ok) throw new Error(createRes.data?.message || '建立付款失敗')
 
-    // 成功 → 進 Step5，用 orderId 查狀態
-    router.push(`/checkout/step5?orderId=${orderId}`)
-  } catch (e) {
-    console.error(e)
-    alert(e?.message || '付款失敗')
+    const paymentId = createRes.data.paymentId
+    if (!paymentId) throw new Error('缺少 paymentId')
+
+    // 2) 用 paymentId 模擬付款
+    const payRes = await axios.get(`${API_BASE_URL}/payments/mock-pay`, {
+      params: { paymentId },
+    })
+
+    if (!payRes.data?.ok) throw new Error(payRes.data?.message || '付款失敗')
+
+    // 3) 成功跳 Step5
+    router.push(`/checkout/step5?orderId=${orderId.value}`)
+  } catch (err) {
+    console.error(err)
+    alert(err?.message || '付款失敗')
   }
 }
 
