@@ -25,10 +25,27 @@ router.get('/', async (req, res) => {
     console.log('🔵 [Backend GET / Step 2] WHERE 子句:', whereClause)
     console.log('🔵 [Backend GET / Step 2] 查詢參數:', queryParams)
 
-    // 查詢討論，包含按讚數和留言數
+    // 查詢討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
+    // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar（Firebase Storage URL）
+    // 注意：d.author_avatar 在 COALESCE 中引用，即使不在 SELECT 列表中也可以使用
     const discussionsQuery = `
       SELECT
-        d.*,
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.author_avatar as old_author_avatar,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l
@@ -40,14 +57,38 @@ router.get('/', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
       WHERE ${whereClause}
       ORDER BY d.created_at DESC
       LIMIT $1 OFFSET $2
 `
 
     console.log('🔵 [Backend GET / Step 3] 執行查詢')
+    console.log('🔵 [Backend GET / Step 3] SQL 查詢:', discussionsQuery.substring(0, 200) + '...')
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
     console.log('🔵 [Backend GET / Step 3] 查詢結果數量:', discussionsResult.rows.length)
+
+    // 調試：檢查返回的 author_avatar 和 JOIN 結果
+    if (discussionsResult.rows.length > 0) {
+      const firstPost = discussionsResult.rows[0]
+      console.log('🔵 [Backend GET / Step 3] 第一個貼文的 author_avatar:', firstPost.author_avatar || 'NULL')
+      console.log('🔵 [Backend GET / Step 3] 第一個貼文的 author_uid:', firstPost.author_uid)
+
+      // 測試 JOIN 是否成功：檢查是否有 u.avatar 的值
+      // 由於使用了 d.*，我們需要檢查原始的 author_avatar 欄位
+      console.log('🔵 [Backend GET / Step 3] 第一個貼文的所有欄位:', Object.keys(firstPost).slice(0, 20))
+
+      // 檢查所有貼文的 author_avatar
+      discussionsResult.rows.forEach((row, index) => {
+        if (!row.author_avatar) {
+          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} (UID: ${row.author_uid}) 沒有 author_avatar`)
+          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_avatar 值:`, row.author_avatar)
+          // 檢查是否有其他 avatar 相關的欄位
+          const avatarKeys = Object.keys(row).filter(k => k.toLowerCase().includes('avatar'))
+          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 avatar 相關欄位:`, avatarKeys)
+        }
+      })
+    }
 
     // 查詢總數
     let countQuery = 'SELECT COUNT(*) FROM discussion.discussion WHERE deleted_at IS NULL'
@@ -64,14 +105,25 @@ router.get('/', async (req, res) => {
     console.log('🔵 [Backend GET / Step 4] 總數:', total)
 
     // 處理結果
-    const discussions = discussionsResult.rows.map((discussion) => ({
-      ...discussion,
-      likes_count: parseInt(discussion.likes_count) || 0,
-      comments_count: parseInt(discussion.comments_count) || 0,
-      banner: discussion.banner || null,
-      image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
-      tags: Array.isArray(discussion.tags) ? discussion.tags : [],
-    }))
+    // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
+    const discussions = discussionsResult.rows.map((discussion) => {
+      // 調試：檢查每個貼文的 author_avatar
+      if (!discussion.author_avatar) {
+        console.log(`⚠️ [Backend GET / Step 4] 貼文 ID ${discussion.id} (UID: ${discussion.author_uid}) 沒有 author_avatar`)
+        console.log(`⚠️ [Backend GET / Step 4] 貼文的所有欄位:`, Object.keys(discussion))
+      }
+
+      return {
+        ...discussion,
+        // 確保 author_avatar 存在（即使為 null 也要明確設置）
+        author_avatar: discussion.author_avatar || null,
+        likes_count: parseInt(discussion.likes_count) || 0,
+        comments_count: parseInt(discussion.comments_count) || 0,
+        banner: discussion.banner || null,
+        image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+        tags: Array.isArray(discussion.tags) ? discussion.tags : [],
+      }
+    })
 
     console.log('✅ [Backend GET /] 查詢成功，回傳', discussions.length, '筆資料')
 
@@ -241,10 +293,25 @@ router.get('/:id', async (req, res) => {
       return res.status(400).json({ error: '討論 ID 格式錯誤', details: 'id 必須是正整數' })
     }
 
-    // 獲取討論，包含按讚數和留言數
+    // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
+    // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar
     const discussionQuery = `
       SELECT
-        d.*,
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l
@@ -256,6 +323,7 @@ router.get('/:id', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
       WHERE d.id = $1 AND d.deleted_at IS NULL
 `
 
@@ -269,6 +337,8 @@ router.get('/:id', async (req, res) => {
 
     const discussion = discussionResult.rows[0]
     console.log('🔵 [Backend GET /:id] 找到討論:', discussion.title)
+    console.log('🔵 [Backend GET /:id] author_avatar:', discussion.author_avatar || 'NULL')
+    console.log('🔵 [Backend GET /:id] author_uid:', discussion.author_uid)
 
     // 獲取留言
     const commentsResult = await pool.query(

@@ -11,46 +11,47 @@ router.get('/', async (req, res) => {
 
     let query = `
       SELECT
-        id,
-        title,
-        content,
-        location,
-        status,
-        tags,
-        start_date,
-        end_date,
-        current_people,
-        max_people,
-        banner_image,
-        author_uid,
-        author_name,
-        author_avatar,
-        spirit_animal,
-        likes_count,
-        saves_count,
-        views_count,
-        created_at,
-        updated_at
-      FROM travelers.travelers
-      WHERE deleted_at IS NULL
+        t.id,
+        t.title,
+        t.content,
+        t.location,
+        t.status,
+        t.tags,
+        t.start_date,
+        t.end_date,
+        t.current_people,
+        t.max_people,
+        t.banner_image,
+        t.author_uid,
+        t.author_name,
+        COALESCE(u.avatar, t.author_avatar) as author_avatar,
+        COALESCE(u.spirit_animal, t.spirit_animal) as spirit_animal,
+        t.likes_count,
+        t.saves_count,
+        t.views_count,
+        t.created_at,
+        t.updated_at
+      FROM travelers.travelers t
+      LEFT JOIN users u ON t.author_uid = u.uid
+      WHERE t.deleted_at IS NULL
     `
 
     const params = []
     let paramIndex = 1
 
     if (status) {
-      query += ` AND status = $${paramIndex}`
+      query += ` AND t.status = $${paramIndex}`
       params.push(status)
       paramIndex++
     }
 
     if (location) {
-      query += ` AND location = $${paramIndex}`
+      query += ` AND t.location = $${paramIndex}`
       params.push(location)
       paramIndex++
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+    query += ` ORDER BY t.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
     params.push(parseInt(limit), parseInt(offset))
 
     console.log('執行查詢:', query)
@@ -195,30 +196,31 @@ router.get('/:id', async (req, res) => {
 
     const travelerQuery = `
       SELECT
-        id,
-        title,
-        content,
-        location,
-        status,
-        tags,
+        t.id,
+        t.title,
+        t.content,
+        t.location,
+        t.status,
+        t.tags,
         CASE
-          WHEN start_date = end_date THEN TO_CHAR(start_date, 'YYYY/MM/DD')
-          ELSE TO_CHAR(start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(end_date, 'YYYY/MM/DD')
+          WHEN t.start_date = t.end_date THEN TO_CHAR(t.start_date, 'YYYY/MM/DD')
+          ELSE TO_CHAR(t.start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(t.end_date, 'YYYY/MM/DD')
         END AS "date",
         CASE
-          WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) < 600 THEN '剛剛'
-          ELSE TO_CHAR(created_at, 'YYYY/MM/DD HH24:MI')
+          WHEN EXTRACT(EPOCH FROM (NOW() - t.created_at)) < 600 THEN '剛剛'
+          ELSE TO_CHAR(t.created_at, 'YYYY/MM/DD HH24:MI')
         END AS "created_at",
-        current_people::text || '/' || max_people::text AS "people",
-        banner_image AS "image",
-        author_uid,
-        author_name AS "author",
-        author_avatar AS "avatar",
-        spirit_animal AS "spiritAnimal",
-        likes_count AS "likes",
-        views_count
-      FROM travelers.travelers
-      WHERE id = $1 AND deleted_at IS NULL
+        t.current_people::text || '/' || t.max_people::text AS "people",
+        t.banner_image AS "image",
+        t.author_uid,
+        t.author_name AS "author",
+        COALESCE(u.avatar, t.author_avatar) AS "avatar",
+        COALESCE(u.spirit_animal, t.spirit_animal) AS "spiritAnimal",
+        t.likes_count AS "likes",
+        t.views_count
+      FROM travelers.travelers t
+      LEFT JOIN users u ON t.author_uid = u.uid
+      WHERE t.id = $1 AND t.deleted_at IS NULL
     `
 
     const travelerResult = await pool.query(travelerQuery, [idNum])

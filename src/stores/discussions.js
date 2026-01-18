@@ -48,12 +48,22 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   }
 
   // 將後端數據格式轉換為前端格式
+  // 後端已經從 Neon 資料庫返回 author_avatar（Firebase Storage URL）、author_name、author_spirit_animal
   const transformPost = (post) => {
+    // 調試：檢查後端返回的 author_avatar
+    if (post.author_uid && post.author_avatar) {
+      console.log(`[transformPost] 後端返回 author_avatar for ${post.author_uid}:`, post.author_avatar.substring(0, 50) + '...')
+    } else if (post.author_uid && !post.author_avatar) {
+      console.warn(`[transformPost] 後端沒有返回 author_avatar for ${post.author_uid}`)
+    }
+
     return {
       id: post.id,
-      author: post.author_nickname || post.author_uid || '匿名用戶',
+      // 後端返回 author_name（來自 users.nickname），優先使用
+      author: post.author_name || post.author_nickname || post.author_uid || '匿名用戶',
       author_uid: post.author_uid,
       spiritAnimal: post.author_spirit_animal || '',
+      // 後端返回的 author_avatar 是 Firebase Storage URL（從 Neon 資料庫的 users.avatar 欄位）
       avatar:
         post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_uid}`,
       time: formatTime(post.created_at),
@@ -94,6 +104,8 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   }
 
   // 批量獲取用戶資訊並更新貼文
+  // 注意：後端已經從 Neon 資料庫返回 author_avatar（Firebase Storage URL）
+  // 只有在後端沒有返回這些資料時，才從 Firestore 獲取作為備用
   const enrichPostsWithUserInfo = async (posts) => {
     const uniqueUids = [...new Set(posts.map((p) => p.author_uid).filter(Boolean))]
 
@@ -110,9 +122,18 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     return posts.map((post) => {
       const userInfo = userInfoMap[post.author_uid]
       if (userInfo) {
-        post.author_nickname = userInfo.nickname
-        post.author_avatar = userInfo.avatar
-        post.author_spirit_animal = userInfo.spiritAnimal
+        // 優先使用後端返回的資料（從 Neon 資料庫獲取的 Firebase Storage URL）
+        // 只有在後端沒有返回時，才使用 Firestore 的資料
+        if (!post.author_nickname) {
+          post.author_nickname = userInfo.nickname
+        }
+        // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
+        // if (!post.author_avatar) {
+        //   post.author_avatar = userInfo.avatar
+        // }
+        if (!post.author_spirit_animal) {
+          post.author_spirit_animal = userInfo.spiritAnimal
+        }
       }
       return post
     })
@@ -149,13 +170,22 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     try {
       const post = await fetchPostById(id)
 
-      // 從 Firestore 獲取貼文作者資訊
+      // 從 Firestore 獲取貼文作者資訊（僅作為備用，後端已經從 Neon 返回了 author_avatar）
+      // 注意：後端已經返回 author_avatar（Firebase Storage URL），不要覆蓋
       if (post.author_uid) {
         const userInfo = await getUserInfoFromFirestore(post.author_uid)
         if (userInfo) {
-          post.author_nickname = userInfo.nickname
-          post.author_avatar = userInfo.avatar
-          post.author_spirit_animal = userInfo.spiritAnimal
+          // 只有在後端沒有返回時，才使用 Firestore 的資料
+          if (!post.author_nickname) {
+            post.author_nickname = userInfo.nickname
+          }
+          // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
+          // if (!post.author_avatar) {
+          //   post.author_avatar = userInfo.avatar
+          // }
+          if (!post.author_spirit_animal) {
+            post.author_spirit_animal = userInfo.spiritAnimal
+          }
         }
       }
 
@@ -195,13 +225,22 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     try {
       const newPost = await createPost(postData)
 
-      // 從 Firestore 獲取作者資訊
+      // 從 Firestore 獲取作者資訊（僅作為備用，後端已經從 Neon 返回了 author_avatar）
+      // 注意：後端已經返回 author_avatar（Firebase Storage URL），不要覆蓋
       if (newPost.author_uid) {
         const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
         if (userInfo) {
-          newPost.author_nickname = userInfo.nickname
-          newPost.author_avatar = userInfo.avatar
-          newPost.author_spirit_animal = userInfo.spiritAnimal
+          // 只有在後端沒有返回時，才使用 Firestore 的資料
+          if (!newPost.author_nickname) {
+            newPost.author_nickname = userInfo.nickname
+          }
+          // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
+          // if (!newPost.author_avatar) {
+          //   newPost.author_avatar = userInfo.avatar
+          // }
+          if (!newPost.author_spirit_animal) {
+            newPost.author_spirit_animal = userInfo.spiritAnimal
+          }
         }
       }
 

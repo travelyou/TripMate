@@ -455,6 +455,13 @@ const handleAvatarCrop = async (croppedFile) => {
 
     userStore.updateProfile({ avatar: avatarUrl })
 
+    // 清除討論區的用戶資訊緩存，確保頭貼更新
+    const { useDiscussionsStore } = await import('@/stores/discussions')
+    const discussionsStore = useDiscussionsStore()
+    if (discussionsStore && discussionsStore.clearUserCache) {
+      discussionsStore.clearUserCache(user.value.uid)
+    }
+
     isAvatarCropOpen.value = false
     avatarFileToCrop.value = null
     if (avatarCropModalRef.value) {
