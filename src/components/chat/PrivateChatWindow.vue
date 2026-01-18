@@ -71,7 +71,7 @@ const handleFriendClick = (friend) => {
 
 <template>
   <div
-    class="fixed bottom-20 bg-primary md:bottom-24 right-2 md:right-8 w-[calc(100vw-1rem)] md:w-96 max-w-md h-[calc(100vh-5rem)] md:h-[600px] max-h-[600px] border-4 border-primary-600 shadow-primary-strong z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
+    class="fixed bottom-4 md:bottom-8 right-[80px] md:right-[96px] w-80 md:w-80 max-w-80 h-[480px] md:h-[480px] max-h-[480px] border-4 border-primary-600 shadow-primary-strong z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
   >
     <div
       class="bg-primary text-secondary-50 p-4 flex items-center justify-between border-b-4 border-primary-700"
