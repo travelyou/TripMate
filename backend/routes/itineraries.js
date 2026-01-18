@@ -2,6 +2,8 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
+const { authenticate } = require('../middleware/auth')
+
 // 1. 取得所有行程 (列表頁用)
 router.get('/', async (req, res) => {
   try {
@@ -118,8 +120,9 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// 3. 建立新行程 (維持原本的，不需要變動，這裡列出是為了完整性)
-router.post('/', async (req, res) => {
+// 3. 建立新行程
+
+router.post('/', authenticate, async (req, res) => {
   const client = await pool.connect()
   try {
     const {
@@ -130,10 +133,11 @@ router.post('/', async (req, res) => {
       price,
       agencyName,
       start_date,
-      end_date, // 接收日期
+      end_date,
       itinerary,
       packingList,
       tags,
+      // 如果前端有傳 vendor_id，也可以在這裡解構出來，若沒有則使用 req.user.uid
     } = req.body
 
     // 驗證必填
@@ -143,12 +147,15 @@ router.post('/', async (req, res) => {
 
     await client.query('BEGIN')
 
+    // 注意：這裡假設資料庫 author_uid 欄位是對應 Firebase 的 UID
     const insertItineraryQuery = `
       INSERT INTO itinerary.itineraries
       (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, author_uid, status, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING id
     `
+
+    // 這裡使用 req.user.uid (來自 authenticate 中間件解析後的結果)
     const itineraryValues = [
       title,
       description,
@@ -159,9 +166,10 @@ router.post('/', async (req, res) => {
       start_date,
       end_date,
       tags || [],
-      req.user.uid,
+      req.user.uid, // ★ 這裡現在安全了，因為有 authenticate 保護
       'published',
     ]
+
     const itineraryResult = await client.query(insertItineraryQuery, itineraryValues)
     const newItineraryId = itineraryResult.rows[0].id
 
@@ -169,11 +177,11 @@ router.post('/', async (req, res) => {
     if (itinerary && itinerary.days) {
       const dayInsertQuery = `INSERT INTO itinerary.itinerary_days (itinerary_id, day_number, activities, created_at) VALUES ($1, $2, $3, NOW())`
       for (const day of itinerary.days) {
-        await client.query(dayInsertQuery, [
-          newItineraryId,
-          day.day,
-          JSON.stringify(day.activities),
-        ])
+        // 確保 activities 是正確的 JSON 格式
+        const activitiesJson =
+          typeof day.activities === 'string' ? day.activities : JSON.stringify(day.activities)
+
+        await client.query(dayInsertQuery, [newItineraryId, day.day, activitiesJson])
       }
     }
 
@@ -181,11 +189,9 @@ router.post('/', async (req, res) => {
     if (packingList) {
       const packingInsertQuery = `INSERT INTO itinerary.itinerary_packing_lists (itinerary_id, category, items, created_at) VALUES ($1, $2, $3, NOW())`
       for (const list of packingList) {
-        await client.query(packingInsertQuery, [
-          newItineraryId,
-          list.category,
-          JSON.stringify(list.items),
-        ])
+        const itemsJson = typeof list.items === 'string' ? list.items : JSON.stringify(list.items)
+
+        await client.query(packingInsertQuery, [newItineraryId, list.category, itemsJson])
       }
     }
 

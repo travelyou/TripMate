@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { X as XIcon, MessageCircle as MessageCircleIcon, Send as SendIcon, User as UserIcon, ArrowLeft as ArrowLeftIcon } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-import { getProfile, getChatInteractionCount, incrementChatInteraction } from '@/api/profile'
+import { getProfile, getChatInteractionCount, incrementChatInteraction, saveChatMessage, getChatMessages } from '@/api/profile'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
 defineEmits(['close', 'open-chat-room'])
@@ -84,6 +84,36 @@ const chatRooms = computed(() => {
   return rooms
 })
 
+// 載入聊天記錄
+const loadChatHistory = async (uid, friendUid) => {
+  try {
+    const { getChatMessages } = await import('@/api/profile')
+    const historyMessages = await getChatMessages(uid, friendUid)
+    
+    // 轉換為前端格式
+    messages.value = historyMessages.map(msg => ({
+      id: msg.id,
+      type: msg.type || (msg.sender_uid === uid ? 'user' : 'friend'),
+      content: msg.content,
+      timestamp: msg.timestamp || msg.created_at
+    }))
+    
+    // 更新聊天室的消息列表
+    const room = chatRoomsList.value.find(r => r.uid === friendUid)
+    if (room) {
+      room.messages = messages.value
+    }
+    if (activeChatRoom.value) {
+      activeChatRoom.value.messages = messages.value
+    }
+    
+    console.log('[loadChatHistory] 載入聊天記錄:', messages.value.length, '條消息')
+  } catch (error) {
+    console.error('載入聊天記錄失敗：', error)
+    // 失敗時不重置，保持當前狀態
+  }
+}
+
 // 載入對話次數
 const loadChatInteractionCount = async (uid, friendUid) => {
   try {
@@ -117,8 +147,11 @@ const loadChatInteractionCount = async (uid, friendUid) => {
     })
   } catch (error) {
     console.error('載入對話次數失敗：', error)
-    // 錯誤時默認允許發送（3次機會）
-    chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
+    // 錯誤時不重置，保持當前狀態（避免刷新頁面後重置計數）
+    // 只有當沒有有效數據時才使用默認值
+    if (!chatInteractionCount.value || !chatInteractionCount.value.count) {
+      chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
+    }
   }
 }
 
@@ -177,12 +210,8 @@ const openOrCreateChatRoom = async (user) => {
   // 載入對話次數
   await loadChatInteractionCount(currentUid, user.uid)
   
-  // 載入訊息（如果有）
-  if (activeChatRoom.value.messages) {
-    messages.value = activeChatRoom.value.messages || []
-  } else {
-    messages.value = []
-  }
+  // 從數據庫載入聊天記錄
+  await loadChatHistory(currentUid, user.uid)
   
   scrollToBottom()
 }
@@ -294,33 +323,65 @@ const sendMessage = async () => {
     }
   }
 
-  // 2. 加入使用者的訊息（只有在可以發送的情況下）
-  const userMessage = {
-    id: Date.now(),
-    type: 'user',
-    content: text,
-    timestamp: new Date().toISOString()
+  // 2. 保存消息到數據庫
+  try {
+    const { saveChatMessage } = await import('@/api/profile')
+    const savedMessage = await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
+    
+    // 3. 加入使用者的訊息（使用數據庫返回的消息ID）
+    const userMessage = {
+      id: savedMessage.message?.id || Date.now(),
+      type: 'user',
+      content: text,
+      timestamp: savedMessage.message?.created_at || new Date().toISOString()
+    }
+    
+    messages.value.push(userMessage)
+
+    // 更新聊天室的最後訊息
+    const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
+    if (room) {
+      room.lastMessage = text
+      room.lastMessageTime = '剛剛'
+      room.messages = messages.value
+    }
+
+    // 保存到 activeChatRoom
+    if (activeChatRoom.value) {
+      activeChatRoom.value.messages = messages.value
+    }
+
+    // 清空輸入框
+    messageInput.value = ''
+
+    scrollToBottom()
+  } catch (error) {
+    console.error('保存消息失敗：', error)
+    // 即使保存失敗，也顯示消息（但不會持久化）
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: text,
+      timestamp: new Date().toISOString()
+    }
+    
+    messages.value.push(userMessage)
+
+    // 更新聊天室的最後訊息
+    const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
+    if (room) {
+      room.lastMessage = text
+      room.lastMessageTime = '剛剛'
+      room.messages = messages.value
+    }
+
+    if (activeChatRoom.value) {
+      activeChatRoom.value.messages = messages.value
+    }
+
+    messageInput.value = ''
+    scrollToBottom()
   }
-  
-  messages.value.push(userMessage)
-
-  // 更新聊天室的最後訊息
-  const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
-  if (room) {
-    room.lastMessage = text
-    room.lastMessageTime = '剛剛'
-    room.messages = messages.value
-  }
-
-  // 保存到 activeChatRoom
-  if (activeChatRoom.value) {
-    activeChatRoom.value.messages = messages.value
-  }
-
-  // 清空輸入框
-  messageInput.value = ''
-
-  scrollToBottom()
 }
 
 // 處理點擊聊天室
@@ -359,12 +420,12 @@ const handleChatRoomClick = async (room) => {
       avatar: room.avatar,
       messages: room.messages || []
     }
-    messages.value = room.messages || []
     
-    // 載入對話次數
+    // 載入對話次數和聊天記錄
     const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
     if (currentUid) {
       await loadChatInteractionCount(currentUid, room.uid)
+      await loadChatHistory(currentUid, room.uid)
     }
     
     scrollToBottom()

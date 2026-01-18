@@ -127,8 +127,8 @@ router.post('/', async (req, res) => {
           // 或者提供更友好的錯誤信息
           throw new Error(
             `無法為 ${board} 類型的帖子創建按讚記錄。` +
-            `數據庫外鍵約束只支持 discussion 類型的帖子。` +
-            `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`
+              `數據庫外鍵約束只支持 discussion 類型的帖子。` +
+              `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
           )
         } else {
           // 其他錯誤，重新拋出
@@ -230,7 +230,9 @@ router.get('/user/:uid', async (req, res) => {
         comments: parseInt(row.comments_count) || 0,
         author: row.author_uid || row.author_uid,
         time: new Date(row.created_at).toLocaleDateString(),
-        avatar: row.author_avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
+        avatar:
+          row.author_avatar ||
+          'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
       }
 
       if (row.type === 'traveler') {

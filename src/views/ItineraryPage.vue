@@ -76,13 +76,6 @@ onMounted(() => {
           <MapIcon class="w-6 h-6 mr-3 text-white" />
           精選行程
         </h1>
-
-        <button
-          @click="isPostModalOpen = true"
-          class="bg-white text-primary-700 px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-primary-50 transition flex items-center"
-        >
-          <PlusIcon class="w-4 h-4 mr-1" /> 上架行程
-        </button>
       </div>
 
       <div

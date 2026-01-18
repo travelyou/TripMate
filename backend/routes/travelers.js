@@ -66,32 +66,41 @@ router.get('/', async (req, res) => {
       const endDate = new Date(row.end_date)
       const dateStr =
         row.start_date === row.end_date
-          ? startDate.toLocaleDateString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).replace(/\//g, '/')
-          : `${startDate.toLocaleDateString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).replace(/\//g, '/')} - ${endDate.toLocaleDateString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).replace(/\//g, '/')}`
+          ? startDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')
+          : `${startDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')} - ${endDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')}`
 
       const now = new Date()
       const created = new Date(row.created_at)
       const diffSeconds = Math.floor((now - created) / 1000)
-      const timeStr = diffSeconds < 600 ? '剛剛' : created.toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      })
+      const timeStr =
+        diffSeconds < 600
+          ? '剛剛'
+          : created.toLocaleString('zh-TW', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
 
       return {
         id: row.id,
@@ -154,7 +163,7 @@ router.post('/:id/view', async (req, res) => {
 
     const updateResult = await pool.query(
       'UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL',
-      [idNum]
+      [idNum],
     )
 
     if (updateResult.rowCount === 0) {
@@ -269,7 +278,10 @@ router.get('/:id', async (req, res) => {
       isLiked = likeResult.rows.length > 0
     }
 
-    await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL', [idNum])
+    await pool.query(
+      'UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL',
+      [idNum],
+    )
 
     const fullData = {
       ...traveler,
@@ -387,10 +399,9 @@ router.post('/', async (req, res) => {
       let finalSpiritAnimal = spirit_animal || null
       if (!finalSpiritAnimal && author_uid) {
         try {
-          const userQuery = await client.query(
-            'SELECT spirit_animal FROM users WHERE uid = $1',
-            [author_uid]
-          )
+          const userQuery = await client.query('SELECT spirit_animal FROM users WHERE uid = $1', [
+            author_uid,
+          ])
           if (userQuery.rows.length > 0 && userQuery.rows[0].spirit_animal) {
             finalSpiritAnimal = userQuery.rows[0].spirit_animal
           }
@@ -432,8 +443,10 @@ router.post('/', async (req, res) => {
         for (let i = 0; i < itinerary.days.length; i++) {
           const day = itinerary.days[i]
           const dayNumber = Number(day.day || day.day_number)
-          const dayDate = (day.date && day.date.trim() !== '') ? day.date : null
-          const dayActivities = Array.isArray(day.activities) ? JSON.stringify(day.activities) : '[]'
+          const dayDate = day.date && day.date.trim() !== '' ? day.date : null
+          const dayActivities = Array.isArray(day.activities)
+            ? JSON.stringify(day.activities)
+            : '[]'
 
           console.log(`[Backend Travelers POST] 行程第 ${i + 1} 天:`, {
             dayNumber,
@@ -442,7 +455,9 @@ router.post('/', async (req, res) => {
           })
 
           if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 365) {
-            throw new Error(`行程第 ${i + 1} 天的天數編號無效: ${day.day || day.day_number}，必須是 1-365 之間的整數`)
+            throw new Error(
+              `行程第 ${i + 1} 天的天數編號無效: ${day.day || day.day_number}，必須是 1-365 之間的整數`,
+            )
           }
 
           try {
@@ -468,7 +483,8 @@ router.post('/', async (req, res) => {
         console.log('[Backend Travelers POST] 插入打包清單，項目數:', packingList.length)
         for (let i = 0; i < packingList.length; i++) {
           const pack = packingList[i]
-          const category = (pack.category && pack.category.trim() !== '') ? pack.category.trim() : null
+          const category =
+            pack.category && pack.category.trim() !== '' ? pack.category.trim() : null
           const items = Array.isArray(pack.items) ? JSON.stringify(pack.items) : '[]'
 
           console.log(`[Backend Travelers POST] 打包清單第 ${i + 1} 項:`, {
@@ -581,7 +597,9 @@ router.put('/:id', async (req, res) => {
       }
 
       if (itinerary && itinerary.days) {
-        await client.query('DELETE FROM travelers.traveler_itineraries WHERE traveler_id = $1', [id])
+        await client.query('DELETE FROM travelers.traveler_itineraries WHERE traveler_id = $1', [
+          id,
+        ])
         for (const day of itinerary.days) {
           await client.query(
             `INSERT INTO travelers.traveler_itineraries (traveler_id, day_number, date, activities) VALUES ($1, $2, $3, $4)`,
@@ -591,7 +609,9 @@ router.put('/:id', async (req, res) => {
       }
 
       if (packingList) {
-        await client.query('DELETE FROM travelers.traveler_packing_lists WHERE traveler_id = $1', [id])
+        await client.query('DELETE FROM travelers.traveler_packing_lists WHERE traveler_id = $1', [
+          id,
+        ])
         for (let i = 0; i < packingList.length; i++) {
           await client.query(
             `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,

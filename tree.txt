@@ -13,20 +13,21 @@
     ├── .env.example
     ├── .eslintignore
     ├── .prettierrc.json
-    ├── backend/
+    ├── backend/              
     │   ├── check-table-structure.js
     │   ├── package.json
-    │   ├── server.js
+    │   ├── server.js        
+    │   ├── vercel.json     
     │   ├── database/
     │   │   └── connection.js
     │   └── routes/
     │       ├── comments.js
     │       ├── likes.js
     │       ├── discussions.js
-    │       ├── itineraries.js 
+    │       ├── itineraries.js
     │       ├── travelers.js
     │       ├── users.js
-    │       └── vendors.js       
+    │       └── vendors.js
     └── src/
         ├── App.vue
         ├── main.js
@@ -35,18 +36,18 @@
         │   ├── config.js
         │   ├── likes.js
         │   ├── discussions.js
-        │   ├── itinerary.js   
+        │   ├── itinerary.js
         │   ├── storage.js
         │   ├── travelers.js
         │   ├── users.js
-        │   └── vendor.js        
+        │   └── vendor.js
         ├── assets/
         │   ├── base.css
         │   └── main.css
         ├── components/
         │   ├── PostModal.vue
         │   ├── cards/
-        │   │   ├── ItineraryCard.vue 
+        │   │   ├── ItineraryCard.vue
         │   │   ├── PostingChoiceCard.vue
         │   │   └── TravelerCard.vue
         │   ├── chat/
@@ -67,10 +68,10 @@
         │   ├── modals/
         │   │   ├── AddToCollectionModal.vue
         │   │   ├── MyItineraryDetailModal.vue
-        │   │   ├── DiscussionDetailModal.vue 
+        │   │   ├── DiscussionDetailModal.vue
         │   │   ├── DiscussionPostModal.vue
-        │   │   ├── ItineraryDetailModal.vue  
-        │   │   ├── ItineraryPostModal.vue    
+        │   │   ├── ItineraryDetailModal.vue
+        │   │   ├── ItineraryPostModal.vue
         │   │   ├── ShareModal.vue
         │   │   ├── SwipeMatchModal.vue
         │   │   ├── TravelerDetailModal.vue
@@ -101,7 +102,7 @@
         │   │       └── TabVisitedPlaces.vue
         │   ├── shared/
         │   │   └── AppFABs.vue
-        │   └── vendor-dashboard/      
+        │   └── vendor-dashboard/
         │       ├── DashboardNav.vue
         │       ├── DashboardSidebar.vue
         │       ├── DashboardHeader.vue
@@ -126,18 +127,18 @@
         │       ├── AppHeader.vue
         │       └── AppSidebar.vue
         ├── router/
-        │   └── index.js        
+        │   └── index.js
         ├── stores/
         │   ├── checkout.js
         │   ├── counter.js
         │   ├── discussions.js
-        │   ├── itinerary.js    
+        │   ├── itinerary.js
         │   ├── modal.js
         │   ├── myItinerary.js
         │   ├── personality.js
         │   ├── travelers.js
         │   ├── user.js
-        │   └── vendor.js        
+        │   └── vendor.js
         ├── utils/
         │   └── time.js
         └── views/
@@ -145,15 +146,15 @@
             ├── CollectionsPage.vue
             ├── DiscussionPage.vue
             ├── FavoritesPage.vue
-            ├── ItineraryPage.vue  
+            ├── ItineraryPage.vue
             ├── HomePage.vue
             ├── LoginPage.vue
             ├── MyItineraryPage.vue
             ├── PersonalityTest.vue
             ├── PostDetailPage.vue
-            ├── ProfilePage.vue    
+            ├── ProfilePage.vue
             ├── SearchPage.vue
             ├── ShoppingCartPage.vue
             ├── TravelerPage.vue
-            ├── VendorDashboardPage.vue  
+            ├── VendorDashboardPage.vue
             └── VendorProfilePage.vue

@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
     console.log('🔵 [Backend GET / Step 3] SQL 查詢:', discussionsQuery.substring(0, 200) + '...')
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
     console.log('🔵 [Backend GET / Step 3] 查詢結果數量:', discussionsResult.rows.length)
-    
+
     // 測試：檢查 users 表中是否有對應的記錄
     if (discussionsResult.rows.length > 0) {
       const testUid = discussionsResult.rows[0].author_uid
@@ -76,8 +76,12 @@ router.get('/', async (req, res) => {
         const testUserResult = await pool.query(testUserQuery, [testUid])
         if (testUserResult.rows.length > 0) {
           console.log(`🔵 [Backend GET / Step 3] ✅ users 表中有 UID ${testUid} 的記錄:`)
-          console.log(`🔵 [Backend GET / Step 3]   - nickname: ${testUserResult.rows[0].nickname || 'NULL'}`)
-          console.log(`🔵 [Backend GET / Step 3]   - avatar: ${testUserResult.rows[0].avatar ? testUserResult.rows[0].avatar.substring(0, 50) + '...' : 'NULL'}`)
+          console.log(
+            `🔵 [Backend GET / Step 3]   - nickname: ${testUserResult.rows[0].nickname || 'NULL'}`,
+          )
+          console.log(
+            `🔵 [Backend GET / Step 3]   - avatar: ${testUserResult.rows[0].avatar ? testUserResult.rows[0].avatar.substring(0, 50) + '...' : 'NULL'}`,
+          )
         } else {
           console.log(`⚠️ [Backend GET / Step 3] ❌ users 表中沒有 UID ${testUid} 的記錄`)
         }
@@ -89,26 +93,49 @@ router.get('/', async (req, res) => {
     // 調試：檢查返回的 author_avatar 和 JOIN 結果
     if (discussionsResult.rows.length > 0) {
       const firstPost = discussionsResult.rows[0]
-      console.log('🔵 [Backend GET / Step 3] 第一個貼文的 author_avatar:', firstPost.author_avatar || 'NULL')
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的 author_avatar:',
+        firstPost.author_avatar || 'NULL',
+      )
       console.log('🔵 [Backend GET / Step 3] 第一個貼文的 author_uid:', firstPost.author_uid)
-      console.log('🔵 [Backend GET / Step 3] 第一個貼文的 author_name:', firstPost.author_name || 'NULL')
-      console.log('🔵 [Backend GET / Step 3] 第一個貼文的 old_author_avatar:', firstPost.old_author_avatar || 'NULL')
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的 author_name:',
+        firstPost.author_name || 'NULL',
+      )
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的 old_author_avatar:',
+        firstPost.old_author_avatar || 'NULL',
+      )
 
       // 測試 JOIN 是否成功：檢查是否有 u.avatar 的值
       // 由於使用了 d.*，我們需要檢查原始的 author_avatar 欄位
-      console.log('🔵 [Backend GET / Step 3] 第一個貼文的所有欄位:', Object.keys(firstPost).slice(0, 20))
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的所有欄位:',
+        Object.keys(firstPost).slice(0, 20),
+      )
 
       // 檢查所有貼文的 author_avatar
       discussionsResult.rows.forEach((row, index) => {
         if (!row.author_avatar) {
-          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} (UID: ${row.author_uid}) 沒有 author_avatar`)
-          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_avatar 值:`, row.author_avatar)
-          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 old_author_avatar 值:`, row.old_author_avatar)
-          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_name 值:`, row.author_name)
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} (UID: ${row.author_uid}) 沒有 author_avatar`,
+          )
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_avatar 值:`,
+            row.author_avatar,
+          )
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 old_author_avatar 值:`,
+            row.old_author_avatar,
+          )
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_name 值:`,
+            row.author_name,
+          )
           // 檢查是否有其他 avatar 相關的欄位
-          const avatarKeys = Object.keys(row).filter(k => k.toLowerCase().includes('avatar'))
+          const avatarKeys = Object.keys(row).filter((k) => k.toLowerCase().includes('avatar'))
           console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 avatar 相關欄位:`, avatarKeys)
-          
+
           // 檢查 users 表中是否有對應的記錄
           console.log(`⚠️ [Backend GET / Step 3] 檢查 users 表中是否有 UID: ${row.author_uid}`)
         }
@@ -134,9 +161,14 @@ router.get('/', async (req, res) => {
     const discussions = discussionsResult.rows.map((discussion) => {
       // 調試：檢查每個貼文的 author_avatar
       if (!discussion.author_avatar) {
-        console.log(`⚠️ [Backend GET / Step 4] 貼文 ID ${discussion.id} (UID: ${discussion.author_uid}) 沒有 author_avatar`)
+        console.log(
+          `⚠️ [Backend GET / Step 4] 貼文 ID ${discussion.id} (UID: ${discussion.author_uid}) 沒有 author_avatar`,
+        )
         console.log(`⚠️ [Backend GET / Step 4] 貼文的所有欄位:`, Object.keys(discussion))
-        console.log(`⚠️ [Backend GET / Step 4] 貼文的完整資料:`, JSON.stringify(discussion, null, 2))
+        console.log(
+          `⚠️ [Backend GET / Step 4] 貼文的完整資料:`,
+          JSON.stringify(discussion, null, 2),
+        )
       }
 
       // 調試：記錄第一個貼文的完整資料
