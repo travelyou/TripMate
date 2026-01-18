@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { X as XIcon, MessageCircle as MessageCircleIcon, Send as SendIcon, User as UserIcon, ArrowLeft as ArrowLeftIcon } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-import { getProfile, getChatInteractionCount, incrementChatInteraction, saveChatMessage, getChatMessages } from '@/api/profile'
+import { getProfile } from '@/api/profile'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
 defineEmits(['close', 'open-chat-room'])
@@ -32,10 +32,68 @@ const messagesContainer = ref(null)
 // 對話次數限制
 const chatInteractionCount = ref({ count: 0, remaining: 3, canSend: true })
 
+const CHAT_STORAGE_PREFIX = 'tripmate-private-chats-'
+const getChatStorageKey = (uid) => `${CHAT_STORAGE_PREFIX}${uid}`
+const CHAT_MESSAGES_STORAGE_PREFIX = 'tripmate-private-chat-messages-'
+const getChatMessagesStorageKey = (uid, friendUid) =>
+  `${CHAT_MESSAGES_STORAGE_PREFIX}${uid}-${friendUid}`
+
+const persistChatRooms = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  try {
+    localStorage.setItem(getChatStorageKey(currentUid), JSON.stringify(chatRoomsList.value))
+  } catch (error) {
+    console.warn('Persist chat rooms failed:', error)
+  }
+}
+
+const loadChatRoomsFromStorage = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  try {
+    const raw = localStorage.getItem(getChatStorageKey(currentUid))
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      chatRoomsList.value = parsed
+    }
+  } catch (error) {
+    console.warn('Load chat rooms failed:', error)
+  }
+}
+
+const saveMessagesToStorage = (friendUid, messageList) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid || !friendUid) return
+  try {
+    localStorage.setItem(
+      getChatMessagesStorageKey(currentUid, friendUid),
+      JSON.stringify(messageList || [])
+    )
+  } catch (error) {
+    console.warn('Persist chat messages failed:', error)
+  }
+}
+
+const loadMessagesFromStorage = (friendUid) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid || !friendUid) return []
+  try {
+    const raw = localStorage.getItem(getChatMessagesStorageKey(currentUid, friendUid))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    console.warn('Load chat messages failed:', error)
+    return []
+  }
+}
+
 // 聊天室列表（包含好友請求和動態創建的聊天室）
 const chatRooms = computed(() => {
   const rooms = []
-  
+
   // 添加收到的好友請求
   friendRequests.value.received.forEach(request => {
     rooms.push({
@@ -89,15 +147,22 @@ const loadChatHistory = async (uid, friendUid) => {
   try {
     const { getChatMessages } = await import('@/api/profile')
     const historyMessages = await getChatMessages(uid, friendUid)
-    
+
     // 轉換為前端格式
-    messages.value = historyMessages.map(msg => ({
+    const mappedMessages = historyMessages.map(msg => ({
       id: msg.id,
       type: msg.type || (msg.sender_uid === uid ? 'user' : 'friend'),
       content: msg.content,
       timestamp: msg.timestamp || msg.created_at
     }))
-    
+
+    const localMessages = loadMessagesFromStorage(friendUid)
+    messages.value = mappedMessages.length > 0 ? mappedMessages : localMessages
+
+    if (mappedMessages.length > 0) {
+      saveMessagesToStorage(friendUid, mappedMessages)
+    }
+
     // 更新聊天室的消息列表
     const room = chatRoomsList.value.find(r => r.uid === friendUid)
     if (room) {
@@ -106,7 +171,9 @@ const loadChatHistory = async (uid, friendUid) => {
     if (activeChatRoom.value) {
       activeChatRoom.value.messages = messages.value
     }
-    
+
+    persistChatRooms()
+
     console.log('[loadChatHistory] 載入聊天記錄:', messages.value.length, '條消息')
   } catch (error) {
     console.error('載入聊天記錄失敗：', error)
@@ -119,24 +186,24 @@ const loadChatInteractionCount = async (uid, friendUid) => {
   try {
     const { getChatInteractionCount } = await import('@/api/profile')
     const data = await getChatInteractionCount(uid, friendUid)
-    
+
     // 確保數據格式正確，如果數據缺失或格式不正確，使用默認值
     if (!data || typeof data !== 'object') {
       chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
       return
     }
-    
+
     // 確保所有必要的字段都存在，並且 canSend 基於 remaining 計算
     const count = typeof data.count === 'number' ? data.count : 0
     const remaining = typeof data.remaining === 'number' ? data.remaining : Math.max(0, 3 - count)
     const canSend = typeof data.canSend === 'boolean' ? data.canSend : (remaining > 0)
-    
+
     chatInteractionCount.value = {
       count,
       remaining,
       canSend: canSend && remaining > 0  // 雙重確保 canSend 正確
     }
-    
+
     console.log('[loadChatInteractionCount] 載入對話次數:', {
       uid,
       friendUid,
@@ -175,7 +242,7 @@ const openOrCreateChatRoom = async (user) => {
 
   // 檢查是否已存在聊天室
   const existingRoom = chatRoomsList.value.find(r => r.uid === user.uid)
-  
+
   if (existingRoom) {
     // 打開現有聊天室
     activeChatRoom.value = {
@@ -197,7 +264,8 @@ const openOrCreateChatRoom = async (user) => {
       messages: []
     }
     chatRoomsList.value.push(newRoom)
-    
+    persistChatRooms()
+
     activeChatRoom.value = {
       type: 'chat',
       uid: user.uid,
@@ -209,10 +277,10 @@ const openOrCreateChatRoom = async (user) => {
 
   // 載入對話次數
   await loadChatInteractionCount(currentUid, user.uid)
-  
+
   // 從數據庫載入聊天記錄
   await loadChatHistory(currentUid, user.uid)
-  
+
   scrollToBottom()
 }
 
@@ -257,37 +325,32 @@ const sendMessage = async () => {
   try {
     const { incrementChatInteraction } = await import('@/api/profile')
     const data = await incrementChatInteraction(currentUid, activeChatRoom.value.uid)
-    
+
     console.log('[sendMessage] API 返回數據:', data)
-    console.log('[sendMessage] 發送前狀態:', { 
-      count: chatInteractionCount.value.count, 
+    console.log('[sendMessage] 發送前狀態:', {
+      count: chatInteractionCount.value.count,
       remaining: chatInteractionCount.value.remaining,
-      canSend: chatInteractionCount.value.canSend 
+      canSend: chatInteractionCount.value.canSend
     })
-    
+
     if (data && data.success !== false) {
       // 更新對話次數狀態（優先使用 API 返回的準確值）
       const newCount = typeof data.count === 'number' ? parseInt(data.count) : (parseInt(chatInteractionCount.value.count) || 0) + 1
       const newRemaining = typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
       const newCanSend = typeof data.canSend === 'boolean' ? data.canSend : (newRemaining > 0)
-      
+
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
         canSend: newCanSend
       }
-      
-      console.log('[sendMessage] 發送後狀態:', { 
-        count: newCount, 
+
+      console.log('[sendMessage] 發送後狀態:', {
+        count: newCount,
         remaining: newRemaining,
-        canSend: newCanSend 
+        canSend: newCanSend
       })
-      
-      // 如果次數用盡，阻止發送並提示
-      if (!newCanSend) {
-        alert('您已達到對話次數上限（3次），等待對方同意好友請求後才能繼續聊天')
-        return
-      }
+
     } else {
       // API 返回異常，使用本地計算
       const newCount = (chatInteractionCount.value.count || 0) + 1
@@ -297,11 +360,6 @@ const sendMessage = async () => {
         remaining: newRemaining,
         canSend: newRemaining > 0
       }
-      
-      if (!chatInteractionCount.value.canSend) {
-        alert('您已達到對話次數上限（3次），等待對方同意好友請求後才能繼續聊天')
-        return
-      }
     }
   } catch (error) {
     console.error('記錄對話次數失敗：', error)
@@ -309,25 +367,20 @@ const sendMessage = async () => {
     const newCount = (chatInteractionCount.value.count || 0) + 1
     const newRemaining = Math.max(0, 3 - newCount)
     const newCanSend = newCount < 3
-    
+
     chatInteractionCount.value = {
       count: newCount,
       remaining: newRemaining,
       canSend: newCanSend
     }
-    
-    // 如果超過 3 次，阻止發送
-    if (!newCanSend) {
-      alert('您已達到對話次數上限（3次），等待對方同意好友請求後才能繼續聊天')
-      return
-    }
+
   }
 
   // 2. 保存消息到數據庫
   try {
     const { saveChatMessage } = await import('@/api/profile')
     const savedMessage = await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
-    
+
     // 3. 加入使用者的訊息（使用數據庫返回的消息ID）
     const userMessage = {
       id: savedMessage.message?.id || Date.now(),
@@ -335,7 +388,7 @@ const sendMessage = async () => {
       content: text,
       timestamp: savedMessage.message?.created_at || new Date().toISOString()
     }
-    
+
     messages.value.push(userMessage)
 
     // 更新聊天室的最後訊息
@@ -354,6 +407,9 @@ const sendMessage = async () => {
     // 清空輸入框
     messageInput.value = ''
 
+    persistChatRooms()
+    saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
+
     scrollToBottom()
   } catch (error) {
     console.error('保存消息失敗：', error)
@@ -364,7 +420,7 @@ const sendMessage = async () => {
       content: text,
       timestamp: new Date().toISOString()
     }
-    
+
     messages.value.push(userMessage)
 
     // 更新聊天室的最後訊息
@@ -380,6 +436,8 @@ const sendMessage = async () => {
     }
 
     messageInput.value = ''
+    persistChatRooms()
+    saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
     scrollToBottom()
   }
 }
@@ -420,14 +478,14 @@ const handleChatRoomClick = async (room) => {
       avatar: room.avatar,
       messages: room.messages || []
     }
-    
+
     // 載入對話次數和聊天記錄
     const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
     if (currentUid) {
       await loadChatInteractionCount(currentUid, room.uid)
       await loadChatHistory(currentUid, room.uid)
     }
-    
+
     scrollToBottom()
   }
 }
@@ -453,7 +511,12 @@ watch(() => props.openChatWithUser, (newUser) => {
 
 onMounted(() => {
   loadFriends()
+  loadChatRoomsFromStorage()
 })
+
+watch(chatRoomsList, () => {
+  persistChatRooms()
+}, { deep: true })
 </script>
 
 <template>
@@ -526,7 +589,7 @@ onMounted(() => {
             <UserIcon class="w-5 h-5 text-gray-600" />
           </div>
         </div>
-        
+
         <div
           v-if="!chatInteractionCount.canSend"
           class="text-center text-xs text-gray-500 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
@@ -537,7 +600,7 @@ onMounted(() => {
 
       <!-- 輸入框 -->
       <div class="p-4 border-t-2 border-gray-200 bg-white">
-        <form @submit.prevent="sendMessage" class="flex items-center space-x-2">
+        <form class="flex items-center space-x-2" @submit.prevent="sendMessage">
           <input
             v-model="messageInput"
             type="text"
@@ -600,8 +663,8 @@ onMounted(() => {
             v-for="room in chatRooms"
             :key="room.id"
             class="flex items-center gap-3 p-3 hover:bg-white rounded-xl transition cursor-pointer border-2"
-            :class="room.type === 'friend-request-received' 
-              ? 'border-yellow-400 bg-yellow-50 hover:border-yellow-500' 
+            :class="room.type === 'friend-request-received'
+              ? 'border-yellow-400 bg-yellow-50 hover:border-yellow-500'
               : room.type === 'friend-request-sent'
               ? 'border-blue-300 bg-blue-50 hover:border-blue-400'
               : 'border-transparent hover:border-primary-200'"

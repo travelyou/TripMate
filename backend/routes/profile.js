@@ -4,6 +4,42 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
+const ensureFriendsTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS friends (
+      id SERIAL PRIMARY KEY,
+      user_uid VARCHAR(255) NOT NULL,
+      friend_uid VARCHAR(255) NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(`ALTER TABLE friends ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'`)
+  await pool.query(`ALTER TABLE friends ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
+  await pool.query(`ALTER TABLE friends ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_friends_pair
+     ON friends (user_uid, friend_uid)`,
+  )
+}
+
+const ensureChatMessagesTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      sender_uid VARCHAR(255) NOT NULL,
+      receiver_uid VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_chat_messages_pair
+     ON chat_messages (sender_uid, receiver_uid, created_at)`,
+  )
+}
+
 router.post('/:uid/visited-places', async (req, res) => {
   try {
     const { uid } = req.params
@@ -179,6 +215,8 @@ router.post('/:uid/friends', async (req, res) => {
       return res.status(400).json({ error: '不能加自己為好友' })
     }
 
+    await ensureFriendsTable()
+
     // 檢查 friends 表是否有 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
@@ -258,6 +296,8 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
 
+    await ensureFriendsTable()
+
     // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
@@ -303,6 +343,8 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params // uid 是接受請求的用戶，friend_uid 是發送請求的用戶
 
+    await ensureFriendsTable()
+
     // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
@@ -315,22 +357,74 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
       return res.status(400).json({ error: '資料庫不支援好友請求狀態管理' })
     }
 
-    // 更新狀態為 accepted（friend_uid 發送給 uid 的請求）
-    const result = await pool.query(
-      `UPDATE friends
-       SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
-       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
-       RETURNING *`,
+    // 檢查 updated_at 欄位是否存在
+    const updatedAtCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'updated_at'`,
+    )
+    const hasUpdatedAt = updatedAtCheck.rows.length > 0
+
+    // 先檢查請求是否存在
+    const checkRequest = await pool.query(
+      `SELECT * FROM friends
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'`,
       [friend_uid, uid],
     )
 
-    if (result.rows.length === 0) {
+    if (checkRequest.rows.length === 0) {
+      console.log(`[acceptFriendRequest] 找不到待接受的好友請求: uid=${uid}, friend_uid=${friend_uid}`)
       return res.status(404).json({ error: '找不到待接受的好友請求' })
+    }
+
+    console.log(`[acceptFriendRequest] 找到請求，準備更新: ${JSON.stringify(checkRequest.rows[0])}`)
+
+    // 更新狀態為 accepted（friend_uid 發送給 uid 的請求）
+    let updateQuery
+    if (hasUpdatedAt) {
+      updateQuery = `UPDATE friends
+       SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+       RETURNING *`
+    } else {
+      updateQuery = `UPDATE friends
+       SET status = 'accepted'
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+       RETURNING *`
+    }
+
+    const result = await pool.query(updateQuery, [friend_uid, uid])
+
+    if (result.rows.length === 0) {
+      console.error(`[acceptFriendRequest] UPDATE 沒有影響任何行`)
+      return res.status(404).json({ error: '更新好友請求狀態失敗' })
+    }
+
+    console.log(`[acceptFriendRequest] ✅ 成功更新好友請求: ${JSON.stringify(result.rows[0])}`)
+
+    // 刪除聊天對話次數限制（因為已經成為好友）
+    try {
+      const tableCheck = await pool.query(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_name = 'chat_interactions'`,
+      )
+      if (tableCheck.rows.length > 0) {
+        await pool.query(
+          `DELETE FROM chat_interactions
+           WHERE (user_uid = $1 AND friend_uid = $2)
+              OR (user_uid = $2 AND friend_uid = $1)`,
+          [uid, friend_uid],
+        )
+        console.log(`[acceptFriendRequest] ✅ 已清除聊天次數限制`)
+      }
+    } catch (clearError) {
+      console.warn(`[acceptFriendRequest] ⚠️ 清除聊天次數失敗:`, clearError.message)
     }
 
     res.json({ success: true, message: '已接受好友請求' })
   } catch (error) {
     console.error('接受好友請求失敗：', error)
+    console.error('錯誤詳情:', error.message, error.stack)
     res.status(500).json({
       error: '接受好友請求失敗',
       message: error.message || '未知錯誤',
@@ -342,6 +436,8 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
 router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params // uid 是拒絕請求的用戶，friend_uid 是發送請求的用戶
+
+    await ensureFriendsTable()
 
     // 檢查 status 欄位
     const statusCheck = await pool.query(
@@ -505,7 +601,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     // 使用 UPSERT：先嘗試更新，如果沒有記錄則插入
     // 為了確保原子性，使用事務或者先更新後插入的方式
-    
+
     // 方法1：先嘗試更新
     let result = await pool.query(
       `UPDATE chat_interactions
@@ -562,9 +658,9 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     // 確保獲取正確的 count 值
     let count = parseInt(result.rows[0]?.message_count) || 0
-    
+
     // 驗證：如果 count 看起來不對，重新查詢一次
-    if (count === 0 && existingCheck.rows.length > 0) {
+    if (count === 0) {
       console.log(`[incrementChatInteraction] ⚠️ count 為 0 但記錄存在，重新查詢`)
       const verifyResult = await pool.query(
         `SELECT message_count FROM chat_interactions
@@ -576,7 +672,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
         console.log(`[incrementChatInteraction] 重新查詢得到的 count=${count}`)
       }
     }
-    
+
     const remaining = Math.max(0, 3 - count)
     const canSend = remaining > 0
 
@@ -636,19 +732,7 @@ router.post('/:uid/chat-messages/:friend_uid', async (req, res) => {
       return res.status(400).json({ error: '消息內容不能為空' })
     }
 
-    // 檢查 chat_messages 表是否存在
-    const tableCheck = await pool.query(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name = 'chat_messages'`,
-    )
-
-    if (tableCheck.rows.length === 0) {
-      console.warn(`[saveChatMessage] ⚠️ chat_messages 表不存在`)
-      return res.status(500).json({
-        error: '數據表不存在',
-        message: 'chat_messages 表未創建，請執行 SQL 腳本創建表',
-      })
-    }
+    await ensureChatMessagesTable()
 
     // 插入消息
     const result = await pool.query(
@@ -683,16 +767,7 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
 
-    // 檢查 chat_messages 表是否存在
-    const tableCheck = await pool.query(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name = 'chat_messages'`,
-    )
-
-    if (tableCheck.rows.length === 0) {
-      console.warn(`[getChatMessages] ⚠️ chat_messages 表不存在`)
-      return res.json({ messages: [] })
-    }
+    await ensureChatMessagesTable()
 
     // 獲取兩個用戶之間的所有消息（雙向）
     const result = await pool.query(
@@ -727,6 +802,8 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
 router.get('/:uid/friend-requests', async (req, res) => {
   try {
     const { uid } = req.params
+
+    await ensureFriendsTable()
 
     // 檢查 status 欄位
     const statusCheck = await pool.query(
