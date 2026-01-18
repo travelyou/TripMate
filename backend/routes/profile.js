@@ -177,18 +177,6 @@ router.post('/:uid/friends', async (req, res) => {
       return res.status(400).json({ error: '不能加自己為好友' });
     }
 
-    // 檢查好友關係是否已存在
-    const existingCheck = await pool.query(
-      `SELECT * FROM friends 
-       WHERE (user_uid = $1 AND friend_uid = $2) 
-          OR (user_uid = $2 AND friend_uid = $1)`,
-      [uid, friend_uid]
-    );
-
-    if (existingCheck.rows.length > 0) {
-      return res.status(409).json({ error: '好友關係已存在' });
-    }
-
     // 檢查 friends 表是否有 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
@@ -198,18 +186,49 @@ router.post('/:uid/friends', async (req, res) => {
 
     const hasStatus = statusCheck.rows.length > 0;
 
-    // 插入好友關係
+    // 檢查好友關係是否已存在
+    let existingCheck;
+    if (hasStatus) {
+      existingCheck = await pool.query(
+        `SELECT * FROM friends
+         WHERE (user_uid = $1 AND friend_uid = $2)
+            OR (user_uid = $2 AND friend_uid = $1)`,
+        [uid, friend_uid]
+      );
+    } else {
+      existingCheck = await pool.query(
+        `SELECT * FROM friends
+         WHERE user_uid = $1 AND friend_uid = $2`,
+        [uid, friend_uid]
+      );
+    }
+
+    // 如果已存在 pending 或 accepted 狀態的請求，返回錯誤
+    if (existingCheck.rows.length > 0) {
+      const existing = existingCheck.rows[0];
+      if (hasStatus && existing.status === 'pending' && existing.user_uid === uid) {
+        return res.status(409).json({ error: '好友請求已發送，請等待對方回應' });
+      }
+      if (hasStatus && existing.status === 'accepted') {
+        return res.status(409).json({ error: '你們已經是好友了' });
+      }
+      if (!hasStatus) {
+        return res.status(409).json({ error: '好友請求已發送' });
+      }
+    }
+
+    // 插入好友請求（狀態為 pending）
     let result;
     if (hasStatus) {
-      // 如果有 status 欄位，設置為 'accepted'
+      // 如果有 status 欄位，設置為 'pending'
       result = await pool.query(
         `INSERT INTO friends (user_uid, friend_uid, status, created_at)
-         VALUES ($1, $2, 'accepted', CURRENT_TIMESTAMP)
+         VALUES ($1, $2, 'pending', CURRENT_TIMESTAMP)
          RETURNING *`,
         [uid, friend_uid]
       );
     } else {
-      // 如果沒有 status 欄位，直接插入
+      // 如果沒有 status 欄位，直接插入（但實際上應該要有 status 欄位）
       result = await pool.query(
         `INSERT INTO friends (user_uid, friend_uid, created_at)
          VALUES ($1, $2, CURRENT_TIMESTAMP)
@@ -218,15 +237,333 @@ router.post('/:uid/friends', async (req, res) => {
       );
     }
 
-    res.status(201).json({ 
-      success: true, 
-      message: '好友添加成功',
+    res.status(201).json({
+      success: true,
+      message: '好友請求已發送',
       friend: result.rows[0]
     });
   } catch (error) {
     console.error('加好友失敗：', error);
     res.status(500).json({
       error: '加好友失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
+// 取消好友請求
+router.delete('/:uid/friends/:friend_uid', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params;
+
+    // 檢查 status 欄位
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+    const hasStatus = statusCheck.rows.length > 0;
+
+    let result;
+    if (hasStatus) {
+      // 只刪除 pending 狀態的請求（由當前用戶發起的）
+      result = await pool.query(
+        `DELETE FROM friends
+         WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+         RETURNING *`,
+        [uid, friend_uid]
+      );
+    } else {
+      result = await pool.query(
+        `DELETE FROM friends
+         WHERE user_uid = $1 AND friend_uid = $2
+         RETURNING *`,
+        [uid, friend_uid]
+      );
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '找不到好友請求' });
+    }
+
+    res.json({ success: true, message: '已取消好友請求' });
+  } catch (error) {
+    console.error('取消好友請求失敗：', error);
+    res.status(500).json({
+      error: '取消好友請求失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
+// 接受好友請求
+router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params; // uid 是接受請求的用戶，friend_uid 是發送請求的用戶
+
+    // 檢查 status 欄位
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+    const hasStatus = statusCheck.rows.length > 0;
+
+    if (!hasStatus) {
+      return res.status(400).json({ error: '資料庫不支援好友請求狀態管理' });
+    }
+
+    // 更新狀態為 accepted（friend_uid 發送給 uid 的請求）
+    const result = await pool.query(
+      `UPDATE friends
+       SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+       RETURNING *`,
+      [friend_uid, uid]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '找不到待接受的好友請求' });
+    }
+
+    res.json({ success: true, message: '已接受好友請求' });
+  } catch (error) {
+    console.error('接受好友請求失敗：', error);
+    res.status(500).json({
+      error: '接受好友請求失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
+// 拒絕好友請求
+router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params; // uid 是拒絕請求的用戶，friend_uid 是發送請求的用戶
+
+    // 檢查 status 欄位
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+    const hasStatus = statusCheck.rows.length > 0;
+
+    if (!hasStatus) {
+      return res.status(400).json({ error: '資料庫不支援好友請求狀態管理' });
+    }
+
+    // 刪除 pending 狀態的請求
+    const result = await pool.query(
+      `DELETE FROM friends
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+       RETURNING *`,
+      [friend_uid, uid]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '找不到待拒絕的好友請求' });
+    }
+
+    res.json({ success: true, message: '已拒絕好友請求' });
+  } catch (error) {
+    console.error('拒絕好友請求失敗：', error);
+    res.status(500).json({
+      error: '拒絕好友請求失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
+// 獲取或記錄聊天對話次數
+router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params;
+
+    // 檢查 chat_interactions 表是否存在
+    const tableCheck = await pool.query(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'chat_interactions'`
+    );
+
+    if (tableCheck.rows.length === 0) {
+      // 表不存在，返回初始值
+      return res.json({ count: 0, remaining: 3 });
+    }
+
+    // 獲取對話次數（單向查詢：uid 發送給 friend_uid 的次數）
+    const result = await pool.query(
+      `SELECT message_count FROM chat_interactions
+       WHERE user_uid = $1 AND friend_uid = $2`,
+      [uid, friend_uid]
+    );
+
+    const count = result.rows.length > 0 ? (result.rows[0].message_count || 0) : 0;
+    const remaining = Math.max(0, 3 - count);
+
+    res.json({ count, remaining, canSend: remaining > 0 });
+  } catch (error) {
+    console.error('獲取對話次數失敗：', error);
+    // 如果表不存在或其他錯誤，返回允許發送
+    res.json({ count: 0, remaining: 3, canSend: true });
+  }
+});
+
+// 增加聊天對話次數
+router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params;
+
+    // 檢查 chat_interactions 表是否存在
+    const tableCheck = await pool.query(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'chat_interactions'`
+    );
+
+    if (tableCheck.rows.length === 0) {
+      // 表不存在，嘗試創建（但這裡不創建，只是記錄）
+      return res.json({ success: true, count: 1, remaining: 2 });
+    }
+
+    // 檢查是否已存在記錄
+    const existing = await pool.query(
+      `SELECT * FROM chat_interactions
+       WHERE user_uid = $1 AND friend_uid = $2`,
+      [uid, friend_uid]
+    );
+
+    let result;
+    if (existing.rows.length > 0) {
+      // 更新次數
+      result = await pool.query(
+        `UPDATE chat_interactions
+         SET message_count = message_count + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE user_uid = $1 AND friend_uid = $2
+         RETURNING message_count`,
+        [uid, friend_uid]
+      );
+    } else {
+      // 創建新記錄
+      result = await pool.query(
+        `INSERT INTO chat_interactions (user_uid, friend_uid, message_count, created_at, updated_at)
+         VALUES ($1, $2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         RETURNING message_count`,
+        [uid, friend_uid]
+      );
+    }
+
+    const count = result.rows[0].message_count;
+    const remaining = Math.max(0, 3 - count);
+
+    res.json({ success: true, count, remaining, canSend: remaining > 0 });
+  } catch (error) {
+    console.error('增加對話次數失敗：', error);
+    res.status(500).json({
+      error: '增加對話次數失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
+// 重置聊天對話次數（當好友請求被接受後）
+router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params;
+
+    const tableCheck = await pool.query(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'chat_interactions'`
+    );
+
+    if (tableCheck.rows.length === 0) {
+      return res.json({ success: true });
+    }
+
+    // 刪除雙向的對話記錄
+    await pool.query(
+      `DELETE FROM chat_interactions
+       WHERE (user_uid = $1 AND friend_uid = $2)
+          OR (user_uid = $2 AND friend_uid = $1)`,
+      [uid, friend_uid]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('重置對話次數失敗：', error);
+    res.status(500).json({
+      error: '重置對話次數失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
+// 獲取好友請求列表（收到的和發送的）
+router.get('/:uid/friend-requests', async (req, res) => {
+  try {
+    const { uid } = req.params;
+
+    // 檢查 status 欄位
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+    const hasStatus = statusCheck.rows.length > 0;
+
+    if (!hasStatus) {
+      return res.json({
+        received: [],
+        sent: []
+      });
+    }
+
+    // 獲取收到的請求（別人發給我的）
+    const receivedRequests = await pool.query(
+      `SELECT f.*, u.uid, u.nickname, u.avatar, u.email
+       FROM friends f
+       JOIN users u ON f.user_uid = u.uid
+       WHERE f.friend_uid = $1 AND f.status = 'pending'
+       ORDER BY f.created_at DESC`,
+      [uid]
+    );
+
+    // 獲取發送的請求（我發給別人的）
+    const sentRequests = await pool.query(
+      `SELECT f.*, u.uid, u.nickname, u.avatar, u.email
+       FROM friends f
+       JOIN users u ON f.friend_uid = u.uid
+       WHERE f.user_uid = $1 AND f.status = 'pending'
+       ORDER BY f.created_at DESC`,
+      [uid]
+    );
+
+    const received = receivedRequests.rows.map(r => ({
+      id: r.user_uid,
+      uid: r.user_uid,
+      name: r.nickname,
+      nickname: r.nickname,
+      avatar: r.avatar,
+      email: r.email,
+      status: r.status,
+      created_at: r.created_at
+    }));
+
+    const sent = sentRequests.rows.map(r => ({
+      id: r.friend_uid,
+      uid: r.friend_uid,
+      name: r.nickname,
+      nickname: r.nickname,
+      avatar: r.avatar,
+      email: r.email,
+      status: r.status,
+      created_at: r.created_at
+    }));
+
+    res.json({ received, sent });
+  } catch (error) {
+    console.error('獲取好友請求列表失敗：', error);
+    res.status(500).json({
+      error: '獲取好友請求列表失敗',
       message: error.message || '未知錯誤'
     });
   }

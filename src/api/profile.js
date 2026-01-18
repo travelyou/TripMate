@@ -121,7 +121,7 @@ export async function updateWishlist(uid, items) {
   }
 }
 
-// 加好友
+// 加好友（發送好友請求）
 export async function addFriend(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends`, {
@@ -139,6 +139,110 @@ export async function addFriend(uid, friendUid) {
     return data
   } catch (error) {
     console.error('加好友錯誤：', error)
+    throw error
+  }
+}
+
+// 取消好友請求
+export async function cancelFriendRequest(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '取消好友請求失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('取消好友請求錯誤：', error)
+    throw error
+  }
+}
+
+// 接受好友請求
+export async function acceptFriendRequest(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}/accept`, {
+      method: 'PATCH',
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '接受好友請求失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('接受好友請求錯誤：', error)
+    throw error
+  }
+}
+
+// 拒絕好友請求
+export async function rejectFriendRequest(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}/reject`, {
+      method: 'PATCH',
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '拒絕好友請求失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('拒絕好友請求錯誤：', error)
+    throw error
+  }
+}
+
+// 獲取好友請求列表
+export async function getFriendRequests(uid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/friend-requests`)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '獲取好友請求列表失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('獲取好友請求列表錯誤：', error)
+    throw error
+  }
+}
+
+// 獲取對話次數
+export async function getChatInteractionCount(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-interactions/${friendUid}`)
+    if (!response.ok) {
+      // 如果失敗，返回允許發送
+      return { count: 0, remaining: 3, canSend: true }
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('獲取對話次數錯誤：', error)
+    return { count: 0, remaining: 3, canSend: true }
+  }
+}
+
+// 增加對話次數
+export async function incrementChatInteraction(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-interactions/${friendUid}/increment`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '記錄對話次數失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('增加對話次數錯誤：', error)
     throw error
   }
 }

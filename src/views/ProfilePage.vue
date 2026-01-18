@@ -149,6 +149,66 @@ const handleOpenFriends = () => {
 }
 
 const handleChat = () => {
+  // 觸發全局事件來開啟聊天室
+  const targetUser = user.value || viewingUser.value
+  if (targetUser && targetUser.uid) {
+    window.dispatchEvent(new CustomEvent('open-chat', {
+      detail: {
+        user: {
+          uid: targetUser.uid,
+          name: targetUser.name || targetUser.nickname,
+          nickname: targetUser.nickname || targetUser.name,
+          avatar: targetUser.avatar || ''
+        }
+      }
+    }))
+  }
+}
+
+// 檢查好友請求狀態
+const friendRequestStatus = ref(null) // 'none' | 'sent' | 'received' | 'accepted'
+
+const checkFriendRequestStatus = async () => {
+  if (!user.value?.uid || !userStore.currentUser?.uid) return
+
+  const friendUid = user.value.uid
+  const currentUid = userStore.currentUser.uid
+
+  try {
+    const { getFriendRequests, getProfile } = await import('@/api/profile')
+    
+    // 先檢查好友請求狀態（這是最準確的狀態）
+    const requests = await getFriendRequests(currentUid)
+    const sentRequest = requests.sent?.find(r => r.uid === friendUid)
+    const receivedRequest = requests.received?.find(r => r.uid === friendUid)
+    
+    if (sentRequest) {
+      // 如果已發送請求，狀態為 'sent'
+      friendRequestStatus.value = 'sent'
+      return
+    }
+    
+    if (receivedRequest) {
+      // 如果收到請求，狀態為 'received'
+      friendRequestStatus.value = 'received'
+      return
+    }
+
+    // 如果沒有請求，再檢查是否已經是好友（後端應該只返回 accepted 的好友）
+    const profileData = await getProfile(currentUid)
+    const isFriend = profileData?.friends?.some(f => (f.uid === friendUid || f.id === friendUid))
+    
+    if (isFriend) {
+      // 只有在確認是 accepted 的好友時才設置為 'accepted'
+      friendRequestStatus.value = 'accepted'
+    } else {
+      // 沒有任何關係
+      friendRequestStatus.value = 'none'
+    }
+  } catch (error) {
+    console.error('檢查好友請求狀態失敗：', error)
+    friendRequestStatus.value = 'none'
+  }
 }
 
 const handleAddFriend = async () => {
@@ -167,19 +227,34 @@ const handleAddFriend = async () => {
   }
 
   try {
-    const { addFriend } = await import('@/api/profile')
-    await addFriend(currentUid, friendUid)
+    const { addFriend, cancelFriendRequest } = await import('@/api/profile')
     
-    // 重新載入好友列表
+    // 如果已經發送請求，則取消請求
+    if (friendRequestStatus.value === 'sent') {
+      await cancelFriendRequest(currentUid, friendUid)
+      friendRequestStatus.value = 'none'
+      alert('已取消好友請求')
+    } else {
+      // 發送好友請求
+      await addFriend(currentUid, friendUid)
+      friendRequestStatus.value = 'sent'
+      alert('好友請求已發送，等待對方回應')
+    }
+    
+    // 重新載入資料並重新檢查好友請求狀態
     await loadProfileData()
-    
-    alert('已成功加為好友！')
+    if (!isCurrentUser.value) {
+      await checkFriendRequestStatus()
+    }
   } catch (error) {
     console.error('加好友失敗：', error)
-    if (error.message.includes('已存在')) {
+    if (error.message.includes('已發送')) {
+      friendRequestStatus.value = 'sent'
+      alert('好友請求已發送，請等待對方回應')
+    } else if (error.message.includes('已存在')) {
       alert('你們已經是好友了！')
     } else {
-      alert('加好友失敗：' + (error.message || '未知錯誤'))
+      alert('操作失敗：' + (error.message || '未知錯誤'))
     }
   }
 }
@@ -428,6 +503,11 @@ const loadProfileData = async () => {
   try {
     const { getProfile } = await import('@/api/profile')
     const profileData = await getProfile(uidToLoad)
+    
+    // 如果不是當前用戶，檢查好友請求狀態
+    if (!isCurrentUser.value) {
+      await checkFriendRequestStatus()
+    }
 
     if (profileData) {
       if (!isCurrentUser.value) {
@@ -511,6 +591,7 @@ onMounted(() => {
       :user="user"
       :is-current-user="isCurrentUser"
       :stats="stats"
+      :friend-request-status="friendRequestStatus"
       @edit-profile="isEditingProfile = true"
       @edit-bio="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
