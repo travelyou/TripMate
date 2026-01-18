@@ -4,7 +4,7 @@ const pool = require('../database/connection')
 
 // 測試 router 是否有正常運作
 router.get('/test', (req, res) => {
-  res.json({ ok: true, message: 'payments router working' })
+  res.json({ ok: true, message: 'payments 路由運作中' })
 })
 
 /**
@@ -23,7 +23,7 @@ router.post('/create', async (req, res) => {
     const { orderId, paymentMethod = 'mock' } = req.body || {}
 
     if (!orderId) {
-      return res.status(400).json({ ok: false, message: 'orderId is required' })
+      return res.status(400).json({ ok: false, message: '需要提供 orderId' })
     }
 
     // 1) 確認訂單存在
@@ -31,14 +31,14 @@ router.post('/create', async (req, res) => {
       orderId,
     ])
     if (o.rows.length === 0) {
-      return res.status(404).json({ ok: false, message: 'order not found' })
+      return res.status(404).json({ ok: false, message: '找不到訂單' })
     }
 
     const order = o.rows[0]
 
     // 若已付款，避免重複建立付款單（你也可以允許重試，這裡先保守）
     if (order.status === 'PAID') {
-      return res.status(409).json({ ok: false, message: 'order already paid' })
+      return res.status(409).json({ ok: false, message: '訂單已付款' })
     }
 
     // 2) 建立 payment（INIT）
@@ -62,7 +62,7 @@ router.post('/create', async (req, res) => {
     })
   } catch (err) {
     console.error('[POST /api/payments/create] error:', err)
-    return res.status(500).json({ ok: false, message: 'server error' })
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   }
 })
 
@@ -79,7 +79,7 @@ router.get('/mock-pay', async (req, res) => {
   const client = await pool.connect()
   try {
     const { paymentId } = req.query || {}
-    if (!paymentId) return res.status(400).json({ ok: false, message: 'paymentId is required' })
+    if (!paymentId) return res.status(400).json({ ok: false, message: '需要提供 paymentId' })
 
     await client.query('BEGIN')
 
@@ -93,7 +93,7 @@ router.get('/mock-pay', async (req, res) => {
     )
     if (p.rowCount === 0) {
       await client.query('ROLLBACK')
-      return res.status(404).json({ ok: false, message: 'payment not found' })
+      return res.status(404).json({ ok: false, message: '找不到付款資料' })
     }
 
     const payment = p.rows[0]
@@ -101,7 +101,7 @@ router.get('/mock-pay', async (req, res) => {
     // 已付款就不重複
     if (payment.status === 'PAID') {
       await client.query('ROLLBACK')
-      return res.status(409).json({ ok: false, message: 'payment already paid', paymentId })
+      return res.status(409).json({ ok: false, message: '付款已完成', paymentId })
     }
 
     // 2) 鎖定訂單
@@ -114,7 +114,7 @@ router.get('/mock-pay', async (req, res) => {
     )
     if (o.rowCount === 0) {
       await client.query('ROLLBACK')
-      return res.status(404).json({ ok: false, message: 'order not found for this payment' })
+      return res.status(404).json({ ok: false, message: '此付款找不到對應的訂單' })
     }
 
     // 3) 更新 payment 為 PAID
@@ -137,7 +137,7 @@ router.get('/mock-pay', async (req, res) => {
 
     return res.json({
       ok: true,
-      message: 'mock payment success',
+      message: '模擬付款成功',
       orderId: payment.orderId,
       paymentId,
     })
@@ -148,7 +148,7 @@ router.get('/mock-pay', async (req, res) => {
       console.error('[mock-pay] rollback error:', e)
     }
     console.error('[GET /api/payments/mock-pay] error:', err)
-    return res.status(500).json({ ok: false, message: 'server error' })
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   } finally {
     client.release()
   }
