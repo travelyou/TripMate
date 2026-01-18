@@ -25,6 +25,22 @@ export async function fetchPosts(page = 1, limit = 10, category = null) {
 
     const data = await response.json()
     console.log('[API] 回應成功，貼文數量:', data.posts?.length || 0)
+
+    // 調試：檢查第一個貼文的 author_avatar
+    if (data.posts && data.posts.length > 0) {
+      const firstPost = data.posts[0]
+      console.log('[API] 第一個貼文的 author_avatar:', firstPost.author_avatar || 'NULL/UNDEFINED')
+      console.log('[API] 第一個貼文的 author_uid:', firstPost.author_uid)
+      console.log('[API] 第一個貼文的所有欄位:', Object.keys(firstPost))
+
+      // 檢查所有貼文的 author_avatar
+      data.posts.forEach((post, index) => {
+        if (!post.author_avatar) {
+          console.warn(`[API] 貼文 ${index + 1} (UID: ${post.author_uid}) 沒有 author_avatar`)
+        }
+      })
+    }
+
     return data
   } catch (error) {
     console.error('[API] fetchPosts 錯誤:', error)
