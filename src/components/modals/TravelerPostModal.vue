@@ -711,11 +711,11 @@ const executeSubmit = async () => {
       status: '招募中',
       banner_image: bannerImageUrl,
       author_uid: auth.currentUser.uid,
-      author_name: userStore.currentUser?.displayName || '匿名',
+      author_name: userStore.userProfile?.name || userStore.userProfile?.nickname || '匿名',
       author_avatar:
-        userStore.currentUser?.photoURL ||
+        userStore.userProfile?.avatar ||
         'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
-      spirit_animal: userStore.currentUser?.spiritAnimal || '樂天派',
+      spirit_animal: userStore.userProfile?.spiritAnimal || null,
     }
 
     const optimizedPayload = {
@@ -1487,13 +1487,14 @@ onMounted(() => {
                   class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
                 />
                 <div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-2 flex-wrap gap-2">
                     <span class="font-bold text-secondary-900">{{
-                      userStore.currentUser?.displayName || '你'
+                      userStore.userProfile?.name || userStore.userProfile?.nickname || '你'
                     }}</span>
                     <span
-                      class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
-                      >{{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}</span
+                      v-if="userStore.userProfile?.spiritAnimal && userStore.userProfile.spiritAnimal.trim()"
+                      class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
+                      >{{ userStore.userProfile.spiritAnimal }}</span
                     >
                   </div>
                   <div class="text-sm text-secondary-500">發布於 剛剛</div>

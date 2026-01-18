@@ -344,13 +344,14 @@ onMounted(async () => {
                 @click="handleAuthorClick"
               />
               <div>
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 flex-wrap gap-2">
                   <span 
                     class="font-bold text-secondary-900 cursor-pointer hover:text-primary-600 transition"
                     @click="handleAuthorClick"
                   >{{ localTravelerData.author }}</span>
                   <span
-                    class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
+                    v-if="localTravelerData.spiritAnimal && localTravelerData.spiritAnimal.trim()"
+                    class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
                   >
                     {{ localTravelerData.spiritAnimal }}
                   </span>

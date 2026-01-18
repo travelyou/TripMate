@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { useUserStore } from '@/stores/user'
 
-// 題目資料
 const QUESTIONS = [
   {
     id: 1,
@@ -69,8 +68,6 @@ const QUESTIONS = [
   },
 ]
 
-// 計分與對照工具
-
 function calcMbti(answers) {
   const c = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 }
   answers.forEach((a) => a && c[a]++)
@@ -97,8 +94,6 @@ function mbtiToAnimalKey(mbti) {
     }
   }
 }
-
-// 動物人格資料
 
 const ANIMAL_PROFILES = {
   otter_free_spirit: {
@@ -422,8 +417,6 @@ const ANIMAL_PROFILES = {
   },
 }
 
-// Pinia Store
-
 export const usePersonalityStore = defineStore('personalityTest', {
   state: () => ({
     step: 'start',
@@ -470,8 +463,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
 
     finishTest() {
       const mbti = calcMbti(this.answers)
-
-      // 用 8 種分組 key（對應 ANIMAL_PROFILES 的 key）
       const key = mbtiToAnimalKey(mbti)
       const profile = ANIMAL_PROFILES[key] || ANIMAL_PROFILES.cat_solo
 
@@ -492,16 +483,33 @@ export const usePersonalityStore = defineStore('personalityTest', {
 
       this.step = 'result'
     },
-    saveResult(resultOverride = null) {
+    async saveResult(resultOverride = null) {
       const result = resultOverride || this.result
       if (!result) return false
 
       const userStore = useUserStore()
+      if (!userStore.firebaseUser || !userStore.firebaseUser.uid) {
+        console.error('無法保存測驗結果：用戶未登入')
+        return false
+      }
+
       this.savedResult = result
+      const spiritAnimalValue = `${result.animalEmoji} ${result.animalName}`
+
       userStore.updateProfile({
-        spiritAnimal: `${result.animalEmoji} ${result.animalName}`,
+        spiritAnimal: spiritAnimalValue,
       })
-      return true
+
+      try {
+        const { updateUserProfile } = await import('@/api/users')
+        await updateUserProfile(userStore.firebaseUser.uid, {
+          spirit_animal: spiritAnimalValue,
+        })
+        return true
+      } catch (error) {
+        console.error('保存測驗結果到資料庫失敗:', error)
+        return false
+      }
     },
     resetTest() {
       this.step = 'start'

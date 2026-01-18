@@ -100,13 +100,14 @@ const getStatusClasses = (status) => {
                 @click.stop="handleAvatarClick"
               />
               <div>
-                <div class="flex items-center space-x-1">
+                <div class="flex items-center space-x-1 flex-wrap gap-1">
                   <span
                     class="font-bold text-sm text-secondary-900 cursor-pointer hover:text-primary-600 transition"
                     @click.stop="handleAvatarClick"
                   >{{ traveler.author }}</span>
                   <span
-                    class="text-xs font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded-full"
+                    v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
+                    class="text-xs font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded-full whitespace-nowrap"
                   >
                     {{ traveler.spiritAnimal }}
                   </span>
