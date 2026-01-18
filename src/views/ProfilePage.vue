@@ -148,9 +148,9 @@ const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
 
-const handleChat = () => {
+const handleChat = (friend = null) => {
   // 觸發全局事件來開啟聊天室
-  const targetUser = user.value || viewingUser.value
+  const targetUser = friend || user.value || viewingUser.value
   if (targetUser && targetUser.uid) {
     window.dispatchEvent(new CustomEvent('open-chat', {
       detail: {
@@ -162,6 +162,34 @@ const handleChat = () => {
         }
       }
     }))
+  }
+  if (friend) {
+    isFriendModalOpen.value = false
+  }
+}
+
+const handleFriendChat = (friend) => {
+  if (!friend) return
+  isFriendModalOpen.value = false
+  const chatUser = {
+    uid: friend.uid || friend.id,
+    name: friend.name || friend.nickname,
+    nickname: friend.nickname || friend.name,
+    avatar: friend.avatar || '',
+  }
+  if (chatUser.uid) {
+    window.dispatchEvent(new CustomEvent('open-chat', { detail: { user: chatUser } }))
+  }
+}
+
+const handleOpenFriendProfile = (friend) => {
+  if (!friend) return
+  const friendUid = friend.uid || friend.id
+  if (!friendUid) return
+
+  isFriendModalOpen.value = false
+  if (route.params.uid !== friendUid) {
+    router.push({ path: `/profile/${friendUid}` })
   }
 }
 
@@ -211,6 +239,18 @@ const checkFriendRequestStatus = async () => {
   }
 }
 
+const clearPendingFriendRequests = async (currentUid, friendUid) => {
+  try {
+    const { cancelFriendRequest, rejectFriendRequest } = await import('@/api/profile')
+    await Promise.allSettled([
+      cancelFriendRequest(currentUid, friendUid),
+      rejectFriendRequest(currentUid, friendUid),
+    ])
+  } catch (error) {
+    console.error('清除好友邀請失敗：', error)
+  }
+}
+
 const refreshCurrentUserFriends = async () => {
   const currentUid = userStore.currentUser?.uid
   if (!currentUid) return
@@ -249,8 +289,14 @@ const handleAddFriend = async () => {
 
     // 如果已經發送請求，則取消請求
     if (friendRequestStatus.value === 'sent') {
+      const confirmCancel = confirm('確定要取消好友邀請嗎？')
+      if (!confirmCancel) return
       await cancelFriendRequest(currentUid, friendUid)
       friendRequestStatus.value = 'none'
+    } else if (friendRequestStatus.value === 'accepted') {
+      const confirmClear = confirm('你們已是好友，是否清除待處理的好友邀請？')
+      if (!confirmClear) return
+      await clearPendingFriendRequests(currentUid, friendUid)
     } else {
       // 發送好友請求
       const result = await addFriend(currentUid, friendUid)
@@ -711,7 +757,8 @@ onMounted(() => {
       :is-open="isFriendModalOpen"
       :friends="userStore.currentUser.friends"
       @close="isFriendModalOpen = false"
-      @chat="handleChat"
+      @chat="handleFriendChat"
+      @open-profile="handleOpenFriendProfile"
     />
 
     <DiscussionDetailModal
