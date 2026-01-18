@@ -55,9 +55,9 @@ router.post('/create', async (req, res) => {
     // 1) 確認訂單存在（並鎖定，避免同時付款/重複付款）
     const o = await client.query(
       `SELECT id, amount, status
-       FROM commerce.orders
-       WHERE id = $1
-       FOR UPDATE`,
+        FROM commerce.orders
+        WHERE id = $1
+        FOR UPDATE`,
       [orderId],
     )
 
@@ -77,8 +77,8 @@ router.post('/create', async (req, res) => {
     // 2) 建立 payment（INIT）
     const pay = await client.query(
       `INSERT INTO commerce.payments (order_id, provider, method, amount, status)
-       VALUES ($1, $2, $3, $4, 'INIT')
-       RETURNING id`,
+        VALUES ($1, $2, $3, $4, 'INIT')
+        RETURNING id`,
       [orderId, paymentMethod, paymentMethod, Number(order.amount)],
     )
 
@@ -132,20 +132,48 @@ router.post('/create', async (req, res) => {
         uri,
         body: requestBody,
       })
+      const lpRes = await axios.post(`${apiBase}${uri}`, requestBody, {
+        headers,
+        responseType: 'text',
+        transformResponse: [(d) => d], // 保留原始字串
+      })
 
-      const lpRes = await axios.post(`${apiBase}${uri}`, requestBody, { headers })
-      const lp = lpRes.data
+      const raw = lpRes.data
 
-      if (lp?.returnCode !== '0000') {
-        // LINE Pay request 失敗 → 這筆 payment INIT 也不該留著（回滾）
+      // 1) 先用正則「以字串」抓 transactionId（不經 JSON.parse → 不會變 number）
+      const mTid = raw.match(/"transactionId"\s*:\s*(\d{10,30})/)
+      const transactionId = mTid ? mTid[1] : ''
+
+      // 2) 其他欄位可以再 JSON.parse（就算 transactionId 會失真也沒關係，我們不用它）
+      let lp
+      try {
+        lp = JSON.parse(raw)
+      } catch (e) {
         await client.query('ROLLBACK')
-        return res
-          .status(400)
-          .json({ ok: false, message: lp?.returnMessage || 'LINE Pay request failed', raw: lp })
+        return res.status(500).json({ ok: false, message: 'LINE Pay response parse failed', raw })
       }
 
-      const transactionId = lp.info?.transactionId
-      const webUrl = lp.info?.paymentUrl?.web
+      if (lp?.returnCode !== '0000') {
+        await client.query('ROLLBACK')
+        return res.status(400).json({
+          ok: false,
+          message: lp?.returnMessage || 'LINE Pay request failed',
+          raw: lp,
+        })
+      }
+
+      const webUrl = lp?.info?.paymentUrl?.web
+
+      if (!transactionId || !webUrl) {
+        await client.query('ROLLBACK')
+        return res.status(500).json({
+          ok: false,
+          message: 'LINE Pay 回傳缺少 transactionId 或 paymentUrl',
+          debug: { transactionId, webUrl },
+        })
+      }
+
+      console.log('[linepay request]', transactionId, transactionId.length)
 
       if (!transactionId || !webUrl) {
         await client.query('ROLLBACK')
@@ -157,12 +185,13 @@ router.post('/create', async (req, res) => {
       // 把 transactionId 存回 payment
       await client.query(
         `UPDATE commerce.payments
-         SET transaction_id=$1, updated_at=NOW()
-         WHERE id=$2`,
-        [String(transactionId), paymentId],
+        SET transaction_id=$1, updated_at=NOW()
+        WHERE id=$2`,
+        [transactionId, paymentId],
       )
-
       await client.query('COMMIT')
+
+      console.log('[linepay request]', transactionId, transactionId.length)
 
       return res.json({
         ok: true,
@@ -294,11 +323,12 @@ router.get('/linepay/confirm', async (req, res) => {
     // 鎖 payment + 取 transaction_id
     const p = await client.query(
       `SELECT id, order_id AS "orderId", amount, status, transaction_id
-       FROM commerce.payments
-       WHERE id=$1
-       FOR UPDATE`,
-      [paymentId],
+    FROM commerce.payments
+    WHERE id=$1 AND order_id=$2
+    FOR UPDATE`,
+      [paymentId, orderId],
     )
+
     if (p.rowCount === 0) throw new Error('payment not found')
 
     const pay = p.rows[0]
