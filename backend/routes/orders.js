@@ -25,7 +25,7 @@ function generateOrderNo() {
 router.post('/from-cart', async (req, res) => {
   const client = await pool.connect()
   try {
-    const { itineraryId, contact, emergencyContact, paymentMethod = 'mock' } = req.body || {}
+    const { itineraryId, contact, emergencyContact } = req.body || {}
 
     // 先不做登入：固定 user_id=1（之後換成 req.user.id / Firebase uid）
     const userId = 1
@@ -128,15 +128,6 @@ router.post('/from-cart', async (req, res) => {
 
     const order = orderIns.rows[0]
 
-    // 5) （可選）建立一筆 payment INIT（方便接你現有 payments flow）
-    const payIns = await client.query(
-      `INSERT INTO commerce.payments (order_id, provider, method, amount, status)
-      VALUES ($1, $2, $3, $4, 'INIT')
-      RETURNING id`,
-      [order.id, paymentMethod, paymentMethod, Number(order.amount)],
-    )
-    const paymentId = payIns.rows[0]?.id
-
     // 6) 從購物車移除該項（你們一次只結帳一個行程，移除該項就好）
     await client.query(
       `DELETE FROM commerce.cart_items
@@ -165,7 +156,6 @@ router.post('/from-cart', async (req, res) => {
       orderNo: order.order_no,
       amount: Number(order.amount),
       status: order.status,
-      paymentId,
       item: {
         itineraryId: itinerary.id,
         title: itinerary.title,
