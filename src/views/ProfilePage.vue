@@ -176,18 +176,18 @@ const checkFriendRequestStatus = async () => {
 
   try {
     const { getFriendRequests, getProfile } = await import('@/api/profile')
-    
+
     // 先檢查好友請求狀態（這是最準確的狀態）
     const requests = await getFriendRequests(currentUid)
     const sentRequest = requests.sent?.find(r => r.uid === friendUid)
     const receivedRequest = requests.received?.find(r => r.uid === friendUid)
-    
+
     if (sentRequest) {
       // 如果已發送請求，狀態為 'sent'
       friendRequestStatus.value = 'sent'
       return
     }
-    
+
     if (receivedRequest) {
       // 如果收到請求，狀態為 'received'
       friendRequestStatus.value = 'received'
@@ -197,7 +197,7 @@ const checkFriendRequestStatus = async () => {
     // 如果沒有請求，再檢查是否已經是好友（後端應該只返回 accepted 的好友）
     const profileData = await getProfile(currentUid)
     const isFriend = profileData?.friends?.some(f => (f.uid === friendUid || f.id === friendUid))
-    
+
     if (isFriend) {
       // 只有在確認是 accepted 的好友時才設置為 'accepted'
       friendRequestStatus.value = 'accepted'
@@ -208,6 +208,24 @@ const checkFriendRequestStatus = async () => {
   } catch (error) {
     console.error('檢查好友請求狀態失敗：', error)
     friendRequestStatus.value = 'none'
+  }
+}
+
+const refreshCurrentUserFriends = async () => {
+  const currentUid = userStore.currentUser?.uid
+  if (!currentUid) return
+
+  try {
+    const { getProfile } = await import('@/api/profile')
+    const profileData = await getProfile(currentUid)
+    if (profileData && profileData.friends) {
+      userStore.currentUser.friends = profileData.friends
+    }
+    if (isCurrentUser.value && profileData?.stats) {
+      profileStats.value = profileData.stats
+    }
+  } catch (error) {
+    console.error('刷新好友列表失敗：', error)
   }
 }
 
@@ -228,26 +246,30 @@ const handleAddFriend = async () => {
 
   try {
     const { addFriend, cancelFriendRequest } = await import('@/api/profile')
-    
+
     // 如果已經發送請求，則取消請求
     if (friendRequestStatus.value === 'sent') {
       await cancelFriendRequest(currentUid, friendUid)
       friendRequestStatus.value = 'none'
-      // 狀態已更新，不需要重新載入頁面
     } else {
       // 發送好友請求
-      await addFriend(currentUid, friendUid)
-      friendRequestStatus.value = 'sent'
-      // 狀態已更新，不需要重新載入頁面
+      const result = await addFriend(currentUid, friendUid)
+      if (result?.accepted) {
+        friendRequestStatus.value = 'accepted'
+        await refreshCurrentUserFriends()
+      } else {
+        friendRequestStatus.value = 'sent'
+      }
     }
-    
-    // 不需要重新載入整個頁面，狀態已經即時更新
+
+    await checkFriendRequestStatus()
   } catch (error) {
     console.error('加好友失敗：', error)
     if (error.message.includes('已發送')) {
       friendRequestStatus.value = 'sent'
     } else if (error.message.includes('已經是好友') || error.message.includes('已存在')) {
       friendRequestStatus.value = 'accepted'
+      await refreshCurrentUserFriends()
       // 如果已經是好友，確保狀態正確顯示
     } else {
       // 顯示錯誤訊息
@@ -507,7 +529,7 @@ const loadProfileData = async () => {
   try {
     const { getProfile } = await import('@/api/profile')
     const profileData = await getProfile(uidToLoad)
-    
+
     // 如果不是當前用戶，檢查好友請求狀態
     if (!isCurrentUser.value) {
       await checkFriendRequestStatus()

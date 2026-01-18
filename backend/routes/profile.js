@@ -243,16 +243,59 @@ router.post('/:uid/friends', async (req, res) => {
       )
     }
 
-    // 如果已存在 pending 或 accepted 狀態的請求，返回錯誤
+    // 如果已存在 pending 或 accepted 狀態的請求，返回錯誤或自動接受
     if (existingCheck.rows.length > 0) {
-      const existing = existingCheck.rows[0]
-      if (hasStatus && existing.status === 'pending' && existing.user_uid === uid) {
-        return res.status(409).json({ error: '好友請求已發送，請等待對方回應' })
-      }
-      if (hasStatus && existing.status === 'accepted') {
-        return res.status(409).json({ error: '你們已經是好友了' })
-      }
-      if (!hasStatus) {
+      if (hasStatus) {
+        const accepted = existingCheck.rows.find((row) => row.status === 'accepted')
+        if (accepted) {
+          return res.status(409).json({ error: '你們已經是好友了' })
+        }
+
+        const outgoingPending = existingCheck.rows.find(
+          (row) => row.status === 'pending' && row.user_uid === uid && row.friend_uid === friend_uid,
+        )
+        if (outgoingPending) {
+          return res.status(409).json({ error: '好友請求已發送，請等待對方回應' })
+        }
+
+        const incomingPending = existingCheck.rows.find(
+          (row) => row.status === 'pending' && row.user_uid === friend_uid && row.friend_uid === uid,
+        )
+        if (incomingPending) {
+          const updatedAtCheck = await pool.query(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_name = 'friends' AND column_name = 'updated_at'`,
+          )
+          const hasUpdatedAt = updatedAtCheck.rows.length > 0
+
+          const updateQuery = hasUpdatedAt
+            ? `UPDATE friends
+               SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+               WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+               RETURNING *`
+            : `UPDATE friends
+               SET status = 'accepted'
+               WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+               RETURNING *`
+
+          const updated = await pool.query(updateQuery, [friend_uid, uid])
+
+          // 清除可能存在的反向 pending（避免重複）
+          await pool.query(
+            `DELETE FROM friends
+             WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'`,
+            [uid, friend_uid],
+          )
+
+          return res.status(200).json({
+            success: true,
+            message: '已自動接受好友請求',
+            friend: updated.rows[0],
+            accepted: true,
+          })
+        }
+      } else {
         return res.status(409).json({ error: '好友請求已發送' })
       }
     }
@@ -928,8 +971,14 @@ router.get('/:uid', async (req, res) => {
         friendsResult = await pool.query(
           `SELECT u.uid, u.nickname, u.avatar, u.email
            FROM friends f
-           JOIN users u ON (f.friend_uid = u.uid)
-           WHERE f.user_uid = $1 AND f.status = 'accepted'
+           JOIN users u ON (
+             CASE
+               WHEN f.user_uid = $1 THEN f.friend_uid
+               ELSE f.user_uid
+             END
+           ) = u.uid
+           WHERE (f.user_uid = $1 OR f.friend_uid = $1)
+             AND f.status = 'accepted'
            ORDER BY f.created_at DESC`,
           [uid],
         )
@@ -937,8 +986,13 @@ router.get('/:uid', async (req, res) => {
         friendsResult = await pool.query(
           `SELECT u.uid, u.nickname, u.avatar, u.email
            FROM friends f
-           JOIN users u ON (f.friend_uid = u.uid)
-           WHERE f.user_uid = $1
+           JOIN users u ON (
+             CASE
+               WHEN f.user_uid = $1 THEN f.friend_uid
+               ELSE f.user_uid
+             END
+           ) = u.uid
+           WHERE (f.user_uid = $1 OR f.friend_uid = $1)
            ORDER BY f.created_at DESC`,
           [uid],
         )
@@ -982,7 +1036,7 @@ router.get('/:uid', async (req, res) => {
       date: r.created_at,
     }))
 
-    let friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1) as friends_count`
+    let friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1 OR friend_uid = $1) as friends_count`
     try {
       const checkStatusQuery = `
         SELECT column_name
@@ -992,7 +1046,7 @@ router.get('/:uid', async (req, res) => {
       const statusCheck = await pool.query(checkStatusQuery)
 
       if (statusCheck.rows.length > 0) {
-        friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1 AND status = 'accepted') as friends_count`
+        friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE (user_uid = $1 OR friend_uid = $1) AND status = 'accepted') as friends_count`
       }
     } catch {
       friendsCountQuery = `(SELECT 0) as friends_count`
