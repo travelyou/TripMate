@@ -233,27 +233,24 @@ const handleAddFriend = async () => {
     if (friendRequestStatus.value === 'sent') {
       await cancelFriendRequest(currentUid, friendUid)
       friendRequestStatus.value = 'none'
-      alert('已取消好友請求')
+      // 狀態已更新，不需要重新載入頁面
     } else {
       // 發送好友請求
       await addFriend(currentUid, friendUid)
       friendRequestStatus.value = 'sent'
-      alert('好友請求已發送，等待對方回應')
+      // 狀態已更新，不需要重新載入頁面
     }
     
-    // 重新載入資料並重新檢查好友請求狀態
-    await loadProfileData()
-    if (!isCurrentUser.value) {
-      await checkFriendRequestStatus()
-    }
+    // 不需要重新載入整個頁面，狀態已經即時更新
   } catch (error) {
     console.error('加好友失敗：', error)
     if (error.message.includes('已發送')) {
       friendRequestStatus.value = 'sent'
-      alert('好友請求已發送，請等待對方回應')
-    } else if (error.message.includes('已存在')) {
-      alert('你們已經是好友了！')
+    } else if (error.message.includes('已經是好友') || error.message.includes('已存在')) {
+      friendRequestStatus.value = 'accepted'
+      // 如果已經是好友，確保狀態正確顯示
     } else {
+      // 顯示錯誤訊息
       alert('操作失敗：' + (error.message || '未知錯誤'))
     }
   }

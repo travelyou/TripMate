@@ -84,12 +84,51 @@ const chatRooms = computed(() => {
   return rooms
 })
 
-// 監聽 openChatWithUser prop，自動打開聊天室
-watch(() => props.openChatWithUser, (newUser) => {
-  if (newUser && newUser.uid) {
-    openOrCreateChatRoom(newUser)
+// 載入對話次數
+const loadChatInteractionCount = async (uid, friendUid) => {
+  try {
+    const { getChatInteractionCount } = await import('@/api/profile')
+    const data = await getChatInteractionCount(uid, friendUid)
+    
+    // 確保數據格式正確，如果數據缺失或格式不正確，使用默認值
+    if (!data || typeof data !== 'object') {
+      chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
+      return
+    }
+    
+    // 確保所有必要的字段都存在，並且 canSend 基於 remaining 計算
+    const count = typeof data.count === 'number' ? data.count : 0
+    const remaining = typeof data.remaining === 'number' ? data.remaining : Math.max(0, 3 - count)
+    const canSend = typeof data.canSend === 'boolean' ? data.canSend : (remaining > 0)
+    
+    chatInteractionCount.value = {
+      count,
+      remaining,
+      canSend: canSend && remaining > 0  // 雙重確保 canSend 正確
+    }
+    
+    console.log('[loadChatInteractionCount] 載入對話次數:', {
+      uid,
+      friendUid,
+      count,
+      remaining,
+      canSend: chatInteractionCount.value.canSend,
+      rawData: data
+    })
+  } catch (error) {
+    console.error('載入對話次數失敗：', error)
+    // 錯誤時默認允許發送（3次機會）
+    chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
   }
-}, { immediate: true })
+}
+
+// 自動捲動到底部
+const scrollToBottom = async () => {
+  await nextTick()
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
+}
 
 // 打開或創建聊天室
 const openOrCreateChatRoom = async (user) => {
@@ -148,18 +187,6 @@ const openOrCreateChatRoom = async (user) => {
   scrollToBottom()
 }
 
-// 載入對話次數
-const loadChatInteractionCount = async (uid, friendUid) => {
-  try {
-    const { getChatInteractionCount } = await import('@/api/profile')
-    const data = await getChatInteractionCount(uid, friendUid)
-    chatInteractionCount.value = data || { count: 0, remaining: 3, canSend: true }
-  } catch (error) {
-    console.error('載入對話次數失敗：', error)
-    chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
-  }
-}
-
 const loadFriends = async () => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) return
@@ -183,14 +210,6 @@ const friends = computed(() => {
   return userStore.currentUser?.friends || []
 })
 
-// 自動捲動到底部
-const scrollToBottom = async () => {
-  await nextTick()
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-  }
-}
-
 // 發送訊息
 const sendMessage = async () => {
   const text = messageInput.value.trim()
@@ -210,17 +229,30 @@ const sendMessage = async () => {
     const { incrementChatInteraction } = await import('@/api/profile')
     const data = await incrementChatInteraction(currentUid, activeChatRoom.value.uid)
     
+    console.log('[sendMessage] API 返回數據:', data)
+    console.log('[sendMessage] 發送前狀態:', { 
+      count: chatInteractionCount.value.count, 
+      remaining: chatInteractionCount.value.remaining,
+      canSend: chatInteractionCount.value.canSend 
+    })
+    
     if (data && data.success !== false) {
-      // 更新對話次數狀態（使用 API 返回的準確值）
-      const newCount = data.count !== undefined ? data.count : (chatInteractionCount.value.count || 0) + 1
-      const newRemaining = data.remaining !== undefined ? data.remaining : Math.max(0, 3 - newCount)
-      const newCanSend = data.canSend !== undefined ? data.canSend : (newRemaining > 0)
+      // 更新對話次數狀態（優先使用 API 返回的準確值）
+      const newCount = typeof data.count === 'number' ? parseInt(data.count) : (parseInt(chatInteractionCount.value.count) || 0) + 1
+      const newRemaining = typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
+      const newCanSend = typeof data.canSend === 'boolean' ? data.canSend : (newRemaining > 0)
       
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
         canSend: newCanSend
       }
+      
+      console.log('[sendMessage] 發送後狀態:', { 
+        count: newCount, 
+        remaining: newRemaining,
+        canSend: newCanSend 
+      })
       
       // 如果次數用盡，阻止發送並提示
       if (!newCanSend) {
@@ -350,6 +382,13 @@ const backToChatRooms = () => {
 const handleFriendClick = (friend) => {
   openOrCreateChatRoom(friend)
 }
+
+// 監聽 openChatWithUser prop，自動打開聊天室
+watch(() => props.openChatWithUser, (newUser) => {
+  if (newUser && newUser.uid) {
+    openOrCreateChatRoom(newUser)
+  }
+}, { immediate: true })
 
 onMounted(() => {
   loadFriends()

@@ -380,6 +380,39 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params;
 
+    // 先檢查是否為好友關係（如果是好友，則不受3次限制）
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+    const hasStatus = statusCheck.rows.length > 0;
+
+    let isFriend = false;
+    if (hasStatus) {
+      // 檢查雙向好友關係
+      const friendCheck = await pool.query(
+        `SELECT * FROM friends
+         WHERE ((user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1))
+           AND status = 'accepted'`,
+        [uid, friend_uid]
+      );
+      isFriend = friendCheck.rows.length > 0;
+    } else {
+      // 沒有 status 欄位時，檢查是否存在任何好友關係
+      const friendCheck = await pool.query(
+        `SELECT * FROM friends
+         WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
+        [uid, friend_uid]
+      );
+      isFriend = friendCheck.rows.length > 0;
+    }
+
+    // 如果是好友，直接返回允許發送（不受3次限制）
+    if (isFriend) {
+      return res.json({ count: 0, remaining: 999, canSend: true, isFriend: true });
+    }
+
     // 檢查 chat_interactions 表是否存在
     const tableCheck = await pool.query(
       `SELECT table_name FROM information_schema.tables
@@ -388,7 +421,7 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     if (tableCheck.rows.length === 0) {
       // 表不存在，返回初始值
-      return res.json({ count: 0, remaining: 3 });
+      return res.json({ count: 0, remaining: 3, canSend: true });
     }
 
     // 獲取對話次數（單向查詢：uid 發送給 friend_uid 的次數）
@@ -398,10 +431,13 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       [uid, friend_uid]
     );
 
-    const count = result.rows.length > 0 ? (result.rows[0].message_count || 0) : 0;
+    const count = result.rows.length > 0 ? (parseInt(result.rows[0].message_count) || 0) : 0;
     const remaining = Math.max(0, 3 - count);
+    const canSend = remaining > 0;
 
-    res.json({ count, remaining, canSend: remaining > 0 });
+    console.log(`[getChatInteractionCount] uid=${uid}, friend_uid=${friend_uid}, count=${count}, remaining=${remaining}, canSend=${canSend}`);
+
+    res.json({ count, remaining, canSend, isFriend: false });
   } catch (error) {
     console.error('獲取對話次數失敗：', error);
     // 如果表不存在或其他錯誤，返回允許發送
@@ -414,6 +450,39 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
   try {
     const { uid, friend_uid } = req.params;
 
+    // 先檢查是否為好友關係（如果是好友，則不受3次限制，不需要記錄次數）
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+    const hasStatus = statusCheck.rows.length > 0;
+
+    let isFriend = false;
+    if (hasStatus) {
+      // 檢查雙向好友關係
+      const friendCheck = await pool.query(
+        `SELECT * FROM friends
+         WHERE ((user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1))
+           AND status = 'accepted'`,
+        [uid, friend_uid]
+      );
+      isFriend = friendCheck.rows.length > 0;
+    } else {
+      // 沒有 status 欄位時，檢查是否存在任何好友關係
+      const friendCheck = await pool.query(
+        `SELECT * FROM friends
+         WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
+        [uid, friend_uid]
+      );
+      isFriend = friendCheck.rows.length > 0;
+    }
+
+    // 如果是好友，直接返回允許發送（不需要記錄次數）
+    if (isFriend) {
+      return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: true });
+    }
+
     // 檢查 chat_interactions 表是否存在
     const tableCheck = await pool.query(
       `SELECT table_name FROM information_schema.tables
@@ -422,40 +491,45 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     if (tableCheck.rows.length === 0) {
       // 表不存在，嘗試創建（但這裡不創建，只是記錄）
-      return res.json({ success: true, count: 1, remaining: 2 });
+      return res.json({ success: true, count: 1, remaining: 2, canSend: true });
     }
 
-    // 檢查是否已存在記錄
-    const existing = await pool.query(
-      `SELECT * FROM chat_interactions
-       WHERE user_uid = $1 AND friend_uid = $2`,
+    // 使用 UPSERT 語法（PostgreSQL ON CONFLICT），無論記錄是否存在都能正確更新
+    // 注意：這需要表有唯一約束 (user_uid, friend_uid) 或在 PRIMARY KEY 上
+    // 如果沒有唯一約束，我們先嘗試更新，如果沒有記錄再插入
+    
+    // 先嘗試更新
+    let result = await pool.query(
+      `UPDATE chat_interactions
+       SET message_count = message_count + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE user_uid = $1 AND friend_uid = $2
+       RETURNING message_count`,
       [uid, friend_uid]
     );
 
-    let result;
-    if (existing.rows.length > 0) {
-      // 更新次數
-      result = await pool.query(
-        `UPDATE chat_interactions
-         SET message_count = message_count + 1, updated_at = CURRENT_TIMESTAMP
-         WHERE user_uid = $1 AND friend_uid = $2
-         RETURNING message_count`,
-        [uid, friend_uid]
-      );
-    } else {
-      // 創建新記錄
+    console.log(`[incrementChatInteraction] UPDATE 嘗試結果: uid=${uid}, friend_uid=${friend_uid}, 影響行數=${result.rowCount}`);
+
+    // 如果沒有更新任何記錄（記錄不存在），則插入新記錄
+    if (result.rowCount === 0) {
+      console.log(`[incrementChatInteraction] 記錄不存在，執行 INSERT`);
       result = await pool.query(
         `INSERT INTO chat_interactions (user_uid, friend_uid, message_count, created_at, updated_at)
          VALUES ($1, $2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
          RETURNING message_count`,
         [uid, friend_uid]
       );
+      console.log(`[incrementChatInteraction] INSERT 結果: count=${result.rows[0]?.message_count}`);
+    } else {
+      console.log(`[incrementChatInteraction] UPDATE 成功: count=${result.rows[0]?.message_count}`);
     }
 
-    const count = result.rows[0].message_count;
+    const count = parseInt(result.rows[0]?.message_count) || 0;
     const remaining = Math.max(0, 3 - count);
+    const canSend = remaining > 0;
 
-    res.json({ success: true, count, remaining, canSend: remaining > 0 });
+    console.log(`[incrementChatInteraction] 最終結果: uid=${uid}, friend_uid=${friend_uid}, count=${count}, remaining=${remaining}, canSend=${canSend}`);
+
+    res.json({ success: true, count, remaining, canSend });
   } catch (error) {
     console.error('增加對話次數失敗：', error);
     res.status(500).json({

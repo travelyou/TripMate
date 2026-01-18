@@ -64,13 +64,19 @@ const shouldMarquee = computed(() => {
         <span class="hidden sm:inline">聊聊</span>
       </button>
       <button
-        v-if="props.friendRequestStatus !== 'accepted'"
-        class="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
-        :title="props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友'"
-        @click="$emit('add-friend')"
+        class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
+        :class="props.friendRequestStatus === 'accepted' 
+          ? 'bg-green-500/30 hover:bg-green-500/40 cursor-default' 
+          : 'bg-white/20 hover:bg-white/30'"
+        :title="props.friendRequestStatus === 'accepted' ? '已是好友' : (props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友')"
+        :disabled="props.friendRequestStatus === 'accepted'"
+        @click="props.friendRequestStatus !== 'accepted' && $emit('add-friend')"
       >
-        <UserPlus class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
-        <span class="hidden sm:inline">{{ props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友' }}</span>
+        <UserPlus v-if="props.friendRequestStatus !== 'accepted'" class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
+        <span v-else class="text-base md:text-lg shrink-0">√</span>
+        <span class="hidden sm:inline">
+          {{ props.friendRequestStatus === 'accepted' ? '好友' : (props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友') }}
+        </span>
       </button>
     </div>
 
