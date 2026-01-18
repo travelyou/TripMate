@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -56,6 +57,24 @@ const postData = ref({
   itinerary: { days: [] },
   packingList: [],
   status: 'published',
+})
+
+const dateRange = computed({
+  get: () => {
+    if (postData.value.start_date && postData.value.end_date) {
+      return [dayjs(postData.value.start_date), dayjs(postData.value.end_date)]
+    }
+    return []
+  },
+  set: (dates) => {
+    if (dates && dates.length === 2) {
+      postData.value.start_date = dates[0].format('YYYY-MM-DD')
+      postData.value.end_date = dates[1].format('YYYY-MM-DD')
+    } else {
+      postData.value.start_date = ''
+      postData.value.end_date = ''
+    }
+  },
 })
 
 const bannerPreview = ref('')
@@ -189,21 +208,7 @@ const validateBasic = () => {
   return ''
 }
 
-const maxEndDate = computed(() => {
-  if (postData.value.start_date) {
-    const startDate = new Date(postData.value.start_date)
-    const maxDate = new Date(startDate)
-    maxDate.setDate(maxDate.getDate() + 364)
-    return maxDate.toISOString().split('T')[0]
-  }
-  const maxDate = new Date()
-  maxDate.setFullYear(maxDate.getFullYear() + 3)
-  return maxDate.toISOString().split('T')[0]
-})
 
-const minStartDate = computed(() => {
-  return new Date().toISOString().split('T')[0]
-})
 
 watch(
   () => postData.value.title,
@@ -1083,42 +1088,17 @@ onMounted(() => {
               </p>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">開始日期</label>
-              <input
-                v-model="postData.start_date"
-                type="date"
-                :min="minStartDate"
-                :class="[
-                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
-                  fieldErrors.start_date
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-200 focus:border-green-500',
-                ]"
-              />
-              <p v-if="fieldErrors.start_date" class="mt-1 text-sm text-red-500">
-                {{ fieldErrors.start_date }}
-              </p>
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">結束日期</label>
-              <input
-                v-model="postData.end_date"
-                type="date"
-                :min="postData.start_date || minStartDate"
-                :max="maxEndDate"
-                :class="[
-                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
-                  fieldErrors.end_date
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-200 focus:border-green-500',
-                ]"
-              />
-              <p v-if="fieldErrors.end_date" class="mt-1 text-sm text-red-500">
-                {{ fieldErrors.end_date }}
-              </p>
-            </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">日期範圍</label>
+            <a-range-picker
+              v-model:value="dateRange"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-green-500 focus:border-green-500 transition shadow-none"
+              :class="{'border-red-500': fieldErrors.start_date || fieldErrors.end_date}"
+              :placeholder="['開始日期', '結束日期']"
+            />
+            <p v-if="fieldErrors.start_date || fieldErrors.end_date" class="mt-1 text-sm text-red-500">
+              {{ fieldErrors.start_date || fieldErrors.end_date }}
+            </p>
           </div>
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Banner 圖片</label>
