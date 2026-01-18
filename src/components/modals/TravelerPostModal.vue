@@ -1036,7 +1036,7 @@ const jumpToStep = (targetStep) => {
     <div
       :class="[
         'modal-content-container bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
-        currentStep === 'preview' ? 'max-w-5xl h-[90vh]' : 'max-w-4xl max-h-[90vh]',
+        currentStep === 'preview' ? 'max-w-5xl h-[90vh]' : 'max-w-4xl h-[90vh]',
       ]"
     >
       <div class="flex items-center justify-between p-4 border-b border-gray-100 bg-white z-10">
