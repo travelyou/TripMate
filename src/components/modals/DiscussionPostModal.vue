@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -834,6 +834,17 @@ watch(() => props.draftData, (newDraft) => {
     if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
       imagePreviews.value = draft.imagePreviews
     }
+
+    // 確保編輯器內容也被更新
+    if (editor.value && draft.content) {
+      nextTick(() => {
+        try {
+          editor.value.commands.setContent(draft.content, false)
+        } catch (error) {
+          console.error('[發文編輯器的] 載入草稿內容失敗:', error)
+        }
+      })
+    }
   }
 }, { immediate: true })
 
@@ -847,6 +858,17 @@ onMounted(() => {
 
     if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
       imagePreviews.value = draft.imagePreviews
+    }
+
+    // 確保編輯器內容也被更新
+    if (editor.value && draft.content) {
+      nextTick(() => {
+        try {
+          editor.value.commands.setContent(draft.content, false)
+        } catch (error) {
+          console.error('[發文編輯器的] 載入草稿內容失敗:', error)
+        }
+      })
     }
   }
 
@@ -1275,20 +1297,20 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-else-if="currentStep === 'preview'" class="bg-white h-full relative">
-          <div class="p-6">
+        <div v-else-if="currentStep === 'preview'" class="bg-white min-h-0 relative flex flex-col">
+          <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
             <div class="mb-6 pb-4 border-b-2 border-primary-200">
               <div class="flex items-center space-x-3 mb-3">
                 <img
                   :src="
-                    userStore.currentUser?.photoURL ||
+                    userStore.currentUser?.avatar ||
                     'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                   "
                   class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
                 />
                 <div>
                   <span class="font-bold text-secondary-800">{{
-                    userStore.currentUser?.displayName || '你'
+                    userStore.currentUser?.name || userStore.currentUser?.nickname || '你'
                   }}</span>
                   <div class="text-xs text-secondary-400">
                     剛剛 • {{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}

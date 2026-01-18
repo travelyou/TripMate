@@ -121,3 +121,25 @@ export async function updateWishlist(uid, items) {
   }
 }
 
+// 加好友
+export async function addFriend(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ friend_uid: friendUid }),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '加好友失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('加好友錯誤：', error)
+    throw error
+  }
+}
+

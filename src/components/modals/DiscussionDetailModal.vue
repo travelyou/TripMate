@@ -129,9 +129,9 @@ const submitComment = async () => {
     localComments.value = [
       {
         id: Date.now(),
-        author: userStore.currentUser?.displayName || '我',
+        author: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
         avatar:
-          userStore.currentUser?.photoURL ||
+          userStore.currentUser?.avatar ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
         content,
         time: new Date().toISOString(),

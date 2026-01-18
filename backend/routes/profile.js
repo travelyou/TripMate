@@ -163,6 +163,75 @@ router.put('/:uid/wishlist', async (req, res) => {
   }
 });
 
+// 加好友 API
+router.post('/:uid/friends', async (req, res) => {
+  try {
+    const { uid } = req.params; // 當前用戶的 uid
+    const { friend_uid } = req.body; // 要添加的好友的 uid
+
+    if (!friend_uid) {
+      return res.status(400).json({ error: 'friend_uid 為必填欄位' });
+    }
+
+    if (uid === friend_uid) {
+      return res.status(400).json({ error: '不能加自己為好友' });
+    }
+
+    // 檢查好友關係是否已存在
+    const existingCheck = await pool.query(
+      `SELECT * FROM friends 
+       WHERE (user_uid = $1 AND friend_uid = $2) 
+          OR (user_uid = $2 AND friend_uid = $1)`,
+      [uid, friend_uid]
+    );
+
+    if (existingCheck.rows.length > 0) {
+      return res.status(409).json({ error: '好友關係已存在' });
+    }
+
+    // 檢查 friends 表是否有 status 欄位
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`
+    );
+
+    const hasStatus = statusCheck.rows.length > 0;
+
+    // 插入好友關係
+    let result;
+    if (hasStatus) {
+      // 如果有 status 欄位，設置為 'accepted'
+      result = await pool.query(
+        `INSERT INTO friends (user_uid, friend_uid, status, created_at)
+         VALUES ($1, $2, 'accepted', CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [uid, friend_uid]
+      );
+    } else {
+      // 如果沒有 status 欄位，直接插入
+      result = await pool.query(
+        `INSERT INTO friends (user_uid, friend_uid, created_at)
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [uid, friend_uid]
+      );
+    }
+
+    res.status(201).json({ 
+      success: true, 
+      message: '好友添加成功',
+      friend: result.rows[0]
+    });
+  } catch (error) {
+    console.error('加好友失敗：', error);
+    res.status(500).json({
+      error: '加好友失敗',
+      message: error.message || '未知錯誤'
+    });
+  }
+});
+
 router.get('/:uid', async (req, res) => {
   try {
     const { uid } = req.params;

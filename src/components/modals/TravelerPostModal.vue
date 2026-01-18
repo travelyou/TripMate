@@ -1481,7 +1481,7 @@ onMounted(() => {
               <div class="flex items-center space-x-3 mb-4">
                 <img
                   :src="
-                    userStore.currentUser?.photoURL ||
+                    userStore.currentUser?.avatar ||
                     'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                   "
                   class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"

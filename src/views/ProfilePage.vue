@@ -151,7 +151,37 @@ const handleOpenFriends = () => {
 const handleChat = () => {
 }
 
-const handleAddFriend = () => {
+const handleAddFriend = async () => {
+  if (!user.value?.uid || !userStore.currentUser?.uid) {
+    alert('無法加好友，請先登入')
+    return
+  }
+
+  const friendUid = user.value.uid
+  const currentUid = userStore.currentUser.uid
+
+  // 不能加自己為好友
+  if (friendUid === currentUid) {
+    alert('不能加自己為好友')
+    return
+  }
+
+  try {
+    const { addFriend } = await import('@/api/profile')
+    await addFriend(currentUid, friendUid)
+    
+    // 重新載入好友列表
+    await loadProfileData()
+    
+    alert('已成功加為好友！')
+  } catch (error) {
+    console.error('加好友失敗：', error)
+    if (error.message.includes('已存在')) {
+      alert('你們已經是好友了！')
+    } else {
+      alert('加好友失敗：' + (error.message || '未知錯誤'))
+    }
+  }
 }
 
 const openDetail = (post, focusComment = false) => {

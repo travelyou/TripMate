@@ -186,16 +186,16 @@ const submitComment = async () => {
       author_uid: currentUserUid.value,
       content: content,
       board: 'traveler',
-      author_name: userStore.currentUser?.displayName || '匿名用戶',
-      author_avatar: userStore.currentUser?.photoURL || null,
+      author_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
+      author_avatar: userStore.currentUser?.avatar || null,
     })
 
     localComments.value = [
       {
         id: Date.now(),
-        author: userStore.currentUser?.displayName || '我',
+        author: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
         avatar:
-          userStore.currentUser?.photoURL ||
+          userStore.currentUser?.avatar ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
         content: content,
         time: '剛剛',
