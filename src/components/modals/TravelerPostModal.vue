@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import dayjs from 'dayjs'
+import Draggable from 'vuedraggable'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -17,6 +18,7 @@ import {
   MessageCircle as MessageCircleIcon,
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
+  GripVertical as GripVerticalIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
@@ -82,6 +84,7 @@ const bannerFileInput = ref(null)
 const bannerFile = ref(null)
 const uploadProgress = ref(0)
 const isUploading = ref(false)
+const dayListContainer = ref(null) // 天數列表容器 ref
 const submitProgress = ref(0)
 const isSubmitting = ref(false)
 const submitStatus = ref('')
@@ -350,11 +353,19 @@ const addDay = () => {
   }
 
   postData.value.itinerary.days.push({ day: dayNumber, date: nextDate, activities: [] })
+  // 自動跳轉至新增的天數 (Vue 的反應式更新可能是非同步的，所以雖然這裡改了 activeDayIndex，但 DOM 可能還沒變，不過對 View 切換來說是足夠的)
   activeDayIndex.value = postData.value.itinerary.days.length - 1
 
   if (nextDate) {
     postData.value.end_date = nextDate
   }
+
+  // 自動捲動到最新的天數
+  nextTick(() => {
+    if (dayListContainer.value) {
+      dayListContainer.value.scrollLeft = dayListContainer.value.scrollWidth
+    }
+  })
 }
 
 const addActivity = () => {
@@ -365,10 +376,74 @@ const addActivity = () => {
     title: '',
     desc: '',
     icon: 'map-pin',
+    isOpen: true // 自動開啟時間選擇器
   })
 }
 
 const removeActivity = (activityIndex) => currentDay.value.activities.splice(activityIndex, 1)
+
+// --- 拖曳排序相關邏輯 ---
+const savedTimes = ref([])
+
+const getDisabledHours = (index) => {
+  // 如果是第一個活動，不需限制
+  if (index === 0) return []
+
+  // 取得上一個活動的時間
+  const prevActivity = currentDay.value.activities[index - 1]
+  if (!prevActivity || !prevActivity.time) return []
+
+  // 解析上一個活動的小時
+  const [prevH] = prevActivity.time.split(':').map(Number)
+  const hours = []
+
+  // 鎖將所有早於上一個活動的小時
+  for (let i = 0; i < prevH; i++) hours.push(i)
+  return hours
+}
+
+const getDisabledMinutes = (selectedHour, index) => {
+  // 如果是第一個活動，不需限制
+  if (index === 0) return []
+
+  // 取得上一個活動的時間
+  const prevActivity = currentDay.value.activities[index - 1]
+  if (!prevActivity || !prevActivity.time) return []
+
+  const [prevH, prevM] = prevActivity.time.split(':').map(Number)
+
+  // 如果選擇的小時與上一個活動相同，則需限制分鐘
+  if (selectedHour === prevH) {
+    const minutes = []
+    // 鎖將所有早於上一個活動的分鐘
+    for (let i = 0; i < prevM; i++) minutes.push(i)
+    return minutes
+  }
+  return []
+}
+
+const handleDragStart = () => {
+  // 拖曳開始前，先備份當前的「時間順序」
+  // 我們的目標是：拖曳只改變「內容」，而「時間點」應該要留在原地 (Slot 概念)
+  if (currentDay.value.activities) {
+    savedTimes.value = currentDay.value.activities.map(a => a.time)
+  }
+}
+
+const handleDragEnd = () => {
+  // 拖曳結束後，把原本的時間「倒回去」給新的排序
+  // 這樣就達成了：內容像卡片一樣換了位置，但時間點不動
+  if (currentDay.value.activities && savedTimes.value.length > 0) {
+    currentDay.value.activities.forEach((activity, index) => {
+      // 如果原本的時間陣列不夠長(極端情況)，就維持原樣，不然就覆蓋回去
+      if (index < savedTimes.value.length) {
+        activity.time = savedTimes.value[index]
+      }
+    })
+    savedTimes.value = [] // 清空備份
+  }
+}
+
 
 const addPackingCategory = () => {
   if (postData.value.packingList.length >= 50) {
@@ -1188,7 +1263,7 @@ const jumpToStep = (targetStep) => {
               <PlusIcon class="w-4 h-4" /> 新增天數
             </button>
           </div>
-          <div class="flex overflow-x-auto space-x-2 pb-2">
+          <div ref="dayListContainer" class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar">
             <button
               v-for="(day, index) in postData.itinerary.days"
               :key="index"
@@ -1206,92 +1281,141 @@ const jumpToStep = (targetStep) => {
           <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div class="flex items-center justify-between mb-4">
               <span class="font-bold text-gray-700">{{ currentDay.date ? `日期：${currentDay.date}` : `Day ${currentDay.day} 日期` }}</span>
-              <input
-                v-model="currentDay.date"
-                type="date"
-                class="bg-white border border-gray-300 rounded px-2 py-1 text-sm font-bold text-gray-700"
-              />
+              <!-- 移除修改日期按鈕 -->
             </div>
-            <div class="space-y-3">
-              <div
-                v-for="(activity, actIndex) in currentDay.activities"
-                :key="activity.id"
-                class="p-4 bg-white rounded-xl border border-gray-200 shadow-sm"
+            <!-- 調整左側內距以容納時間軸 (pl-32) -->
+            <div class="relative pl-32 space-y-6">
+              <!-- 時間軸直獻 (裝飾用) - 調整位置至 7.5rem -->
+              <div class="absolute left-[7.5rem] top-2 bottom-4 w-0.5 bg-gray-200"></div>
+
+              <Draggable
+                v-model="currentDay.activities"
+                item-key="id"
+                handle=".drag-handle"
+                :animation="200"
+                ghost-class="opacity-50"
+                class="space-y-6 relative"
+                @start="handleDragStart"
+                @end="handleDragEnd"
               >
-                <div class="flex justify-between items-start mb-2">
-                  <input
-                    v-model="activity.time"
-                    type="time"
-                    class="bg-gray-50 border border-gray-200 rounded px-2 py-1 font-bold text-gray-800"
-                  />
-                  <button
-                    class="text-gray-400 hover:text-red-500"
-                    @click="removeActivity(actIndex)"
-                  >
-                    <TrashIcon class="w-4 h-4" />
-                  </button>
-                </div>
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                <input
-                  v-model="activity.title"
-                  placeholder="活動名稱"
-                      :class="[
-                        'w-full font-bold text-lg focus:outline-none',
-                        activity.title && activity.title.trim().length > 50 ? 'text-red-500' : '',
-                      ]"
-                      maxlength="50"
-                />
-                    <span
-                      :class="[
-                        'text-xs ml-2',
-                        activity.title && activity.title.trim().length > 50
-                          ? 'text-red-500 font-bold'
-                          : 'text-gray-400',
-                      ]"
-                    >
-                      {{ (activity.title || '').length }}/50
-                    </span>
+                <template #item="{ element: activity, index: actIndex }">
+                  <div class="relative flex items-start gap-4 group">
+                    <!-- 左側：獨立時間軸 (絕對定位負值，移至卡片左側空白處) -->
+                    <div class="absolute -left-[7rem] mt-0 text-right w-24 flex flex-col items-end z-10">
+                      <!-- 使用 Ant Design TimePicker 取代原生 input，支援 24h 與驗證邏輯 -->
+                      <a-time-picker
+                        v-model:value="activity.time"
+                        v-model:open="activity.isOpen"
+                        value-format="HH:mm"
+                        format="HH:mm"
+                        :minute-step="1"
+                        placeholder="時間"
+                        :show-now="false"
+                        :allow-clear="false"
+                        :disabled-hours="() => getDisabledHours(actIndex)"
+                        :disabled-minutes="(selectedHour) => getDisabledMinutes(selectedHour, actIndex)"
+                        class="w-24 shadow-sm font-bold"
+                        :bordered="true"
+                      />
+                      <!-- 連接線與圓點 -->
+                      <div class="absolute top-[1.1rem] -right-[1.6rem] w-4 h-0.5 bg-gray-300"></div>
+                      <div class="absolute top-[0.9rem] -right-[1.85rem] w-3 h-3 rounded-full bg-green-500 border-2 border-white ring-1 ring-gray-200"></div>
+                    </div>
+
+                    <!-- 右側：行程卡片 -->
+                    <div class="flex-1 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div class="flex gap-3">
+                         <!-- 拖曳手把 (移到卡片內) -->
+                         <div class="cursor-move drag-handle mt-1 text-gray-300 hover:text-gray-600">
+                            <GripVerticalIcon class="w-5 h-5" />
+                         </div>
+
+                         <!-- 內容區域 -->
+                         <div class="flex-1 space-y-2">
+                           <div class="flex justify-between items-start gap-3">
+                              <!-- 標題輸入 -->
+                              <div class="flex-1">
+                                <div class="relative">
+                                  <input
+                                    v-model="activity.title"
+                                    placeholder="活動名稱"
+                                    :class="[
+                                      'w-full font-bold text-lg focus:outline-none placeholder-gray-300 border-b border-transparent focus:border-green-500 transition-colors pb-1',
+                                      activity.title && activity.title.trim().length > 50 ? 'text-red-500' : 'text-gray-800',
+                                    ]"
+                                    maxlength="50"
+                                  />
+                                  <span
+                                    :class="[
+                                      'absolute right-0 top-1 text-xs',
+                                      activity.title && activity.title.trim().length > 50
+                                        ? 'text-red-500 font-bold'
+                                        : 'text-gray-300',
+                                    ]"
+                                  >
+                                    {{ (activity.title || '').length }}/50
+                                  </span>
+                                </div>
+                                <p v-if="activity.title && activity.title.trim().length > 50" class="text-xs text-red-500 mt-1">
+                                  名稱過長
+                                </p>
+                              </div>
+
+                               <!-- 刪除按鈕 -->
+                               <button
+                                  class="text-gray-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                  @click="removeActivity(actIndex)"
+                                  title="刪除"
+                                >
+                                  <TrashIcon class="w-4 h-4" />
+                                </button>
+                           </div>
+
+                            <!-- 描述輸入 -->
+                            <div>
+                              <div class="relative">
+                                <textarea
+                                  v-model="activity.desc"
+                                  placeholder="添加備註..."
+                                  rows="2"
+                                  :class="[
+                                    'w-full text-sm text-gray-600 bg-gray-50 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-100 placeholder-gray-400',
+                                    activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
+                                  ]"
+                                  maxlength="500"
+                                ></textarea>
+                                <span
+                                  :class="[
+                                    'absolute right-2 bottom-2 text-xs',
+                                    activity.desc && activity.desc.trim().length > 500
+                                      ? 'text-red-500 font-bold'
+                                      : 'text-gray-300',
+                                  ]"
+                                >
+                                  {{ (activity.desc || '').length }}/500
+                                </span>
+                              </div>
+                            </div>
+                         </div>
+                      </div>
+                    </div>
                   </div>
-                  <p
-                    v-if="activity.title && activity.title.trim().length > 50"
-                    class="text-xs text-red-500 mb-1"
-                  >
-                    活動名稱不能超過 50 字
-                  </p>
-                </div>
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                <textarea
-                  v-model="activity.desc"
-                  placeholder="活動描述..."
-                  rows="2"
-                      :class="[
-                        'w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none',
-                        activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
-                      ]"
-                      maxlength="500"
-                ></textarea>
-                    <span
-                      :class="[
-                        'text-xs ml-2 self-start pt-1',
-                        activity.desc && activity.desc.trim().length > 500
-                          ? 'text-red-500 font-bold'
-                          : 'text-gray-400',
-                      ]"
-                    >
-                      {{ (activity.desc || '').length }}/500
-                    </span>
-                  </div>
-                  <p
-                    v-if="activity.desc && activity.desc.trim().length > 500"
-                    class="text-xs text-red-500"
-                  >
-                    活動內文不能超過 500 字
-                  </p>
-                </div>
-              </div>
+                </template>
+              </Draggable>
             </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
             <button
               class="w-full mt-4 py-3 border border-dashed border-gray-300 text-gray-500 rounded-xl hover:bg-white hover:border-green-400 hover:text-green-600 transition"
               @click="addActivity"
