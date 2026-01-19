@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue' // ★ 加入 onUnmounted
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useUserStore } from '@/stores/user'
@@ -18,7 +18,6 @@ const userStore = useUserStore()
 const currentUserUid = ref(null)
 
 // --- 篩選狀態 ---
-// ★ 修改：分類選項需與需求保持一致
 const filterOptions = ref([
   '全部',
   '國內旅遊',
@@ -33,23 +32,59 @@ const filterOptions = ref([
 ])
 const activeFilter = ref('全部')
 
-// 載入文章 (帶入分類參數)
-const loadDiscussionsData = async () => {
+// --- ★ 分頁狀態 ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null) // 綁定到底部的 DOM 元素
+let observer = null // IntersectionObserver 實例
+
+// ★ 修改：載入文章 (支援分頁)
+const loadDiscussionsData = async (isLoadMore = false) => {
+  if (discussionsStore.loading) return // 防止重複觸發
+
   try {
-    const params = {}
-    // 如果不是全部，就傳 category 給後端
+    // 如果不是載入更多 (代表是切換分類或初始化)，重置狀態
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+      // 注意：這裡不手動清空 discussionsStore.discussions，交給 Store 的覆蓋邏輯處理
+      // 這樣可以避免畫面瞬間空白閃爍
+    }
+
+    const params = {
+      page: currentPage.value,
+      limit: 10,
+    }
+
     if (activeFilter.value !== '全部') {
       params.category = activeFilter.value
     }
-    await discussionsStore.loadDiscussions(params)
+
+    // 呼叫 Store，傳入是否為 loadMore
+    const data = await discussionsStore.loadDiscussions(params, isLoadMore)
+
+    // 判斷是否還有下一頁
+    if (data && data.posts) {
+      if (data.posts.length < 10) {
+        hasMore.value = false // 回傳少於 10 筆，代表沒資料了
+      } else {
+        // 準備下一頁
+        if (isLoadMore) {
+          currentPage.value++
+        } else {
+          // 如果是第一頁載入完，且數量足夠，下一頁就是 2
+          currentPage.value = 2
+        }
+      }
+    }
   } catch (error) {
     console.error('載入貼文失敗：', error)
   }
 }
 
-// 監聽分類切換 -> 重新載入資料
+// 監聽分類切換 -> 重新載入 (重置為第一頁)
 watch(activeFilter, () => {
-  loadDiscussionsData()
+  loadDiscussionsData(false)
 })
 
 onAuthStateChanged(auth, async (user) => {
@@ -57,7 +92,8 @@ onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
 
   if (previousUid !== currentUserUid.value && currentUserUid.value) {
-    loadDiscussionsData()
+    // 登入狀態改變時，重新載入第一頁
+    loadDiscussionsData(false)
   }
 })
 
@@ -66,24 +102,50 @@ onMounted(async () => {
   if (firebaseUser && !currentUserUid.value) {
     currentUserUid.value = firebaseUser.uid
   }
-  // 初始載入
-  loadDiscussionsData()
+
+  // 1. 初始載入第一頁
+  await loadDiscussionsData(false)
+
+  // 2. ★ 設定 IntersectionObserver (無限捲動偵測)
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      // 如果看到底部元素 && 還有更多資料 && 目前沒有在載入中
+      if (entry.isIntersecting && hasMore.value && !discussionsStore.loading) {
+        console.log('👀 看到底部了，載入更多...')
+        loadDiscussionsData(true) // 載入更多
+      }
+    },
+    {
+      rootMargin: '100px', // 提早 100px 觸發，體驗更流暢
+    },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
 })
 
 // 發文成功後的回調
 const handlePostSuccess = async () => {
   isPostingModalOpen.value = false
-  loadDiscussionsData()
+  postToEdit.value = null
+  // 發文成功後，重新整理列表 (回到第一頁)
+  loadDiscussionsData(false)
 }
 
 // --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
-
 const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
+const postToEdit = ref(null)
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
@@ -95,6 +157,17 @@ const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
+}
+
+const handleEditPost = (post) => {
+  postToEdit.value = post
+  closeDiscussionDetailModal()
+  isPostingModalOpen.value = true
+}
+
+const handlePostModalClose = () => {
+  isPostingModalOpen.value = false
+  postToEdit.value = null
 }
 
 const openShareModal = (postId) => {
@@ -157,13 +230,7 @@ const handleCardLike = (updatedPostInfo) => {
       </div>
 
       <div class="space-y-6">
-        <div v-if="discussionsStore.isLoading" class="text-center py-20">
-          <div
-            class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
-          ></div>
-        </div>
-
-        <template v-else-if="discussionsStore.discussions.length > 0">
+        <template v-if="discussionsStore.discussions.length > 0">
           <DiscussionCard
             v-for="post in discussionsStore.discussions"
             :key="post.id"
@@ -175,8 +242,21 @@ const handleCardLike = (updatedPostInfo) => {
           />
         </template>
 
-        <div v-else class="text-center py-20 text-gray-500">
+        <div v-else-if="!discussionsStore.isLoading" class="text-center py-20 text-gray-500">
           目前沒有這個分類的討論文章，來發一篇吧！
+        </div>
+
+        <div ref="loadMoreTrigger" class="py-4 text-center">
+          <div
+            v-if="discussionsStore.isLoading"
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
+          ></div>
+          <div
+            v-else-if="!hasMore && discussionsStore.discussions.length > 0"
+            class="text-gray-400 text-sm"
+          >
+            已經到底囉，沒有更多貼文了 🏝️
+          </div>
         </div>
       </div>
     </div>
@@ -184,7 +264,8 @@ const handleCardLike = (updatedPostInfo) => {
 
   <DiscussionPostModal
     v-if="isPostingModalOpen"
-    @close="isPostingModalOpen = false"
+    :post-to-edit="postToEdit"
+    @close="handlePostModalClose"
     @success="handlePostSuccess"
   />
 
@@ -193,6 +274,7 @@ const handleCardLike = (updatedPostInfo) => {
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
+    @edit="handleEditPost"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

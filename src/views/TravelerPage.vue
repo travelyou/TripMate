@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
@@ -14,10 +14,9 @@ const travelers = ref([])
 const isLoading = ref(false)
 
 // --- 篩選狀態 ---
-const filterOptions = ref(['全部', '招募中', '已額滿']) // 狀態
-const activeFilter = ref('全部') // 狀態
+const filterOptions = ref(['全部', '招募中', '已額滿'])
+const activeFilter = ref('全部') // 對應後端的 status
 
-// ★ 新增：分類篩選
 const categoryOptions = ref([
   '全部',
   '國內旅遊',
@@ -29,37 +28,73 @@ const categoryOptions = ref([
   '自駕共乘',
   '其他',
 ])
-const activeCategory = ref('全部')
+const activeCategory = ref('全部') // 對應後端的 category
 
-const loadTravelers = async () => {
-  isLoading.value = true
+// --- 分頁狀態 ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null)
+let observer = null
+
+// 載入旅伴資料 (支援分頁與篩選)
+const loadTravelers = async (isLoadMore = false) => {
+  if (isLoading.value) return
+
   try {
-    // ★ 修改：抓取所有資料，交由前端 computed 進行篩選
-    // 這樣切換分類時不用重新打 API，體驗較流暢
-    const response = await getTravelers({})
+    isLoading.value = true
+
+    // 如果不是載入更多 (代表是切換篩選或重新整理)，重置頁碼
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+      // travelers.value = [] // 選擇性：是否要先清空防止閃爍，這裡選擇不清空，直接覆蓋
+    }
+
+    const params = {
+      page: currentPage.value,
+      limit: 20, // ★ 修改：每次載入 20 則
+    }
+
+    // 加入篩選參數
+    if (activeFilter.value !== '全部') {
+      params.status = activeFilter.value
+    }
+    if (activeCategory.value !== '全部') {
+      params.category = activeCategory.value
+    }
+
+    const response = await getTravelers(params)
+
     if (response.success) {
-      travelers.value = response.data
+      const newData = response.data || []
+
+      // 判斷是否還有下一頁
+      if (newData.length < 20) {
+        hasMore.value = false
+      }
+
+      if (isLoadMore) {
+        // 附加模式
+        travelers.value.push(...newData)
+        currentPage.value++
+      } else {
+        // 覆蓋模式
+        travelers.value = newData
+        if (hasMore.value) {
+          currentPage.value = 2 // 準備下一頁
+        }
+      }
     }
   } catch (error) {
-    console.error(error)
+    console.error('載入旅伴失敗:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-// ★ 新增：雙重過濾邏輯 (狀態 + 分類)
-const filteredTravelers = computed(() => {
-  return travelers.value.filter((t) => {
-    // 1. 狀態篩選
-    const statusMatch = activeFilter.value === '全部' || t.status === activeFilter.value
-    // 2. 分類篩選 (相容舊資料：若無分類則視為符合)
-    const categoryMatch =
-      activeCategory.value === '全部' ||
-      t.category === activeCategory.value ||
-      (!t.category && activeCategory.value === '其他') // 沒分類的歸類到其他
-
-    return statusMatch && categoryMatch
-  })
+// 監聽篩選變更 -> 重新載入 (重置為第一頁)
+watch([activeFilter, activeCategory], () => {
+  loadTravelers(false)
 })
 
 const openTravelerDetail = (traveler, focusComment = false) => {
@@ -77,7 +112,6 @@ const closeTravelerDetail = () => {
 // 切換狀態
 const handleFilterChange = (filter) => {
   activeFilter.value = filter
-  // loadTravelers() // 不需要重抓，computed 會自動處理
 }
 
 // 切換分類
@@ -87,17 +121,40 @@ const handleCategoryChange = (cat) => {
 
 // 資料更新回調
 const handleTravelerUpdated = () => {
-  loadTravelers()
+  // 更新單筆資料或重新載入，這裡簡單處理重新載入
+  loadTravelers(false)
 }
 
 // 發文成功回調
 const handlePostSuccess = () => {
   isPostingModalOpen.value = false
-  loadTravelers()
+  loadTravelers(false)
 }
 
 onMounted(() => {
-  loadTravelers()
+  // 1. 初始載入
+  loadTravelers(false)
+
+  // 2. 設定 IntersectionObserver (無限捲動)
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMore.value && !isLoading.value) {
+        loadTravelers(true)
+      }
+    },
+    {
+      rootMargin: '200px', // 提早觸發載入
+    },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
 })
 </script>
 
@@ -158,17 +215,11 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="isLoading" class="text-center py-20">
-        <div
-          class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
-        ></div>
-      </div>
-
       <div
-        v-else-if="filteredTravelers.length > 0"
+        v-if="travelers.length > 0"
         class="grid grid-cols-1 gap-6 sm:grid-cols-2 auto-rows-fr items-stretch"
       >
-        <div v-for="traveler in filteredTravelers" :key="traveler.id" class="h-full">
+        <div v-for="traveler in travelers" :key="traveler.id" class="h-full">
           <TravelerCard
             class="h-full w-full"
             :traveler="traveler"
@@ -177,16 +228,26 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-else class="text-center py-20">
+      <div v-else-if="!isLoading" class="text-center py-20">
         <UsersIcon class="w-16 h-16 mx-auto text-gray-300 mb-4" />
         <p class="text-gray-500 text-lg mb-2">目前沒有符合條件的旅伴招募</p>
         <button
-          class="bg-green-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-md mt-4"
+          class="bg-green-50 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-md mt-4"
           @click="isPostingModalOpen = true"
         >
           <PlusIcon class="w-5 h-5 inline mr-2" />
           發起招募
         </button>
+      </div>
+
+      <div ref="loadMoreTrigger" class="py-8 text-center w-full">
+        <div
+          v-if="isLoading"
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
+        ></div>
+        <div v-else-if="!hasMore && travelers.length > 0" class="text-gray-400 text-sm">
+          已經到底囉，沒有更多招募了 🏝️
+        </div>
       </div>
     </div>
   </div>

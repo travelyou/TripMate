@@ -11,8 +11,8 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const error = ref(null)
   const userInfoCache = new Map()
 
-  // (中間的輔助函式 formatTime, formatComments, transformPost... 保持不變，省略以節省空間)
-  // ...
+  // ... (formatTime, formatComments, transformPost, getUserInfoFromFirestore, enrichPostsWithUserInfo 保持不變) ...
+  // (為了節省篇幅，中間輔助函式請保留原樣，不要刪除)
   const formatTime = (timestamp) => {
     if (!timestamp) return '剛剛'
     const now = new Date()
@@ -20,7 +20,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     const diffMs = now - postTime
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
     const diffDays = Math.floor(diffHours / 24)
-
     if (diffDays > 0) return `${diffDays}天前`
     if (diffHours > 0) return `${diffHours}小時前`
     const diffMins = Math.floor(diffMs / (1000 * 60))
@@ -49,7 +48,7 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const transformPost = (post) => {
     return {
       id: post.id,
-      author: post.author_nickname || post.author_uid || '匿名用戶',
+      author: post.author_nickname || post.author_name || '匿名用戶',
       author_uid: post.author_uid,
       spiritAnimal: post.author_spirit_animal || '',
       avatar:
@@ -75,7 +74,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const getUserInfoFromFirestore = async (uid) => {
     if (!uid) return null
     if (userInfoCache.has(uid)) return userInfoCache.get(uid)
-
     try {
       const userDocRef = doc(db, 'users', uid)
       const userDoc = await getDoc(userDocRef)
@@ -92,7 +90,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
 
   const enrichPostsWithUserInfo = async (posts) => {
     const uniqueUids = [...new Set(posts.map((p) => p.author_uid).filter(Boolean))]
-
     const userInfoMap = {}
     await Promise.all(
       uniqueUids.map(async (uid) => {
@@ -102,7 +99,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
         }
       }),
     )
-
     return posts.map((post) => {
       const userInfo = userInfoMap[post.author_uid]
       if (userInfo) {
@@ -114,23 +110,40 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     })
   }
 
-  // ★ 修改：接收 params 物件
-  // 舊寫法: const loadDiscussions = async (page = 1, limit = 10, category = null) => {
-  const loadDiscussions = async (params = {}) => {
+  const loadDiscussions = async (params = {}, isLoadMore = false) => {
     loading.value = true
     error.value = null
     try {
-      // 直接把 params 傳給 API (params 包含 { page, limit, category })
       const data = await fetchPosts(params)
 
-      discussions.value = data.posts.map(transformPost)
+      const newPosts = data.posts.map(transformPost)
+
       enrichPostsWithUserInfo(data.posts)
         .then((enrichedPosts) => {
-          discussions.value = enrichedPosts.map(transformPost)
+          const transformedEnriched = enrichedPosts.map(transformPost)
+
+          if (isLoadMore) {
+            transformedEnriched.forEach((updatedPost) => {
+              const target = discussions.value.find((p) => p.id === updatedPost.id)
+              if (target) {
+                Object.assign(target, updatedPost)
+              }
+            })
+          } else {
+            discussions.value = transformedEnriched
+          }
         })
         .catch((err) => {
           console.error('loadDiscussions enrich failed:', err)
         })
+
+      // ★ 核心邏輯：附加還是覆蓋？
+      if (isLoadMore) {
+        discussions.value = [...discussions.value, ...newPosts]
+      } else {
+        discussions.value = newPosts
+      }
+
       return data
     } catch (err) {
       error.value = err.message
@@ -141,13 +154,12 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // (其餘 Actions 保持不變)
+  // ... (其餘 Actions: loadPostById, addPost, editPost, removePost 保持不變) ...
   const loadPostById = async (id) => {
     loading.value = true
     error.value = null
     try {
       const post = await fetchPostById(id)
-
       if (post.author_uid) {
         const userInfo = await getUserInfoFromFirestore(post.author_uid)
         if (userInfo) {
@@ -156,7 +168,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
           post.author_spirit_animal = userInfo.spiritAnimal
         }
       }
-
       if (post.commentsData && Array.isArray(post.commentsData)) {
         const commentUids = [...new Set(post.commentsData.map((c) => c.author_uid).filter(Boolean))]
         const commentUserInfoMap = {}
@@ -168,7 +179,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
             }
           }),
         )
-
         post.commentsData = post.commentsData.map((comment) => ({
           ...comment,
           author_nickname: commentUserInfoMap[comment.author_uid]?.nickname,
@@ -176,7 +186,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
           author_spirit_animal: commentUserInfoMap[comment.author_uid]?.spiritAnimal,
         }))
       }
-
       return transformPost(post)
     } catch (err) {
       error.value = err.message
@@ -190,7 +199,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const addPost = async (postData) => {
     try {
       const newPost = await createPost(postData)
-
       if (newPost.author_uid) {
         const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
         if (userInfo) {
@@ -199,7 +207,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
           newPost.author_spirit_animal = userInfo.spiritAnimal
         }
       }
-
       const transformedPost = transformPost(newPost)
       discussions.value.unshift(transformedPost)
       return transformedPost
