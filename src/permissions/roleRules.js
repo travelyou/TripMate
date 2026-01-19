@@ -12,7 +12,6 @@ export const CAPABILITIES = {
 }
 
 const RULES = {
-  // GUEST logic removed (default state)
 
   [ROLES.USER]: [
     CAPABILITIES.CREATE_POST,
