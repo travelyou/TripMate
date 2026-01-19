@@ -443,7 +443,7 @@ export const useUserStore = defineStore('user', () => {
   const userProfile = computed(() => currentUser.value)
 
   // ----------------------------------------------------------------
-  // 7. 權限與角色 (Roles & Permissions)
+  // Computed Properties for Permissions
   // ----------------------------------------------------------------
   const isVendor = computed(() => currentUser.value.role === 'vendor')
   const isAdmin = computed(() => currentUser.value.role === 'admin')
