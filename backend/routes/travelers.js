@@ -25,7 +25,7 @@ const checkBannerPositionYAvailable = async () => {
 router.get('/', async (req, res) => {
   try {
     console.log('收到獲取旅伴列表請求')
-    const { status, location, limit = 20, offset = 0 } = req.query
+    const { status, location, category, limit = 20, offset = 0 } = req.query
 
     // ★ 修改：加上別名 t
     let query = `
@@ -67,6 +67,12 @@ router.get('/', async (req, res) => {
     if (location) {
       query += ` AND t.location = $${paramIndex}`
       params.push(location)
+      paramIndex++
+    }
+
+    if (category) {
+      query += ` AND t.category = $${paramIndex}`
+      params.push(category)
       paramIndex++
     }
 

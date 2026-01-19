@@ -10,6 +10,7 @@ import {
   MapPin as MapPinIcon,
   Calendar as CalendarIcon,
   Users as UsersIcon,
+  AlertTriangle as AlertIcon,
   Heading2 as Heading2Icon,
   Heading3 as Heading3Icon,
   Type as TypeIcon,
@@ -656,6 +657,7 @@ const executeSubmit = async () => {
       title: payload.title.trim(),
       content: payload.content.trim(),
       location: payload.location.trim(),
+      category: (payload.category || '').trim(),
       start_date: payload.start_date,
       end_date: payload.end_date,
       max_people: Number(payload.max_people) || 2,
@@ -980,69 +982,69 @@ onMounted(() => {
                 class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-20"
               >
                 <button
-                  @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 2 }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="H2"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 2 }) }"
+                  @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
                 >
                   <Heading2Icon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 3 }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="H3"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 3 }) }"
+                  @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
                 >
                   <Heading3Icon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().toggleBold().run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('bold') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="粗體"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('bold') }"
+                  @click="editor.chain().focus().toggleBold().run()"
                 >
                   <BoldIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleItalic().run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('italic') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="斜體"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('italic') }"
+                  @click="editor.chain().focus().toggleItalic().run()"
                 >
                   <ItalicIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleUnderline().run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('underline') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="底線"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('underline') }"
+                  @click="editor.chain().focus().toggleUnderline().run()"
                 >
                   <UnderlineIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().setTextAlign('left').run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'left' }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="靠左"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'left' }) }"
+                  @click="editor.chain().focus().setTextAlign('left').run()"
                 >
                   <AlignLeftIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().setTextAlign('center').run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'center' }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="置中"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'center' }) }"
+                  @click="editor.chain().focus().setTextAlign('center').run()"
                 >
                   <AlignCenterIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <div class="relative">
                   <button
-                    @click="toggleColorPicker"
                     class="p-2 rounded hover:bg-gray-200 flex items-center"
                     title="文字顏色"
+                    @click="toggleColorPicker"
                   >
                     <PaletteIcon class="w-4 h-4" />
                     <div
@@ -1059,9 +1061,9 @@ onMounted(() => {
                     <button
                       v-for="color in commonColors"
                       :key="color"
-                      @click="setColor(color)"
                       class="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 shadow-sm"
                       :style="{ backgroundColor: color }"
+                      @click="setColor(color)"
                     ></button>
                   </div>
                   <div
@@ -1072,7 +1074,6 @@ onMounted(() => {
                 </div>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="setFontKai"
                   :class="{
                     'bg-gray-200 text-black': editor.isActive('textStyle', {
                       fontFamily: 'BiauKai, DFKai-SB, 標楷體',
@@ -1080,20 +1081,21 @@ onMounted(() => {
                   }"
                   class="p-2 rounded hover:bg-gray-200 flex items-center gap-1"
                   title="標楷體"
+                  @click="setFontKai"
                 >
                   <TypeIcon class="w-4 h-4" /><span class="text-xs font-bold">楷</span>
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="triggerEditorImageUpload"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="插入圖片"
+                  @click="triggerEditorImageUpload"
                 >
                   <ImageIcon class="w-4 h-4" />
                 </button>
                 <input
-                  type="file"
                   ref="editorFileInputRef"
+                  type="file"
                   class="hidden"
                   accept="image/*"
                   @change="handleEditorImageSelect"
@@ -1466,10 +1468,12 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-6 text-secondary-700 leading-relaxed"
               v-html="postData.content"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
