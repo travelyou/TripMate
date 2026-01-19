@@ -12,7 +12,8 @@ export const CAPABILITIES = {
 }
 
 const RULES = {
-  [ROLES.GUEST]: [],
+  // GUEST logic removed (default state)
+
   [ROLES.USER]: [
     CAPABILITIES.CREATE_POST,
     CAPABILITIES.EDIT_OWN_POST,
@@ -26,7 +27,7 @@ const RULES = {
     CAPABILITIES.MANAGE_PRODUCTS
   ],
   [ROLES.ADMIN]: [
-    // Admin has all capabilities essentially, logic can be handled via checkRole('admin')
+    // 暫無權限定義
   ]
 }
 
