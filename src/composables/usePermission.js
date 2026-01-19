@@ -11,9 +11,8 @@ export function usePermission() {
   // 1. 自動判斷當前頁面互動權限
   // 當你需要判斷 "我可以編輯這個頁面嗎?" 時使用
   const canEdit = computed(() => {
-    // route.params.id 為空時 (例如 /profile)，通常預設為自己
-    // 但如果有指定 ID，則檢查是否為擁有者
-    const targetId = route.params.id || userStore.currentUser.uid
+    // 支援 ProfilePage 的 uid 和 VendorProfilePage 的 id
+    const targetId = route.params.uid || route.params.id || userStore.currentUser.uid
     return checkPageAction('EDIT', userStore.currentUser, targetId)
   })
 

@@ -178,6 +178,7 @@ export const useVendorStore = defineStore('vendor', () => {
       content: '這是我參加過最棒的極光團！真的看到極光大爆發，太感動了！',
     },
   ]
+  */
 
   const fetchVendorProfile = async (id) => {
     loading.value = true
