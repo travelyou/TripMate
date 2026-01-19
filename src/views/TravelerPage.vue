@@ -1,5 +1,7 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
@@ -138,6 +140,12 @@ const handlePostSuccess = () => {
   loadTravelers()
 }
 
+// 關閉發文 Modal 並重置草稿狀態
+const handlePostModalClose = () => {
+  isPostingModalOpen.value = false
+  selectedDraft.value = null
+}
+
 // 開啟草稿編輯
 const openDraft = (draft) => {
   if (draft.type === 'traveler' && draft.data) {
@@ -164,6 +172,7 @@ const tryOpenDraft = () => {
 
 onMounted(() => {
   loadTravelers()
+  // 這裡可以加入 tryOpenDraft() 如果需要在載入時檢查草稿
 })
 </script>
 
@@ -264,10 +273,7 @@ onMounted(() => {
   <TravelerPostModal
     v-if="isPostingModalOpen"
     :draft-data="selectedDraft"
-    @close="
-      isPostingModalOpen = false
-      selectedDraft = null
-    "
+    @close="handlePostModalClose"
     @success="handlePostSuccess"
   />
 

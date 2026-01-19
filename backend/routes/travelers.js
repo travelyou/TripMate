@@ -7,31 +7,32 @@ router.get('/', async (req, res) => {
     console.log('收到獲取旅伴列表請求')
     const { status, location, limit = 20, offset = 0 } = req.query
 
+    // ★ 修改：加上別名 t
     let query = `
       SELECT
-        id,
-        title,
-        content,
-        location,
-        category,
-        status,
-        tags,
-        start_date,
-        end_date,
-        current_people,
-        max_people,
-        banner_image,
-        author_uid,
-        author_name,
-        author_avatar,
-        spirit_animal,
-        likes_count,
-        saves_count,
-        views_count,
-        created_at,
-        updated_at
-      FROM travelers.travelers
-      WHERE deleted_at IS NULL
+        t.id,
+        t.title,
+        t.content,
+        t.location,
+        t.category,
+        t.status,
+        t.tags,
+        t.start_date,
+        t.end_date,
+        t.current_people,
+        t.max_people,
+        t.banner_image,
+        t.author_uid,
+        t.author_name,
+        t.author_avatar,
+        t.spirit_animal,
+        t.likes_count,
+        t.saves_count,
+        t.views_count,
+        t.created_at,
+        t.updated_at
+      FROM travelers.travelers t
+      WHERE t.deleted_at IS NULL
     `
 
     const params = []
@@ -72,38 +73,18 @@ router.get('/', async (req, res) => {
               })
               .replace(/\//g, '/')
           : `${startDate
-                .toLocaleDateString('zh-TW', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                })
-                .replace(/\//g, '/')} - ${endDate
-                .toLocaleDateString('zh-TW', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                })
-                .replace(/\//g, '/')}`
-            ? startDate
-                .toLocaleDateString('zh-TW', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                })
-                .replace(/\//g, '/')
-            : `${startDate
-                .toLocaleDateString('zh-TW', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                })
-                .replace(/\//g, '/')} - ${endDate
-                .toLocaleDateString('zh-TW', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                })
-                .replace(/\//g, '/')}`
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')} - ${endDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')}`
 
       const now = new Date()
       const created = new Date(row.created_at)
@@ -213,15 +194,16 @@ router.get('/:id', async (req, res) => {
 
     console.log('獲取旅伴詳情，ID:', idNum)
 
+    // ★ 修改：加上別名 t，以配合下方的 t.start_date 等欄位
     const travelerQuery = `
       SELECT
-        id,
-        title,
-        content,
-        location,
-        category,
-        status,
-        tags,
+        t.id,
+        t.title,
+        t.content,
+        t.location,
+        t.category,
+        t.status,
+        t.tags,
         CASE
           WHEN t.start_date = t.end_date THEN TO_CHAR(t.start_date, 'YYYY/MM/DD')
           ELSE TO_CHAR(t.start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(t.end_date, 'YYYY/MM/DD')
@@ -230,17 +212,17 @@ router.get('/:id', async (req, res) => {
           WHEN EXTRACT(EPOCH FROM (NOW() - t.created_at)) < 600 THEN '剛剛'
           ELSE TO_CHAR(t.created_at, 'YYYY/MM/DD HH24:MI')
         END AS "created_at",
-        current_people::text || '/' || max_people::text AS "people",
-        banner_image AS "image",
-        banner_position_y,
-        author_uid,
-        author_name AS "author",
-        author_avatar AS "avatar",
-        spirit_animal AS "spiritAnimal",
-        likes_count AS "likes",
-        views_count
-      FROM travelers.travelers
-      WHERE id = $1 AND deleted_at IS NULL
+        t.current_people::text || '/' || t.max_people::text AS "people",
+        t.banner_image AS "image",
+        t.banner_position_y,
+        t.author_uid,
+        t.author_name AS "author",
+        t.author_avatar AS "avatar",
+        t.spirit_animal AS "spiritAnimal",
+        t.likes_count AS "likes",
+        t.views_count
+      FROM travelers.travelers t
+      WHERE t.id = $1 AND t.deleted_at IS NULL
     `
 
     const travelerResult = await pool.query(travelerQuery, [idNum])
