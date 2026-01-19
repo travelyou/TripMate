@@ -64,16 +64,16 @@ const bottomMenuItems = computed(() => {
     },
   ]
 
-  if (isVendor.value) {
+  if (isVendor.value && userStore.currentUser?.uid) {
     items.push({
       name: 'VendorProfile',
-      params: { id: userStore.currentUser?.uid || 'vendor-012' }, // 暫時 fallback，實際上應該要有 vendorId
+      params: { id: userStore.currentUser.uid },
       label: '廠商檔案',
       icon: UserIcon,
       iconColor: 'text-primary-600',
       textColor: 'text-secondary',
     })
-  } else {
+  } else if (!isVendor.value) {
     items.push({
       name: 'profile',
       label: '個人檔案',
