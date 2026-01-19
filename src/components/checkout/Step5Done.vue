@@ -1,32 +1,27 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
 import { computed, onMounted, ref } from 'vue'
-import { API_BASE_URL } from '@/api/config'
-import { checkoutStore } from '@/stores/checkout'
-import axios from 'axios'
 import MainButton from './MainButton.vue'
 import TourInfoBlock from './TourInfoBlock.vue'
+import { checkoutStore } from '@/stores/checkout'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(true)
 const error = ref('')
+
 const order = ref(null)
 const itinerary = ref(null)
 const payment = ref(null)
 
 const paymentMethodText = computed(() => {
-  // 先以後端回來的 payment 為準
-  const method = payment.value?.method || payment.value?.provider || checkoutStore.paymentMethod
-
+  const method = payment.value?.method || payment.value?.provider
   switch (method) {
     case 'linepay':
       return 'LINE Pay'
     case 'credit':
       return '信用卡'
-    case 'mobile':
-      return '行動支付'
     case 'bank':
       return '銀行轉帳'
     case 'mock':
@@ -36,11 +31,16 @@ const paymentMethodText = computed(() => {
   }
 })
 
-// 把後端 itinerary/order 轉成 TourInfoBlock 要的 shape
+const paymentStatusText = computed(() => {
+  // ✅ 以 payment 狀態為主，沒有就退回訂單狀態
+  return payment.value?.status ?? order.value?.status ?? 'UNKNOWN'
+})
+
+// TourInfoBlock 要的 shape
 const tourForBlock = computed(() => {
   if (!itinerary.value || !order.value) return null
-  const it = itinerary.value
 
+  const it = itinerary.value
   const start = it.startDate ? String(it.startDate).slice(0, 10) : ''
   const end = it.endDate ? String(it.endDate).slice(0, 10) : ''
   const date = start && end ? `${start} ~ ${end}` : start || end || ''
@@ -53,49 +53,25 @@ const tourForBlock = computed(() => {
   }
 })
 
-const payableAmount = computed(
-  () =>
-    Number(order.value?.amount ?? 0) ||
-    Number(checkoutStore.cartTotalPrice ?? 0) ||
-    Number(checkoutStore.lastOrder?.cartTotalPrice ?? checkoutStore.lastOrder?.totalPrice ?? 0),
-)
-
-const orderNoText = computed(
-  () =>
-    order.value?.order_no ||
-    order.value?.orderNo ||
-    route.query.orderId ||
-    checkoutStore.lastOrder?.orderNo ||
-    checkoutStore.lastOrder?.order_no ||
-    checkoutStore.lastOrder?.id ||
-    '',
-)
+const payableAmount = computed(() => Number(order.value?.amount ?? 0))
+const orderNoText = computed(() => order.value?.orderNo || '')
 
 onMounted(async () => {
-  const orderId = route.query.orderId || checkoutStore.lastOrder?.id
+  // ✅ Step5 必須靠 query 的 orderId（重整也不怕）
+  const orderId = route.query.orderId || localStorage.getItem('lastOrderId')
   if (!orderId) {
     error.value = '找不到訂單編號（orderId）'
     loading.value = false
     return
   }
 
+  loading.value = true
+  error.value = ''
   try {
-    const { data } = await axios.get(`${API_BASE_URL}/orders/${orderId}`)
-    if (!data?.ok) throw new Error(data?.message || '載入訂單失敗')
-
+    const data = await checkoutStore.fetchOrderDetail(orderId)
     order.value = data.order
     itinerary.value = data.itinerary
     payment.value = data.latestPayment
-
-    // （可選）同步回 store，方便其他地方用
-    checkoutStore.lastOrder = {
-      id: data.order.id,
-      orderNo: data.order.order_no ?? data.order.orderNo ?? '',
-      order_no: data.order.order_no ?? '',
-      amount: Number(data.order.amount ?? 0),
-      status: data.order.status,
-      tour: tourForBlock.value ?? null,
-    }
   } catch (e) {
     console.error(e)
     error.value = e?.message || '載入訂單失敗'

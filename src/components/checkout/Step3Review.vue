@@ -1,12 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
-import axios from 'axios'
 import MainButton from './MainButton.vue'
 import SubButton from './SubButton.vue'
 import TourInfoBlock from './TourInfoBlock.vue'
 import { checkoutStore } from '@/stores/checkout'
 import { useRouter } from 'vue-router'
-import { API_BASE_URL } from '@/api/config'
 
 const router = useRouter()
 const submitting = ref(false)
@@ -31,33 +29,8 @@ async function nextStep() {
 
   submitting.value = true
   try {
-    const payload = {
-      itineraryId: tour.id, // 單選結帳：指定要 checkout 哪個 cart item
-      contact: checkoutStore.contact,
-      emergencyContact: checkoutStore.emergencyContact,
-      paymentMethod: checkoutStore.paymentMethod || 'mock', // 你如果在 step4 才選付款方式也沒關係
-    }
-
-    // 注意：你的 API_BASE_URL 目前是 .../api
-    // 所以這裡用 `${API_BASE_URL}/orders/from-cart`（不再加 /api）
-    const { data } = await axios.post(`${API_BASE_URL}/orders/from-cart`, payload)
-
-    if (!data?.ok) throw new Error(data?.message || '建立訂單失敗')
-
-    // 把後端回來的訂單資訊先存起來（Step4/Step5 會用到）
-    checkoutStore.lastOrder = {
-      id: data.orderId,
-      orderNo: data.orderNo,
-      amount: data.amount,
-      paymentId: data.paymentId,
-      status: data.status,
-    }
-
-    // 後端已把該項從 cart 移除 → 重新載入購物車避免 UI 不一致
-    await checkoutStore.loadCartFromDb()
-
-    // 前往付款頁：用 query 帶 orderId，重整也不怕
-    router.push(`/checkout/step4?orderId=${data.orderId}`)
+    const orderId = await checkoutStore.createOrderFromSelectedCart()
+    router.push(`/checkout/step4?orderId=${orderId}`)
   } catch (e) {
     console.error('[Step3 submit order] failed:', e)
     window.alert(e?.message || '送出訂單失敗')
