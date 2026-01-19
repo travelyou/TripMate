@@ -15,6 +15,7 @@ const itinerariesRouter = require('./routes/itineraries')
 const paymentsRouter = require('./routes/payments')
 const ordersRouter = require('./routes/orders')
 const cartRouter = require('./routes/cart')
+const swipesRouter = require('./routes/swipes')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -141,6 +142,7 @@ app.use('/api/profile', profileRouter)
 app.use('/api/payments', paymentsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/cart', cartRouter)
+app.use('/api/swipes', swipesRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
 
