@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -40,13 +39,6 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
-
-const props = defineProps({
-  draftData: {
-    type: Object,
-    default: null,
-  },
-})
 
 const props = defineProps({
   draftData: {
@@ -148,99 +140,18 @@ const ResetStyleOnEnter = Extension.create({
     return {
       Enter: ({ editor }) => {
         try {
-          if (!editor || !editor.state || !editor.view) {
-            return false
+          if (!editor || !editor.state || !editor.view) return false
+
+          if (editor.isActive('bulletList') || editor.isActive('orderedList')) return false
+
+          // 處理標題換行變段落
+          if (editor.isActive('heading')) {
+            return editor.chain().focus().splitBlock().setParagraph().run()
           }
 
-          const { state } = editor
-          const { selection } = state
-
-          const docSize = state.doc.content.size
-          if (selection.$from.pos < 0 || selection.$from.pos > docSize) {
-            return false
-          }
-
-          if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
-            return false
-          }
-
-          if (editor.isActive('heading', { level: 2 })) {
-            if (!editor.can().splitBlock()) {
-              return false
-            }
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const newState = editor.state
-                    const newSelection = newState.selection(
-                      newSelection.$from.pos >= 0 &&
-                        newSelection.$from.pos <= newState.doc.content.size &&
-                        editor.can().setHeading({ level: 2 }),
-                    )
-                  }
-                } catch {}
-              })
-            }
-            return splitSuccess
-          }
-
-          if (editor.isActive('heading', { level: 3 })) {
-            if (!editor.can().splitBlock()) {
-              return false
-            }
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const newState = editor.state
-                    const newSelection = newState.selection(
-                      newSelection.$from.pos >= 0 &&
-                        newSelection.$from.pos <= newState.doc.content.size &&
-                        editor.can().setHeading({ level: 3 }),
-                    )
-                  }
-                } catch {}
-              })
-            }
-            return splitSuccess
-          }
-
-          if (!editor.can().splitBlock()) {
-            return false
-          }
-
-          try {
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const currentState = editor.state
-                    const currentSelection = currentState.selection
-                    const currentDocSize = currentState.doc.content.size
-
-                    if (
-                      currentSelection.$from.pos >= 0 &&
-                      currentSelection.$from.pos <= currentDocSize &&
-                      currentSelection.$from.pos === currentSelection.$to.pos &&
-                      editor.can().unsetAllMarks()
-                    ) {
-                      editor.chain().focus().unsetAllMarks().run()
-                    }
-                  }
-                } catch {}
-              })
-            }
-            return splitSuccess
-          } catch (error) {
-            console.error('[發文編輯器的] 普通段落 Enter 鍵出錯了:', error)
-            return false
-          }
+          return editor.chain().focus().splitBlock().run()
         } catch (error) {
-          console.error('[發文編輯器的] Enter 鍵出錯了:', error)
+          console.error('[發文編輯器] Enter 鍵處理錯誤:', error)
           return false
         }
       },
@@ -249,7 +160,6 @@ const ResetStyleOnEnter = Extension.create({
 })
 
 const editor = useEditor({
-  content: postData.value.content || '',
   content: postData.value.content || '',
   extensions: [
     StarterKit,
@@ -265,7 +175,6 @@ const editor = useEditor({
       allowBase64: true,
     }),
     ResetStyleOnEnter,
-
     CharacterCount.configure({
       limit: CHARACTER_LIMIT,
     }),
@@ -282,7 +191,7 @@ const editor = useEditor({
         errors.value.content = ''
       }
     } catch (error) {
-      console.error('[發文編輯器的] 更新內容出錯了:', error)
+      console.error('[發文編輯器] 更新內容錯誤:', error)
     }
   },
   onCreate: ({ editor }) => {
@@ -290,23 +199,7 @@ const editor = useEditor({
       try {
         editor.commands.setContent(postData.value.content, false)
       } catch (error) {
-        console.error('[發文編輯器的] 初始化失敗:', error)
-      }
-    try {
-      postData.value.content = editor.getHTML()
-      if (errors.value.content) {
-        errors.value.content = ''
-      }
-    } catch (error) {
-      console.error('[發文編輯器的] 更新內容出錯了:', error)
-    }
-  },
-  onCreate: ({ editor }) => {
-    if (postData.value.content && postData.value.content.trim()) {
-      try {
-        editor.commands.setContent(postData.value.content, false)
-      } catch (error) {
-        console.error('[發文編輯器的] 初始化失敗:', error)
+        console.error('[發文編輯器] 初始化內容失敗:', error)
       }
     }
   },
@@ -354,13 +247,7 @@ watch(
           editor.value.commands.setContent(newContent, false)
         }
       } catch (error) {
-        console.error('[發文編輯器的] 內容同步出錯了:', error)
-      try {
-        if (editor.value.getText().trim() === '' && newContent) {
-          editor.value.commands.setContent(newContent, false)
-        }
-      } catch (error) {
-        console.error('[發文編輯器的] 內容同步出錯了:', error)
+        console.error('[發文編輯器] 內容同步錯誤:', error)
       }
     }
   },
@@ -419,7 +306,6 @@ const validateForm = () => {
     isValid = false
   } else if (postData.value.title.trim().length > 35) {
     errors.value.title = `標題不能超過 35 字（目前 ${postData.value.title.trim().length} 字）`
-    errors.value.title = `標題不能超過 35 字（目前 ${postData.value.title.trim().length} 字）`
     isValid = false
   }
 
@@ -435,12 +321,7 @@ const validateForm = () => {
   }
 
   if (editor.value && editor.value.storage.characterCount.characters() > CHARACTER_LIMIT) {
-    errors.value.content = `內容不能超過 ${CHARACTER_LIMIT} 字（目前 ${editor.value.storage.characterCount.characters()} 字）`
-    isValid = false
-  }
-
-  if (editor.value && editor.value.storage.characterCount.characters() > CHARACTER_LIMIT) {
-    errors.value.content = `內容不能超過 ${CHARACTER_LIMIT} 字（目前 ${editor.value.storage.characterCount.characters()} 字）`
+    errors.value.content = `內容不能超過 ${CHARACTER_LIMIT} 字`
     isValid = false
   }
 
@@ -458,16 +339,14 @@ const validateTags = () => {
   }
 
   if (postData.value.tags.length > 5) {
-    errors.value.tags = `標籤數量不能超過 5 個（目前 ${postData.value.tags.length} 個）`
-    errors.value.tags = `標籤數量不能超過 5 個（目前 ${postData.value.tags.length} 個）`
+    errors.value.tags = `標籤數量不能超過 5 個`
     return errors.value.tags
   }
 
   for (let i = 0; i < postData.value.tags.length; i++) {
     const tag = postData.value.tags[i]
     if (tag && tag.trim().length > 30) {
-      errors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字（目前 ${tag.trim().length} 字）`
-      errors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字（目前 ${tag.trim().length} 字）`
+      errors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字`
       return errors.value.tags
     }
   }
@@ -515,26 +394,13 @@ const handleImageSelect = async (event) => {
   if (files.length === 0) return
 
   if (imagePreviews.value.length >= 1) {
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
+    if (fileInputRef.value) fileInputRef.value.value = ''
     return
   }
 
   const remainingSlots = 1 - imagePreviews.value.length
   const filesToAdd = files.slice(0, remainingSlots)
-  const remainingSlots = 1 - imagePreviews.value.length
-  const filesToAdd = files.slice(0, remainingSlots)
 
-  const validFiles = []
-  for (const file of filesToAdd) {
-    if (!file.type.startsWith('image/')) {
-      alert(`${file.name} 不是有效的圖片`)
-      continue
-    }
   const validFiles = []
   for (const file of filesToAdd) {
     if (!file.type.startsWith('image/')) {
@@ -551,30 +417,13 @@ const handleImageSelect = async (event) => {
   }
 
   if (validFiles.length === 0) {
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      alert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
-      continue
-    }
-
-    validFiles.push(file)
-  }
-
-  if (validFiles.length === 0) {
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
+    if (fileInputRef.value) fileInputRef.value.value = ''
     return
   }
 
   isUploading.value = true
   uploadProgress.value = 0
   if (errors.value.banner) errors.value.banner = ''
-  if (imagePreviews.value.length === 0) {
-    bannerPositionY.value = 50
-  }
   if (imagePreviews.value.length === 0) {
     bannerPositionY.value = 50
   }
@@ -590,22 +439,7 @@ const handleImageSelect = async (event) => {
         quality: 0.8,
         maxSizeMB: 2,
       })
-    for (let i = 0; i < validFiles.length; i++) {
-      const file = validFiles[i]
 
-      submitStatus.value = `正在處理圖片 ${i + 1}/${validFiles.length}...`
-      const compressedFile = await compressImage(file, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        quality: 0.8,
-        maxSizeMB: 2,
-      })
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        imagePreviews.value.push(e.target.result)
-      }
-      reader.readAsDataURL(compressedFile)
       const reader = new FileReader()
       reader.onload = (e) => {
         imagePreviews.value.push(e.target.result)
@@ -623,9 +457,6 @@ const handleImageSelect = async (event) => {
       imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
     }
-      imageFiles.value.push(compressedFile)
-      uploadedImageUrls.value.push(imageUrl)
-    }
 
     uploadProgress.value = 100
     submitStatus.value = '圖片上傳完成'
@@ -633,9 +464,7 @@ const handleImageSelect = async (event) => {
     submitStatus.value = ''
   } catch (error) {
     console.error('[圖片上傳] 上傳失敗：', error)
-    console.error('[圖片上傳] 上傳失敗：', error)
     alert('圖片上傳失敗：' + error.message)
-    imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
     imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
   } finally {
     isUploading.value = false
@@ -651,14 +480,7 @@ const removeImage = (index) => {
   imagePreviews.value.splice(index, 1)
   imageFiles.value.splice(index, 1)
   uploadedImageUrls.value.splice(index, 1)
-  if (index === 0 && imagePreviews.value.length > 0) {
-    bannerPositionY.value = 50
-  } else if (imagePreviews.value.length === 0) {
-    bannerPositionY.value = 50
-  }
-  if (index === 0 && imagePreviews.value.length > 0) {
-    bannerPositionY.value = 50
-  } else if (imagePreviews.value.length === 0) {
+  if (imagePreviews.value.length === 0) {
     bannerPositionY.value = 50
   }
 }
@@ -670,25 +492,20 @@ const addTag = (tagText) => {
     return
   }
 
-
   if (cleanTag.length > 30) {
-    errors.value.tags = `標籤不能超過 30 字（目前 ${cleanTag.length} 字）`
-    errors.value.tags = `標籤不能超過 30 字（目前 ${cleanTag.length} 字）`
+    errors.value.tags = `標籤不能超過 30 字`
     return
   }
-
 
   if (postData.value.tags.length >= 5) {
     errors.value.tags = '標籤數量不能超過 5 個'
     return
   }
 
-
   if (postData.value.tags.includes(cleanTag)) {
     tagSearch.value = ''
     return
   }
-
 
   errors.value.tags = ''
   postData.value.tags.push(cleanTag)
@@ -703,36 +520,21 @@ const removeTag = (index) => {
 watch(
   () => postData.value.title,
   () => {
-    if (errors.value.title) {
-      errors.value.title = ''
-    }
-    if (errors.value.title) {
-      errors.value.title = ''
-    }
+    if (errors.value.title) errors.value.title = ''
   },
 )
 
 watch(
   () => tagSearch.value,
   () => {
-    if (errors.value.tags) {
-      errors.value.tags = ''
-    }
-    if (errors.value.tags) {
-      errors.value.tags = ''
-    }
+    if (errors.value.tags) errors.value.tags = ''
   },
 )
 
 watch(
   () => postData.value.content,
   () => {
-    if (errors.value.content && postData.value.content) {
-      errors.value.content = ''
-    }
-    if (errors.value.content && postData.value.content) {
-      errors.value.content = ''
-    }
+    if (errors.value.content && postData.value.content) errors.value.content = ''
   },
 )
 
@@ -741,7 +543,6 @@ const handleSaveDraft = () => {
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
-
 
   const draftData = {
     id: Date.now(),
@@ -756,18 +557,9 @@ const handleSaveDraft = () => {
         imagePreviews: imagePreviews.value,
       }),
     ),
-    data: JSON.parse(
-      JSON.stringify({
-        ...postData.value,
-        imagePreviews: imagePreviews.value,
-      }),
-    ),
   }
 
-
   myItineraryStore.addDraft(draftData)
-  console.log('[草稿儲存] 草稿儲存成功，ID:', draftData.id)
-  alert('已儲存至「個人檔案」草稿夾！')
   console.log('[草稿儲存] 草稿儲存成功，ID:', draftData.id)
   alert('已儲存至「個人檔案」草稿夾！')
   emit('close')
@@ -792,8 +584,6 @@ const handleClose = () => {
   if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
     const shouldClose = confirm('貼文正在提交中，確定要關閉嗎？')
     if (shouldClose) {
-    const shouldClose = confirm('貼文正在提交中，確定要關閉嗎？')
-    if (shouldClose) {
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
       emit('close')
@@ -811,23 +601,11 @@ const handleClose = () => {
       } else {
         alert('請至少輸入標題才能儲存草稿')
         const stillClose = confirm('是否仍要關閉？')
-        if (stillClose) {
-          emit('close')
-        }
-        const stillClose = confirm('是否仍要關閉？')
-        if (stillClose) {
-          emit('close')
-        }
+        if (stillClose) emit('close')
       }
     } else {
       const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
-      if (confirmClose) {
-        emit('close')
-      }
-      const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
-      if (confirmClose) {
-        emit('close')
-      }
+      if (confirmClose) emit('close')
     }
   } else {
     emit('close')
@@ -847,14 +625,10 @@ const executeSubmit = async () => {
       submitProgress.value = 60
       submitStatus.value = '圖片已準備完成'
 
-
       bannerUrl = uploadedImageUrls.value[0]
       if (uploadedImageUrls.value.length > 1) {
         imageUrls = uploadedImageUrls.value.slice(1)
       }
-    } else {
-      submitProgress.value = 60
-      submitStatus.value = '準備提交...'
     } else {
       submitProgress.value = 60
       submitStatus.value = '準備提交...'
@@ -892,26 +666,13 @@ const executeSubmit = async () => {
       } else {
         alert('發文成功！')
       }
-
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('發文成功！', {
-          body: '您的貼文已成功發布',
-          icon: '/favicon.ico',
-        })
-      } else {
-        alert('發文成功！')
-      }
       window.location.reload()
     }
   } catch (error) {
     console.error('發文失敗:', error)
 
-  } catch (error) {
-    console.error('發文失敗:', error)
-
     sessionStorage.removeItem('is_submitting_discussion_post')
     sessionStorage.removeItem('submit_start_time')
-
 
     isSubmitting.value = false
     submitProgress.value = 0
@@ -927,36 +688,12 @@ const executeSubmit = async () => {
     } else {
       alert(errorMessage)
     }
-
-    const errorMessage = '發文失敗：' + (error.message || '請稍後再試')
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('發文失敗', {
-        body: errorMessage,
-        icon: '/favicon.ico',
-      })
-    } else {
-      alert(errorMessage)
-    }
   }
 }
 
 const handleFinalSubmit = async () => {
-  if (isSubmitting.value) {
-    return
-  }
-
-  if (!validateForm()) {
-    return
-  }
-
-  if (isSubmitting.value) {
-    return
-  }
-
-  if (!validateForm()) {
-    return
-  }
+  if (isSubmitting.value) return
+  if (!validateForm()) return
 
   if (!auth.currentUser) {
     formError.value = '請先登入'
@@ -964,12 +701,8 @@ const handleFinalSubmit = async () => {
   }
 
   emit('close')
-
-
   sessionStorage.setItem('is_submitting_discussion_post', 'true')
   sessionStorage.setItem('submit_start_time', Date.now().toString())
-
-
   executeSubmit()
 }
 
@@ -987,13 +720,12 @@ watch(
         imagePreviews.value = draft.imagePreviews
       }
 
-      // 確保編輯器內容也被更新
       if (editor.value && draft.content) {
         nextTick(() => {
           try {
             editor.value.commands.setContent(draft.content, false)
           } catch (error) {
-            console.error('[發文編輯器的] 載入草稿內容失敗:', error)
+            console.error('[發文編輯器] 載入草稿內容失敗:', error)
           }
         })
       }
@@ -1014,36 +746,12 @@ onMounted(() => {
       imagePreviews.value = draft.imagePreviews
     }
 
-    // 確保編輯器內容也被更新
     if (editor.value && draft.content) {
       nextTick(() => {
         try {
           editor.value.commands.setContent(draft.content, false)
         } catch (error) {
-          console.error('[發文編輯器的] 載入草稿內容失敗:', error)
-        }
-      })
-    }
-  }
-
-  if (props.draftData && props.draftData.data) {
-    const draft = props.draftData.data
-    postData.value.category = draft.category || ''
-    postData.value.title = draft.title || ''
-    postData.value.content = draft.content || ''
-    postData.value.tags = draft.tags || []
-
-    if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
-      imagePreviews.value = draft.imagePreviews
-    }
-
-    // 確保編輯器內容也被更新
-    if (editor.value && draft.content) {
-      nextTick(() => {
-        try {
-          editor.value.commands.setContent(draft.content, false)
-        } catch (error) {
-          console.error('[發文編輯器的] 載入草稿內容失敗:', error)
+          console.error('[發文編輯器] 載入草稿內容失敗:', error)
         }
       })
     }
@@ -1054,10 +762,8 @@ onMounted(() => {
       e.preventDefault()
       e.returnValue = '貼文正在提交中，確定要離開嗎？'
       return e.returnValue
-      return e.returnValue
     }
   })
-
 
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
@@ -1091,24 +797,24 @@ onMounted(() => {
         <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
           <XIcon class="w-6 h-6 text-gray-500" />
         </button>
-        </div>
+      </div>
 
-        <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
-          <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
-            <div
-              v-for="step in ['edit', 'tags', 'preview']"
-              :key="step"
-              :class="[
-                'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
-                currentStep === step
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-400',
-              ]"
-            >
-              {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
-            </div>
+      <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
+        <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
+          <div
+            v-for="step in ['edit', 'tags', 'preview']"
+            :key="step"
+            :class="[
+              'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
+              currentStep === step
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-400',
+            ]"
+          >
+            {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
           </div>
         </div>
+      </div>
 
       <div
         :class="[
@@ -1163,39 +869,39 @@ onMounted(() => {
             <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
           </div>
 
-            <div class="space-y-2">
-              <label class="block text-sm font-bold text-gray-700"
-                >封面圖片 <span class="text-red-500">*</span></label
+          <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700"
+              >封面圖片 <span class="text-red-500">*</span></label
+            >
+            <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
+              <div
+                v-for="(url, index) in imagePreviews"
+                :key="index"
+                class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
+                @mousedown.prevent="startDragBanner"
+                @mousemove="onDragBanner"
+                @mouseup="stopDragBanner"
+                @mouseleave="stopDragBanner"
               >
-              <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
+                <img
+                  :src="url"
+                  alt="預覽"
+                  class="w-full h-full object-cover pointer-events-none"
+                  :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                />
                 <div
-                  v-for="(url, index) in imagePreviews"
-                  :key="index"
-                  class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
-                  @mousedown.prevent="startDragBanner"
-                  @mousemove="onDragBanner"
-                  @mouseup="stopDragBanner"
-                  @mouseleave="stopDragBanner"
+                  class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
                 >
-                  <img
-                    :src="url"
-                    alt="預覽"
-                    class="w-full h-full object-cover pointer-events-none"
-                    :style="{ objectPosition: `center ${bannerPositionY}%` }"
-                  />
-                  <div
-                    class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
-                  >
-                    上下拖曳調整位置
-                  </div>
-                  <button
-                    class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
-                    @click.stop="removeImage(index)"
-                  >
-                    <XIcon class="w-5 h-5" />
-                  </button>
+                  上下拖曳調整位置
                 </div>
+                <button
+                  class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
+                  @click.stop="removeImage(index)"
+                >
+                  <XIcon class="w-5 h-5" />
+                </button>
               </div>
+            </div>
             <div v-if="isUploading" class="w-full bg-gray-200 rounded-full h-3 mb-2">
               <div
                 class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
@@ -1213,10 +919,6 @@ onMounted(() => {
               :class="{ 'border-red-500 text-red-500 bg-red-50': errors.banner }"
               @click="triggerFileSelect"
             >
-              <ImageIcon class="w-6 h-6" />
-              <span v-if="!isUploading && imagePreviews.length < 1">上傳封面圖片</span>
-              <span v-else-if="isUploading">上傳中...</span>
-              <span v-else>已設定封面圖片</span>
               <ImageIcon class="w-6 h-6" />
               <span v-if="!isUploading && imagePreviews.length < 1">上傳封面圖片</span>
               <span v-else-if="isUploading">上傳中...</span>
@@ -1482,13 +1184,10 @@ onMounted(() => {
 
         <div v-else-if="currentStep === 'preview'" class="bg-white min-h-0 relative flex flex-col">
           <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
-        <div v-else-if="currentStep === 'preview'" class="bg-white min-h-0 relative flex flex-col">
-          <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
             <div class="mb-6 pb-4 border-b-2 border-primary-200">
               <div class="flex items-center space-x-3 mb-3">
                 <img
                   :src="
-                    userStore.currentUser?.avatar ||
                     userStore.currentUser?.avatar ||
                     'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                   "
@@ -1496,7 +1195,6 @@ onMounted(() => {
                 />
                 <div>
                   <span class="font-bold text-secondary-800">{{
-                    userStore.currentUser?.name || userStore.currentUser?.nickname || '你'
                     userStore.currentUser?.name || userStore.currentUser?.nickname || '你'
                   }}</span>
                   <div class="text-xs text-secondary-400">
@@ -1516,7 +1214,6 @@ onMounted(() => {
                 />
               </div>
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
-              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 class="text-secondary-700 text-base mb-4 leading-relaxed prose prose-lg max-w-none"
                 v-html="postData.content"
@@ -1544,114 +1241,61 @@ onMounted(() => {
             </div>
           </div>
         </div>
-              </div>
-            </div>
+      </div>
+
+      <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
+        <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
+        <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div
+            class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+            :style="{ width: submitProgress + '%' }"
+          >
+            <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
           </div>
         </div>
-
-        <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-          <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
-          <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
-            <div
-              class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
-              :style="{ width: submitProgress + '%' }"
-            >
-              <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
-            </div>
-          </div>
-          <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
-            {{ submitStatus }}
-          </p>
-          <div class="flex gap-3">
+        <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
+          {{ submitStatus }}
+        </p>
+        <div class="flex gap-3">
+          <button
+            type="button"
+            :disabled="isSubmitting"
+            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="handleSaveDraft"
+          >
+            <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
+          </button>
+          <template v-if="currentStep === 'preview'">
             <button
-              type="button"
               :disabled="isSubmitting"
-              class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="handleSaveDraft"
+              class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="prevStep"
             >
-              <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
+              返回修改
             </button>
-            <template v-if="currentStep === 'preview'">
-              <button
-                :disabled="isSubmitting"
-                class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="prevStep"
-              >
-                返回修改
-              </button>
-              <button
-                :disabled="isSubmitting"
-                class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="handleFinalSubmit"
-              >
-                <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
-                <span v-if="!isSubmitting">確認發布</span>
-                <span v-else>發布中...</span>
-              </button>
-            </template>
             <button
-              v-else
-              :disabled="isUploading || isSubmitting"
-              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="nextStep"
-            >
-              下一步
-            </button>
-          </div>
-        <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-          <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
-          <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
-            <div
-              class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
-              :style="{ width: submitProgress + '%' }"
-            >
-              <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
-            </div>
-          </div>
-          <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
-            {{ submitStatus }}
-          </p>
-          <div class="flex gap-3">
-            <button
-              type="button"
               :disabled="isSubmitting"
-              class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="handleSaveDraft"
+              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="handleFinalSubmit"
             >
-              <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
+              <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
+              <span v-if="!isSubmitting">確認發布</span>
+              <span v-else>發布中...</span>
             </button>
-            <template v-if="currentStep === 'preview'">
-              <button
-                :disabled="isSubmitting"
-                class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="prevStep"
-              >
-                返回修改
-              </button>
-              <button
-                :disabled="isSubmitting"
-                class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="handleFinalSubmit"
-              >
-                <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
-                <span v-if="!isSubmitting">確認發布</span>
-                <span v-else>發布中...</span>
-              </button>
-            </template>
-            <button
-              v-else
-              :disabled="isUploading || isSubmitting"
-              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="nextStep"
-            >
-              下一步
-            </button>
-          </div>
+          </template>
+          <button
+            v-else
+            :disabled="isUploading || isSubmitting"
+            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="nextStep"
+          >
+            下一步
+          </button>
         </div>
       </div>
     </div>
-    </div>
-  </template>
+  </div>
+</template>
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {
