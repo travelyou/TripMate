@@ -1,211 +1,169 @@
 ﻿<script setup>
-import { computed } from 'vue'
-import { useUserStore } from '@/stores/user'
-import {
-  Calendar as CalendarIcon,
-  MapPin as MapPinIcon,
-  MessageCircle as MessageCircleIcon,
-  Users as UsersIcon,
-  Heart as HeartIcon,
-  Bookmark as BookmarkIcon,
-} from 'lucide-vue-next'
+import { ref, onMounted, computed } from 'vue'
+import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
+import { useItineraryStore } from '@/stores/itinerary'
 
-const props = defineProps({
-  traveler: {
-    type: Object,
-    required: true,
-  },
-})
+import ItineraryCard from '@/components/cards/ItineraryCard.vue'
+import ShareModal from '@/components/modals/ShareModal.vue'
+import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
+import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 
-const userStore = useUserStore()
+const itinerariesStore = useItineraryStore()
 
-const itemData = computed(() => ({
-  id: props.traveler.id,
-  type: 'traveler',
-  title: props.traveler.title,
-  content: props.traveler.content,
-  image: props.traveler.image,
-  author: props.traveler.author,
-  avatar: props.traveler.avatar,
-  location: props.traveler.location,
-  date: props.traveler.date,
-  status: props.traveler.status,
-  people: props.traveler.people,
-  tags: props.traveler.tags,
-  comments: props.traveler.comments,
-  category: props.traveler.category, // 確保有這個欄位
-}))
+// --- 模態框狀態管理 ---
+const isDetailModalOpen = ref(false)
+const isShareModalOpen = ref(false)
+const isPostModalOpen = ref(false)
 
-const previewContent = computed(() => {
-  if (!props.traveler.content) return ''
-  let content = props.traveler.content
+const selectedItinerary = ref(null)
+const shareLink = ref('')
+const shouldScrollToComments = ref(false)
 
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = content
-  return tempDiv.textContent || tempDiv.innerText || ''
-})
+// ★ 修改：更新為新的分類選項
+const filterOptions = ref([
+  '全部',
+  '國內旅遊',
+  '日韓旅遊',
+  '亞洲其他',
+  '歐美紐澳',
+  '海島度假',
+  '攝影/興趣',
+  '自駕共乘',
+  '其他',
+])
+const activeFilter = ref('全部')
 
-const getStatusClasses = (status) => {
-  switch (status) {
-    case '招募中':
-      return 'bg-primary-600 text-white'
-    case '已額滿':
-      return 'bg-primary-700 text-white'
-    case '已出發':
-      return 'bg-secondary-500 text-white'
-    default:
-      return 'bg-primary-100 text-primary-800'
+// ★ 新增：前端分類篩選邏輯
+const filteredItineraries = computed(() => {
+  if (activeFilter.value === '全部') {
+    return itinerariesStore.itineraries
   }
+  return itinerariesStore.itineraries.filter((item) => {
+    // 兼容舊資料：如果沒有分類，歸類為「其他」
+    const itemCategory = item.category || '其他'
+    return itemCategory === activeFilter.value
+  })
+})
+
+// 處理開啟詳情彈窗
+const openDetailModal = (itinerary, focusComment = false) => {
+  selectedItinerary.value = itinerary
+  shouldScrollToComments.value = focusComment
+  isDetailModalOpen.value = true
 }
+
+const closeDetailModal = () => {
+  isDetailModalOpen.value = false
+  selectedItinerary.value = null
+  shouldScrollToComments.value = false
+}
+
+// 處理開啟分享模態框
+const openShareModal = (itineraryId) => {
+  shareLink.value = `/itinerary/${itineraryId}`
+  isShareModalOpen.value = true
+}
+
+const closeShareModal = () => {
+  isShareModalOpen.value = false
+  shareLink.value = ''
+}
+
+const handlePostSuccess = async () => {
+  // 發布成功後，重新抓取列表資料
+  await itinerariesStore.fetchItineraries()
+  isPostModalOpen.value = false
+}
+
+// 初始化載入資料
+onMounted(() => {
+  itinerariesStore.fetchItineraries()
+})
 </script>
 
 <template>
-  <div class="h-full" @click="$emit('open-detail', traveler)">
-    <div
-      class="bg-white transition relative cursor-pointer rounded-xl border border-secondary-200 shadow hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] h-full flex flex-col"
-    >
+  <div class="p-4 relative min-h-screen">
+    <div class="w-full">
       <div
-        v-if="traveler.category"
-        class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl rounded-tl-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+        class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall flex justify-between items-center"
       >
-        {{ traveler.category }}
-      </div>
-
-      <div
-        :class="getStatusClasses(traveler.status)"
-        class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-xl rounded-tr-xl border-b-2 border-l-2 border-primary-200 shadow-primary-sm z-10"
-      >
-        {{ traveler.status }}
-      </div>
-
-      <div class="flex flex-col gap-3 h-full">
-        <div
-          class="relative shrink-0 w-full overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
+        <h1 class="text-2xl font-black text-secondary-50 flex items-center py-1">
+          <MapIcon class="w-6 h-6 mr-3 text-white" />
+          精選行程
+        </h1>
+        <button
+          class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition shadow-md flex items-center"
+          @click="isPostModalOpen = true"
         >
-          <img
-            :src="traveler.image"
-            :alt="traveler.title"
-            class="w-full h-full object-cover"
-            :style="{ objectPosition: `center ${traveler.banner_position_y || 50}%` }"
-          />
+          <PlusIcon class="w-5 h-5 mr-1" />
+          上架行程
+        </button>
+      </div>
 
-          <div
-            class="absolute inset-x-0 bottom-0 h-[45%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end"
+      <div
+        class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
+      >
+        <div class="flex flex-wrap gap-2 text-sm">
+          <button
+            v-for="filter in filterOptions"
+            :key="filter"
+            :class="[
+              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
+              activeFilter === filter
+                ? 'bg-primary text-secondary-50'
+                : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200',
+            ]"
+            @click="activeFilter = filter"
           >
-            <div>
-              <div class="flex items-center space-x-3 mb-2">
-                <img
-                  :src="traveler.avatar"
-                  class="w-8 h-8 rounded-full object-cover border-2 border-white/80"
-                />
-                <div>
-                  <div class="flex items-center space-x-1">
-                    <span class="font-bold text-sm text-white">{{ traveler.author }}</span>
-                    <span
-                      class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full"
-                    >
-                      {{ traveler.spiritAnimal }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 class="text-xl font-bold mb-1 line-clamp-1">
-                  {{ traveler.title }}
-                </h3>
-                <p class="text-sm text-white/85 mb-2 line-clamp-2 sm:line-clamp-1 xl:line-clamp-2">
-                  {{ previewContent }}
-                </p>
-              </div>
-            </div>
-
-            <div class="space-y-2 text-sm text-white/85">
-              <div class="flex flex-wrap gap-1 overflow-hidden line-clamp-1 min-h-[1.25rem]">
-                <span
-                  v-for="tag in traveler.tags || []"
-                  :key="tag"
-                  class="text-xs font-medium text-white/90 bg-white/15 px-2 py-0.5 rounded-full hover:bg-white/25 transition inline-flex items-center h-5 max-w-[6.5rem] truncate"
-                >
-                  #{{ tag }}
-                </span>
-              </div>
-
-              <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
-                <span class="flex items-center max-w-[10rem] truncate">
-                  <MapPinIcon class="w-4 h-4 mr-1 text-white/80" />
-                  {{ traveler.location }}
-                </span>
-                <span class="flex items-center">
-                  <CalendarIcon class="w-4 h-4 mr-1 text-white/70" />
-                  {{ traveler.date }}
-                </span>
-
-                <button
-                  class="flex items-center group transition"
-                  :class="
-                    userStore.isFavorite(itemData)
-                      ? 'text-red-300'
-                      : 'text-white/70 hover:text-red-300'
-                  "
-                  @click.stop="userStore.toggleFavorite(itemData)"
-                >
-                  <HeartIcon
-                    class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
-                    :class="{ 'fill-current': userStore.isFavorite(itemData) }"
-                  />
-                </button>
-
-                <button
-                  class="flex items-center space-x-1 transition group"
-                  :class="
-                    userStore.isCollected(itemData)
-                      ? 'text-emerald-300'
-                      : 'text-white/70 hover:text-emerald-300'
-                  "
-                  @click.stop="
-                    userStore.isCollected(itemData)
-                      ? userStore.removeFromCollection(itemData)
-                      : userStore.openCollectionModal(itemData)
-                  "
-                >
-                  <BookmarkIcon
-                    class="w-4 h-4 transition-transform group-active:scale-125"
-                    :class="{ 'fill-current': userStore.isCollected(itemData) }"
-                  />
-                  <span>{{
-                    (traveler.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
-                  }}</span>
-                </button>
-
-                <span class="flex items-center text-white/90 ml-auto md:ml-0">
-                  <MessageCircleIcon class="w-4 h-4 mr-1" />
-                  {{ traveler.comments || 0 }}
-                </span>
-              </div>
-
-              <div class="flex justify-between items-end pt-2 border-t border-white/20">
-                <div class="flex items-center font-bold text-white">
-                  <UsersIcon class="w-5 h-5 mr-1 text-white/85" />
-                  招募人數：
-                  <span class="text-lg text-white ml-1">{{ traveler.people }}</span>
-                </div>
-
-                <button
-                  :disabled="traveler.status === '已額滿'"
-                  :class="
-                    traveler.status === '已額滿'
-                      ? 'bg-white/20 text-white/60 cursor-not-allowed'
-                      : 'bg-white text-primary-700 hover:bg-white/90'
-                  "
-                  class="px-4 py-2 rounded-full font-bold transition text-sm shadow-md"
-                >
-                  聯繫作者
-                </button>
-              </div>
-            </div>
-          </div>
+            {{ filter }}
+          </button>
         </div>
+      </div>
+
+      <div v-if="itinerariesStore.loading" class="text-center py-10 text-gray-500">載入中...</div>
+      <div v-else-if="itinerariesStore.error" class="text-center py-10 text-red-500">
+        {{ itinerariesStore.error }}
+      </div>
+
+      <div
+        v-else-if="filteredItineraries.length === 0"
+        class="text-center py-20 text-gray-500 flex flex-col items-center"
+      >
+        <XCircleIcon class="w-16 h-16 mb-4 text-gray-300" />
+        <p class="text-lg">目前沒有「{{ activeFilter }}」分類的行程</p>
+        <button
+          v-if="activeFilter !== '全部'"
+          class="mt-4 text-primary-600 font-bold hover:underline"
+          @click="activeFilter = '全部'"
+        >
+          查看全部行程
+        </button>
+      </div>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <ItineraryCard
+          v-for="itinerary in filteredItineraries"
+          :key="itinerary.id"
+          :itinerary="itinerary"
+          @open-detail="openDetailModal"
+          @open-share="openShareModal"
+        />
       </div>
     </div>
   </div>
+
+  <ItineraryDetailModal
+    v-if="isDetailModalOpen"
+    :itinerary="selectedItinerary"
+    :scroll-to-comments="shouldScrollToComments"
+    @close="closeDetailModal"
+  />
+
+  <ItineraryPostModal
+    v-if="isPostModalOpen"
+    @close="isPostModalOpen = false"
+    @success="handlePostSuccess"
+  />
+
+  <ShareModal v-if="isShareModalOpen" :share-link="shareLink" @close="closeShareModal" />
 </template>
