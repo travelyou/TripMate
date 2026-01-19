@@ -4,6 +4,10 @@ const pool = require('../database/connection')
 const crypto = require('crypto')
 const axios = require('axios')
 
+function getFrontendBaseUrl() {
+  return process.env.FRONTEND_BASE_URL || 'http://localhost:5173'
+}
+
 function linepayHeaders({ channelSecret, uri, body }) {
   if (!channelSecret || typeof channelSecret !== 'string') {
     throw new Error('遺失 LINEPAY_CHANNEL_SECRET (檢查 backend/.env 和 dotenv config)')
@@ -175,13 +179,6 @@ router.post('/create', async (req, res) => {
 
       console.log('[linepay request]', transactionId, transactionId.length)
 
-      if (!transactionId || !webUrl) {
-        await client.query('ROLLBACK')
-        return res
-          .status(500)
-          .json({ ok: false, message: 'LINE Pay 回傳缺少 transactionId 或 paymentUrl' })
-      }
-
       // 把 transactionId 存回 payment
       await client.query(
         `UPDATE commerce.payments
@@ -220,7 +217,9 @@ router.post('/create', async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK')
-    } catch {}
+    } catch (rollbackErr) {
+      console.error('[POST /api/payments/create] ROLLBACK failed:', rollbackErr)
+    }
     console.error('[POST /api/payments/create] error:', err)
     return res.status(500).json({ ok: false, message: err?.message || '伺服器錯誤' })
   } finally {
@@ -390,12 +389,14 @@ router.get('/linepay/confirm', async (req, res) => {
 
     // 導回前端 Step5
     return res.redirect(
-      `${process.env.FRONTEND_BASE_URL || 'http://localhost:5173'}/checkout/step5?orderId=${encodeURIComponent(pay.orderId)}`,
+      `${getFrontendBaseUrl()}/checkout/step5?orderId=${encodeURIComponent(pay.orderId)}`,
     )
   } catch (e) {
     try {
       await client.query('ROLLBACK')
-    } catch {}
+    } catch (rollbackErr) {
+      console.error('[linepay/confirm] ROLLBACK failed:', rollbackErr)
+    }
     console.error(e)
     return res.status(500).send('server error')
   } finally {
@@ -414,7 +415,7 @@ router.get('/linepay/confirm', async (req, res) => {
 router.get('/linepay/cancel', async (req, res) => {
   const { orderId } = req.query || {}
   return res.redirect(
-    `${process.env.FRONTEND_BASE_URL || 'http://localhost:5173'}/checkout/step4?orderId=${encodeURIComponent(orderId || '')}`,
+    `${getFrontendBaseUrl()}/checkout/step4?orderId=${encodeURIComponent(orderId || '')}`,
   )
 })
 

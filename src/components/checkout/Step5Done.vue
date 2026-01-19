@@ -32,7 +32,7 @@ const paymentMethodText = computed(() => {
 })
 
 const paymentStatusText = computed(() => {
-  // ✅ 以 payment 狀態為主，沒有就退回訂單狀態
+  // 以 payment 狀態為主，沒有就退回訂單狀態
   return payment.value?.status ?? order.value?.status ?? 'UNKNOWN'
 })
 
@@ -57,7 +57,7 @@ const payableAmount = computed(() => Number(order.value?.amount ?? 0))
 const orderNoText = computed(() => order.value?.orderNo || '')
 
 onMounted(async () => {
-  // ✅ Step5 必須靠 query 的 orderId（重整也不怕）
+  // Step5 必須靠 query 的 orderId（重整也不怕）
   const orderId = route.query.orderId || localStorage.getItem('lastOrderId')
   if (!orderId) {
     error.value = '找不到訂單編號（orderId）'
@@ -108,7 +108,7 @@ function goHome() {
 
       <div>
         <p class="text-gray-500 text-lg">付款狀態</p>
-        <p>{{ payment?.status ?? order?.status ?? 'UNKNOWN' }}</p>
+        <p>{{ paymentStatusText }}</p>
       </div>
     </div>
 

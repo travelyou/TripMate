@@ -65,6 +65,7 @@ export const checkoutStore = reactive({
   // Cart actions
   // =========================
   _scheduleSyncPersons(itineraryId, persons) {
+    const PERSONS_SYNC_DEBOUNCE_MS = 600
     const old = this._personsSyncTimers.get(itineraryId)
     if (old) clearTimeout(old)
 
@@ -82,7 +83,7 @@ export const checkoutStore = reactive({
       } finally {
         this._personsSyncTimers.delete(itineraryId)
       }
-    }, 600)
+    }, PERSONS_SYNC_DEBOUNCE_MS)
 
     this._personsSyncTimers.set(itineraryId, timer)
   },
@@ -245,6 +246,7 @@ export const checkoutStore = reactive({
     if (!data?.ok) throw new Error(data?.message || '建立訂單失敗')
 
     this.lastOrderId = data.orderId
+    localStorage.setItem('lastOrderId', data.orderId)
     // 建完單後，後端會把 cart item 刪掉（你們一次只結帳一個）
     await this.loadCartFromDb()
 
@@ -263,6 +265,7 @@ export const checkoutStore = reactive({
     if (!data?.ok) throw new Error(data?.message || '讀取訂單失敗')
 
     this.lastOrderId = id
+    localStorage.setItem('lastOrderId', id)
     this.orderDetail = data
     return data
   },
