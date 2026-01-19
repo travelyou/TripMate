@@ -16,10 +16,13 @@ import {
   Save as SaveIcon,
   Map as MapIcon,
   MessageCircle as MessageCircleIcon,
-  Heart as HeartIcon,
-  Bookmark as BookmarkIcon,
-  GripVertical as GripVerticalIcon,
+  Car as CarIcon,
+  Train as TrainIcon,
+  Bike as BikeIcon,
+  Footprints as WalkIcon,
 } from 'lucide-vue-next'
+import { Loader } from '@googlemaps/js-api-loader'
+import LocationPickerModal from './LocationPickerModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
@@ -420,8 +423,111 @@ const addActivity = () => {
     desc: '',
     icon: 'map-pin',
     isOpen: true, // 自動開啟時間選擇器
-    prevTime: defaultTime // 修正：預設開啟時也需要初始化 prevTime，否則第一次選擇會報錯
+    prevTime: defaultTime, // 修正：預設開啟時也需要初始化 prevTime，否則第一次選擇會報錯
+    location: null // 新增地點欄位
   })
+}
+
+const isLocationPickerOpen = ref(false)
+const editingActivity = ref(null)
+const isTransportModalOpen = ref(false)
+const transportTargetIndex = ref(-1)
+const transportMode = ref('DRIVING') // DRIVING, WALKING, BICYCLING, TRANSIT
+
+const openLocationPicker = (activity) => {
+  editingActivity.value = activity
+  isLocationPickerOpen.value = true
+}
+
+const handleLocationSelect = (location) => {
+  if (editingActivity.value) {
+    editingActivity.value.location = location
+    // 如果標題是空的，自動填入地點名稱
+    if (!editingActivity.value.title) {
+        editingActivity.value.title = location.name
+    }
+  }
+}
+
+const openTransportModal = (index) => {
+  transportTargetIndex.value = index
+  isTransportModalOpen.value = true
+}
+
+const insertTransportActivity = async () => {
+  if (transportTargetIndex.value === -1) return
+
+  const index = transportTargetIndex.value
+  const origin = currentDay.value.activities[index].location
+  const destination = currentDay.value.activities[index + 1].location
+
+  if (!origin || !destination) return
+
+  // 計算路線
+  const result = await getDirections(origin, destination, transportMode.value)
+
+  // 計算新活動的開始時間（上一個活動時間 + 10分鐘緩衝 或者直接用上一個）
+  // 這裡簡單起見，直接使用上一個活動時間，讓使用者自己調整，或是我們也可以自動設為上一個時間
+  const prevTime = currentDay.value.activities[index].time || '09:00'
+
+  let title = '移動'
+  if (transportMode.value === 'DRIVING') title = '開車'
+  else if (transportMode.value === 'WALKING') title = '步行'
+  else if (transportMode.value === 'BICYCLING') title = '騎自行車'
+  else if (transportMode.value === 'TRANSIT') title = '搭乘大眾運輸'
+
+  const durationText = result ? result.text : '未知時間'
+
+
+  // 建立新活動
+  const newActivity = {
+    id: Date.now(),
+    time: prevTime,
+    title: title,
+    desc: `預估時間：${durationText}`,
+    icon: 'car', // 可以根據模式換 icon
+    isOpen: true,
+    prevTime: prevTime,
+    location: null // 交通行程本身通常不需要地點，或是可以設為目的地
+  }
+
+  // 插入到兩個活動之間
+  currentDay.value.activities.splice(index + 1, 0, newActivity)
+
+  isTransportModalOpen.value = false
+}
+
+const getDirections = async (origin, destination, mode) => {
+  const loader = new Loader({
+    apiKey: 'AIzaSyAiTPzHinwP8YKKbgyJs426B05In-cJBPs',
+    version: 'weekly',
+  })
+
+  try {
+    const google = await loader.load()
+    const service = new google.maps.DirectionsService()
+
+    const request = {
+      origin: { lat: origin.lat, lng: origin.lng },
+      destination: { lat: destination.lat, lng: destination.lng },
+      travelMode: google.maps.TravelMode[mode],
+    }
+
+    return new Promise((resolve) => {
+      service.route(request, (result, status) => {
+        if (status === 'OK' && result.routes[0] && result.routes[0].legs[0]) {
+          const leg = result.routes[0].legs[0]
+          resolve(leg.duration) // { text: "10 mins", value: 600 }
+        } else {
+          console.error('Directions request failed due to ' + status)
+          resolve(null)
+        }
+      })
+    })
+  } catch (error) {
+    console.error('Google Maps Load Error', error)
+    return null
+  }
 }
 
 const removeActivity = (activityIndex) => currentDay.value.activities.splice(activityIndex, 1)
@@ -985,6 +1091,7 @@ const executeSubmit = async () => {
                 time: act.time || '',
                 title: (act.title || '').trim(),
                 desc: (act.desc || '').trim(),
+                location: act.location || null, // 新增地點
               })),
             })),
           }
@@ -1470,7 +1577,9 @@ const jumpToStep = (targetStep) => {
                 @end="handleDragEnd"
               >
                 <template #item="{ element: activity, index: actIndex }">
-                  <div class="relative flex items-start gap-4 group">
+
+                  <div class="activity-wrapper">
+                    <div class="relative flex items-start gap-4 group">
                     <!-- 左側：獨立時間軸 (絕對定位負值，移至卡片左側空白處) -->
                     <div class="absolute -left-[7rem] mt-0 text-right w-24 flex flex-col items-end z-10">
                       <!-- 使用 Ant Design TimePicker 取代原生 input，支援 24h 與驗證邏輯 -->
@@ -1536,6 +1645,15 @@ const jumpToStep = (targetStep) => {
                                 </p>
                               </div>
 
+                                <!-- 地點選擇按鈕 -->
+                                <button
+                                  class="mt-1 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition"
+                                  title="選擇地點"
+                                  @click="openLocationPicker(activity)"
+                                >
+                                  <MapPinIcon class="w-4 h-4" :class="{ 'text-primary-600 fill-primary-100': activity.location }" />
+                                </button>
+
                                <!-- 刪除按鈕 -->
                                <button
                                   class="text-gray-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
@@ -1545,6 +1663,14 @@ const jumpToStep = (targetStep) => {
                                 >
                                   <TrashIcon class="w-4 h-4" />
                                 </button>
+                           </div>
+
+                           <div class="flex items-start gap-2">
+                                <!-- 地點顯示 (如果有) -->
+                                <div v-if="activity.location" class="text-xs text-primary-600 font-bold bg-primary-50 px-2 py-0.5 rounded flex items-center gap-1 mb-1">
+                                    <MapPinIcon class="w-3 h-3" />
+                                    {{ activity.location.name }}
+                                </div>
                            </div>
 
                             <!-- 描述輸入 -->
@@ -1582,6 +1708,24 @@ const jumpToStep = (targetStep) => {
                          </div>
                       </div>
                     </div>
+                  </div>
+
+                  <!-- 交通按鈕：如果這一個和下一個都有地點，顯示按鈕 -->
+                   <div
+                      v-if="actIndex < currentDay.activities.length - 1 &&
+                            activity.location &&
+                            currentDay.activities[actIndex + 1].location"
+                      class="flex justify-center -my-3 relative z-20"
+                    >
+                      <button
+                        class="bg-white border text-primary-600 border-primary-200 hover:bg-primary-50 hover:border-primary-300 rounded-full px-3 py-1 text-xs font-bold shadow-sm flex items-center gap-1 transition"
+                        @click="openTransportModal(actIndex)"
+                      >
+                        <CarIcon class="w-3 h-3" />
+                        新增交通
+                      </button>
+                    </div>
+
                   </div>
                 </template>
               </Draggable>
@@ -2003,6 +2147,55 @@ const jumpToStep = (targetStep) => {
           </div>
         </div>
       </div>
+
+    <!-- 地點選擇彈窗 -->
+    <LocationPickerModal
+      :is-open="isLocationPickerOpen"
+      :initial-location="editingActivity?.location"
+      @close="isLocationPickerOpen = false"
+      @select="handleLocationSelect"
+    />
+
+    <!-- 交通方式選擇彈窗 -->
+    <div v-if="isTransportModalOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 animate-fade-in">
+       <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+          <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <CarIcon class="w-5 h-5 text-primary-600" />
+            選擇交通方式
+          </h3>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+              <button
+                v-for="mode in [
+                  { id: 'DRIVING', label: '開車', icon: CarIcon },
+                  { id: 'TRANSIT', label: '大眾運輸', icon: TrainIcon },
+                  { id: 'WALKING', label: '步行', icon: WalkIcon },
+                  { id: 'BICYCLING', label: '騎車', icon: BikeIcon }
+                ]"
+                :key="mode.id"
+                class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition"
+                :class="transportMode === mode.id ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-100 hover:border-gray-300 text-gray-600'"
+                @click="transportMode = mode.id"
+              >
+                  <component :is="mode.icon" class="w-6 h-6" />
+                  <span class="font-bold text-sm">{{ mode.label }}</span>
+              </button>
+          </div>
+          <div class="flex items-center gap-3">
+              <button
+                class="flex-1 py-2 rounded-xl text-gray-500 font-bold hover:bg-gray-100 transition"
+                @click="isTransportModalOpen = false"
+              >
+                取消
+              </button>
+              <button
+                class="flex-1 py-2 rounded-xl bg-primary-600 text-white font-bold hover:bg-primary-700 transition shadow-lg shadow-primary-200"
+                @click="insertTransportActivity"
+              >
+                確定新增
+              </button>
+          </div>
+       </div>
+    </div>
 
       <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
         <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
