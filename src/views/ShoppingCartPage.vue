@@ -6,28 +6,25 @@ import { computed, onMounted, ref } from 'vue'
 import { ShoppingCart as ShoppingCartIcon } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
-onMounted(() => {
-  if (!checkoutStore.tourGroups.length) {
-    checkoutStore.loadCartFromDb()
-  }
-})
-
 const router = useRouter()
+
+onMounted(() => {
+  // ✅ 購物車永遠以後端為準：每次進來都抓一次
+  checkoutStore.loadCartFromDb()
+})
 
 const tourGroups = computed(() => checkoutStore.tourGroups)
 
 const selectedTourId = computed({
   get: () => checkoutStore.selectedCartTourId,
-  set: (val) => (checkoutStore.selectedCartTourId = val),
+  set: (val) => (checkoutStore.selectedCartTourId = Number(val)),
 })
 
-// 選擇的項目本身
+// 選擇的項目本身（從後端資料合併後的 tourGroups 找）
 const selectedTour = computed(() => checkoutStore.cartSelectedTour)
 
-// 結算總金額
+// 結算總金額（也是從後端 tourGroups 算）
 const totalPrice = computed(() => checkoutStore.cartTotalPrice)
-
-// 購物車是否為空
 
 const isCartLoading = computed(() => checkoutStore.isCartLoading)
 const showCartList = computed(() => checkoutStore.tourGroups.length > 0)
@@ -39,7 +36,7 @@ const toggleTestButtons = () => {
   showTestButtons.value = !showTestButtons.value
 }
 
-// 增加/減少人數
+// 增加/減少人數（store 內會 debounce 同步回後端）
 function increasePersons(tour) {
   checkoutStore.increasePersons(tour.id)
 }
@@ -47,31 +44,29 @@ function decreasePersons(tour) {
   checkoutStore.decreasePersons(tour.id)
 }
 
-// 刪除購物車項目
+// 刪除購物車項目（store 內會呼叫後端）
 function removeTour(id) {
   checkoutStore.removeTour(id)
 }
 
-// 去結帳
+// 去結帳：只帶 itineraryId，不要再寫 selectedTour
 const goCheckout = async () => {
-  // 確保購物車資料存在
+  // 確保資料已載入
   if (!checkoutStore.tourGroups.length) {
     await checkoutStore.loadCartFromDb()
   }
 
-  // 把選中的商品放進 store（後面 Step1~5 都靠它）
   const selected = checkoutStore.cartSelectedTour
   if (!selected) {
-    // 沒選到就退回（或提示）
     alert('請先選擇一個要結帳的行程！')
     return
   }
-  checkoutStore.selectedTour = { ...selected } // 建議拷貝
 
-  router.push('/checkout/step1')
+  // 只把「選到哪個 itinerary」交給後續步驟
+  router.push(`/checkout/step1?itineraryId=${selected.id}`)
 }
 
-//去精選行程頁
+// 去精選行程頁
 function goToFeatured() {
   router.push('/featured-itinerary')
 }

@@ -1,15 +1,35 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import MainButton from './MainButton.vue'
 import SubButton from './SubButton.vue'
 import { checkoutStore } from '@/stores/checkout'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+
 const router = useRouter()
+const route = useRoute()
 
 const formRef = ref(null)
 
 const phoneError = ref('')
 const emergencyPhoneError = ref('')
+
+onMounted(async () => {
+  // 允許從 query 延續 itineraryId（避免使用者直接進 step2 或 refresh）
+  const itineraryId = Number(route.query.itineraryId)
+  if (Number.isFinite(itineraryId) && itineraryId > 0) {
+    checkoutStore.selectedCartTourId = itineraryId
+  }
+
+  // 後端為準：確保 cart 資料存在
+  if (!checkoutStore.tourGroups.length) {
+    await checkoutStore.loadCartFromDb()
+  }
+
+  // 沒選到商品就退回購物車
+  if (!checkoutStore.cartSelectedTour) {
+    router.replace('/cart')
+  }
+})
 
 function clearPhoneError() {
   phoneError.value = ''
@@ -22,7 +42,6 @@ function clearEmergencyPhoneError() {
 function isValidPhone(phone) {
   if (!phone) return false
   const s = String(phone).trim()
-  // Accept formats: 09XXXXXXXX or 09XX-XXX-XXX
   const rePlain = /^09\d{8}$/
   const reHyphen = /^09\d{2}-\d{3}-\d{3}$/
   return rePlain.test(s) || reHyphen.test(s)
@@ -34,7 +53,6 @@ function onSubmit() {
     return
   }
 
-  // 電話格式驗證
   const contactPhone = checkoutStore.contact.phone
   const emergencyPhone = checkoutStore.emergencyContact.phone
 
@@ -43,20 +61,25 @@ function onSubmit() {
   if (!isValidPhone(contactPhone)) {
     phoneError.value = '請輸入正確手機號碼，格式例如 0987-654-321 或 0987654321'
     valid = false
+  } else {
+    phoneError.value = ''
   }
 
   if (!isValidPhone(emergencyPhone)) {
     emergencyPhoneError.value = '請輸入正確手機號碼，格式例如 0987-654-321 或 0987654321'
     valid = false
+  } else {
+    emergencyPhoneError.value = ''
   }
 
   if (!valid) return
 
-  router.push('/checkout/step3')
+  // ✅ 帶 itineraryId 延續到 step3（避免 refresh 丟掉）
+  router.push(`/checkout/step3?itineraryId=${checkoutStore.selectedCartTourId}`)
 }
 
 function backStep() {
-  router.push('/checkout/step1')
+  router.push(`/checkout/step1?itineraryId=${checkoutStore.selectedCartTourId || ''}`)
 }
 </script>
 

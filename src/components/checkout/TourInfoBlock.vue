@@ -2,22 +2,31 @@
 import { computed } from 'vue'
 import { checkoutStore } from '@/stores/checkout'
 
-// 新增：允許外部傳 tour / price
+// 允許外部傳 tour / price（Step4/Step5 很適合直接傳後端資料）
 const props = defineProps({
   tour: { type: Object, default: null },
   price: { type: [Number, String], default: null },
 })
 
-// tour：先用 props.tour，沒有才回退到 store
-const tour = computed(
-  () => props.tour ?? checkoutStore.selectedTour ?? checkoutStore.lastOrder?.tour ?? null,
-)
+// tour：props > cartSelectedTour（後端 cart 合併資料）> lastOrder.tour（舊相容）
+const tour = computed(() => {
+  return props.tour ?? checkoutStore.cartSelectedTour ?? checkoutStore.lastOrder?.tour ?? null
+})
 
-// displayPrice：先用 props.price，沒有才回退舊邏輯
+// price：props > 以 tour.price * persons 算（或直接用 store cartTotalPrice）> 0
 const displayPrice = computed(() => {
   if (props.price != null) return Number(props.price) || 0
-  if (checkoutStore.selectedTour) return checkoutStore.cartTotalPrice
-  return Number(checkoutStore.lastOrder?.cartTotalPrice ?? 0)
+
+  const t = tour.value
+  if (!t) return 0
+
+  // 如果 tour 本身有 price/persons，就直接算（最不依賴 store）
+  const p = Number(t.price ?? 0)
+  const n = Number(t.persons ?? 1)
+  if (p && n) return p * n
+
+  // 最後才退回 store 的 cartTotalPrice（適用於 Step1~3）
+  return Number(checkoutStore.cartTotalPrice ?? 0)
 })
 </script>
 

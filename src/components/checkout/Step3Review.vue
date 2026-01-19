@@ -1,17 +1,32 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import MainButton from './MainButton.vue'
 import SubButton from './SubButton.vue'
 import TourInfoBlock from './TourInfoBlock.vue'
 import { checkoutStore } from '@/stores/checkout'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const submitting = ref(false)
 
 const agree = computed({
   get: () => checkoutStore.agree,
   set: (v) => (checkoutStore.agree = v),
+})
+
+// ✅ 進 step3 時也確保購物車資料存在（後端為準）
+// 並支援 itineraryId query（防止 refresh/直連丟狀態）
+onMounted(async () => {
+  const itineraryId = Number(route.query.itineraryId)
+
+  if (!checkoutStore.tourGroups.length) {
+    await checkoutStore.loadCartFromDb()
+  }
+
+  if (Number.isFinite(itineraryId) && itineraryId > 0) {
+    checkoutStore.selectedCartTourId = itineraryId
+  }
 })
 
 async function nextStep() {
@@ -20,7 +35,8 @@ async function nextStep() {
     return
   }
 
-  const tour = checkoutStore.selectedTour
+  // ✅ 後端為準：用 cartSelectedTour（不要用 selectedTour 相容層）
+  const tour = checkoutStore.cartSelectedTour
   if (!tour) {
     window.alert('找不到要結帳的行程，請回購物車重新選擇')
     router.replace('/cart')
@@ -29,6 +45,11 @@ async function nextStep() {
 
   submitting.value = true
   try {
+    // 若 store 有 debounce 同步人數，先 flush（可選但建議）
+    if (typeof checkoutStore.flushPersonsSync === 'function') {
+      await checkoutStore.flushPersonsSync()
+    }
+
     const orderId = await checkoutStore.createOrderFromSelectedCart()
     router.push(`/checkout/step4?orderId=${orderId}`)
   } catch (e) {
@@ -40,7 +61,7 @@ async function nextStep() {
 }
 
 function backStep() {
-  router.push('/checkout/step2')
+  router.push(`/checkout/step2?itineraryId=${checkoutStore.selectedCartTourId || ''}`)
 }
 </script>
 
