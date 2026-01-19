@@ -17,21 +17,20 @@ const itinerary = ref(null)
 const payment = ref(null)
 
 const paymentMethodText = computed(() => {
-  // 付款方式顯示：仍可用 store（或改用 payment/provider）
-  const method = checkoutStore.paymentMethod
+  // 先以後端回來的 payment 為準
+  const method = payment.value?.method || payment.value?.provider || checkoutStore.paymentMethod
+
   switch (method) {
+    case 'linepay':
+      return 'LINE Pay'
     case 'credit':
       return '信用卡'
     case 'mobile':
-      return checkoutStore.mobileProvider === 'apple'
-        ? '行動支付（Apple Pay）'
-        : checkoutStore.mobileProvider === 'google'
-          ? '行動支付（Google Pay）'
-          : checkoutStore.mobileProvider === 'line'
-            ? '行動支付（LINE Pay）'
-            : '行動支付'
+      return '行動支付'
     case 'bank':
       return '銀行轉帳'
+    case 'mock':
+      return '模擬付款'
     default:
       return '未選擇'
   }
@@ -133,7 +132,7 @@ function goHome() {
 
       <div>
         <p class="text-gray-500 text-lg">付款狀態</p>
-        <p>{{ payment?.status || order?.status }}</p>
+        <p>{{ payment?.status ?? order?.status ?? 'UNKNOWN' }}</p>
       </div>
     </div>
 
