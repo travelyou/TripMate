@@ -3,8 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { checkoutStore } from '@/stores/checkout'
 import MainButton from './MainButton.vue'
-import axios from 'axios'
-import { API_BASE_URL } from '@/api/config'
 
 const router = useRouter()
 const route = useRoute()
@@ -21,19 +19,8 @@ onMounted(async () => {
   orderLoading.value = true
   orderError.value = ''
   try {
-    const { data } = await axios.get(`${API_BASE_URL}/orders/${orderId.value}`)
-    if (!data?.ok) throw new Error(data?.message || '讀取訂單失敗')
-
-    // 後端訂單金額（不會因 cart 被清掉而變 0）
-    payableAmount.value = Number(data.order?.amount ?? 0)
-
-    // （可選）順便把 store 的 lastOrder 補齊，方便其他步驟用
-    checkoutStore.lastOrder = {
-      id: data.order.id,
-      orderNo: data.order.orderNo,
-      amount: Number(data.order.amount ?? 0),
-      status: data.order.status,
-    }
+    const data = await checkoutStore.fetchOrderDetail(orderId.value)
+    payableAmount.value = Number(data?.order?.amount ?? 0)
   } catch (e) {
     orderError.value = e?.message || '讀取訂單失敗'
     payableAmount.value = 0
@@ -177,64 +164,37 @@ function validateCreditForm() {
 // 付款流程
 // =====================
 const confirmPayment = async () => {
-  if (!orderId.value) {
-    alert('找不到訂單編號 orderId')
-    return
-  }
-  if (!paymentMethod.value) {
-    alert('請選擇付款方式')
-    return
-  }
-  if (paymentMethod.value === 'mobile' && !mobileProvider.value) {
-    alert('請選擇行動支付方式')
-    return
-  }
-  if (!providerKey.value) {
-    alert('付款方式設定錯誤（providerKey 空值）')
-    return
-  }
+  if (!orderId.value) return alert('找不到訂單編號 orderId')
+  if (!paymentMethod.value) return alert('請選擇付款方式')
+  if (paymentMethod.value === 'mobile' && !mobileProvider.value) return alert('請選擇行動支付方式')
+  if (!providerKey.value) return alert('付款方式設定錯誤（providerKey 空值）')
 
-  // （可選）若是信用卡，先驗證欄位
   if (paymentMethod.value === 'credit') {
     const ok = validateCreditForm()
     if (!ok) return
   }
 
   try {
-    // 1) 建立付款（後端用 paymentMethod/providerKey 來分流：mock 或 linepay）
-    const createRes = await axios.post(`${API_BASE_URL}/payments/create`, {
+    const { paymentId, paymentUrl } = await checkoutStore.createPayment({
       orderId: orderId.value,
-      paymentMethod: providerKey.value, // 永遠送 providerKey（例如 linepay）
-      // 你若想保留 UI 原始選擇，後端除錯可用：
-      // uiPaymentMethod: paymentMethod.value,
-      // uiMobileProvider: mobileProvider.value,
+      paymentMethod: providerKey.value,
     })
 
-    if (!createRes.data?.ok) throw new Error(createRes.data?.message || '建立付款失敗')
-
-    const { paymentId, paymentUrl } = createRes.data || {}
-    if (!paymentId) throw new Error('缺少 paymentId')
-
-    // 2) 需要跳第三方付款頁（LINE Pay 等）：直接 redirect
     if (shouldRedirect.value) {
       if (!paymentUrl) throw new Error('缺少 paymentUrl')
       window.location.href = paymentUrl
       return
     }
 
-    // 3) 其他方式：先用 mock-pay 測試（之後真的串卡/轉帳再換成對應流程）
-    const payRes = await axios.get(`${API_BASE_URL}/payments/mock-pay`, {
-      params: { paymentId },
-    })
-
-    if (!payRes.data?.ok) throw new Error(payRes.data?.message || '付款失敗')
-
+    // 非 redirect 的方式（先走 mock）
+    await checkoutStore.mockPay(paymentId)
     router.push(`/checkout/step5?orderId=${orderId.value}`)
   } catch (err) {
     console.error(err)
     alert(err?.message || '付款失敗')
   }
 }
+
 </script>
 
 <template>
