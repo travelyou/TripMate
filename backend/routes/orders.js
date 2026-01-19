@@ -300,7 +300,12 @@ router.get('/:id', async (req, res) => {
       `SELECT id, provider, method, amount, status, created_at
       FROM commerce.payments
       WHERE order_id = $1
-      ORDER BY created_at DESC
+      ORDER BY
+        CASE status
+          WHEN 'PAID' THEN 1
+          ELSE 2
+        END,
+        created_at DESC
       LIMIT 1`,
       [id],
     )

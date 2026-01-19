@@ -370,17 +370,23 @@ router.get('/linepay/confirm', async (req, res) => {
     // 更新 payment + order
     await client.query(
       `UPDATE commerce.payments
-    SET status = 'PAID'
+    SET status = 'PAID',
+        provider = 'linepay',
+        method = 'linepay',
+        updated_at = NOW()
     WHERE id = $1`,
       [paymentId],
     )
 
     await client.query(
       `UPDATE commerce.orders
-    SET status = 'PAID'
+    SET status = 'PAID',
+        updated_at = NOW()
     WHERE id = $1`,
       [pay.orderId],
     )
+
+    await client.query('COMMIT')
 
     // 導回前端 Step5
     return res.redirect(
