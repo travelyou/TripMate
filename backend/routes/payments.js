@@ -316,6 +316,17 @@ router.get('/mock-pay', async (req, res) => {
   }
 })
 
+/**
+ * GET /api/payments/linepay/confirm?orderId=xxx&paymentId=yyy
+ * 使用者從 LINE Pay 付款頁面完成付款後會被導回這裡
+ *
+ * 這裡會：
+ * 1) 呼叫 LINE Pay confirm API
+ * 2) 把 commerce.payments 改成 PAID
+ * 3) 把 commerce.orders.status 改成 PAID
+ * 4) 導回前端 Step5
+ */
+
 router.get('/linepay/confirm', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -381,6 +392,14 @@ router.get('/linepay/confirm', async (req, res) => {
     client.release()
   }
 })
+
+/**
+ * GET /api/payments/linepay/cancel?orderId=xxx&paymentId=yyy
+ * 使用者從 LINE Pay 付款頁面取消付款會被導回這裡
+ *
+ * 這裡會：
+ * 1) 導回前端 Step4
+ */
 
 router.get('/linepay/cancel', async (req, res) => {
   const { orderId } = req.query || {}
