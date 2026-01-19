@@ -322,6 +322,20 @@ const handleAddFriend = async () => {
   }
 }
 
+const handleAddFriend = () => {
+  const targetUserId = route.params.uid || user.value.uid
+  console.log('發送好友請求至:', targetUserId)
+  // TODO: 呼叫 API 或 Store action
+  alert('好友請求已發送！')
+}
+
+const handleChatWithUser = () => {
+  const targetUserId = route.params.uid || user.value.uid
+  console.log('開始與使用者聊天:', targetUserId)
+  // TODO: 導向聊天頁面
+  alert('聊天功能開發中，即將導向聊天頁面')
+}
+
 const openDetail = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
