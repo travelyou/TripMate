@@ -11,8 +11,8 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const error = ref(null)
   const userInfoCache = new Map()
 
-
-  // 格式化時間
+  // (中間的輔助函式 formatTime, formatComments, transformPost... 保持不變，省略以節省空間)
+  // ...
   const formatTime = (timestamp) => {
     if (!timestamp) return '剛剛'
     const now = new Date()
@@ -28,7 +28,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     return '剛剛'
   }
 
-  // 格式化留言數據
   const formatComments = (comments) => {
     if (!Array.isArray(comments)) return []
     return comments.map((comment) => ({
@@ -47,7 +46,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }))
   }
 
-  // 將後端數據格式轉換為前端格式
   const transformPost = (post) => {
     return {
       id: post.id,
@@ -59,9 +57,9 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       time: formatTime(post.created_at),
       title: post.title,
       content: post.content,
-      image: post.banner || null, // 主要展示圖片（banner）
-      banner: post.banner || null, // 封面圖
-      image_urls: post.image_urls || [], // 內文圖片陣列
+      image: post.banner || null,
+      banner: post.banner || null,
+      image_urls: post.image_urls || [],
       likes: post.likes_count || post.likes || 0,
       comments:
         post.comments_count || post.comments || (post.commentsData ? post.commentsData.length : 0),
@@ -74,7 +72,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // 從 Firestore 獲取用戶資訊
   const getUserInfoFromFirestore = async (uid) => {
     if (!uid) return null
     if (userInfoCache.has(uid)) return userInfoCache.get(uid)
@@ -93,7 +90,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     return null
   }
 
-  // 批量獲取用戶資訊並更新貼文
   const enrichPostsWithUserInfo = async (posts) => {
     const uniqueUids = [...new Set(posts.map((p) => p.author_uid).filter(Boolean))]
 
@@ -118,12 +114,15 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     })
   }
 
-  // 獲取所有貼文
-  const loadDiscussions = async (page = 1, limit = 10, category = null) => {
+  // ★ 修改：接收 params 物件
+  // 舊寫法: const loadDiscussions = async (page = 1, limit = 10, category = null) => {
+  const loadDiscussions = async (params = {}) => {
     loading.value = true
     error.value = null
     try {
-      const data = await fetchPosts(page, limit, category)
+      // 直接把 params 傳給 API (params 包含 { page, limit, category })
+      const data = await fetchPosts(params)
+
       discussions.value = data.posts.map(transformPost)
       enrichPostsWithUserInfo(data.posts)
         .then((enrichedPosts) => {
@@ -142,14 +141,13 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // 獲取單個貼文詳情
+  // (其餘 Actions 保持不變)
   const loadPostById = async (id) => {
     loading.value = true
     error.value = null
     try {
       const post = await fetchPostById(id)
 
-      // 從 Firestore 獲取貼文作者資訊
       if (post.author_uid) {
         const userInfo = await getUserInfoFromFirestore(post.author_uid)
         if (userInfo) {
@@ -159,7 +157,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
         }
       }
 
-      // 從 Firestore 獲取留言作者資訊
       if (post.commentsData && Array.isArray(post.commentsData)) {
         const commentUids = [...new Set(post.commentsData.map((c) => c.author_uid).filter(Boolean))]
         const commentUserInfoMap = {}
@@ -190,12 +187,10 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // 創建新貼文
   const addPost = async (postData) => {
     try {
       const newPost = await createPost(postData)
 
-      // 從 Firestore 獲取作者資訊
       if (newPost.author_uid) {
         const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
         if (userInfo) {
@@ -214,7 +209,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // 更新貼文
   const editPost = async (id, postData) => {
     try {
       const updatedPost = await updatePost(id, postData)
@@ -230,7 +224,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // 刪除貼文
   const removePost = async (id) => {
     try {
       await deletePost(id)

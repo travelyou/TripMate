@@ -345,6 +345,9 @@ onMounted(async () => {
                   </div>
                   <div class="text-sm text-secondary-500">
                     發布於 {{ localTravelerData.created_at || '最近' }}
+                    <span v-if="localTravelerData.category" class="ml-2 text-primary-600 font-bold">
+                      @ {{ localTravelerData.category }}</span
+                    >
                   </div>
                 </div>
               </div>
@@ -663,7 +666,8 @@ onMounted(async () => {
             placeholder="發表你的看法..."
             class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
             @keyup.enter="submitComment"
-          /><button
+          />
+          <button
             :disabled="!newComment.trim()"
             class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
             @click="submitComment"

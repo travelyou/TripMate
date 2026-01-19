@@ -54,7 +54,7 @@ const myItineraryStore = useMyItineraryStore()
 const currentStep = ref('basic')
 const formError = ref('')
 const fieldErrors = ref({
-  category: '', // ★ 新增錯誤欄位
+  category: '',
   title: '',
   content: '',
   max_people: '',
@@ -70,7 +70,6 @@ const fieldErrors = ref({
 const previewActiveTab = ref('itinerary')
 const CHARACTER_LIMIT = 100000
 
-// ★ 新增：找旅伴的分類選項
 const categories = [
   '國內旅遊',
   '日韓旅遊',
@@ -82,7 +81,6 @@ const categories = [
   '其他',
 ]
 
-// --- Banner 位置調整邏輯 ---
 const bannerPositionY = ref(50)
 const isDraggingBanner = ref(false)
 const dragStartY = ref(0)
@@ -132,7 +130,7 @@ const setColor = (color) => {
 }
 
 const postData = ref({
-  category: '', // ★ 新增分類欄位
+  category: '',
   title: '',
   content: '',
   location: '',
@@ -180,17 +178,108 @@ const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, date: '', activities: [] }
 })
 
-// --- [Tiptap] 換行邏輯 ---
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
   addPriority: 1000,
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
+        try {
+          if (!editor || !editor.state || !editor.view) {
+            return false
+          }
+
+          const { state } = editor
+          const { selection } = state
+
+          const docSize = state.doc.content.size
+          if (selection.$from.pos < 0 || selection.$from.pos > docSize) {
+            return false
+          }
+
+          if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
+            return false
+          }
+
+          if (editor.isActive('heading', { level: 2 })) {
+            if (!editor.can().splitBlock()) {
+              return false
+            }
+            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
+            if (splitSuccess) {
+              requestAnimationFrame(() => {
+                try {
+                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
+                    const newState = editor.state
+                    const newSelection = newState.selection(
+                      newSelection.$from.pos >= 0 &&
+                        newSelection.$from.pos <= newState.doc.content.size &&
+                        editor.can().setHeading({ level: 2 }),
+                    )
+                  }
+                } catch {}
+              })
+            }
+            return splitSuccess
+          }
+
+          if (editor.isActive('heading', { level: 3 })) {
+            if (!editor.can().splitBlock()) {
+              return false
+            }
+            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
+            if (splitSuccess) {
+              requestAnimationFrame(() => {
+                try {
+                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
+                    const newState = editor.state
+                    const newSelection = newState.selection(
+                      newSelection.$from.pos >= 0 &&
+                        newSelection.$from.pos <= newState.doc.content.size &&
+                        editor.can().setHeading({ level: 3 }),
+                    )
+                  }
+                } catch {}
+              })
+            }
+            return splitSuccess
+          }
+
+          if (!editor.can().splitBlock()) {
+            return false
+          }
+
+          try {
+            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
+            if (splitSuccess) {
+              requestAnimationFrame(() => {
+                try {
+                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
+                    const currentState = editor.state
+                    const currentSelection = currentState.selection
+                    const currentDocSize = currentState.doc.content.size
+
+                    if (
+                      currentSelection.$from.pos >= 0 &&
+                      currentSelection.$from.pos <= currentDocSize &&
+                      currentSelection.$from.pos === currentSelection.$to.pos &&
+                      editor.can().unsetAllMarks()
+                    ) {
+                      editor.chain().focus().unsetAllMarks().run()
+                    }
+                  }
+                } catch {}
+              })
+            }
+            return splitSuccess
+          } catch (error) {
+            console.error('[發文編輯器的] 普通段落 Enter 鍵出錯了:', error)
+            return false
+          }
+        } catch (error) {
+          console.error('[發文編輯器的] Enter 鍵出錯了:', error)
           return false
         }
-        return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
       },
     }
   },

@@ -1,5 +1,3 @@
-/* eslint-env node */
-/* global require, module */
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
@@ -15,6 +13,7 @@ router.get('/', async (req, res) => {
         title,
         content,
         location,
+        category,
         status,
         tags,
         start_date,
@@ -65,38 +64,48 @@ router.get('/', async (req, res) => {
       const endDate = new Date(row.end_date)
       const dateStr =
         row.start_date === row.end_date
-          ? startDate.toLocaleDateString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).replace(/\//g, '/')
-          : `${startDate.toLocaleDateString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).replace(/\//g, '/')} - ${endDate.toLocaleDateString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).replace(/\//g, '/')}`
+          ? startDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')
+          : `${startDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')} - ${endDate
+              .toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+              .replace(/\//g, '/')}`
 
       const now = new Date()
       const created = new Date(row.created_at)
       const diffSeconds = Math.floor((now - created) / 1000)
-      const timeStr = diffSeconds < 600 ? '剛剛' : created.toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      })
+      const timeStr =
+        diffSeconds < 600
+          ? '剛剛'
+          : created.toLocaleString('zh-TW', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
 
       return {
         id: row.id,
         title: row.title,
         content: row.content,
         location: row.location,
+        category: row.category,
         status: row.status,
         tags: row.tags,
         date: dateStr,
@@ -121,19 +130,10 @@ router.get('/', async (req, res) => {
     })
   } catch (error) {
     console.error('獲取旅伴列表錯誤：', error)
-    console.error('錯誤代碼:', error.code)
-    console.error('錯誤位置:', error.position)
-    console.error('錯誤詳情:', error.detail)
-    console.error('錯誤提示:', error.hint)
-
     res.status(500).json({
       success: false,
       message: '獲取旅伴列表失敗',
       error: error.message,
-      code: error.code,
-      position: error.position,
-      detail: error.detail,
-      hint: error.hint,
     })
   }
 })
@@ -153,7 +153,7 @@ router.post('/:id/view', async (req, res) => {
 
     const updateResult = await pool.query(
       'UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL',
-      [idNum]
+      [idNum],
     )
 
     if (updateResult.rowCount === 0) {
@@ -199,6 +199,7 @@ router.get('/:id', async (req, res) => {
         title,
         content,
         location,
+        category,
         status,
         tags,
         CASE
@@ -211,6 +212,7 @@ router.get('/:id', async (req, res) => {
         END AS "created_at",
         current_people::text || '/' || max_people::text AS "people",
         banner_image AS "image",
+        banner_position_y,
         author_uid,
         author_name AS "author",
         author_avatar AS "avatar",
@@ -267,7 +269,10 @@ router.get('/:id', async (req, res) => {
       isLiked = likeResult.rows.length > 0
     }
 
-    await pool.query('UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL', [idNum])
+    await pool.query(
+      'UPDATE travelers.travelers SET views_count = views_count + 1 WHERE id = $1 AND deleted_at IS NULL',
+      [idNum],
+    )
 
     const fullData = {
       ...traveler,
@@ -313,22 +318,14 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     console.log('[Backend Travelers POST] ========== 開始 ==========')
-    const bodySize = JSON.stringify(req.body).length
-    const bodySizeMB = (bodySize / 1024 / 1024).toFixed(2)
-    console.log('[Backend Travelers POST] Body 大小:', bodySizeMB, 'MB')
-    console.log('[Backend Travelers POST] 收到請求 Body (摘要):', {
-      title: req.body.title,
-      contentLength: req.body.content?.length || 0,
-      itineraryDays: req.body.itinerary?.days?.length || 0,
-      packingListCount: req.body.packingList?.length || 0,
-      tagsCount: req.body.tags?.length || 0,
-    })
 
     const {
       title,
       content,
       banner_image,
+      banner_position_y,
       location,
+      category,
       start_date,
       end_date,
       max_people,
@@ -341,58 +338,34 @@ router.post('/', async (req, res) => {
       packingList,
     } = req.body
 
-    if (!title || !content || !location || !start_date || !end_date || !author_uid) {
+    if (!title || !content || !location || !start_date || !end_date || !author_uid || !category) {
       console.log('[Backend Travelers POST] 缺少必填欄位')
       return res.status(400).json({
         success: false,
         message: '缺少必填欄位',
-        required: ['title', 'content', 'location', 'start_date', 'end_date', 'author_uid'],
-        received: {
-          hasTitle: !!title,
-          hasContent: !!content,
-          hasLocation: !!location,
-          hasStartDate: !!start_date,
-          hasEndDate: !!end_date,
-          hasAuthorUid: !!author_uid,
-        },
       })
     }
-
-    console.log('[Backend Travelers POST] 必填欄位驗證通過')
 
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
-      console.log('[Backend Travelers POST] 開始資料庫事務')
-
-      console.log('[Backend Travelers POST] 準備插入主表')
-      console.log('[Backend Travelers POST] 插入資料:', {
-        title: title?.substring(0, 50),
-        contentLength: content?.length,
-        location,
-        start_date,
-        end_date,
-        max_people,
-        author_uid,
-        tagsCount: Array.isArray(tags) ? tags.length : 0,
-      })
 
       const maxPeopleNum = Number(max_people) || 2
-      if (!Number.isInteger(maxPeopleNum) || maxPeopleNum < 1 || maxPeopleNum > 100) {
-        throw new Error('max_people 必須是 1-100 之間的整數')
-      }
+      const bannerPosYNum = Number(banner_position_y) || 50
 
       const travelerResult = await client.query(
         `INSERT INTO travelers.travelers (
-          title, content, banner_image, location, start_date, end_date,
+          title, content, banner_image, banner_position_y, location, category, start_date, end_date,
           max_people, author_uid, author_name, author_avatar, spirit_animal, tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id`,
         [
           title,
           content,
           banner_image || null,
+          bannerPosYNum,
           location,
+          category,
           start_date,
           end_date,
           maxPeopleNum,
@@ -408,78 +381,35 @@ router.post('/', async (req, res) => {
       console.log('[Backend Travelers POST] 主表插入成功，ID:', travelerId)
 
       if (itinerary && itinerary.days && Array.isArray(itinerary.days)) {
-        if (itinerary.days.length > 365) {
-          throw new Error('行程天數不能超過 365 天')
-        }
-        console.log('[Backend Travelers POST] 插入行程規劃，天數:', itinerary.days.length)
         for (let i = 0; i < itinerary.days.length; i++) {
           const day = itinerary.days[i]
           const dayNumber = Number(day.day || day.day_number)
-          const dayDate = (day.date && day.date.trim() !== '') ? day.date : null
-          const dayActivities = Array.isArray(day.activities) ? JSON.stringify(day.activities) : '[]'
+          const dayDate = day.date && day.date.trim() !== '' ? day.date : null
+          const dayActivities = Array.isArray(day.activities)
+            ? JSON.stringify(day.activities)
+            : '[]'
 
-          console.log(`[Backend Travelers POST] 行程第 ${i + 1} 天:`, {
-            dayNumber,
-            date: dayDate,
-            activitiesCount: Array.isArray(day.activities) ? day.activities.length : 0,
-          })
-
-          if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 365) {
-            throw new Error(`行程第 ${i + 1} 天的天數編號無效: ${day.day || day.day_number}，必須是 1-365 之間的整數`)
-          }
-
-          try {
-            await client.query(
-              `INSERT INTO travelers.traveler_itineraries (traveler_id, day_number, date, activities) VALUES ($1, $2, $3, $4)`,
-              [travelerId, dayNumber, dayDate, dayActivities],
-            )
-          } catch (insertError) {
-            console.error(`[Backend Travelers POST] 插入行程第 ${i + 1} 天失敗:`, {
-              dayNumber,
-              date: dayDate,
-              error: insertError.message,
-              code: insertError.code,
-              detail: insertError.detail,
-            })
-            throw new Error(`插入行程第 ${i + 1} 天失敗: ${insertError.message}`)
-          }
+          await client.query(
+            `INSERT INTO travelers.traveler_itineraries (traveler_id, day_number, date, activities) VALUES ($1, $2, $3, $4)`,
+            [travelerId, dayNumber, dayDate, dayActivities],
+          )
         }
-        console.log('[Backend Travelers POST] 行程規劃插入完成')
       }
 
       if (packingList && Array.isArray(packingList)) {
-        console.log('[Backend Travelers POST] 插入打包清單，項目數:', packingList.length)
         for (let i = 0; i < packingList.length; i++) {
           const pack = packingList[i]
-          const category = (pack.category && pack.category.trim() !== '') ? pack.category.trim() : null
+          const cat = pack.category && pack.category.trim() !== '' ? pack.category.trim() : null
           const items = Array.isArray(pack.items) ? JSON.stringify(pack.items) : '[]'
 
-          console.log(`[Backend Travelers POST] 打包清單第 ${i + 1} 項:`, {
-            category,
-            itemsCount: Array.isArray(pack.items) ? pack.items.length : 0,
-          })
-
-          try {
-            await client.query(
-              `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,
-              [travelerId, category, items],
-            )
-          } catch (insertError) {
-            console.error(`[Backend Travelers POST] 插入打包清單第 ${i + 1} 項失敗:`, {
-              category,
-              error: insertError.message,
-              code: insertError.code,
-              detail: insertError.detail,
-            })
-            throw new Error(`插入打包清單第 ${i + 1} 項失敗: ${insertError.message}`)
-          }
+          await client.query(
+            `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,
+            [travelerId, cat, items],
+          )
         }
-        console.log('[Backend Travelers POST] 打包清單插入完成')
       }
 
       await client.query('COMMIT')
-      console.log('[Backend Travelers POST] 事務提交成功')
-      console.log('[Backend Travelers POST] ========== 完成 ==========')
       res.status(201).json({ success: true, message: '旅伴貼文建立成功', data: { id: travelerId } })
     } catch (error) {
       await client.query('ROLLBACK')
@@ -489,20 +419,11 @@ router.post('/', async (req, res) => {
       client.release()
     }
   } catch (error) {
-    console.error('[Backend Travelers POST] ========== 失敗 ==========')
-    console.error('[Backend Travelers POST] 錯誤類型:', error.name)
-    console.error('[Backend Travelers POST] 錯誤訊息:', error.message)
-    console.error('[Backend Travelers POST] 錯誤代碼:', error.code)
-    console.error('[Backend Travelers POST] 錯誤詳情:', error.detail)
-    console.error('[Backend Travelers POST] 錯誤堆疊:', error.stack)
-    console.error('[Backend Travelers POST] 請求 Body:', JSON.stringify(req.body, null, 2))
-
+    console.error('[Backend Travelers POST] 錯誤:', error)
     res.status(500).json({
       success: false,
       message: '建立旅伴貼文失敗',
       error: error.message,
-      code: error.code,
-      detail: error.detail,
     })
   }
 })
@@ -510,11 +431,14 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
+
     const {
       title,
       content,
       banner_image,
+      banner_position_y,
       location,
+      category,
       start_date,
       end_date,
       current_people,
@@ -543,7 +467,9 @@ router.put('/:id', async (req, res) => {
       addField('title', title)
       addField('content', content)
       addField('banner_image', banner_image)
+      addField('banner_position_y', banner_position_y)
       addField('location', location)
+      addField('category', category)
       addField('start_date', start_date)
       addField('end_date', end_date)
       addField('current_people', current_people)
@@ -564,7 +490,9 @@ router.put('/:id', async (req, res) => {
       }
 
       if (itinerary && itinerary.days) {
-        await client.query('DELETE FROM travelers.traveler_itineraries WHERE traveler_id = $1', [id])
+        await client.query('DELETE FROM travelers.traveler_itineraries WHERE traveler_id = $1', [
+          id,
+        ])
         for (const day of itinerary.days) {
           await client.query(
             `INSERT INTO travelers.traveler_itineraries (traveler_id, day_number, date, activities) VALUES ($1, $2, $3, $4)`,
@@ -574,7 +502,9 @@ router.put('/:id', async (req, res) => {
       }
 
       if (packingList) {
-        await client.query('DELETE FROM travelers.traveler_packing_lists WHERE traveler_id = $1', [id])
+        await client.query('DELETE FROM travelers.traveler_packing_lists WHERE traveler_id = $1', [
+          id,
+        ])
         for (let i = 0; i < packingList.length; i++) {
           await client.query(
             `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,

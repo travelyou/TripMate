@@ -13,9 +13,11 @@ const shouldScrollToComments = ref(false)
 const travelers = ref([])
 const isLoading = ref(false)
 
-const statusOptions = ref(['全部', '招募中', '已額滿'])
-const activeStatus = ref('全部')
+// --- 篩選狀態 ---
+const filterOptions = ref(['全部', '招募中', '已額滿']) // 狀態
+const activeFilter = ref('全部') // 狀態
 
+// ★ 新增：分類篩選
 const categoryOptions = ref([
   '全部',
   '國內旅遊',
@@ -32,7 +34,8 @@ const activeCategory = ref('全部')
 const loadTravelers = async () => {
   isLoading.value = true
   try {
-    // 這裡我們抓取所有資料，然後在前端進行雙重過濾
+    // ★ 修改：抓取所有資料，交由前端 computed 進行篩選
+    // 這樣切換分類時不用重新打 API，體驗較流暢
     const response = await getTravelers({})
     if (response.success) {
       travelers.value = response.data
@@ -48,9 +51,12 @@ const loadTravelers = async () => {
 const filteredTravelers = computed(() => {
   return travelers.value.filter((t) => {
     // 1. 狀態篩選
-    const statusMatch = activeStatus.value === '全部' || t.status === activeStatus.value
-    // 2. 分類篩選
-    const categoryMatch = activeCategory.value === '全部' || t.category === activeCategory.value
+    const statusMatch = activeFilter.value === '全部' || t.status === activeFilter.value
+    // 2. 分類篩選 (相容舊資料：若無分類則視為符合)
+    const categoryMatch =
+      activeCategory.value === '全部' ||
+      t.category === activeCategory.value ||
+      (!t.category && activeCategory.value === '其他') // 沒分類的歸類到其他
 
     return statusMatch && categoryMatch
   })
@@ -68,10 +74,23 @@ const closeTravelerDetail = () => {
   shouldScrollToComments.value = false
 }
 
+// 切換狀態
+const handleFilterChange = (filter) => {
+  activeFilter.value = filter
+  // loadTravelers() // 不需要重抓，computed 會自動處理
+}
+
+// 切換分類
+const handleCategoryChange = (cat) => {
+  activeCategory.value = cat
+}
+
+// 資料更新回調
 const handleTravelerUpdated = () => {
   loadTravelers()
 }
 
+// 發文成功回調
 const handlePostSuccess = () => {
   isPostingModalOpen.value = false
   loadTravelers()
@@ -107,17 +126,17 @@ onMounted(() => {
         <div class="flex flex-wrap gap-2 text-sm border-b border-gray-100 pb-4 mb-2">
           <span class="text-gray-400 font-bold self-center mr-2">狀態：</span>
           <button
-            v-for="status in statusOptions"
-            :key="status"
+            v-for="filter in filterOptions"
+            :key="filter"
             :class="[
               'px-3 py-1 rounded-full font-bold transition border-2',
-              activeStatus === status
+              activeFilter === filter
                 ? 'bg-green-600 text-white border-green-600'
                 : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
-            @click="activeStatus = status"
+            @click="handleFilterChange(filter)"
           >
-            {{ status }}
+            {{ filter }}
           </button>
         </div>
 
@@ -132,7 +151,7 @@ onMounted(() => {
                 ? 'bg-primary text-white border-primary'
                 : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
-            @click="activeCategory = cat"
+            @click="handleCategoryChange(cat)"
           >
             {{ cat }}
           </button>

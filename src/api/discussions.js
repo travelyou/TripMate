@@ -1,12 +1,17 @@
 import { API_BASE_URL } from './config'
 
-// 獲取所有貼文
-export async function fetchPosts(page = 1, limit = 10, category = null) {
+// ★ 修改：接收 params 物件，而不是個別參數
+export async function fetchPosts(params = {}) {
+  // 給予預設值
+  const { page = 1, limit = 10, category = null } = params
+
   console.log('🌐 [API] fetchPosts 開始')
   console.log('📊 [API] 參數:', { page, limit, category })
 
   try {
     let url = `${API_BASE_URL}/discussions?page=${page}&limit=${limit}`
+
+    // 檢查 category 是否有效
     if (category && category !== '全部') {
       url += `&category=${encodeURIComponent(category)}`
     }
@@ -32,7 +37,7 @@ export async function fetchPosts(page = 1, limit = 10, category = null) {
   }
 }
 
-// 獲取單個貼文詳情
+// ... (其他函式 fetchPostById, createPost, updatePost, deletePost 保持不變)
 export async function fetchPostById(id) {
   console.log('🌐 [API] fetchPostById 開始，ID:', id)
 
@@ -56,7 +61,6 @@ export async function fetchPostById(id) {
   }
 }
 
-// 創建新貼文
 export async function createPost(postData) {
   console.log('🌐 [API] ========== createPost 開始 ==========')
   console.log('🌐 [API Step 1] 接收的資料:', {
@@ -87,7 +91,7 @@ export async function createPost(postData) {
 
     console.log('🌐 [API Step 4] 收到回應')
     console.log('📊 [API Response] HTTP 狀態:', response.status, response.statusText)
-    console.log('📊 [API Response] Headers:', Object.fromEntries(response.headers.entries()))
+    // console.log('📊 [API Response] Headers:', Object.fromEntries(response.headers.entries()))
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
@@ -103,7 +107,7 @@ export async function createPost(postData) {
     const data = await response.json()
     console.log('✅ [API Step 5] 回應成功')
     console.log('📊 [API Success] 創建的貼文 ID:', data.id)
-    console.log('📊 [API Success] 完整回應:', data)
+    // console.log('📊 [API Success] 完整回應:', data)
     return data
   } catch (error) {
     console.error('❌ [API] ========== createPost 失敗 ==========')
@@ -119,7 +123,6 @@ export async function createPost(postData) {
   }
 }
 
-// 更新貼文
 export async function updatePost(id, postData) {
   console.log('🌐 [API] updatePost 開始，ID:', id)
 
@@ -150,7 +153,6 @@ export async function updatePost(id, postData) {
   }
 }
 
-// 刪除貼文
 export async function deletePost(id) {
   console.log('🌐 [API] deletePost 開始，ID:', id)
 

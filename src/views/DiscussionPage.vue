@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useUserStore } from '@/stores/user'
@@ -17,16 +17,47 @@ const userStore = useUserStore()
 
 const currentUserUid = ref(null)
 
+// --- 篩選狀態 ---
+// ★ 修改：分類選項需與需求保持一致
+const filterOptions = ref([
+  '全部',
+  '國內旅遊',
+  '亞洲旅遊',
+  '歐美紐澳',
+  '攝影愛好',
+  '交通建議',
+  '美食分享',
+  '住宿推薦',
+  '行程請益',
+  '其他',
+])
+const activeFilter = ref('全部')
+
+// 載入文章 (帶入分類參數)
+const loadDiscussionsData = async () => {
+  try {
+    const params = {}
+    // 如果不是全部，就傳 category 給後端
+    if (activeFilter.value !== '全部') {
+      params.category = activeFilter.value
+    }
+    await discussionsStore.loadDiscussions(params)
+  } catch (error) {
+    console.error('載入貼文失敗：', error)
+  }
+}
+
+// 監聽分類切換 -> 重新載入資料
+watch(activeFilter, () => {
+  loadDiscussionsData()
+})
+
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  if (
-    previousUid !== currentUserUid.value &&
-    currentUserUid.value &&
-    discussionsStore.discussions.length > 0
-  ) {
-    await discussionsStore.loadDiscussions()
+  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+    loadDiscussionsData()
   }
 })
 
@@ -35,17 +66,14 @@ onMounted(async () => {
   if (firebaseUser && !currentUserUid.value) {
     currentUserUid.value = firebaseUser.uid
   }
-  try {
-    await discussionsStore.loadDiscussions()
-  } catch (error) {
-    console.error('載入貼文失敗：', error)
-  }
+  // 初始載入
+  loadDiscussionsData()
 })
 
 // 發文成功後的回調
 const handlePostSuccess = async () => {
   isPostingModalOpen.value = false
-  await discussionsStore.loadDiscussions()
+  loadDiscussionsData()
 }
 
 // --- 模態框狀態管理 ---
@@ -86,28 +114,6 @@ const handleCardLike = (updatedPostInfo) => {
     post.likes = updatedPostInfo.likes
   }
 }
-
-// --- 篩選/搜尋狀態 ---
-const filterOptions = ref([
-  '全部',
-  '國內旅遊',
-  '國外旅遊',
-  '攝影交流',
-  '美食分享',
-  '住宿推薦',
-  '交通機票',
-  '其他',
-])
-const activeFilter = ref('全部')
-
-const filteredDiscussions = computed(() => {
-  // 如果選的是「全部」，就回傳所有文章
-  if (activeFilter.value === '全部') {
-    return discussionsStore.discussions
-  }
-  // 否則只回傳 category 等於目前篩選標籤的文章
-  return discussionsStore.discussions.filter((post) => post.category === activeFilter.value)
-})
 </script>
 
 <template>
@@ -133,14 +139,15 @@ const filteredDiscussions = computed(() => {
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
         <div class="flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-400 font-bold self-center mr-2">分類：</span>
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
+              'px-3 py-1 rounded-full font-bold transition border-2',
               activeFilter === filter
-                ? 'bg-primary text-secondary-50'
-                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
             @click="activeFilter = filter"
           >
@@ -150,18 +157,26 @@ const filteredDiscussions = computed(() => {
       </div>
 
       <div class="space-y-6">
-        <DiscussionCard
-          v-for="post in filteredDiscussions"
-          :key="post.id"
-          :post="post"
-          @click="openDiscussionDetailModal(post, false)"
-          @comment="openDiscussionDetailModal(post, true)"
-          @share="openShareModal(post.id)"
-          @like="handleCardLike"
-        />
+        <div v-if="discussionsStore.isLoading" class="text-center py-20">
+          <div
+            class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
+          ></div>
+        </div>
 
-        <div v-if="filteredDiscussions.length === 0" class="text-center text-gray-500 py-10">
-          目前這個分類還沒有文章喔，來發一篇吧！
+        <template v-else-if="discussionsStore.discussions.length > 0">
+          <DiscussionCard
+            v-for="post in discussionsStore.discussions"
+            :key="post.id"
+            :post="post"
+            @click="openDiscussionDetailModal(post, false)"
+            @comment="openDiscussionDetailModal(post, true)"
+            @share="openShareModal(post.id)"
+            @like="handleCardLike"
+          />
+        </template>
+
+        <div v-else class="text-center py-20 text-gray-500">
+          目前沒有這個分類的討論文章，來發一篇吧！
         </div>
       </div>
     </div>

@@ -33,13 +33,13 @@ const itemData = computed(() => ({
   people: props.traveler.people,
   tags: props.traveler.tags,
   comments: props.traveler.comments,
+  category: props.traveler.category, // 確保有這個欄位
 }))
 
-// ★ 新增：純文字預覽邏輯 (剝除 HTML 標籤)
 const previewContent = computed(() => {
   if (!props.traveler.content) return ''
   let content = props.traveler.content
-  // 簡單剝除 HTML 標籤
+
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = content
   return tempDiv.textContent || tempDiv.innerText || ''
@@ -64,6 +64,13 @@ const getStatusClasses = (status) => {
     <div
       class="bg-white transition relative cursor-pointer rounded-xl border border-secondary-200 shadow hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] h-full flex flex-col"
     >
+      <div
+        v-if="traveler.category"
+        class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl rounded-tl-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+      >
+        {{ traveler.category }}
+      </div>
+
       <div
         :class="getStatusClasses(traveler.status)"
         class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-xl rounded-tr-xl border-b-2 border-l-2 border-primary-200 shadow-primary-sm z-10"

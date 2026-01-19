@@ -74,7 +74,6 @@ export async function getUserProfile(uid) {
     // 根據你後端的寫法，資料可能在 jsonResponse.data 裡，也可能直接就是 jsonResponse
     const rawData = jsonResponse.data || jsonResponse
 
-    // ★★★ 這裡進行資料轉換，拯救你的前端頁面 ★★★
     return normalizeUserData(rawData)
   } catch (error) {
     console.error('獲取用戶資料錯誤：', error)
