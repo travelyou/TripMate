@@ -1,14 +1,21 @@
 ﻿<script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import { getTravelers } from '@/api/travelers'
+import { useMyItineraryStore } from '@/stores/myItinerary'
+
+const myItineraryStore = useMyItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const { drafts } = storeToRefs(myItineraryStore)
 
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const selectedTraveler = ref(null)
+const selectedDraft = ref(null) // 用於存儲要打開的草稿
 const shouldScrollToComments = ref(false)
 const travelers = ref([])
 const isLoading = ref(false)
@@ -128,33 +135,35 @@ const handleTravelerUpdated = () => {
 // 發文成功回調
 const handlePostSuccess = () => {
   isPostingModalOpen.value = false
-  loadTravelers(false)
+  loadTravelers()
+}
+
+// 開啟草稿編輯
+const openDraft = (draft) => {
+  if (draft.type === 'traveler' && draft.data) {
+    // 設置草稿數據並打開 Modal
+    selectedDraft.value = draft
+    isPostingModalOpen.value = true
+  }
+}
+
+// 嘗試打開草稿的函數
+const tryOpenDraft = () => {
+  const draftId = route.query.openDraft
+  if (draftId) {
+    const draft = drafts.value.find((d) => String(d.id) === String(draftId))
+    if (draft && draft.type === 'traveler') {
+      nextTick(() => {
+        openDraft(draft)
+        // 清除查詢參數
+        router.replace({ path: '/traveler', query: {} })
+      })
+    }
+  }
 }
 
 onMounted(() => {
-  // 1. 初始載入
-  loadTravelers(false)
-
-  // 2. 設定 IntersectionObserver (無限捲動)
-  observer = new IntersectionObserver(
-    (entries) => {
-      const entry = entries[0]
-      if (entry.isIntersecting && hasMore.value && !isLoading.value) {
-        loadTravelers(true)
-      }
-    },
-    {
-      rootMargin: '200px', // 提早觸發載入
-    },
-  )
-
-  if (loadMoreTrigger.value) {
-    observer.observe(loadMoreTrigger.value)
-  }
-})
-
-onUnmounted(() => {
-  if (observer) observer.disconnect()
+  loadTravelers()
 })
 </script>
 
@@ -254,7 +263,11 @@ onUnmounted(() => {
 
   <TravelerPostModal
     v-if="isPostingModalOpen"
-    @close="isPostingModalOpen = false"
+    :draft-data="selectedDraft"
+    @close="
+      isPostingModalOpen = false
+      selectedDraft = null
+    "
     @success="handlePostSuccess"
   />
 

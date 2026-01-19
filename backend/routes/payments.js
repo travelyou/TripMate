@@ -124,7 +124,9 @@ router.get('/mock-pay', async (req, res) => {
     if (payResult.rowCount === 0) {
       // 代表這個 order 根本沒有 payment 可更新
       await client.query('ROLLBACK')
-      return res.status(404).json({ ok: false, message: 'payment not found for this order', orderId })
+      return res
+        .status(404)
+        .json({ ok: false, message: 'payment not found for this order', orderId })
     }
 
     // 3) 更新訂單狀態為 PAID（同樣檢查）

@@ -36,25 +36,41 @@ export async function createOrUpdateUser(userData) {
       headers: {
         'Content-Type': 'application/json',
       },
-      // 這裡可以保持原樣，因為我們後端已經寫好可以接收 camelCase
       body: JSON.stringify(userData),
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.details || '創建/更新用戶失敗')
+      let errorData
+      try {
+        errorData = await response.json()
+      } catch {
+        errorData = {
+          error: '未知錯誤',
+          message: `HTTP ${response.status}: ${response.statusText}`,
+        }
+      }
+
+      const errorMessage =
+        errorData.message || errorData.error || errorData.details || '創建/更新用戶失敗'
+      const error = new Error(errorMessage)
+      error.response = { data: errorData, status: response.status }
+      error.code = errorData.code
+      throw error
     }
 
     const data = await response.json()
-    // 回傳前先標準化
-    return normalizeUserData(data.data || data)
+    return data.data || data
   } catch (error) {
-    console.error('創建/更新用戶錯誤：', error)
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      const networkError = new Error('無法連接到後端伺服器，請確認後端服務是否運行')
+      networkError.originalError = error
+      throw networkError
+    }
+
     throw error
   }
 }
 
-// 獲取用戶資料 (GET)
 export async function getUserProfile(uid) {
   try {
     const response = await fetch(`${API_BASE_URL}/users/${uid}`)
@@ -84,26 +100,17 @@ export async function getUserProfile(uid) {
 
 // 更新用戶資料 (PUT)
 export async function updateUserProfile(uid, userData) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
-      method: 'PUT', // 確保這裡跟後端路由一致 (後端是 PUT /:uid)
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.details || '更新用戶資料失敗')
-    }
-
-    const jsonResponse = await response.json()
-    const rawData = jsonResponse.data || jsonResponse
-
-    return normalizeUserData(rawData)
-  } catch (error) {
-    console.error('更新用戶資料錯誤：', error)
-    throw error
+  const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(userData),
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+    throw new Error(errorData.error || errorData.message || errorData.details || '更新用戶資料失敗')
   }
+  const data = await response.json()
+  return data
 }

@@ -174,8 +174,8 @@ const submitComment = async () => {
       author_uid: currentUserUid.value,
       content: content,
       board: 'traveler',
-      author_name: userStore.currentUser?.displayName || '匿名用戶',
-      author_avatar: userStore.currentUser?.photoURL || null,
+      author_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
+      author_avatar: userStore.currentUser?.avatar || null,
     })
     localComments.value = [
       {
@@ -282,7 +282,7 @@ onMounted(async () => {
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
         >
-          內文　
+          內文
         </span>
       </button>
 

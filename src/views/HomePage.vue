@@ -13,19 +13,18 @@ import {
   Users as UsersIcon,
 } from 'lucide-vue-next'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
-// HomePage 本身沒直接用到 userStore，但 DiscussionCard / 收藏流程可能會用到（先保留）
 useUserStore()
+const router = useRouter()
 
-// 當前用戶 UID（用於同步每篇貼文的按讚狀態）
 const currentUserUid = ref(null)
 let likeSyncTimer = null
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// 依據目前登入者，把討論貼文的 isLiked / likes 做一次「批次同步」
 const scheduleLikesSync = (posts, uid) => {
   if (!uid || !Array.isArray(posts) || posts.length === 0) return
   if (likeSyncTimer) clearTimeout(likeSyncTimer)
@@ -39,29 +38,25 @@ const scheduleLikesSync = (posts, uid) => {
         post.likes = info.likesCount ?? post.likes
         await sleep(120)
       } catch (error) {
-        console.error(`load likes failed for ${post.id}:`, error)
+        // Error loading likes
       }
     }
   }, 800)
 }
 
-// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  // 用戶登入狀態改變：重新載入按讚狀態
   if (previousUid !== currentUserUid.value && currentUserUid.value) {
     scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
   } else if (!currentUserUid.value) {
-    // 登出：清掉本地按讚狀態
     discussionsStore.discussions?.forEach((post) => {
       post.isLiked = false
     })
   }
 })
 
-// 在組件掛載時載入貼文
 onMounted(async () => {
   try {
     await discussionsStore.loadDiscussions()
@@ -69,7 +64,7 @@ onMounted(async () => {
       scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
     }
   } catch (error) {
-    console.error('載入貼文失敗：', error)
+    // Error loading posts
   }
 })
 
@@ -118,7 +113,6 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// 根據標籤文字自動產生固定顏色
 const getTagColor = (tagText) => {
   const colors = [
     'bg-red-500 border-red-400',
@@ -152,7 +146,6 @@ const getTagColor = (tagText) => {
 <template>
   <div class="p-4">
     <div class="w-full min-w-0">
-      <!-- 旅伴推薦 (橫向滑動) -->
       <div
         class="my-4 p-4 relative group bg-white border-4 border-primary shadow-primary-tall rounded-xl"
       >
@@ -231,7 +224,6 @@ const getTagColor = (tagText) => {
         </div>
       </div>
 
-      <!-- 最新動態 -->
       <div>
         <div class="my-6 bg-primary p-5 rounded-xl shadow-primary-tall">
           <h2 class="inline-flex items-center text-2xl font-bold text-white px-2 py-2 rounded-xl">
@@ -239,7 +231,6 @@ const getTagColor = (tagText) => {
           </h2>
         </div>
 
-        <!-- Skeleton：避免「先空白後跳出內容」讓使用者以為沒載入成功 -->
         <div
           v-if="discussionsStore.loading && !discussionsStore.discussions.length"
           class="space-y-6"

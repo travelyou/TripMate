@@ -38,18 +38,18 @@ router.get('/', async (req, res) => {
     let paramIndex = 1
 
     if (status) {
-      query += ` AND status = $${paramIndex}`
+      query += ` AND t.status = $${paramIndex}`
       params.push(status)
       paramIndex++
     }
 
     if (location) {
-      query += ` AND location = $${paramIndex}`
+      query += ` AND t.location = $${paramIndex}`
       params.push(location)
       paramIndex++
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+    query += ` ORDER BY t.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
     params.push(parseInt(limit), parseInt(offset))
 
     console.log('執行查詢:', query)
@@ -72,22 +72,53 @@ router.get('/', async (req, res) => {
               })
               .replace(/\//g, '/')
           : `${startDate
-              .toLocaleDateString('zh-TW', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-              })
-              .replace(/\//g, '/')} - ${endDate
-              .toLocaleDateString('zh-TW', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-              })
-              .replace(/\//g, '/')}`
+                .toLocaleDateString('zh-TW', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })
+                .replace(/\//g, '/')} - ${endDate
+                .toLocaleDateString('zh-TW', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })
+                .replace(/\//g, '/')}`
+            ? startDate
+                .toLocaleDateString('zh-TW', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })
+                .replace(/\//g, '/')
+            : `${startDate
+                .toLocaleDateString('zh-TW', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })
+                .replace(/\//g, '/')} - ${endDate
+                .toLocaleDateString('zh-TW', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })
+                .replace(/\//g, '/')}`
 
       const now = new Date()
       const created = new Date(row.created_at)
       const diffSeconds = Math.floor((now - created) / 1000)
+      const timeStr =
+        diffSeconds < 600
+          ? '剛剛'
+          : created.toLocaleString('zh-TW', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
       const timeStr =
         diffSeconds < 600
           ? '剛剛'
@@ -203,12 +234,12 @@ router.get('/:id', async (req, res) => {
         status,
         tags,
         CASE
-          WHEN start_date = end_date THEN TO_CHAR(start_date, 'YYYY/MM/DD')
-          ELSE TO_CHAR(start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(end_date, 'YYYY/MM/DD')
+          WHEN t.start_date = t.end_date THEN TO_CHAR(t.start_date, 'YYYY/MM/DD')
+          ELSE TO_CHAR(t.start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(t.end_date, 'YYYY/MM/DD')
         END AS "date",
         CASE
-          WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) < 600 THEN '剛剛'
-          ELSE TO_CHAR(created_at, 'YYYY/MM/DD HH24:MI')
+          WHEN EXTRACT(EPOCH FROM (NOW() - t.created_at)) < 600 THEN '剛剛'
+          ELSE TO_CHAR(t.created_at, 'YYYY/MM/DD HH24:MI')
         END AS "created_at",
         current_people::text || '/' || max_people::text AS "people",
         banner_image AS "image",

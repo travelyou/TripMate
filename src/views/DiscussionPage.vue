@@ -2,9 +2,10 @@
 import { ref, onMounted, watch, onUnmounted } from 'vue' // ★ 加入 onUnmounted
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
-import { useUserStore } from '@/stores/user'
+import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
+import { storeToRefs } from 'pinia'
 
 // 引入組件
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
@@ -13,7 +14,10 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 
 const discussionsStore = useDiscussionsStore()
-const userStore = useUserStore()
+const myItineraryStore = useMyItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const { drafts } = storeToRefs(myItineraryStore)
 
 const currentUserUid = ref(null)
 

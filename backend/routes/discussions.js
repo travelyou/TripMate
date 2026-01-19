@@ -21,7 +21,22 @@ router.get('/', async (req, res) => {
 
     const discussionsQuery = `
       SELECT
-        d.*,
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.author_avatar as old_author_avatar,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l
@@ -33,6 +48,7 @@ router.get('/', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
       WHERE ${whereClause}
       ORDER BY d.created_at DESC
       LIMIT $1 OFFSET $2
@@ -177,6 +193,7 @@ router.get('/:id', async (req, res) => {
         COALESCE((SELECT COUNT(*) FROM public.likes l WHERE l.post_id = d.id AND l.board = 'discussion'), 0) as likes_count,
         COALESCE((SELECT COUNT(*) FROM public.comments c WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL), 0) as comments_count
       FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
       WHERE d.id = $1 AND d.deleted_at IS NULL
     `
 

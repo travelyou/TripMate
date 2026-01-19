@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ThumbsUp, Heart } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -14,6 +15,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['open-post'])
+const router = useRouter()
+
+const handleAvatarClick = (review) => {
+  const targetUid = activeTab.value === 'given' ? review.targetUid : review.authorUid
+  if (targetUid) {
+    router.push(`/profile/${targetUid}`)
+  }
+}
 
 // Tab State: 'received' (別人對我) | 'given' (我對別人)
 const activeTab = ref('received')
@@ -79,14 +88,18 @@ const handleTripClick = (tripId) => {
       >
         <img
           :src="activeTab === 'given' ? (review.targetAvatar || 'https://placehold.co/100x100/e2e8f0/ffffff?text=User') : review.avatar"
-          class="w-10 h-10 rounded-full bg-secondary-200 object-cover border border-secondary-100"
+          class="w-10 h-10 rounded-full bg-secondary-200 object-cover border border-secondary-100 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
           alt="User Avatar"
+          @click="handleAvatarClick(review)"
         />
         <div class="flex-1 min-w-0">
            <div class="flex flex-wrap justify-between items-start mb-2 gap-2">
               <div class="flex flex-col">
                  <div class="flex items-center gap-2 mb-0.5">
-                    <span class="font-bold text-secondary-800">
+                    <span 
+                      class="font-bold text-secondary-800 cursor-pointer hover:text-primary-600 transition"
+                      @click="handleAvatarClick(review)"
+                    >
                       {{ activeTab === 'given' ? `給 ${review.target}` : review.author }}
                     </span>
                     <span class="text-xs text-secondary-400">{{ review.date }}</span>

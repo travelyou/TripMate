@@ -158,7 +158,8 @@ onMounted(async () => {
     <div class="p-4 flex flex-col flex-1">
       <div
         v-if="props.itinerary.agencyName"
-        class="flex items-center text-xs font-bold text-primary-600 mb-1"
+        class="text-xs font-bold text-primary-600 tracking-wider cursor-pointer hover:text-primary-700 transition"
+        @click.stop="handleAgencyClick"
       >
         <BuildingIcon class="w-3 h-3 mr-1" />
         {{ props.itinerary.agencyName }}
