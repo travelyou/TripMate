@@ -6,10 +6,10 @@ const axios = require('axios')
 
 function linepayHeaders({ channelSecret, uri, body }) {
   if (!channelSecret || typeof channelSecret !== 'string') {
-    throw new Error('LINEPAY_CHANNEL_SECRET is missing (check backend/.env and dotenv config)')
+    throw new Error('遺失 LINEPAY_CHANNEL_SECRET (檢查 backend/.env 和 dotenv config)')
   }
   if (!process.env.LINEPAY_CHANNEL_ID) {
-    throw new Error('LINEPAY_CHANNEL_ID is missing (check backend/.env and dotenv config)')
+    throw new Error('遺失 LINEPAY_CHANNEL_ID (檢查 backend/.env 和 dotenv config)')
   }
 
   const nonce = crypto.randomUUID()
@@ -191,7 +191,11 @@ router.post('/create', async (req, res) => {
       )
       await client.query('COMMIT')
 
-      console.log('[linepay request]', transactionId, transactionId.length)
+      console.log(
+        '[linepay request]',
+        `交易id：${transactionId}`,
+        `id字元長度：${transactionId.length}`,
+      )
 
       return res.json({
         ok: true,
@@ -316,7 +320,7 @@ router.get('/linepay/confirm', async (req, res) => {
   const client = await pool.connect()
   try {
     const { orderId, paymentId } = req.query || {}
-    if (!orderId || !paymentId) return res.status(400).send('missing orderId/paymentId')
+    if (!orderId || !paymentId) return res.status(400).send('遺失 orderId/paymentId')
 
     await client.query('BEGIN')
 
@@ -329,10 +333,10 @@ router.get('/linepay/confirm', async (req, res) => {
       [paymentId, orderId],
     )
 
-    if (p.rowCount === 0) throw new Error('payment not found')
+    if (p.rowCount === 0) throw new Error('找不到付款資料')
 
     const pay = p.rows[0]
-    if (!pay.transaction_id) throw new Error('missing transaction_id')
+    if (!pay.transaction_id) throw new Error('付款資料缺少 transaction_id')
 
     // Confirm
     const apiBase = process.env.LINEPAY_API_BASE || 'https://sandbox-api-pay.line.me'
@@ -354,10 +358,10 @@ router.get('/linepay/confirm', async (req, res) => {
     }
 
     // 更新 payment + order
-    await client.query(`UPDATE commerce.payments SET status='PAID', updated_at=NOW() WHERE id=$1`, [
+    await client.query(`更新 commerce.payments 為 status='PAID', updated_at=NOW() WHERE id=$1`, [
       paymentId,
     ])
-    await client.query(`UPDATE commerce.orders SET status='PAID', updated_at=NOW() WHERE id=$1`, [
+    await client.query(`更新 commerce.orders 為 status='PAID', updated_at=NOW() WHERE id=$1`, [
       pay.orderId,
     ])
 
