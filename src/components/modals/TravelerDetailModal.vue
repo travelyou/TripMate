@@ -13,7 +13,6 @@ import {
   Coffee as CoffeeIcon,
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
-  Eye as EyeIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'

@@ -395,13 +395,32 @@ const addDay = () => {
 
 const addActivity = () => {
   if (!currentDay.value.activities) currentDay.value.activities = []
+
+  let defaultTime = '09:00'
+  const activities = currentDay.value.activities
+  if (activities.length > 0) {
+    const lastActivity = activities[activities.length - 1]
+    if (lastActivity && lastActivity.time) {
+      const [h, m] = lastActivity.time.split(':').map(Number)
+      // 如果分小於 59，則維持同時間
+      if (m < 59) {
+        defaultTime = lastActivity.time
+      } else {
+        // 如果是 59 分，則小時 + 1，分歸零
+        const newH = (h + 1) % 24
+        defaultTime = `${String(newH).padStart(2, '0')}:00`
+      }
+    }
+  }
+
   currentDay.value.activities.push({
     id: Date.now(),
-    time: '09:00',
+    time: defaultTime,
     title: '',
     desc: '',
     icon: 'map-pin',
-    isOpen: true // 自動開啟時間選擇器
+    isOpen: true, // 自動開啟時間選擇器
+    prevTime: defaultTime // 修正：預設開啟時也需要初始化 prevTime，否則第一次選擇會報錯
   })
 }
 
@@ -411,40 +430,55 @@ const removeActivity = (activityIndex) => currentDay.value.activities.splice(act
 const savedTimes = ref([])
 
 const getDisabledHours = (index) => {
-  // 如果是第一個活動，不需限制
-  if (index === 0) return []
-
-  // 取得上一個活動的時間
-  const prevActivity = currentDay.value.activities[index - 1]
-  if (!prevActivity || !prevActivity.time) return []
-
-  // 解析上一個活動的小時
-  const [prevH] = prevActivity.time.split(':').map(Number)
   const hours = []
 
-  // 鎖將所有早於上一個活動的小時
-  for (let i = 0; i < prevH; i++) hours.push(i)
+  // 1. 檢查上一項活動 (不能比它早)
+  if (index > 0) {
+    const prevActivity = currentDay.value.activities[index - 1]
+    if (prevActivity && prevActivity.time) {
+      const [prevH] = prevActivity.time.split(':').map(Number)
+      for (let i = 0; i < prevH; i++) hours.push(i)
+    }
+  }
+
+  // 2. 檢查下一項活動 (不能比它晚)
+  if (index < currentDay.value.activities.length - 1) {
+    const nextActivity = currentDay.value.activities[index + 1]
+    if (nextActivity && nextActivity.time) {
+      const [nextH] = nextActivity.time.split(':').map(Number)
+      for (let i = nextH + 1; i < 24; i++) hours.push(i)
+    }
+  }
+
   return hours
 }
 
 const getDisabledMinutes = (selectedHour, index) => {
-  // 如果是第一個活動，不需限制
-  if (index === 0) return []
+  const minutes = []
 
-  // 取得上一個活動的時間
-  const prevActivity = currentDay.value.activities[index - 1]
-  if (!prevActivity || !prevActivity.time) return []
-
-  const [prevH, prevM] = prevActivity.time.split(':').map(Number)
-
-  // 如果選擇的小時與上一個活動相同，則需限制分鐘
-  if (selectedHour === prevH) {
-    const minutes = []
-    // 鎖將所有早於上一個活動的分鐘
-    for (let i = 0; i < prevM; i++) minutes.push(i)
-    return minutes
+  // 1. 檢查上一項活動
+  if (index > 0) {
+    const prevActivity = currentDay.value.activities[index - 1]
+    if (prevActivity && prevActivity.time) {
+      const [prevH, prevM] = prevActivity.time.split(':').map(Number)
+      if (selectedHour === prevH) {
+        for (let i = 0; i < prevM; i++) minutes.push(i)
+      }
+    }
   }
-  return []
+
+  // 2. 檢查下一項活動
+  if (index < currentDay.value.activities.length - 1) {
+    const nextActivity = currentDay.value.activities[index + 1]
+    if (nextActivity && nextActivity.time) {
+      const [nextH, nextM] = nextActivity.time.split(':').map(Number)
+      if (selectedHour === nextH) {
+        for (let i = nextM + 1; i < 60; i++) minutes.push(i)
+      }
+    }
+  }
+
+  return minutes
 }
 
 const handleDragStart = () => {
@@ -469,6 +503,54 @@ const handleDragEnd = () => {
   }
 }
 
+const handleTimeOpenChange = (open, activity) => {
+  // 當開啟時，記錄當前時間，以便後續判斷是否為「分鐘」選擇
+  if (open) {
+    activity.prevTime = activity.time
+  }
+}
+
+const handleTimeSelect = (val, activity) => {
+  // 處理時間選擇邏輯：
+  // 如果小時沒變，但分鐘變了（或確認相同時間），則視為選完分鐘 -> 關閉
+  // 如果小時變了 -> 保持開啟（等待選分鐘）
+
+  // val 可能是 dayjs 物件或字串，視 value-format 而定，但 @select 通常給 dayjs
+  // 為了保險，我們統一轉為 HH:mm 比較
+  let newTimeStr = ''
+  if (typeof val === 'string') {
+    newTimeStr = val
+  } else if (val && typeof val.format === 'function') {
+    newTimeStr = val.format('HH:mm')
+  }
+
+  if (!activity.prevTime) {
+      // 如果沒有記錄（極端情況），假設已經完成
+      activity.isOpen = false
+      return
+  }
+
+  // 無論如何，先把新選擇的值存入，確保不會丟失
+  activity.time = newTimeStr
+
+  if (!activity.prevTime) activity.prevTime = newTimeStr // 防呆：如果 prevTime 遺失，補上
+
+  const [oldH] = activity.prevTime.split(':')
+  const [newH] = newTimeStr.split(':')
+
+  if (oldH === newH) {
+    // 小時相同，代表是在選分鐘，或是確認
+    console.log('[TimePicker] Selected minute, updating time:', newTimeStr)
+    // 使用 nextTick 確保數值已更新後再關閉，避免被還原
+    nextTick(() => {
+        activity.isOpen = false
+    })
+  } else {
+    // 小時不同，更新 prevTime，等待下一次（選分鐘）
+    console.log('[TimePicker] Selected hour:', newH)
+    activity.prevTime = newTimeStr
+  }
+}
 
 const addPackingCategory = () => {
   if (postData.value.packingList.length >= 50) {
@@ -724,7 +806,10 @@ const handleGlobalEnter = (e) => {
 }
 
 const handleSaveDraft = () => {
+  console.log('[DraftDebug] handleSaveDraft triggered')
+
   if (!postData.value.title.trim()) {
+    console.warn('[DraftDebug] Title empty, aborting save')
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
@@ -739,10 +824,23 @@ const handleSaveDraft = () => {
     data: JSON.parse(JSON.stringify(postData.value)),
   }
 
-  myItineraryStore.addDraft(draftData)
+  console.log('[DraftDebug] Preparing to save draft:', draftData)
 
-  alert('已儲存至「我的行程」草稿夾！')
-  emit('close')
+  try {
+      console.log('[DraftDebug] Calling store.addDraft...')
+      myItineraryStore.addDraft(draftData)
+      console.log('[DraftDebug] store.addDraft success. Current drafts count:', myItineraryStore.drafts.length)
+  } catch (err) {
+      console.error('[DraftDebug] Store addDraft failed:', err)
+  }
+
+  // 移除 alert 改為直接關閉，避免阻塞導致兩次點擊問題
+  // alert('已儲存至「我的行程」草稿夾！')
+
+  // 使用 nextTick 確保資料寫入後才關閉
+  nextTick(() => {
+    emit('close')
+  })
 }
 
 const hasContent = computed(() => {
@@ -1389,6 +1487,8 @@ const jumpToStep = (targetStep) => {
                         :disabled-minutes="(selectedHour) => getDisabledMinutes(selectedHour, actIndex)"
                         class="w-24 shadow-sm font-bold"
                         :bordered="true"
+                        @open-change="(open) => handleTimeOpenChange(open, activity)"
+                        @select="(val) => handleTimeSelect(val, activity)"
                       />
                       <!-- 連接線與圓點 -->
                       <div class="absolute top-[1.1rem] -right-[1.6rem] w-4 h-0.5 bg-gray-300"></div>
@@ -1439,8 +1539,9 @@ const jumpToStep = (targetStep) => {
                                <!-- 刪除按鈕 -->
                                <button
                                   class="text-gray-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                                  @click="removeActivity(actIndex)"
                                   title="刪除"
+                                  @click="removeActivity(actIndex)"
+
                                 >
                                   <TrashIcon class="w-4 h-4" />
                                 </button>
