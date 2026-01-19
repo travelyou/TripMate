@@ -2,6 +2,25 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
+let bannerPositionYAvailable = null
+const checkBannerPositionYAvailable = async () => {
+  if (bannerPositionYAvailable !== null) return bannerPositionYAvailable
+  try {
+    const result = await pool.query(
+      `SELECT 1
+       FROM information_schema.columns
+       WHERE table_schema = 'travelers'
+         AND table_name = 'travelers'
+         AND column_name = 'banner_position_y'`,
+    )
+    bannerPositionYAvailable = result.rowCount > 0
+  } catch (error) {
+    console.error('[Backend Travelers] 檢查 banner_position_y 欄位失敗:', error)
+    bannerPositionYAvailable = false
+  }
+  return bannerPositionYAvailable
+}
+
 router.get('/', async (req, res) => {
   try {
     console.log('收到獲取旅伴列表請求')
@@ -193,6 +212,9 @@ router.get('/:id', async (req, res) => {
 
     console.log('獲取旅伴詳情，ID:', idNum)
 
+    const hasBannerPos = await checkBannerPositionYAvailable()
+    const bannerPosSelect = hasBannerPos ? 'banner_position_y,' : ''
+
     const travelerQuery = `
       SELECT
         id,
@@ -212,7 +234,7 @@ router.get('/:id', async (req, res) => {
         END AS "created_at",
         current_people::text || '/' || max_people::text AS "people",
         banner_image AS "image",
-        banner_position_y,
+        ${bannerPosSelect}
         author_uid,
         author_name AS "author",
         author_avatar AS "avatar",
@@ -276,6 +298,7 @@ router.get('/:id', async (req, res) => {
 
     const fullData = {
       ...traveler,
+      banner_position_y: hasBannerPos ? traveler.banner_position_y : 50,
       itinerary: {
         days: itineraryResult.rows.map((day) => ({
           day: day.day_number,
@@ -352,29 +375,48 @@ router.post('/', async (req, res) => {
 
       const maxPeopleNum = Number(max_people) || 2
       const bannerPosYNum = Number(banner_position_y) || 50
+      const hasBannerPos = await checkBannerPositionYAvailable()
 
+      const insertColumns = [
+        'title',
+        'content',
+        'banner_image',
+        ...(hasBannerPos ? ['banner_position_y'] : []),
+        'location',
+        'category',
+        'start_date',
+        'end_date',
+        'max_people',
+        'author_uid',
+        'author_name',
+        'author_avatar',
+        'spirit_animal',
+        'tags',
+      ]
+
+      const insertValues = [
+        title,
+        content,
+        banner_image || null,
+        ...(hasBannerPos ? [bannerPosYNum] : []),
+        location,
+        category,
+        start_date,
+        end_date,
+        maxPeopleNum,
+        author_uid,
+        author_name || null,
+        author_avatar || null,
+        spirit_animal || null,
+        Array.isArray(tags) ? tags : [],
+      ]
+
+      const placeholders = insertColumns.map((_, idx) => `$${idx + 1}`).join(', ')
       const travelerResult = await client.query(
-        `INSERT INTO travelers.travelers (
-          title, content, banner_image, banner_position_y, location, category, start_date, end_date,
-          max_people, author_uid, author_name, author_avatar, spirit_animal, tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING id`,
-        [
-          title,
-          content,
-          banner_image || null,
-          bannerPosYNum,
-          location,
-          category,
-          start_date,
-          end_date,
-          maxPeopleNum,
-          author_uid,
-          author_name || null,
-          author_avatar || null,
-          spirit_animal || null,
-          Array.isArray(tags) ? tags : [],
-        ],
+        `INSERT INTO travelers.travelers (${insertColumns.join(', ')})
+         VALUES (${placeholders})
+         RETURNING id`,
+        insertValues,
       )
 
       const travelerId = travelerResult.rows[0].id
@@ -453,6 +495,7 @@ router.put('/:id', async (req, res) => {
     try {
       await client.query('BEGIN')
 
+      const hasBannerPos = await checkBannerPositionYAvailable()
       const updateFields = []
       const updateValues = []
       let paramIndex = 1
@@ -467,7 +510,9 @@ router.put('/:id', async (req, res) => {
       addField('title', title)
       addField('content', content)
       addField('banner_image', banner_image)
-      addField('banner_position_y', banner_position_y)
+      if (hasBannerPos) {
+        addField('banner_position_y', banner_position_y)
+      }
       addField('location', location)
       addField('category', category)
       addField('start_date', start_date)
