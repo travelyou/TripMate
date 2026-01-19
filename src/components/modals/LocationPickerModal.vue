@@ -1,6 +1,10 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { Loader } from '@googlemaps/js-api-loader'
+
+// Actually, let's just use the global script loading if simpler, OR use the library correctly.
+// The error suggested: import { setOptions, importLibrary } from ...
+// Let's try that.
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import { MapPin as MapPinIcon, Search as SearchIcon, X as XIcon, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -13,7 +17,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'select'])
 
-const API_KEY = 'AIzaSyAiTPzHinwP8YKKbgyJs426B05In-cJBPs'
+const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 const mapContainer = ref(null)
 const searchInput = ref(null)
 const isLoading = ref(true)
@@ -28,36 +32,93 @@ let google = null
 const selectedPlace = ref(null)
 
 const initMap = async () => {
-  isLoading.value = true
-  try {
+    isLoading.value = true
+    try {
+        const apiKey = API_KEY
+        console.log('[GoogleMaps] 初始化地圖，使用的 API Key:', apiKey ? apiKey.substring(0, 10) + '...' : '未定義')
+
+    /*
     const loader = new Loader({
-      apiKey: API_KEY,
+      apiKey: apiKey,
       version: 'weekly',
       libraries: ['places'],
       language: 'zh-TW', // 強制繁體中文
     })
 
     google = await loader.load()
+    */
+
+    // 使用 v2 函數式 API
+    setOptions({
+      apiKey: apiKey,
+      version: 'weekly',
+      libraries: ['places', 'maps', 'marker'], // 顯式加載需要的庫
+      language: 'zh-TW',
+    })
+
+    // 載入必要的 Library (平行載入)
+    const [mapsLib, placesLib, markerLib] = await Promise.all([
+        importLibrary('maps'),
+        importLibrary('places'),
+        importLibrary('marker')
+    ])
+
+    // 為了相容原本的寫法，我們可以把 google 物件模擬出來，或是直接用 library 裡的類別
+    // 這裡我們直接獲取類別
+    const MapClass = mapsLib.Map
+    const MarkerClass = markerLib.Marker
+    const AutocompleteClass = placesLib.Autocomplete
+    // const GeocoderClass = mapsLib.Geocoder
+    // 修正：Geocoder 可能需要 'geocoding' library，或者如果它是核心的一部分。
+    // 通常 google.maps.Geocoder 在 'geocoding' library 或者 legacy 'maps' 裡。
+    // 我們多載一個 geocoding 比較保險
+    const geocodingLib = await importLibrary('geocoding').catch(e => {
+        console.warn('Geocoding lib load failed, maybe in maps?', e)
+        return null
+    })
+
+    // 為了讓下方的 google.maps.Map ... 繼續運作，我們可以建立一個假的 google 物件結構，
+    // 或是直接重構下方的 code。重構比較好。
+
+    // 預設台北 101
 
     // 預設台北 101
     const defaultCenter = { lat: 25.033964, lng: 121.564468 }
     const center = props.initialLocation?.lat ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng } : defaultCenter
 
-    map = new google.maps.Map(mapContainer.value, {
+    map = new MapClass(mapContainer.value, {
       center: center,
       zoom: 15,
       mapTypeControl: false,
       fullscreenControl: false,
       streetViewControl: false,
+      mapId: 'DEMO_MAP_ID', // v2 marker 需要 mapId，使用 DEMO 即可
     })
 
     // 初始化標記
-    marker = new google.maps.Marker({
+    // 注意：v2 推薦用 AdvancedMarkerElement，但 MarkerClass (legacy) 如果有載入 marker 庫應該還能用
+    // 為了相容性，我們先試試 MarkerClass
+    marker = new MarkerClass({
       map: map,
       position: center,
       draggable: true, // 允許拖拉標記
-      animation: google.maps.Animation.DROP,
+      animation: google ? google.maps.Animation.DROP : null, // Animation 可能要從某個 lib 拿，或是省略
     })
+
+    // 把 google 物件保留給其他 function 用 (如 Autocomplete 需要 google.maps.places.Autocomplete)
+    // 但我們也可以把 AutocompleteClass 存到變數
+    // 這裡為了方便 autocomplete 和 geocoder 函數使用，我們將它們存為全域引用或直接傳遞
+
+    // 因為 geocodePosition 和 initAutocomplete 依賴 google 物件
+    // 我們快速重新建立一個 google.maps 代理，讓舊 code 不用大改
+    window.google = window.google || {}
+    window.google.maps = window.google.maps || {}
+    window.google.maps.places = window.google.maps.places || {}
+    window.google.maps.places.Autocomplete = AutocompleteClass
+    window.google.maps.Geocoder = geocodingLib ? geocodingLib.Geocoder : (mapsLib.Geocoder || null)
+
+    // 重設 local 的 google 變數指向 window.google 以防萬一
+    google = window.google
 
     // 如果有初始地點，設置選中狀態
     if (props.initialLocation) {

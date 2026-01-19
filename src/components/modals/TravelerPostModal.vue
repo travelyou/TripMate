@@ -21,7 +21,7 @@ import {
   Bike as BikeIcon,
   Footprints as WalkIcon,
 } from 'lucide-vue-next'
-import { Loader } from '@googlemaps/js-api-loader'
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import LocationPickerModal from './LocationPickerModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
@@ -498,19 +498,21 @@ const insertTransportActivity = async () => {
 }
 
 const getDirections = async (origin, destination, mode) => {
-  const loader = new Loader({
-    apiKey: 'AIzaSyAiTPzHinwP8YKKbgyJs426B05In-cJBPs',
+  setOptions({
+    apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     version: 'weekly',
+    libraries: ['routes'],
   })
 
   try {
-    const google = await loader.load()
-    const service = new google.maps.DirectionsService()
+    const routesLib = await importLibrary('routes').catch(() => importLibrary('maps'))
+    const DirectionsService = routesLib.DirectionsService
+    const service = new DirectionsService()
 
     const request = {
       origin: { lat: origin.lat, lng: origin.lng },
       destination: { lat: destination.lat, lng: destination.lng },
-      travelMode: google.maps.TravelMode[mode],
+      travelMode: mode,
     }
 
     return new Promise((resolve) => {
