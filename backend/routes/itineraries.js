@@ -166,7 +166,7 @@ router.post('/', authenticate, async (req, res) => {
       start_date,
       end_date,
       tags || [],
-      req.user.uid, // ★ 這裡現在安全了，因為有 authenticate 保護
+      req.user.uid,
       'published',
     ]
 

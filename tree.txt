@@ -1,7 +1,8 @@
+Directory structure:
 └── travelyou-tripmate/
     ├── README.md
-    ├── aaa.html
     ├── eslint.config.js
+    ├── firebase-storage-cors.json
     ├── index.html
     ├── jsconfig.json
     ├── package.json
@@ -10,151 +11,164 @@
     ├── tree.txt
     ├── vite.config.js
     ├── .editorconfig
-    ├── .env.example
     ├── .eslintignore
     ├── .prettierrc.json
-    ├── backend/              
-    │   ├── check-table-structure.js
+    ├── backend/
     │   ├── package.json
-    │   ├── server.js        
-    │   ├── vercel.json     
+    │   ├── server.js
+    │   ├── vercel.json
     │   ├── database/
     │   │   └── connection.js
+    │   ├── middleware/
+    │   │   └── auth.js
     │   └── routes/
+    │       ├── cart.js
     │       ├── comments.js
-    │       ├── likes.js
     │       ├── discussions.js
     │       ├── itineraries.js
+    │       ├── likes.js
+    │       ├── orders.js
+    │       ├── payments.js
     │       ├── travelers.js
     │       ├── users.js
     │       └── vendors.js
-    └── src/
-        ├── App.vue
-        ├── main.js
-        ├── api/
-        │   ├── comments.js
-        │   ├── config.js
-        │   ├── likes.js
-        │   ├── discussions.js
-        │   ├── itinerary.js
-        │   ├── storage.js
-        │   ├── travelers.js
-        │   ├── users.js
-        │   └── vendor.js
-        ├── assets/
-        │   ├── base.css
-        │   └── main.css
-        ├── components/
-        │   ├── PostModal.vue
-        │   ├── cards/
-        │   │   ├── ItineraryCard.vue
-        │   │   ├── PostingChoiceCard.vue
-        │   │   └── TravelerCard.vue
-        │   ├── chat/
-        │   │   ├── AIChatWindow.vue
-        │   │   └── PrivateChatWindow.vue
-        │   ├── checkout/
-        │   │   ├── CheckoutProgress.vue
-        │   │   ├── MainButton.vue
-        │   │   ├── Step1Confirm.vue
-        │   │   ├── Step2Form.vue
-        │   │   ├── Step3Review.vue
-        │   │   ├── Step4Payment.vue
-        │   │   ├── Step5Done.vue
-        │   │   ├── SubButton.vue
-        │   │   └── TourInfoBlock.vue
-        │   ├── common/
-        │   │   └── RightSidebarAd.vue
-        │   ├── modals/
-        │   │   ├── AddToCollectionModal.vue
-        │   │   ├── MyItineraryDetailModal.vue
-        │   │   ├── DiscussionDetailModal.vue
-        │   │   ├── DiscussionPostModal.vue
-        │   │   ├── ItineraryDetailModal.vue
-        │   │   ├── ItineraryPostModal.vue
-        │   │   ├── ShareModal.vue
-        │   │   ├── SwipeMatchModal.vue
-        │   │   ├── TravelerDetailModal.vue
-        │   │   └── TravelerPostModal.vue
-        │   ├── personality-test/
-        │   │   ├── components/
-        │   │   │   ├── ProgressBar.vue
-        │   │   │   ├── QuestionCard.vue
-        │   │   │   └── ResultCard.vue
-        │   │   └── pages/
-        │   │       ├── QuizPage.vue
-        │   │       ├── ResultPage.vue
-        │   │       └── StartPage.vue
-        │   ├── posts/
-        │   │   └── PostCard.vue
-        │   ├── profile/
-        │   │   ├── EditProfileModal.vue
-        │   │   ├── FriendListModal.vue
-        │   │   ├── ProfileHeader.vue
-        │   │   ├── ProfileSidebar.vue
-        │   │   ├── passport/
-        │   │   │   ├── PassportBook.vue
-        │   │   │   └── PassportStamp.vue
-        │   │   └── tabs/
-        │   │       ├── TabHostedTrips.vue
-        │   │       ├── TabPosts.vue
-        │   │       ├── TabReviews.vue
-        │   │       └── TabVisitedPlaces.vue
-        │   ├── shared/
-        │   │   └── AppFABs.vue
-        │   └── vendor-dashboard/
-        │       ├── DashboardNav.vue
-        │       ├── DashboardSidebar.vue
-        │       ├── DashboardHeader.vue
-        │       └── tabs/
-        │           ├── TabBasicInfo.vue
-        │           ├── TabItineraryList.vue
-        │           └── TabPostList.vue
-        ├── composables/
-        │   ├── useChat.js
-        │   ├── useComments.js
-        │   ├── useDragAndDrop.js
-        │   ├── useItinerary.js
-        │   ├── usePosts.js
-        │   └── useProfilePhysics.js
-        ├── config/
-        │   └── aiConfig.js
-        ├── firebase/
-        │   └── config.js
-        ├── layouts/
-        │   ├── MainLayout.vue
-        │   └── components/
-        │       ├── AppHeader.vue
-        │       └── AppSidebar.vue
-        ├── router/
-        │   └── index.js
-        ├── stores/
-        │   ├── checkout.js
-        │   ├── counter.js
-        │   ├── discussions.js
-        │   ├── itinerary.js
-        │   ├── modal.js
-        │   ├── myItinerary.js
-        │   ├── personality.js
-        │   ├── travelers.js
-        │   ├── user.js
-        │   └── vendor.js
-        ├── utils/
-        │   └── time.js
-        └── views/
-            ├── CheckoutLayout.vue
-            ├── CollectionsPage.vue
-            ├── DiscussionPage.vue
-            ├── FavoritesPage.vue
-            ├── ItineraryPage.vue
-            ├── HomePage.vue
-            ├── LoginPage.vue
-            ├── MyItineraryPage.vue
-            ├── PersonalityTest.vue
-            ├── PostDetailPage.vue
-            ├── ProfilePage.vue
-            ├── SearchPage.vue
-            ├── ShoppingCartPage.vue
-            ├── TravelerPage.vue
-            ├── VendorDashboardPage.vue
-            └── VendorProfilePage.vue
+    ├── src/
+    │   ├── App.vue
+    │   ├── main.js
+    │   ├── api/
+    │   │   ├── cart.js
+    │   │   ├── comments.js
+    │   │   ├── config.js
+    │   │   ├── discussions.js
+    │   │   ├── itineraries.js
+    │   │   ├── itinerary.js
+    │   │   ├── likes.js
+    │   │   ├── storage.js
+    │   │   ├── travelers.js
+    │   │   ├── users.js
+    │   │   └── vendor.js
+    │   ├── assets/
+    │   │   ├── base.css
+    │   │   └── main.css
+    │   ├── components/
+    │   │   ├── cards/
+    │   │   │   ├── DiscussionCard.vue
+    │   │   │   ├── ItineraryCard.vue
+    │   │   │   ├── PostingChoiceCard.vue
+    │   │   │   └── TravelerCard.vue
+    │   │   ├── chat/
+    │   │   │   ├── AIChatWindow.vue
+    │   │   │   └── PrivateChatWindow.vue
+    │   │   ├── checkout/
+    │   │   │   ├── CheckoutProgress.vue
+    │   │   │   ├── MainButton.vue
+    │   │   │   ├── Step1Confirm.vue
+    │   │   │   ├── Step2Form.vue
+    │   │   │   ├── Step3Review.vue
+    │   │   │   ├── Step4Payment.vue
+    │   │   │   ├── Step5Done.vue
+    │   │   │   ├── SubButton.vue
+    │   │   │   └── TourInfoBlock.vue
+    │   │   ├── itinerary-tabs/
+    │   │   │   ├── FeaturedItineraryTab.vue
+    │   │   │   ├── FindPartnerTab.vue
+    │   │   │   └── MyItineraryTab.vue
+    │   │   ├── modals/
+    │   │   │   ├── AddToCollectionModal.vue
+    │   │   │   ├── DiscussionDetailModal.vue
+    │   │   │   ├── DiscussionPostModal.vue
+    │   │   │   ├── ItineraryDetailModal.vue
+    │   │   │   ├── ItineraryPostModal.vue
+    │   │   │   ├── MyItineraryDetailModal.vue
+    │   │   │   ├── PersonalityResultModal.vue
+    │   │   │   ├── PostingChoiceModal.vue
+    │   │   │   ├── PostModal.vue
+    │   │   │   ├── ShareModal.vue
+    │   │   │   ├── SwipeMatchModal.vue
+    │   │   │   └── TravelerDetailModal.vue
+    │   │   ├── personality-test/
+    │   │   │   ├── ProgressBar.vue
+    │   │   │   ├── QuestionCard.vue
+    │   │   │   ├── QuizPage.vue
+    │   │   │   ├── ResultCard.vue
+    │   │   │   ├── ResultPage.vue
+    │   │   │   └── StartPage.vue
+    │   │   ├── profile/
+    │   │   │   ├── EditProfileModal.vue
+    │   │   │   ├── FriendListModal.vue
+    │   │   │   ├── ProfileHeader.vue
+    │   │   │   ├── ProfileSidebar.vue
+    │   │   │   ├── passport/
+    │   │   │   │   ├── PassportBook.vue
+    │   │   │   │   └── PassportStamp.vue
+    │   │   │   └── tabs/
+    │   │   │       ├── TabDrafts.vue
+    │   │   │       ├── TabHostedTrips.vue
+    │   │   │       ├── TabPosts.vue
+    │   │   │       ├── TabReviews.vue
+    │   │   │       └── TabVisitedPlaces.vue
+    │   │   ├── shared/
+    │   │   │   ├── AppFABs.vue
+    │   │   │   └── RightSidebarAd.vue
+    │   │   └── vendor-dashboard/
+    │   │       ├── DashboardHeader.vue
+    │   │       ├── DashboardNav.vue
+    │   │       ├── DashboardSidebar.vue
+    │   │       ├── modals/
+    │   │       │   └── ItineraryModal.vue
+    │   │       └── tabs/
+    │   │           ├── TabBasicInfo.vue
+    │   │           ├── TabItineraryList.vue
+    │   │           └── TabPostList.vue
+    │   ├── composables/
+    │   │   ├── useChat.js
+    │   │   ├── useComments.js
+    │   │   ├── useDragAndDrop.js
+    │   │   ├── useItinerary.js
+    │   │   ├── usePosts.js
+    │   │   └── useProfilePhysics.js
+    │   ├── config/
+    │   │   └── aiConfig.js
+    │   ├── firebase/
+    │   │   └── config.js
+    │   ├── layouts/
+    │   │   ├── MainLayout.vue
+    │   │   └── components/
+    │   │       ├── AppHeader.vue
+    │   │       └── AppSidebar.vue
+    │   ├── router/
+    │   │   └── index.js
+    │   ├── stores/
+    │   │   ├── checkout.js
+    │   │   ├── counter.js
+    │   │   ├── discussions.js
+    │   │   ├── itinerary.js
+    │   │   ├── modal.js
+    │   │   ├── myItinerary.js
+    │   │   ├── personality.js
+    │   │   ├── travelers.js
+    │   │   ├── user.js
+    │   │   └── vendor.js
+    │   ├── utils/
+    │   │   ├── imageCompress.js
+    │   │   └── time.js
+    │   └── views/
+    │       ├── CheckoutLayout.vue
+    │       ├── CollectionsPage.vue
+    │       ├── DiscussionPage.vue
+    │       ├── FavoritesPage.vue
+    │       ├── HomePage.vue
+    │       ├── ItineraryPage.vue
+    │       ├── LoginPage.vue
+    │       ├── MyItineraryPage.vue
+    │       ├── PersonalityTest.vue
+    │       ├── ProfilePage.vue
+    │       ├── SearchPage.vue
+    │       ├── ShoppingCartPage.vue
+    │       ├── TravelerPage.vue
+    │       ├── VendorDashboardPage.vue
+    │       └── VendorProfilePage.vue
+    └── .github/
+        └── workflows/
+            ├── ci.yml
+            └── deploy.yml

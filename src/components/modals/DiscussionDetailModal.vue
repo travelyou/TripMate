@@ -185,7 +185,7 @@ onMounted(async () => {
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
         >
-          內文
+          內文　
         </span>
       </button>
 

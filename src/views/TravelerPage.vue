@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
@@ -12,17 +12,28 @@ const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
 const travelers = ref([])
 const isLoading = ref(false)
-const filterOptions = ref(['全部', '招募中', '已額滿'])
-const activeFilter = ref('全部')
+
+const statusOptions = ref(['全部', '招募中', '已額滿'])
+const activeStatus = ref('全部')
+
+const categoryOptions = ref([
+  '全部',
+  '國內旅遊',
+  '日韓旅遊',
+  '亞洲其他',
+  '歐美紐澳',
+  '海島度假',
+  '攝影',
+  '自駕共乘',
+  '其他',
+])
+const activeCategory = ref('全部')
 
 const loadTravelers = async () => {
   isLoading.value = true
   try {
-    const filters = {}
-    if (activeFilter.value !== '全部') {
-      filters.status = activeFilter.value
-    }
-    const response = await getTravelers(filters)
+    // 這裡我們抓取所有資料，然後在前端進行雙重過濾
+    const response = await getTravelers({})
     if (response.success) {
       travelers.value = response.data
     }
@@ -32,6 +43,18 @@ const loadTravelers = async () => {
     isLoading.value = false
   }
 }
+
+// ★ 新增：雙重過濾邏輯 (狀態 + 分類)
+const filteredTravelers = computed(() => {
+  return travelers.value.filter((t) => {
+    // 1. 狀態篩選
+    const statusMatch = activeStatus.value === '全部' || t.status === activeStatus.value
+    // 2. 分類篩選
+    const categoryMatch = activeCategory.value === '全部' || t.category === activeCategory.value
+
+    return statusMatch && categoryMatch
+  })
+})
 
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler
@@ -45,16 +68,10 @@ const closeTravelerDetail = () => {
   shouldScrollToComments.value = false
 }
 
-const handleFilterChange = (filter) => {
-  activeFilter.value = filter
-  loadTravelers()
-}
-
 const handleTravelerUpdated = () => {
   loadTravelers()
 }
 
-// 處理發文成功
 const handlePostSuccess = () => {
   isPostingModalOpen.value = false
   loadTravelers()
@@ -75,7 +92,7 @@ onMounted(() => {
             找旅伴
           </h1>
           <button
-            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition flex items-center"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition flex items-center shadow-md"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -87,19 +104,37 @@ onMounted(() => {
       <div
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
-        <div class="flex flex-wrap gap-2 text-sm">
+        <div class="flex flex-wrap gap-2 text-sm border-b border-gray-100 pb-4 mb-2">
+          <span class="text-gray-400 font-bold self-center mr-2">狀態：</span>
           <button
-            v-for="filter in filterOptions"
-            :key="filter"
+            v-for="status in statusOptions"
+            :key="status"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
-              activeFilter === filter
-                ? 'bg-primary text-secondary-50'
-                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
+              'px-3 py-1 rounded-full font-bold transition border-2',
+              activeStatus === status
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
-            @click="handleFilterChange(filter)"
+            @click="activeStatus = status"
           >
-            {{ filter }}
+            {{ status }}
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-400 font-bold self-center mr-2">分類：</span>
+          <button
+            v-for="cat in categoryOptions"
+            :key="cat"
+            :class="[
+              'px-3 py-1 rounded-full font-bold transition border-2',
+              activeCategory === cat
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+            ]"
+            @click="activeCategory = cat"
+          >
+            {{ cat }}
           </button>
         </div>
       </div>
@@ -111,10 +146,10 @@ onMounted(() => {
       </div>
 
       <div
-        v-else-if="travelers.length > 0"
+        v-else-if="filteredTravelers.length > 0"
         class="grid grid-cols-1 gap-6 sm:grid-cols-2 auto-rows-fr items-stretch"
       >
-        <div v-for="traveler in travelers" :key="traveler.id" class="h-full">
+        <div v-for="traveler in filteredTravelers" :key="traveler.id" class="h-full">
           <TravelerCard
             class="h-full w-full"
             :traveler="traveler"
