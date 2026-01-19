@@ -1,10 +1,12 @@
 ﻿<script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue' // ★ 加入 onUnmounted
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
+import { useRoute, useRouter } from 'vue-router'
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
-import { useUserStore } from '@/stores/user'
+import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
+import { storeToRefs } from 'pinia'
 
 // 引入組件
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
@@ -13,7 +15,10 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 
 const discussionsStore = useDiscussionsStore()
-const userStore = useUserStore()
+const myItineraryStore = useMyItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const { drafts } = storeToRefs(myItineraryStore)
 
 const currentUserUid = ref(null)
 
@@ -124,10 +129,21 @@ onMounted(async () => {
   if (loadMoreTrigger.value) {
     observer.observe(loadMoreTrigger.value)
   }
+  // 檢查是否有草稿需要打開
+  tryOpenDraft()
 })
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
+})
+
+// 監聽路由變化
+watch(() => route.query.openDraft, (newDraftId) => {
+  if (newDraftId) {
+    nextTick(() => {
+      tryOpenDraft()
+    })
+  }
 })
 
 // 發文成功後的回調
@@ -142,6 +158,7 @@ const handlePostSuccess = async () => {
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
+const selectedDraft = ref(null) // 用於存儲要打開的草稿
 const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
@@ -168,6 +185,7 @@ const handleEditPost = (post) => {
 const handlePostModalClose = () => {
   isPostingModalOpen.value = false
   postToEdit.value = null
+  selectedDraft.value = null
 }
 
 const openShareModal = (postId) => {
@@ -185,6 +203,29 @@ const handleCardLike = (updatedPostInfo) => {
   if (post) {
     post.isLiked = updatedPostInfo.isLiked
     post.likes = updatedPostInfo.likes
+  }
+}
+// 開啟草稿編輯
+const openDraft = (draft) => {
+  if (draft.type === 'discussion' && draft.data) {
+    // 設置草稿數據並打開 Modal
+    selectedDraft.value = draft
+    isPostingModalOpen.value = true
+  }
+}
+
+// 嘗試打開草稿的函數
+const tryOpenDraft = () => {
+  const draftId = route.query.openDraft
+  if (draftId) {
+    const draft = drafts.value.find((d) => String(d.id) === String(draftId))
+    if (draft && draft.type === 'discussion') {
+      nextTick(() => {
+        openDraft(draft)
+        // 清除查詢參數
+        router.replace({ path: '/discussion', query: {} })
+      })
+    }
   }
 }
 </script>
@@ -266,6 +307,7 @@ const handleCardLike = (updatedPostInfo) => {
     v-if="isPostingModalOpen"
     :post-to-edit="postToEdit"
     @close="handlePostModalClose"
+    :draft-data="selectedDraft"
     @success="handlePostSuccess"
   />
 

@@ -10,7 +10,6 @@ import {
   MapPin as MapPinIcon,
   Calendar as CalendarIcon,
   Users as UsersIcon,
-  CheckSquare as CheckSquareIcon,
   Heading2 as Heading2Icon,
   Heading3 as Heading3Icon,
   Type as TypeIcon,
@@ -26,7 +25,6 @@ import { auth } from '@/firebase/config'
 import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
-
 // --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { Extension } from '@tiptap/core'
@@ -38,6 +36,13 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
+
+const props = defineProps({
+  draftData: {
+    type: Object,
+    default: null,
+  },
+})
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -149,6 +154,7 @@ const bannerFileInput = ref(null)
 const bannerFile = ref(null)
 const editorFileInputRef = ref(null)
 const isUploading = ref(false)
+const uploadProgress = ref(0)
 const submitProgress = ref(0)
 const isSubmitting = ref(false)
 const submitStatus = ref('')
@@ -263,7 +269,6 @@ const validateBasic = () => {
     fieldErrors.value.category = '請選擇分類'
     hasError = true
   }
-
   if (!postData.value.title.trim()) {
     fieldErrors.value.title = '請輸入標題'
     hasError = true
@@ -287,6 +292,14 @@ const validateBasic = () => {
     hasError = true
   }
 
+  const maxPeopleNum = Number(postData.value.max_people)
+  if (!maxPeopleNum || maxPeopleNum < 1) {
+    fieldErrors.value.max_people = '請輸入有效的人數'
+    hasError = true
+  } else if (maxPeopleNum > 999) {
+    fieldErrors.value.max_people = '人數最多不能超過 999 人'
+    hasError = true
+  }
   // ★ 新增：日期驗證邏輯
   if (!postData.value.start_date) {
     fieldErrors.value.start_date = '請選擇開始日期'
@@ -337,9 +350,10 @@ const handleBannerSelect = async (event) => {
       maxSizeMB: 2,
     })
     bannerFile.value = compressedFile
-
     const reader = new FileReader()
-    reader.onload = (e) => (bannerPreview.value = e.target.result)
+    reader.onload = (e) => {
+      bannerPreview.value = e.target.result
+    }
     reader.readAsDataURL(compressedFile)
 
     isUploading.value = false
@@ -398,6 +412,91 @@ const addTag = (tag) => {
 }
 const removeTag = (index) => postData.value.tags.splice(index, 1)
 
+// 下一步前的額外驗證
+const validateItinerary = () => {
+  fieldErrors.value.itinerary = ''
+  if (!postData.value.itinerary.days || postData.value.itinerary.days.length === 0) {
+    return ''
+  }
+
+  for (let i = 0; i < postData.value.itinerary.days.length; i++) {
+    const day = postData.value.itinerary.days[i]
+    if (day.activities && Array.isArray(day.activities)) {
+      for (let j = 0; j < day.activities.length; j++) {
+        const activity = day.activities[j]
+        if (activity.title && activity.title.trim().length > 50) {
+          fieldErrors.value.itinerary = `第 ${i + 1} 天第 ${j + 1} 個活動名稱不能超過 50 字（目前 ${activity.title.trim().length} 字）`
+          return fieldErrors.value.itinerary
+        }
+        if (activity.desc && activity.desc.trim().length > 500) {
+          fieldErrors.value.itinerary = `第 ${i + 1} 天第 ${j + 1} 個活動內文不能超過 500 字（目前 ${activity.desc.trim().length} 字）`
+          return fieldErrors.value.itinerary
+        }
+      }
+    }
+  }
+  return ''
+}
+
+const validatePackingList = () => {
+  fieldErrors.value.packingList = ''
+  if (!postData.value.packingList || postData.value.packingList.length === 0) {
+    return ''
+  }
+
+  if (postData.value.packingList.length > 50) {
+    fieldErrors.value.packingList = `分類數量不能超過 50 個（目前 ${postData.value.packingList.length} 個）`
+    return fieldErrors.value.packingList
+  }
+
+  let totalItems = 0
+  for (let i = 0; i < postData.value.packingList.length; i++) {
+    const category = postData.value.packingList[i]
+    if (category.category && category.category.trim().length > 30) {
+      fieldErrors.value.packingList = `第 ${i + 1} 個分類名稱不能超過 30 字（目前 ${category.category.trim().length} 字）`
+      return fieldErrors.value.packingList
+    }
+    if (category.items && Array.isArray(category.items)) {
+      totalItems += category.items.length
+      for (let j = 0; j < category.items.length; j++) {
+        const item = category.items[j]
+        if (item.name && item.name.trim().length > 50) {
+          fieldErrors.value.packingList = `第 ${i + 1} 個分類第 ${j + 1} 個物品名稱不能超過 50 字（目前 ${item.name.trim().length} 字）`
+          return fieldErrors.value.packingList
+        }
+      }
+    }
+  }
+
+  if (totalItems > 100) {
+    fieldErrors.value.packingList = `物品總數不能超過 100 個（目前 ${totalItems} 個）`
+    return fieldErrors.value.packingList
+  }
+
+  return ''
+}
+
+const validateTags = () => {
+  fieldErrors.value.tags = ''
+  if (!postData.value.tags || postData.value.tags.length === 0) {
+    return ''
+  }
+
+  if (postData.value.tags.length > 5) {
+    fieldErrors.value.tags = `標籤數量不能超過 5 個（目前 ${postData.value.tags.length} 個）`
+    return fieldErrors.value.tags
+  }
+
+  for (let i = 0; i < postData.value.tags.length; i++) {
+    const tag = postData.value.tags[i]
+    if (tag && tag.trim().length > 30) {
+      fieldErrors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字（目前 ${tag.trim().length} 字）`
+      return fieldErrors.value.tags
+    }
+  }
+
+  return ''
+}
 // 下一步邏輯
 const nextStep = () => {
   if (isUploading.value || isSubmitting.value) return
@@ -434,10 +533,25 @@ const nextStep = () => {
     currentStep.value = 'itinerary'
     formError.value = ''
   } else if (currentStep.value === 'itinerary') {
+    const error = validateItinerary()
+    if (error) {
+      formError.value = error
+      return
+    }
     currentStep.value = 'packing'
   } else if (currentStep.value === 'packing') {
+    const error = validatePackingList()
+    if (error) {
+      formError.value = error
+      return
+    }
     currentStep.value = 'tags'
   } else if (currentStep.value === 'tags') {
+    const error = validateTags()
+    if (error) {
+      formError.value = error
+      return
+    }
     currentStep.value = 'preview'
   }
 }
@@ -459,8 +573,43 @@ const executeSubmit = async () => {
     let bannerImageUrl = postData.value.banner_image
 
     if (bannerFile.value) {
-      submitStatus.value = '上傳封面圖...'
-      bannerImageUrl = await uploadImage(bannerFile.value, 'travelers')
+      try {
+        isUploading.value = true
+        uploadProgress.value = 0
+        submitProgress.value = 10
+        submitStatus.value = '正在上傳圖片...'
+        bannerImageUrl = await uploadImage(
+          bannerFile.value,
+          'travelers',
+          (progress) => {
+            uploadProgress.value = progress
+            submitProgress.value = 10 + Math.floor((progress / 100) * 50)
+            submitStatus.value = `正在上傳圖片... ${progress}%`
+          },
+        )
+        uploadProgress.value = 100
+        submitProgress.value = 60
+        submitStatus.value = '圖片上傳完成'
+      } catch (error) {
+        isUploading.value = false
+        uploadProgress.value = 0
+        const shouldContinue = confirm(
+          'Banner 圖片上傳失敗：' + error.message + '\n\n是否要繼續發布（使用預設圖片）？',
+        )
+        if (!shouldContinue) {
+          isSubmitting.value = false
+          submitProgress.value = 0
+          submitStatus.value = ''
+          return
+        }
+        submitProgress.value = 60
+        submitStatus.value = '使用預設圖片'
+      } finally {
+        isUploading.value = false
+      }
+    } else {
+      submitProgress.value = 60
+      submitStatus.value = '準備提交...'
     }
 
     const payload = {
@@ -468,29 +617,121 @@ const executeSubmit = async () => {
       banner_image: bannerImageUrl,
       banner_position_y: Math.round(bannerPositionY.value),
       author_uid: auth.currentUser.uid,
-      author_name: userStore.currentUser?.displayName || '匿名',
-      author_avatar: userStore.currentUser?.photoURL,
-      spirit_animal: userStore.currentUser?.spiritAnimal,
-      status: '招募中',
+      author_name: userStore.userProfile?.name || userStore.userProfile?.nickname || '匿名',
+      author_avatar:
+        userStore.userProfile?.avatar ||
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
+      spirit_animal: userStore.userProfile?.spiritAnimal || null,
+      status: postData.value.status || '招募中',
+    }
+
+    const optimizedPayload = {
+      title: payload.title.trim(),
+      content: payload.content.trim(),
+      location: payload.location.trim(),
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      max_people: Number(payload.max_people) || 2,
+      tags: payload.tags || [],
+      status: payload.status,
+      banner_image: payload.banner_image,
+      author_uid: payload.author_uid,
+      author_name: payload.author_name,
+      author_avatar: payload.author_avatar,
+      spirit_animal: payload.spirit_animal,
+      itinerary: payload.itinerary?.days
+        ? {
+            days: payload.itinerary.days.map((day) => ({
+              day: Number(day.day || day.day_number) || 1,
+              date: day.date || '',
+              activities: (day.activities || []).map((act) => ({
+                time: act.time || '',
+                title: (act.title || '').trim(),
+                desc: (act.desc || '').trim(),
+              })),
+            })),
+          }
+        : { days: [] },
+      packingList: (payload.packingList || []).map((pack) => ({
+        category: (pack.category || '').trim(),
+        items: (pack.items || []).map((item) => ({
+          name: (item.name || '').trim(),
+        })),
+      })),
+    }
+
+    const payloadSize = JSON.stringify(optimizedPayload).length
+    const payloadSizeKB = (payloadSize / 1024).toFixed(2)
+
+    if (payloadSize > 900 * 1024) {
+      formError.value = `資料太大（${payloadSizeKB}KB），請減少行程天數、打包清單項目或內容長度`
+      isSubmitting.value = false
+      submitProgress.value = 0
+      submitStatus.value = ''
+      return
     }
 
     submitProgress.value = 70
-    submitStatus.value = '正在提交...'
+    submitStatus.value = '正在提交貼文...'
 
-    const response = await createTraveler(payload)
+    const response = await createTraveler(optimizedPayload)
 
     if (response.success) {
-      alert('發文成功')
+      sessionStorage.removeItem('is_submitting_traveler_post')
+      sessionStorage.removeItem('submit_start_time')
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('旅伴招募發布成功！', {
+          body: '您的貼文已成功發布',
+          icon: '/favicon.ico',
+        })
+      } else {
+        alert('旅伴招募發布成功！')
+      }
       emit('success')
       emit('close')
     } else {
-      alert('發布失敗：' + response.message)
+      sessionStorage.removeItem('is_submitting_traveler_post')
+      sessionStorage.removeItem('submit_start_time')
+      const errorMessage = '發布失敗：' + (response.message || '請稍後再試')
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('發布失敗', {
+          body: errorMessage,
+          icon: '/favicon.ico',
+        })
+      } else {
+        alert(errorMessage)
+      }
+
+      isSubmitting.value = false
+      submitProgress.value = 0
+      submitStatus.value = ''
     }
   } catch (error) {
-    alert('發文失敗')
-    console.error(error)
-  } finally {
+    sessionStorage.removeItem('is_submitting_traveler_post')
+    sessionStorage.removeItem('submit_start_time')
+
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      '發布失敗，發生未知錯誤'
+    const errorDetail = error.response?.data?.detail || error.response?.data?.code || ''
+    const fullErrorMessage = errorDetail ? `${errorMessage} (${errorDetail})` : errorMessage
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('發布失敗', {
+        body: fullErrorMessage,
+        icon: '/favicon.ico',
+      })
+    } else {
+      alert(fullErrorMessage)
+    }
+
     isSubmitting.value = false
+    submitProgress.value = 0
+    submitStatus.value = ''
   }
 }
 
@@ -499,6 +740,8 @@ const handleFinalSubmit = async () => {
     formError.value = '請先登入'
     return
   }
+  sessionStorage.setItem('is_submitting_traveler_post', 'true')
+  sessionStorage.setItem('submit_start_time', Date.now().toString())
   executeSubmit()
 }
 
@@ -507,9 +750,46 @@ const handleClose = () => {
   emit('close')
 }
 
+watch(() => props.draftData, (newDraft) => {
+  if (newDraft && newDraft.data) {
+    const draft = newDraft.data
+    postData.value.title = draft.title || ''
+    postData.value.content = draft.content || ''
+    postData.value.location = draft.location || ''
+    postData.value.start_date = draft.start_date || ''
+    postData.value.end_date = draft.end_date || ''
+    postData.value.max_people = draft.max_people || 2
+    postData.value.tags = draft.tags || []
+
+    if (draft.itinerary && draft.itinerary.days) {
+      postData.value.itinerary.days = draft.itinerary.days
+    }
+
+    if (draft.packingList && Array.isArray(draft.packingList)) {
+      postData.value.packingList = draft.packingList
+    }
+
+    if (draft.banner_image) {
+      postData.value.banner_image = draft.banner_image
+      bannerPreview.value = draft.banner_image
+    }
+  }
+}, { immediate: true })
+
 onMounted(() => {
   if (postData.value.itinerary.days.length === 0) {
     postData.value.itinerary.days.push({ day: 1, date: '', activities: [] })
+  }
+  window.addEventListener('beforeunload', (e) => {
+    if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
+      e.preventDefault()
+      e.returnValue = '貼文正在提交中，確定要離開嗎？'
+      return e.returnValue
+    }
+  })
+
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
   }
 })
 </script>
@@ -956,11 +1236,22 @@ onMounted(() => {
                     <input
                       v-model="activity.title"
                       placeholder="活動名稱"
-                      class="w-full font-bold text-lg focus:outline-none"
+                      :class="[
+                        'w-full font-bold text-lg focus:outline-none',
+                        activity.title && activity.title.trim().length > 50 ? 'text-red-500' : '',
+                      ]"
                       maxlength="50"
-                    /><span class="text-xs text-gray-400"
-                      >{{ (activity.title || '').length }}/50</span
+                    />
+                    <span
+                      :class="[
+                        'text-xs ml-2',
+                        activity.title && activity.title.trim().length > 50
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
                     >
+                      {{ (activity.title || '').length }}/50
+                    </span>
                   </div>
                 </div>
                 <div>
@@ -969,12 +1260,22 @@ onMounted(() => {
                       v-model="activity.desc"
                       placeholder="活動描述..."
                       rows="2"
-                      class="w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none"
+                      :class="[
+                        'w-full text-sm text-gray-600 bg-transparent resize-none focus:outline-none',
+                        activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
+                      ]"
                       maxlength="500"
-                    ></textarea
-                    ><span class="text-xs text-gray-400"
-                      >{{ (activity.desc || '').length }}/500</span
+                    ></textarea>
+                    <span
+                      :class="[
+                        'text-xs ml-2 self-start pt-1',
+                        activity.desc && activity.desc.trim().length > 500
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
                     >
+                      {{ (activity.desc || '').length }}/500
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1006,12 +1307,35 @@ onMounted(() => {
             >
               <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 mr-2">
-                  <input
-                    v-model="category.category"
-                    placeholder="分類名稱"
-                    class="bg-transparent font-bold text-gray-800 focus:outline-none w-full"
-                    maxlength="30"
-                  />
+                  <div class="flex items-center justify-between">
+                    <input
+                      v-model="category.category"
+                      placeholder="分類名稱"
+                      :class="[
+                        'bg-transparent font-bold text-gray-800 focus:outline-none w-full',
+                        category.category && category.category.trim().length > 30
+                          ? 'text-red-500'
+                          : '',
+                      ]"
+                      maxlength="30"
+                    />
+                    <span
+                      :class="[
+                        'text-xs ml-2',
+                        category.category && category.category.trim().length > 30
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
+                    >
+                      {{ (category.category || '').length }}/30
+                    </span>
+                  </div>
+                  <p
+                    v-if="category.category && category.category.trim().length > 30"
+                    class="text-xs text-red-500 mt-1"
+                  >
+                    分類名稱不能超過 30 字
+                  </p>
                 </div>
                 <button
                   class="text-gray-400 hover:text-red-500"
@@ -1030,9 +1354,23 @@ onMounted(() => {
                     <input
                       v-model="item.name"
                       placeholder="物品名稱"
-                      class="flex-1 text-sm focus:outline-none"
+                      :class="[
+                        'flex-1 text-sm focus:outline-none',
+                        item.name && item.name.trim().length > 50 ? 'text-red-500' : '',
+                      ]"
                       maxlength="50"
-                    /><button
+                    />
+                    <span
+                      :class="[
+                        'text-xs',
+                        item.name && item.name.trim().length > 50
+                          ? 'text-red-500 font-bold'
+                          : 'text-gray-400',
+                      ]"
+                    >
+                      {{ (item.name || '').length }}/50
+                    </span>
+                    <button
                       class="text-gray-300 hover:text-red-500"
                       @click="removePackingItem(catIndex, itemIndex)"
                     >
@@ -1098,29 +1436,31 @@ onMounted(() => {
           </div>
 
           <div class="p-6">
-            <h1 class="text-3xl font-black text-secondary-900 mb-4">{{ postData.title }}</h1>
-
-            <div class="flex items-center space-x-3 mb-4">
-              <img
-                :src="
-                  userStore.currentUser?.photoURL ||
-                  'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
-                "
-                class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
-              />
-              <div>
-                <div class="flex items-center space-x-2">
-                  <span class="font-bold text-secondary-900">{{
-                    userStore.currentUser?.displayName || '你'
-                  }}</span>
-                  <span
-                    class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
-                    >{{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}</span
-                  >
-                </div>
-                <div class="text-xs text-secondary-400">
-                  剛剛 •
-                  <span class="text-blue-600 font-bold ml-1"> @ {{ postData.category }} </span>
+            <div class="mb-6">
+              <h1 class="text-3xl font-black text-secondary-900 mb-4">{{ postData.title }}</h1>
+              <div class="flex items-center space-x-3 mb-4">
+                <img
+                  :src="
+                    userStore.userProfile?.avatar ||
+                    'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+                  "
+                  class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
+                />
+                <div>
+                  <div class="flex items-center space-x-2 flex-wrap gap-2">
+                    <span class="font-bold text-secondary-900">{{
+                      userStore.userProfile?.name || userStore.userProfile?.nickname || '你'
+                    }}</span>
+                    <span
+                      v-if="userStore.userProfile?.spiritAnimal && userStore.userProfile.spiritAnimal.trim()"
+                      class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
+                      >{{ userStore.userProfile.spiritAnimal }}</span
+                    >
+                  </div>
+                  <div class="text-sm text-secondary-500">
+                    發布於 剛剛 •
+                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.category }} </span>
+                  </div>
                 </div>
               </div>
             </div>

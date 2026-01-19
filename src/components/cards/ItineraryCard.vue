@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   MapPin as MapPinIcon,
@@ -15,6 +16,8 @@ import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 
+const router = useRouter()
+
 const props = defineProps({
   itinerary: {
     type: Object,
@@ -25,11 +28,21 @@ const props = defineProps({
 const userStore = useUserStore()
 const emit = defineEmits(['open-detail', 'open-share'])
 
+const handleAgencyClick = (e) => {
+  e.stopPropagation()
+  e.preventDefault()
+  const vendorId = props.itinerary.vendor_id || props.itinerary.vendorId
+  const authorUid = props.itinerary.author_uid || props.itinerary.authorUid
+
+  if (vendorId) {
+    router.push({ path: `/vendor/${vendorId}`, replace: false })
+  } else if (authorUid) {
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+  }
+}
 const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(props.itinerary.likes || 0)
-
-// 統一資料格式給 Store 使用 (收藏/按讚)
 const itemData = computed(() => ({
   id: props.itinerary.id,
   type: 'itinerary',
@@ -158,7 +171,8 @@ onMounted(async () => {
     <div class="p-4 flex flex-col flex-1">
       <div
         v-if="props.itinerary.agencyName"
-        class="flex items-center text-xs font-bold text-primary-600 mb-1"
+        class="text-xs font-bold text-primary-600 tracking-wider cursor-pointer hover:text-primary-700 transition"
+        @click.stop="handleAgencyClick"
       >
         <BuildingIcon class="w-3 h-3 mr-1" />
         {{ props.itinerary.agencyName }}

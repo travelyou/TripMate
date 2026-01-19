@@ -1,4 +1,5 @@
 /* eslint-env node */
+/* global require, module */
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
@@ -19,9 +20,30 @@ router.get('/', async (req, res) => {
       queryParams.push(category)
     }
 
+    console.log('🔵 [Backend GET / Step 2] WHERE 子句:', whereClause)
+    console.log('🔵 [Backend GET / Step 2] 查詢參數:', queryParams)
+
+    // 查詢討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
+    // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar（Firebase Storage URL）
+    // 注意：d.author_avatar 在 COALESCE 中引用，即使不在 SELECT 列表中也可以使用
     const discussionsQuery = `
       SELECT
-        d.*,
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.author_avatar as old_author_avatar,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l
@@ -33,12 +55,89 @@ router.get('/', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
       WHERE ${whereClause}
       ORDER BY d.created_at DESC
       LIMIT $1 OFFSET $2
     `
 
+    console.log('🔵 [Backend GET / Step 3] 執行查詢')
+    console.log('🔵 [Backend GET / Step 3] SQL 查詢:', discussionsQuery.substring(0, 200) + '...')
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
+
+    // 測試：檢查 users 表中是否有對應的記錄
+    if (discussionsResult.rows.length > 0) {
+      const testUid = discussionsResult.rows[0].author_uid
+      const testUserQuery = 'SELECT uid, nickname, avatar FROM users WHERE uid = $1'
+      try {
+        const testUserResult = await pool.query(testUserQuery, [testUid])
+        if (testUserResult.rows.length > 0) {
+          console.log(`🔵 [Backend GET / Step 3] ✅ users 表中有 UID ${testUid} 的記錄:`)
+          console.log(
+            `🔵 [Backend GET / Step 3]   - nickname: ${testUserResult.rows[0].nickname || 'NULL'}`,
+          )
+          console.log(
+            `🔵 [Backend GET / Step 3]   - avatar: ${testUserResult.rows[0].avatar ? testUserResult.rows[0].avatar.substring(0, 50) + '...' : 'NULL'}`,
+          )
+        } else {
+          console.log(`⚠️ [Backend GET / Step 3] ❌ users 表中沒有 UID ${testUid} 的記錄`)
+        }
+      } catch (testError) {
+        console.error('⚠️ [Backend GET / Step 3] 測試查詢 users 表失敗:', testError.message)
+      }
+    }
+
+    // 調試：檢查返回的 author_avatar 和 JOIN 結果
+    if (discussionsResult.rows.length > 0) {
+      const firstPost = discussionsResult.rows[0]
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的 author_avatar:',
+        firstPost.author_avatar || 'NULL',
+      )
+      console.log('🔵 [Backend GET / Step 3] 第一個貼文的 author_uid:', firstPost.author_uid)
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的 author_name:',
+        firstPost.author_name || 'NULL',
+      )
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的 old_author_avatar:',
+        firstPost.old_author_avatar || 'NULL',
+      )
+
+      // 測試 JOIN 是否成功：檢查是否有 u.avatar 的值
+      // 由於使用了 d.*，我們需要檢查原始的 author_avatar 欄位
+      console.log(
+        '🔵 [Backend GET / Step 3] 第一個貼文的所有欄位:',
+        Object.keys(firstPost).slice(0, 20),
+      )
+
+      // 檢查所有貼文的 author_avatar
+      discussionsResult.rows.forEach((row, index) => {
+        if (!row.author_avatar) {
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} (UID: ${row.author_uid}) 沒有 author_avatar`,
+          )
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_avatar 值:`,
+            row.author_avatar,
+          )
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 old_author_avatar 值:`,
+            row.old_author_avatar,
+          )
+          console.log(
+            `⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 author_name 值:`,
+            row.author_name,
+          )
+          // 檢查是否有其他 avatar 相關的欄位
+          const avatarKeys = Object.keys(row).filter((k) => k.toLowerCase().includes('avatar'))
+          console.log(`⚠️ [Backend GET / Step 3] 貼文 ${index + 1} 的 avatar 相關欄位:`, avatarKeys)
+
+          // 檢查 users 表中是否有對應的記錄
+          console.log(`⚠️ [Backend GET / Step 3] 檢查 users 表中是否有 UID: ${row.author_uid}`)
+        }
+      })
+    }
 
     // 查詢總數
     let countQuery = 'SELECT COUNT(*) FROM discussion.discussion WHERE deleted_at IS NULL'
@@ -50,44 +149,42 @@ router.get('/', async (req, res) => {
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
 
-    // ★ 修改：格式化資料 (比照 travelers.js)
-    const discussions = discussionsResult.rows.map((row) => {
-      // 時間格式化：600秒內顯示「剛剛」
-      const now = new Date()
-      const created = new Date(row.created_at)
-      const diffSeconds = Math.floor((now - created) / 1000)
-      const timeStr =
-        diffSeconds < 600
-          ? '剛剛'
-          : created.toLocaleString('zh-TW', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            })
+    // 處理結果
+    // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
+    const discussions = discussionsResult.rows.map((discussion) => {
+      // 調試：檢查每個貼文的 author_avatar
+      if (!discussion.author_avatar) {
+        console.log(
+          `⚠️ [Backend GET / Step 4] 貼文 ID ${discussion.id} (UID: ${discussion.author_uid}) 沒有 author_avatar`,
+        )
+        console.log(`⚠️ [Backend GET / Step 4] 貼文的所有欄位:`, Object.keys(discussion))
+        console.log(
+          `⚠️ [Backend GET / Step 4] 貼文的完整資料:`,
+          JSON.stringify(discussion, null, 2),
+        )
+      }
+
+      // 調試：記錄第一個貼文的完整資料
+      if (discussion.id === discussionsResult.rows[0].id) {
+        console.log(`🔵 [Backend GET / Step 4] 第一個貼文的完整資料:`)
+        console.log(`  - author_avatar: ${discussion.author_avatar || 'NULL'}`)
+        console.log(`  - author_name: ${discussion.author_name || 'NULL'}`)
+        console.log(`  - author_spirit_animal: ${discussion.author_spirit_animal || 'NULL'}`)
+        console.log(`  - old_author_avatar: ${discussion.old_author_avatar || 'NULL'}`)
+        console.log(`  - 所有欄位:`, Object.keys(discussion))
+      }
 
       return {
-        id: row.id,
-        category: row.category, // 分類
-        title: row.title,
-        content: row.content,
-        banner: row.banner || null,
-        image_urls: Array.isArray(row.image_urls) ? row.image_urls : [],
-        tags: Array.isArray(row.tags) ? row.tags : [],
-
-        // 作者資訊 (從 DB 讀取快照)
-        author_uid: row.author_uid,
-        author: row.author_name, // 對應前端 discussionCard 的 props
-        authorAvatar: row.author_avatar,
-        spiritAnimal: row.spirit_animal,
-
-        // 數據
-        likes: parseInt(row.likes_count) || 0,
-        comments: parseInt(row.comments_count) || 0,
-        created_at: timeStr, // 使用格式化後的時間
-        time: timeStr, // 相容性欄位
+        ...discussion,
+        // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
+        author_avatar: discussion.author_avatar || null,
+        author_name: discussion.author_name || null,
+        author_spirit_animal: discussion.author_spirit_animal || null,
+        likes_count: parseInt(discussion.likes_count) || 0,
+        comments_count: parseInt(discussion.comments_count) || 0,
+        banner: discussion.banner || null,
+        image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+        tags: Array.isArray(discussion.tags) ? discussion.tags : [],
       }
     })
 
@@ -157,8 +254,39 @@ router.post('/', async (req, res) => {
     ])
 
     const newDiscussion = discussionResult.rows[0]
-    console.log('✅ [Backend POST /] 插入成功 ID:', newDiscussion.id)
-    res.status(201).json(newDiscussion)
+    console.log('✅ [Backend POST / Step 5] 插入成功！')
+    console.log('📊 [Backend POST / Success] 新討論 ID:', newDiscussion.id)
+    console.log('📊 [Backend POST / Success] 創建時間:', newDiscussion.created_at)
+
+    // 回傳最新作者資料，確保頭貼與個人檔案一致
+    const discussionQuery = `
+      SELECT
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
+        0 as likes_count,
+        0 as comments_count
+      FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
+      WHERE d.id = $1
+    `
+    const enrichedResult = await pool.query(discussionQuery, [newDiscussion.id])
+    const enrichedDiscussion = enrichedResult.rows[0] || newDiscussion
+
+    console.log('🟢 [Backend POST /] ========== 完成 ==========')
+    res.status(201).json(enrichedDiscussion)
   } catch (error) {
     console.error('❌ [Backend POST /] 錯誤:', error)
     res.status(500).json({ error: '創建討論失敗', details: error.message })
@@ -171,12 +299,37 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params
     const idNum = Number(id)
 
+    // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
+    // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar
     const discussionQuery = `
       SELECT
-        d.*,
-        COALESCE((SELECT COUNT(*) FROM public.likes l WHERE l.post_id = d.id AND l.board = 'discussion'), 0) as likes_count,
-        COALESCE((SELECT COUNT(*) FROM public.comments c WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL), 0) as comments_count
+        d.id,
+        d.author_uid,
+        d.category,
+        d.title,
+        d.content,
+        d.tags,
+        d.image_urls,
+        d.created_at,
+        d.updated_at,
+        d.author_name,
+        d.deleted_at,
+        d.banner,
+        COALESCE(u.avatar, d.author_avatar) as author_avatar,
+        COALESCE(u.nickname, d.author_name) as author_name,
+        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.likes l
+          WHERE l.post_id = d.id AND l.board = 'discussion'
+        ), 0) as likes_count,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.comments c
+          WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
+        ), 0) as comments_count
       FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
       WHERE d.id = $1 AND d.deleted_at IS NULL
     `
 
@@ -186,7 +339,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: '討論不存在' })
     }
 
-    const row = discussionResult.rows[0]
+    const discussion = discussionResult.rows[0]
+    console.log('🔵 [Backend GET /:id] 找到討論:', discussion.title)
+    console.log('🔵 [Backend GET /:id] author_avatar:', discussion.author_avatar || 'NULL')
+    console.log('🔵 [Backend GET /:id] author_uid:', discussion.author_uid)
 
     // 獲取留言
     const commentsResult = await pool.query(
@@ -196,22 +352,17 @@ router.get('/:id', async (req, res) => {
       [idNum],
     )
 
-    // ★ 修改：格式化回傳資料
-    const discussion = {
-      ...row,
-      author: row.author_name, // 對應前端
-      authorAvatar: row.author_avatar,
-      spiritAnimal: row.spirit_animal,
-
+    const detailedDiscussion = {
+      ...discussion,
       commentsData: commentsResult.rows,
-      comments: parseInt(row.comments_count) || 0,
-      likes: parseInt(row.likes_count) || 0,
-      banner: row.banner || null,
-      image_urls: Array.isArray(row.image_urls) ? row.image_urls : [],
-      tags: Array.isArray(row.tags) ? row.tags : [],
+      comments_count: parseInt(discussion.comments_count) || 0,
+      likes_count: parseInt(discussion.likes_count) || 0,
+      banner: discussion.banner || null,
+      image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+      tags: Array.isArray(discussion.tags) ? discussion.tags : [],
     }
 
-    res.json(discussion)
+    res.json(detailedDiscussion)
   } catch (error) {
     console.error('❌ [Backend GET /:id] 錯誤:', error)
     res.status(500).json({ error: '獲取詳情失敗', details: error.message })

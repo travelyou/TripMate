@@ -166,13 +166,18 @@ const ResetStyleOnEnter = Extension.create({
                 try {
                   if (editor && !editor.isDestroyed && editor.view && editor.state) {
                     const newState = editor.state
-                    const newSelection = newState.selection(
+                    const newSelection = newState.selection
+                    if (
                       newSelection.$from.pos >= 0 &&
-                        newSelection.$from.pos <= newState.doc.content.size &&
-                        editor.can().setHeading({ level: 2 }),
-                    )
+                      newSelection.$from.pos <= newState.doc.content.size &&
+                      editor.can().setHeading({ level: 2 })
+                    ) {
+                      editor.chain().focus().setHeading({ level: 2 }).run()
+                    }
                   }
-                } catch {}
+                } catch {
+                  // 忽略錯誤，避免無限循環
+                }
               })
             }
             return splitSuccess
@@ -188,13 +193,18 @@ const ResetStyleOnEnter = Extension.create({
                 try {
                   if (editor && !editor.isDestroyed && editor.view && editor.state) {
                     const newState = editor.state
-                    const newSelection = newState.selection(
+                    const newSelection = newState.selection
+                    if (
                       newSelection.$from.pos >= 0 &&
-                        newSelection.$from.pos <= newState.doc.content.size &&
-                        editor.can().setHeading({ level: 3 }),
-                    )
+                      newSelection.$from.pos <= newState.doc.content.size &&
+                      editor.can().setHeading({ level: 3 })
+                    ) {
+                      editor.chain().focus().setHeading({ level: 3 }).run()
+                    }
                   }
-                } catch {}
+                } catch {
+                  // 忽略錯誤，避免無限循環
+                }
               })
             }
             return splitSuccess
@@ -223,7 +233,9 @@ const ResetStyleOnEnter = Extension.create({
                       editor.chain().focus().unsetAllMarks().run()
                     }
                   }
-                } catch {}
+                } catch {
+                  // 忽略錯誤，避免無限循環
+                }
               })
             }
             return splitSuccess
@@ -533,12 +545,16 @@ const handleImageSelect = async (event) => {
       reader.readAsDataURL(compressedFile)
 
       submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}...`
-      const imageUrl = await uploadImage(compressedFile, 'discussions', (progress) => {
-        const baseProgress = (i / validFiles.length) * 100
-        const currentFileProgress = (progress / 100) * (100 / validFiles.length)
-        uploadProgress.value = Math.round(baseProgress + currentFileProgress)
-        submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
-      })
+      const imageUrl = await uploadImage(
+        compressedFile,
+        'discussions',
+        (progress) => {
+          const baseProgress = (i / validFiles.length) * 100
+          const currentFileProgress = (progress / 100) * (100 / validFiles.length)
+          uploadProgress.value = Math.round(baseProgress + currentFileProgress)
+          submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
+        }
+      )
 
       imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
@@ -739,8 +755,7 @@ const executeSubmit = async () => {
       content: postData.value.content,
       tags: postData.value.tags,
       banner: bannerUrl,
-      banner_position_y:
-        imagePreviews.value.length > 0 ? Math.round(bannerPositionY.value) : undefined,
+      banner_position_y: imagePreviews.value.length > 0 ? Math.round(bannerPositionY.value) : undefined,
       image_urls: imageUrls,
       author_uid: auth.currentUser.uid,
     }
@@ -904,111 +919,111 @@ onMounted(() => {
         <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
           <XIcon class="w-6 h-6 text-gray-500" />
         </button>
-      </div>
+        </div>
 
-      <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
-        <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
-          <div
-            v-for="step in ['edit', 'tags', 'preview']"
-            :key="step"
-            :class="[
-              'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
-              currentStep === step
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-400',
-            ]"
-          >
-            {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
+        <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
+          <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
+            <div
+              v-for="step in ['edit', 'tags', 'preview']"
+              :key="step"
+              :class="[
+                'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
+                currentStep === step
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-400',
+              ]"
+            >
+              {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div
-        :class="[
-          'flex-1 overflow-y-auto custom-scrollbar',
-          currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
-        ]"
-      >
-        <div v-if="currentStep === 'edit'" class="space-y-6">
-          <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">
-              選擇看板 <span class="text-red-500">*</span>
-            </label>
-            <select
-              v-model="postData.category"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
-              :class="{ 'border-red-500': errors.category }"
-            >
-              <option value="" disabled selected>請選擇看板</option>
-              <option v-for="category in categories" :key="category" :value="category">
-                {{ category }}
-              </option>
-            </select>
-            <p v-if="errors.category" class="text-red-500 text-xs mt-1">{{ errors.category }}</p>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-sm font-bold text-gray-700">
-                標題 <span class="text-red-500">*</span>
+        <div
+          :class="[
+            'flex-1 overflow-y-auto custom-scrollbar',
+            currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
+          ]"
+        >
+          <div v-if="currentStep === 'edit'" class="space-y-6">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2">
+                選擇看板 <span class="text-red-500">*</span>
               </label>
-              <span
-                :class="[
-                  'text-xs',
-                  postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
-                ]"
+              <select
+                v-model="postData.category"
+                class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
+                :class="{ 'border-red-500': errors.category }"
               >
-                {{ postData.title.trim().length }}/35
-              </span>
+                <option value="" disabled selected>請選擇看板</option>
+                <option v-for="category in categories" :key="category" :value="category">
+                  {{ category }}
+                </option>
+              </select>
+              <p v-if="errors.category" class="text-red-500 text-xs mt-1">{{ errors.category }}</p>
             </div>
-            <input
-              v-model="postData.title"
-              type="text"
-              placeholder="輸入一個吸引人的標題..."
-              :class="[
-                'w-full p-3 border-2 rounded-xl focus:outline-none transition',
-                errors.title
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-200 focus:border-green-500',
-              ]"
-              maxlength="35"
-            />
-            <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
-          </div>
 
-          <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700"
-              >封面圖片 <span class="text-red-500">*</span></label
-            >
-            <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
-              <div
-                v-for="(url, index) in imagePreviews"
-                :key="index"
-                class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
-                @mousedown.prevent="startDragBanner"
-                @mousemove="onDragBanner"
-                @mouseup="stopDragBanner"
-                @mouseleave="stopDragBanner"
-              >
-                <img
-                  :src="url"
-                  alt="預覽"
-                  class="w-full h-full object-cover pointer-events-none"
-                  :style="{ objectPosition: `center ${bannerPositionY}%` }"
-                />
-                <div
-                  class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-bold text-gray-700">
+                  標題 <span class="text-red-500">*</span>
+                </label>
+                <span
+                  :class="[
+                    'text-xs',
+                    postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
+                  ]"
                 >
-                  上下拖曳調整位置
-                </div>
-                <button
-                  class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
-                  @click.stop="removeImage(index)"
-                >
-                  <XIcon class="w-5 h-5" />
-                </button>
+                  {{ postData.title.trim().length }}/35
+                </span>
               </div>
+              <input
+                v-model="postData.title"
+                type="text"
+                placeholder="輸入一個吸引人的標題..."
+                :class="[
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  errors.title
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-200 focus:border-green-500',
+                ]"
+                maxlength="35"
+              />
+              <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
             </div>
+
+            <div class="space-y-2">
+              <label class="block text-sm font-bold text-gray-700"
+                >封面圖片 <span class="text-red-500">*</span></label
+              >
+              <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
+                <div
+                  v-for="(url, index) in imagePreviews"
+                  :key="index"
+                  class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
+                  @mousedown.prevent="startDragBanner"
+                  @mousemove="onDragBanner"
+                  @mouseup="stopDragBanner"
+                  @mouseleave="stopDragBanner"
+                >
+                  <img
+                    :src="url"
+                    alt="預覽"
+                    class="w-full h-full object-cover pointer-events-none"
+                    :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                  />
+                  <div
+                    class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
+                  >
+                    上下拖曳調整位置
+                  </div>
+                  <button
+                    class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
+                    @click.stop="removeImage(index)"
+                  >
+                    <XIcon class="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             <div v-if="isUploading" class="w-full bg-gray-200 rounded-full h-3 mb-2">
               <div
                 class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
@@ -1402,8 +1417,8 @@ onMounted(() => {
         </div>
       </div>
     </div>
-  </div>
-</template>
+    </div>
+  </template>
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {

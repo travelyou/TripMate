@@ -11,10 +11,10 @@ import {
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { formatTime } from '@/utils/time'
-import { onAuthStateChanged } from 'firebase/auth'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -40,11 +40,14 @@ const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const contentContainerRef = ref(null)
 const localComments = ref([])
-
-// 本地資料副本
 const localPostData = ref({ ...props.post })
 
-// 計算留言總數
+const handleAuthorClick = () => {
+  const authorUid = props.post.author_uid || props.post.author?.uid
+  if (authorUid) {
+    router.push(`/profile/${authorUid}`)
+  }
+}
 const normalizedComments = computed(() => {
   return localComments.value.length > 0 ? localComments.value : localPostData.value.comments || []
 })
@@ -89,12 +92,11 @@ const loadLikesInfo = async () => {
     const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
-  } catch (error) {
-    console.error(error)
+  } catch {
+    // Error handling
   }
 }
 
-// 處理按讚
 const handleLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -105,11 +107,11 @@ const handleLike = async () => {
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
-    console.error(error)
+    console.error('按讚操作失敗：', error)
+    alert('按讚操作失敗，請稍後再試')
   }
 }
 
-// 提交留言
 const submitComment = async () => {
   if (!newComment.value.trim()) return
   if (!currentUserUid.value) {
@@ -121,17 +123,17 @@ const submitComment = async () => {
   try {
     await createComment(props.post.id, {
       author_uid: currentUserUid.value,
-      content: content,
+      content,
     })
 
     localComments.value = [
       {
         id: Date.now(),
-        author: userStore.currentUser?.displayName || '我',
+        author: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
         avatar:
-          userStore.currentUser?.photoURL ||
+          userStore.currentUser?.avatar ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
-        content: content,
+        content,
         time: new Date().toISOString(),
         likes: 0,
         replies: [],
@@ -141,16 +143,22 @@ const submitComment = async () => {
     newComment.value = ''
     await nextTick()
     commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  } catch (error) {
-    console.error(error)
+  } catch {
+    // Error handling
   }
 }
 
 // 監聽 Auth
 onAuthStateChanged(auth, async (user) => {
+  const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
-  if (currentUserUid.value) {
-    await loadLikesInfo()
+
+  if (props.post?.id && previousUid !== currentUserUid.value) {
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+    } else {
+      isLiked.value = false
+    }
   }
 })
 

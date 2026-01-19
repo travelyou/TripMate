@@ -1,5 +1,5 @@
 /* eslint-env node */
-/* global require, process */
+/* global require, process, module */
 require('dotenv').config()
 
 const express = require('express')
@@ -10,6 +10,7 @@ const commentsRouter = require('./routes/comments')
 const likesRouter = require('./routes/likes')
 const usersRouter = require('./routes/users')
 const travelersRoutes = require('./routes/travelers')
+const profileRouter = require('./routes/profile')
 const itinerariesRouter = require('./routes/itineraries')
 const paymentsRouter = require('./routes/payments')
 const ordersRouter = require('./routes/orders')
@@ -23,13 +24,13 @@ const HOST = process.env.HOST || '0.0.0.0'
 const allowedOrigins = [
   'https://tripmate.zeabur.app',
   'https://tripmate-backend.zeabur.app',
+  'https://tripmate-mayoyo.com',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://trip-mate-xi.vercel.app', // 新增你的 Vercel 前端網址
   process.env.ALLOWED_ORIGIN, // 預留給環境變數設定
 ].filter(Boolean) // 過濾掉空值
 
-// CORS 配置函數
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin
   if (!origin || allowedOrigins.includes(origin)) {
@@ -59,11 +60,9 @@ app.use((req, res, next) => {
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) {
-      console.log('CORS: 允許無 origin 的請求')
       return cb(null, true)
     }
     if (allowedOrigins.includes(origin)) {
-      console.log(`CORS: 允許來源 ${origin}`)
       return cb(null, true)
     }
     console.log(`CORS: 阻擋來源 ${origin}`)
@@ -88,7 +87,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '20mb' }))
 app.use(express.urlencoded({ extended: true, limit: '20mb' }))
 
-// 根路徑處理
 app.get('/', (req, res) => {
   res.json({
     message: 'TripMate 後端 API 服務',
@@ -132,7 +130,6 @@ app.get('/api/test-db', async (req, res) => {
   }
 })
 
-// 使用路由
 app.use('/api/discussions', discussionsRouter)
 app.use('/api/posts', discussionsRouter)
 app.use('/api', commentsRouter)
@@ -140,14 +137,9 @@ app.use('/api/likes', likesRouter)
 app.use('/api/travelers', travelersRoutes)
 app.use('/api/itineraries', itinerariesRouter)
 app.use('/api/users', usersRouter)
-
-// 付款路由
+app.use('/api/profile', profileRouter)
 app.use('/api/payments', paymentsRouter)
-
-// 訂單路由
 app.use('/api/orders', ordersRouter)
-
-// 購物車路由
 app.use('/api/cart', cartRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
@@ -162,7 +154,6 @@ app.use((err, req, res, next) => {
   }
 
   if (err.type === 'entity.too.large' || err.status === 413) {
-    console.error('❌ 請求體過大:', err.message)
     return res.status(413).json({
       success: false,
       error: '請求體過大',
@@ -178,14 +169,12 @@ app.use((err, req, res, next) => {
     })
   }
 
-  console.error('錯誤:', err.message)
   res.status(err.status || 500).json({
     error: err.message || '伺服器內部錯誤',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   })
 })
 
-// 404 處理
 app.use((req, res) => {
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {

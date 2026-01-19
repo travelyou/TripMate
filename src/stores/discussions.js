@@ -45,12 +45,28 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }))
   }
 
+  // 將後端數據格式轉換為前端格式
+  // 後端已經從 Neon 資料庫返回 author_avatar（Firebase Storage URL）、author_name、author_spirit_animal
   const transformPost = (post) => {
+    // 調試：檢查後端返回的 author_avatar
+    console.log(`[transformPost] 處理貼文 ID: ${post.id}, UID: ${post.author_uid}`)
+    console.log(`[transformPost] post.author_avatar 值:`, post.author_avatar)
+    console.log(`[transformPost] post 物件包含的欄位:`, Object.keys(post))
+
+    if (post.author_uid && post.author_avatar) {
+      console.log(`[transformPost] ✅ 後端返回 author_avatar for ${post.author_uid}:`, post.author_avatar.substring(0, 50) + '...')
+    } else if (post.author_uid && !post.author_avatar) {
+      console.warn(`[transformPost] ⚠️ 後端沒有返回 author_avatar for ${post.author_uid}`)
+      console.warn(`[transformPost] ⚠️ post 物件的完整內容:`, JSON.stringify(post, null, 2))
+    }
+
     return {
       id: post.id,
-      author: post.author_nickname || post.author_name || '匿名用戶',
+      // 後端返回 author_name（來自 users.nickname），優先使用
+      author: post.author_name || post.author_nickname || post.author_uid || '匿名用戶',
       author_uid: post.author_uid,
       spiritAnimal: post.author_spirit_animal || '',
+      // 後端返回的 author_avatar 是 Firebase Storage URL（從 Neon 資料庫的 users.avatar 欄位）
       avatar:
         post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_uid}`,
       time: formatTime(post.created_at),
@@ -88,23 +104,49 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     return null
   }
 
+  // 批量獲取用戶資訊並更新貼文
+  // 注意：後端已經從 Neon 資料庫返回 author_avatar（Firebase Storage URL）
+  // 只有在後端沒有返回這些資料時，才從 Firestore 獲取作為備用
   const enrichPostsWithUserInfo = async (posts) => {
+    console.log('[enrichPostsWithUserInfo] 開始處理，貼文數量:', posts.length)
     const uniqueUids = [...new Set(posts.map((p) => p.author_uid).filter(Boolean))]
+    console.log('[enrichPostsWithUserInfo] 唯一 UID 數量:', uniqueUids.length)
     const userInfoMap = {}
     await Promise.all(
       uniqueUids.map(async (uid) => {
         const userInfo = await getUserInfoFromFirestore(uid)
         if (userInfo) {
           userInfoMap[uid] = userInfo
+          console.log(`[enrichPostsWithUserInfo] 從 Firestore 獲取 UID ${uid} 的資料:`, {
+            nickname: userInfo.nickname,
+            hasAvatar: !!userInfo.avatar,
+            avatarPreview: userInfo.avatar ? userInfo.avatar.substring(0, 50) + '...' : 'NULL'
+          })
+        } else {
+          console.warn(`[enrichPostsWithUserInfo] Firestore 中沒有 UID ${uid} 的資料`)
         }
       }),
     )
     return posts.map((post) => {
       const userInfo = userInfoMap[post.author_uid]
       if (userInfo) {
-        post.author_nickname = userInfo.nickname
-        post.author_avatar = userInfo.avatar
-        post.author_spirit_animal = userInfo.spiritAnimal
+        // 優先使用後端返回的資料（從 Neon 資料庫獲取的 Firebase Storage URL）
+        // 只有在後端沒有返回時，才使用 Firestore 的資料
+        if (!post.author_nickname) {
+          post.author_nickname = userInfo.nickname
+        }
+        // 如果後端沒有返回 author_avatar，使用 Firestore 的資料作為備用
+        if (!post.author_avatar && userInfo.avatar) {
+          console.log(`[enrichPostsWithUserInfo] ✅ 使用 Firestore 備用頭貼 for ${post.author_uid}:`, userInfo.avatar.substring(0, 50) + '...')
+          post.author_avatar = userInfo.avatar
+        } else if (!post.author_avatar && !userInfo.avatar) {
+          console.warn(`[enrichPostsWithUserInfo] ⚠️ UID ${post.author_uid} 在後端和 Firestore 都沒有頭貼`)
+        }
+        if (!post.author_spirit_animal) {
+          post.author_spirit_animal = userInfo.spiritAnimal
+        }
+      } else {
+        console.warn(`[enrichPostsWithUserInfo] ⚠️ 找不到 UID ${post.author_uid} 的用戶資訊`)
       }
       return post
     })
@@ -116,32 +158,30 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     try {
       const data = await fetchPosts(params)
 
-      const newPosts = data.posts.map(transformPost)
+      // 調試：檢查後端返回的原始資料
+      console.log('[Store] loadDiscussions 收到資料，貼文數量:', data.posts?.length || 0)
+      if (data.posts && data.posts.length > 0) {
+        const firstPost = data.posts[0]
+        console.log('[Store] 第一個貼文（轉換前）的 author_avatar:', firstPost.author_avatar || 'NULL/UNDEFINED')
+        console.log('[Store] 第一個貼文（轉換前）的 author_uid:', firstPost.author_uid)
+      }
 
-      enrichPostsWithUserInfo(data.posts)
-        .then((enrichedPosts) => {
-          const transformedEnriched = enrichedPosts.map(transformPost)
+      const enrichedPosts = await enrichPostsWithUserInfo(data.posts || [])
+      const transformedEnriched = enrichedPosts.map(transformPost)
 
-          if (isLoadMore) {
-            transformedEnriched.forEach((updatedPost) => {
-              const target = discussions.value.find((p) => p.id === updatedPost.id)
-              if (target) {
-                Object.assign(target, updatedPost)
-              }
-            })
+      if (isLoadMore) {
+        const merged = [...discussions.value]
+        transformedEnriched.forEach((post) => {
+          const index = merged.findIndex((p) => p.id === post.id)
+          if (index !== -1) {
+            merged[index] = { ...merged[index], ...post }
           } else {
-            discussions.value = transformedEnriched
+            merged.push(post)
           }
         })
-        .catch((err) => {
-          console.error('loadDiscussions enrich failed:', err)
-        })
-
-      // ★ 核心邏輯：附加還是覆蓋？
-      if (isLoadMore) {
-        discussions.value = [...discussions.value, ...newPosts]
+        discussions.value = merged
       } else {
-        discussions.value = newPosts
+        discussions.value = transformedEnriched
       }
 
       return data
@@ -160,12 +200,22 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     error.value = null
     try {
       const post = await fetchPostById(id)
+      // 從 Firestore 獲取貼文作者資訊（僅作為備用，後端已經從 Neon 返回了 author_avatar）
+      // 注意：後端已經返回 author_avatar（Firebase Storage URL），不要覆蓋
       if (post.author_uid) {
         const userInfo = await getUserInfoFromFirestore(post.author_uid)
         if (userInfo) {
-          post.author_nickname = userInfo.nickname
-          post.author_avatar = userInfo.avatar
-          post.author_spirit_animal = userInfo.spiritAnimal
+          // 只有在後端沒有返回時，才使用 Firestore 的資料
+          if (!post.author_nickname) {
+            post.author_nickname = userInfo.nickname
+          }
+          // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
+          // if (!post.author_avatar) {
+          //   post.author_avatar = userInfo.avatar
+          // }
+          if (!post.author_spirit_animal) {
+            post.author_spirit_animal = userInfo.spiritAnimal
+          }
         }
       }
       if (post.commentsData && Array.isArray(post.commentsData)) {
@@ -199,12 +249,22 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const addPost = async (postData) => {
     try {
       const newPost = await createPost(postData)
+      // 從 Firestore 獲取作者資訊（僅作為備用，後端已經從 Neon 返回了 author_avatar）
+      // 注意：後端已經返回 author_avatar（Firebase Storage URL），不要覆蓋
       if (newPost.author_uid) {
         const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
         if (userInfo) {
-          newPost.author_nickname = userInfo.nickname
-          newPost.author_avatar = userInfo.avatar
-          newPost.author_spirit_animal = userInfo.spiritAnimal
+          // 只有在後端沒有返回時，才使用 Firestore 的資料
+          if (!newPost.author_nickname) {
+            newPost.author_nickname = userInfo.nickname
+          }
+          // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
+          // if (!newPost.author_avatar) {
+          //   newPost.author_avatar = userInfo.avatar
+          // }
+          if (!newPost.author_spirit_animal) {
+            newPost.author_spirit_animal = userInfo.spiritAnimal
+          }
         }
       }
       const transformedPost = transformPost(newPost)

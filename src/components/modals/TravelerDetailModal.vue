@@ -13,7 +13,6 @@ import {
   Coffee as CoffeeIcon,
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
-  Eye as EyeIcon,
   FileText as FileTextIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
@@ -51,6 +50,14 @@ const commentsSectionRef = ref(null)
 const contentContainerRef = ref(null)
 const localComments = ref([])
 
+const handleAuthorClick = () => {
+  const authorUid = props.traveler.author_uid || localTravelerData.value?.author_uid
+  if (authorUid) {
+    router.push(`/profile/${authorUid}`)
+  }
+}
+
+// 建立一個本地變數來存「完整資料」，預設先用傳進來的 props 擋著
 const localTravelerData = ref({ ...props.traveler })
 
 const itineraryData = computed(() => {
@@ -90,7 +97,7 @@ const processedContent = computed(() => {
     const txt = document.createElement('textarea')
     txt.innerHTML = content
     return txt.value
-  } catch (e) {
+  } catch {
     return content
   }
 })
@@ -174,14 +181,16 @@ const submitComment = async () => {
       author_uid: currentUserUid.value,
       content: content,
       board: 'traveler',
-      author_name: userStore.currentUser?.displayName || '匿名用戶',
-      author_avatar: userStore.currentUser?.photoURL || null,
+      author_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
+      author_avatar: userStore.currentUser?.avatar || null,
     })
     localComments.value = [
       {
         id: Date.now(),
-        author: userStore.currentUser?.displayName || '我',
-        avatar: userStore.currentUser?.photoURL,
+        author: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
+        avatar:
+          userStore.currentUser?.avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
         content: content,
         time: '剛剛',
         likes: 0,
@@ -279,17 +288,15 @@ onMounted(async () => {
         @click="scrollToTop"
       >
         <FileTextIcon class="w-5 h-5 fill-current" />
-        <span
-          class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
-        >
-          內文　
+        <span class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb">
+          內文
         </span>
       </button>
 
       <button
         class="absolute right-full top-40 z-0 bg-amber-400 text-amber-900 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-amber-300 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-amber-500/20"
-        @click="jumpToComments"
         title="跳轉至留言區"
+        @click="jumpToComments"
       >
         <MessageCircleIcon class="w-5 h-5 fill-current" />
         <span
@@ -333,15 +340,21 @@ onMounted(async () => {
               <div class="flex items-center space-x-3 mb-4">
                 <img
                   :src="localTravelerData.avatar"
-                  class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
+                  class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+                  @click="handleAuthorClick"
                 />
                 <div>
-                  <div class="flex items-center space-x-2">
-                    <span class="font-bold text-secondary-900">{{ localTravelerData.author }}</span
-                    ><span
-                      class="text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full"
-                      >{{ localTravelerData.spiritAnimal }}</span
+                  <div class="flex items-center space-x-2 flex-wrap gap-2">
+                    <span
+                      class="font-bold text-secondary-900 cursor-pointer hover:text-primary-600 transition"
+                      @click="handleAuthorClick"
+                    >{{ localTravelerData.author }}</span>
+                    <span
+                      v-if="localTravelerData.spiritAnimal && localTravelerData.spiritAnimal.trim()"
+                      class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
                     >
+                      {{ localTravelerData.spiritAnimal }}
+                    </span>
                   </div>
                   <div class="text-sm text-secondary-500">
                     發布於 {{ localTravelerData.created_at || '最近' }}

@@ -49,13 +49,24 @@
           <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-secondary-50" />
         </router-link>
 
-        <div ref="menuRef" class="relative ml-1">
+        <!-- 未登入時顯示登入/註冊按鈕 -->
+        <button
+          v-if="!userStore.isLoggedIn"
+          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 bg-primary-600 hover:bg-primary-700 rounded-full transition ml-1 whitespace-nowrap"
+          @click="goToLogin"
+        >
+          <span class="hidden sm:inline">登入 / 註冊</span>
+          <span class="sm:hidden">登入</span>
+        </button>
+
+        <!-- 已登入時顯示頭像選單 -->
+        <div v-else ref="menuRef" class="relative ml-1">
           <button
             class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm"
             @click="toggleMenu"
           >
             <img
-              v-if="userStore.isLoggedIn && userStore.userProfile.avatar"
+              v-if="userStore.userProfile.avatar"
               :src="userStore.userProfile.avatar"
               class="w-full h-full object-cover"
               alt="User Avatar"

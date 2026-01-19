@@ -1,9 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getVendorProfile, getVendorItineraries, getVendorPosts } from '@/api/vendor'
+import { getVendorProfile } from '@/api/vendor'
 import { createItinerary as createItineraryApi } from '@/api/itinerary'
-// 若有 discussion API 請解開下方註解
-// import { createDiscussion as createDiscussionApi } from '@/api/discussions'
 
 export const useVendorStore = defineStore('vendor', () => {
   const currentVendor = ref(null)
@@ -13,7 +11,6 @@ export const useVendorStore = defineStore('vendor', () => {
   const loading = ref(false)
   const error = ref(null)
 
-  // 🔴 MOCK DATA - 廠商基本資料
   const mockVendor = {
     id: 'vendor001',
     name: '環遊世界旅行社',
@@ -29,7 +26,6 @@ export const useVendorStore = defineStore('vendor', () => {
     isVerified: true,
   }
 
-  // 🔴 MOCK DATA - 貼文
   const mockPosts = [
     {
       id: 1,
@@ -69,7 +65,6 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // 🔴 MOCK DATA - 行程
   const mockItineraries = [
     {
       id: 1,
@@ -157,7 +152,6 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // 🔴 MOCK DATA - 評價
   const mockReviews = [
     {
       id: 1,
@@ -185,45 +179,30 @@ export const useVendorStore = defineStore('vendor', () => {
     },
   ]
 
-  // ========================================
-  // Actions
-  // ========================================
-
   const fetchVendorProfile = async (id) => {
     loading.value = true
     error.value = null
     try {
-      // 嘗試從 API 抓取
       const res = await getVendorProfile(id)
       if (res.success && res.data && res.data.name !== '預設廠商') {
         currentVendor.value = res.data
       } else {
-        // 如果 API 回傳預設或失敗，使用 Mock Data
-        console.log('Using Mock Vendor Data')
         currentVendor.value = { ...mockVendor, id }
       }
-    } catch (err) {
-      console.error('Error:', err)
+    } catch {
       currentVendor.value = { ...mockVendor, id }
     } finally {
       loading.value = false
     }
   }
 
-  const fetchVendorPosts = async (id) => {
-    // 優先使用 Mock Data，確保有畫面
+  const fetchVendorPosts = async () => {
     vendorPosts.value = mockPosts
-
-    // 如果後端有資料，可以嘗試抓取並合併 (目前先以 Mock 為主)
-    // const res = await getVendorPosts(id)
-    // if(res.success && res.data.length > 0) { ... }
   }
 
   const fetchVendorItineraries = async (id, filter = {}) => {
-    // 優先使用 Mock Data
     let result = [...mockItineraries]
 
-    // 簡單過濾邏輯
     if (filter.region && filter.region !== '全部') {
       result = result.filter((item) => item.region === filter.region)
     }
@@ -231,16 +210,28 @@ export const useVendorStore = defineStore('vendor', () => {
     vendorItineraries.value = result
   }
 
-  const fetchVendorReviews = async (id) => {
+  const fetchVendorReviews = async () => {
     vendorReviews.value = mockReviews
   }
 
-  // --- 混合模式：真實寫入 + 本地更新 ---
+  const updateVendorProfile = async (vendorId, profileData) => {
+    loading.value = true
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      currentVendor.value = { ...currentVendor.value, ...profileData }
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
 
   const createItinerary = async (vendorId, itineraryData) => {
     loading.value = true
     try {
-      // 1. 呼叫真實 API 寫入 DB
       const res = await createItineraryApi({
         ...itineraryData,
         author_uid: vendorId,
@@ -250,9 +241,8 @@ export const useVendorStore = defineStore('vendor', () => {
         throw new Error(res.message || '發布失敗')
       }
 
-      // 2. 建構符合前端 Mock 格式的物件，直接塞入陣列
       const newItinerary = {
-        id: res.id, // 使用後端回傳的 ID
+        id: res.id,
         name: itineraryData.title,
         title: itineraryData.title,
         image: itineraryData.coverImage || 'https://picsum.photos/400/300?random=new',
@@ -265,7 +255,6 @@ export const useVendorStore = defineStore('vendor', () => {
         highlights: [],
       }
 
-      // 3. 更新本地 State (插在最前面)
       vendorItineraries.value.unshift(newItinerary)
 
       return { success: true, data: newItinerary }
@@ -277,17 +266,48 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
+  const updateItinerary = async (itineraryId, itineraryData) => {
+    loading.value = true
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const index = vendorItineraries.value.findIndex((i) => i.id === itineraryId)
+      if (index !== -1) {
+        vendorItineraries.value[index] = {
+          ...vendorItineraries.value[index],
+          ...itineraryData,
+        }
+      }
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deleteItinerary = async (itineraryId) => {
+    loading.value = true
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      vendorItineraries.value = vendorItineraries.value.filter((i) => i.id !== itineraryId)
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const createPost = async (vendorId, postData) => {
     loading.value = true
     try {
-      // 1. 呼叫 API (假設你有做 discussions API，若無則只模擬成功)
-      // const res = await createDiscussionApi({ ...postData, author_uid: vendorId })
-
-      // 暫時模擬成功
       await new Promise((resolve) => setTimeout(resolve, 800))
       const mockRes = { success: true, id: Date.now() }
 
-      // 2. 建構新貼文物件
       const newPost = {
         id: mockRes.id,
         title: postData.title,
@@ -300,7 +320,6 @@ export const useVendorStore = defineStore('vendor', () => {
         tags: postData.tags || [],
       }
 
-      // 3. 更新本地 State
       vendorPosts.value.unshift(newPost)
 
       return { success: true, data: newPost }
@@ -312,13 +331,57 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  // 佔位 function (不需要動)
-  const updateVendorProfile = async () => ({ success: true })
-  const updateItinerary = async () => ({ success: true })
-  const deleteItinerary = async () => ({ success: true })
-  const updatePost = async () => ({ success: true })
-  const deletePost = async () => ({ success: true })
-  const uploadVendorImage = async () => 'https://picsum.photos/800/600'
+  const updatePost = async (postId, postData) => {
+    loading.value = true
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const index = vendorPosts.value.findIndex((p) => p.id === postId)
+      if (index !== -1) {
+        vendorPosts.value[index] = {
+          ...vendorPosts.value[index],
+          ...postData,
+        }
+      }
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deletePost = async (postId) => {
+    loading.value = true
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      vendorPosts.value = vendorPosts.value.filter((p) => p.id !== postId)
+
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  const uploadVendorImage = async (_file, _type) => {
+    loading.value = true
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
+
+      return mockUrl
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
 
   return {
     currentVendor,

@@ -35,10 +35,11 @@ const activeFilter = ref('全部')
 
 // ★ 新增：前端分類篩選邏輯
 const filteredItineraries = computed(() => {
+  const itineraries = itinerariesStore.itineraries || []
   if (activeFilter.value === '全部') {
-    return itinerariesStore.itineraries
+    return itineraries
   }
-  return itinerariesStore.itineraries.filter((item) => {
+  return itineraries.filter((item) => {
     // 兼容舊資料：如果沒有分類，歸類為「其他」
     const itemCategory = item.category || '其他'
     return itemCategory === activeFilter.value

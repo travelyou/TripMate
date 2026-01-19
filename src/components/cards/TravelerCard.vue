@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   Calendar as CalendarIcon,
@@ -10,6 +11,8 @@ import {
   Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 
+const router = useRouter()
+
 const props = defineProps({
   traveler: {
     type: Object,
@@ -17,7 +20,27 @@ const props = defineProps({
   },
 })
 
+defineEmits(['open-detail'])
+
 const userStore = useUserStore()
+
+const handleAvatarClick = (e) => {
+  e.stopPropagation()
+  e.preventDefault()
+
+  const authorUid = props.traveler.author_uid || props.traveler.authorUid
+  const vendorId = props.traveler.vendor_id || props.traveler.vendorId
+
+  if (vendorId) {
+    router.push({ path: `/vendor/${vendorId}`, replace: false })
+    return
+  }
+
+  if (authorUid) {
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+    return
+  }
+}
 
 const itemData = computed(() => ({
   id: props.traveler.id,
@@ -96,13 +119,18 @@ const getStatusClasses = (status) => {
               <div class="flex items-center space-x-3 mb-2">
                 <img
                   :src="traveler.avatar"
-                  class="w-8 h-8 rounded-full object-cover border-2 border-white/80"
+                  class="w-8 h-8 rounded-full object-cover border-2 border-white/80 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+                  @click.stop="handleAvatarClick"
                 />
                 <div>
-                  <div class="flex items-center space-x-1">
-                    <span class="font-bold text-sm text-white">{{ traveler.author }}</span>
+                  <div class="flex items-center space-x-1 flex-wrap gap-1">
                     <span
-                      class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full"
+                      class="font-bold text-sm text-white cursor-pointer hover:text-primary-300 transition"
+                      @click.stop="handleAvatarClick"
+                    >{{ traveler.author }}</span>
+                    <span
+                      v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
+                      class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full whitespace-nowrap"
                     >
                       {{ traveler.spiritAnimal }}
                     </span>
