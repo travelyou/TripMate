@@ -208,6 +208,7 @@ const shouldMarquee = computed(() => {
               <Camera class="w-4 h-4 text-white" />
             </button>
           </div>
+
           <div v-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36" style="gap: 0;">
             <span
               v-for="tag in user.tags"
@@ -276,6 +277,22 @@ const shouldMarquee = computed(() => {
             >
               <Settings class="w-4 h-4 md:w-5 md:h-5" />
             </button>
+
+            <!-- Visitor Buttons -->
+            <div v-else class="flex gap-2">
+              <button
+                class="flex items-center gap-1 px-3 py-1.5 bg-white text-primary-600 rounded-full text-sm font-bold shadow-md hover:bg-gray-100 transition"
+                @click="$emit('add-friend')"
+              >
+                <UserPlus class="w-4 h-4" /> 加好友
+              </button>
+              <button
+                class="flex items-center gap-1 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-sm font-bold shadow-md hover:bg-secondary-500 transition"
+                @click="$emit('chat')"
+              >
+                <MessageCircle class="w-4 h-4" /> 聊聊
+              </button>
+            </div>
           </div>
         </div>
       </div>

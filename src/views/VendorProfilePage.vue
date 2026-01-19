@@ -3,6 +3,7 @@ import { onMounted, watch, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useVendorStore } from '@/stores/vendor'
 import { storeToRefs } from 'pinia'
+import { usePermission } from '@/composables/usePermission'
 
 // Components
 import VendorHeader from '@/components/vendor/VendorHeader.vue'
@@ -15,6 +16,9 @@ const route = useRoute()
 const vendorStore = useVendorStore()
 const { currentVendor, vendorItineraries, vendorPosts, vendorReviews, loading } =
   storeToRefs(vendorStore)
+
+// Permissions
+const { canEdit: isOwner } = usePermission()
 
 // State
 const activeRegion = ref('全部')
@@ -66,7 +70,11 @@ const handlePageChange = (page) => {
     <!-- Content -->
     <div v-else-if="currentVendor" class="animate-fade-in">
       <!-- 廠商 Header (包含封面、基本資料、簡介) -->
-      <VendorHeader :vendor="currentVendor" @open-review-modal="showReviewModal = true" />
+      <VendorHeader
+        :vendor="currentVendor"
+        :is-owner="isOwner"
+        @open-review-modal="showReviewModal = true"
+      />
 
       <!-- 廠商 Banner (本季主打) -->
       <div

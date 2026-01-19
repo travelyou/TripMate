@@ -1,14 +1,25 @@
 <script setup>
-import { Star as StarIcon, Award as AwardIcon } from 'lucide-vue-next'
+import {
+  Star as StarIcon,
+  Award as AwardIcon,
+  UserPlus,
+  MessageCircle,
+  Edit,
+  LayoutDashboard,
+} from 'lucide-vue-next'
 
 defineProps({
   vendor: {
     type: Object,
     required: true,
   },
+  isOwner: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['open-review-modal'])
+const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'manage'])
 </script>
 
 <template>
@@ -51,6 +62,45 @@ const emit = defineEmits(['open-review-modal'])
               >({{ vendor.reviewCount }}則評價)</span
             >
           </button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2">
+          <!-- Owner Mode -->
+          <template v-if="isOwner">
+            <button
+              class="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-full font-bold hover:bg-gray-200 transition"
+              @click="$emit('manage')"
+            >
+              <LayoutDashboard class="w-4 h-4" />
+              管理
+            </button>
+            <button
+              class="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-full font-bold hover:bg-primary-700 transition"
+              @click="$emit('edit')"
+            >
+              <Edit class="w-4 h-4" />
+              編輯
+            </button>
+          </template>
+
+          <!-- Visitor Mode -->
+          <template v-else>
+            <button
+              class="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-primary-600 rounded-full font-bold hover:bg-gray-200 transition"
+              @click="$emit('follow')"
+            >
+              <UserPlus class="w-4 h-4" />
+              追蹤
+            </button>
+            <button
+              class="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-full font-bold hover:bg-primary-700 transition"
+              @click="$emit('message')"
+            >
+              <MessageCircle class="w-4 h-4" />
+              私訊
+            </button>
+          </template>
         </div>
       </div>
 
