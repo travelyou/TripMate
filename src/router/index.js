@@ -184,13 +184,12 @@ router.beforeEach(async (to, from, next) => {
       alert('請先登入後才可使用')
       return
     }
-    // MOCK DATA - 目前允許所有登入使用者訪問
-    // 未來需檢查: userStore.currentUser.role === 'vendor'
-    // if (!userStore.currentUser?.isVendor) {
-    //   next('/')
-    //   alert('此頁面僅限廠商使用')
-    //   return
-    // }
+    // 檢查是否為廠商
+    if (!userStore.isVendor) {
+      next('/')
+      alert('此頁面僅限廠商使用')
+      return
+    }
     next()
     return
   }

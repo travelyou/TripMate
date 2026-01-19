@@ -295,7 +295,8 @@ export const useUserStore = defineStore('user', () => {
         ...currentUser.value,
         id: profileData.uid,
         uid: profileData.uid,
-        name: profileData.nickname || '用戶',
+        role: profileData.role || 'user',
+        name: profileData.realName || profileData.nickname || '用戶',
         nickname: profileData.nickname || profileData.email?.split('@')[0] || '用戶',
         email: profileData.email,
         avatar:
@@ -441,6 +442,12 @@ export const useUserStore = defineStore('user', () => {
 
   const userProfile = computed(() => currentUser.value)
 
+  // ----------------------------------------------------------------
+  // 7. 權限與角色 (Roles & Permissions)
+  // ----------------------------------------------------------------
+  const isVendor = computed(() => currentUser.value.role === 'vendor')
+  const isAdmin = computed(() => currentUser.value.role === 'admin')
+
   return {
     currentUser,
     userProfile,
@@ -480,5 +487,8 @@ export const useUserStore = defineStore('user', () => {
     hiddenStamps,
     hideStamp,
     restoreStamp,
+    // Permissions
+    isVendor,
+    isAdmin,
   }
 })

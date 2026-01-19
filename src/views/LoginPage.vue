@@ -170,6 +170,7 @@ const handleLogin = async () => {
     }
 
     userStore.login()
+    console.log('🚀 正在跳轉到首頁...')
     router.push('/')
   } catch (error) {
     console.error('登入失敗：', error.code, error.message)
@@ -279,9 +280,8 @@ const handleRegister = async () => {
       nickname: registerForm.value.nickname.trim(),
       email: registerForm.value.email,
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
-      bio: null,
-      spiritAnimal: null,
-      role: registerForm.value.role || 'user',
+      bio: '',
+      spiritAnimal: '',
       createdAt: new Date(),
     }
     await setDoc(doc(db, 'users', userCredential.user.uid), userData)
