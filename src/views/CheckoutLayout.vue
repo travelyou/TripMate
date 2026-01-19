@@ -12,6 +12,12 @@ const currentStep = computed(() => {
 })
 
 onMounted(async () => {
+  // 特殊情況：完成訂單後的 Step5 為空購物車但不跳轉，需要 orderId 才能進入
+  if (route.name === 'CheckoutStep5') {
+    const orderId = route.query.orderId || checkoutStore.lastOrder?.id
+    if (!orderId) router.replace('/cart')
+    return
+  }
   // 1) 正常情況：從購物車按「前往結帳」會先設好 selectedTour
   if (checkoutStore.selectedTour) return
 
