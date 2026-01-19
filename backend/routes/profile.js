@@ -248,7 +248,19 @@ router.post('/:uid/friends', async (req, res) => {
       if (hasStatus) {
         const accepted = existingCheck.rows.find((row) => row.status === 'accepted')
         if (accepted) {
-          return res.status(409).json({ error: '你們已經是好友了' })
+          await pool.query(
+            `DELETE FROM friends
+             WHERE ((user_uid = $1 AND friend_uid = $2)
+                OR (user_uid = $2 AND friend_uid = $1))
+               AND status = 'pending'`,
+            [uid, friend_uid],
+          )
+          return res.status(200).json({
+            success: true,
+            message: '你們已經是好友了，已清除待處理的好友邀請',
+            accepted: true,
+            cleared_pending: true,
+          })
         }
 
         const outgoingPending = existingCheck.rows.find(

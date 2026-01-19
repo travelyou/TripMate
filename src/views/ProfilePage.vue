@@ -294,8 +294,6 @@ const handleAddFriend = async () => {
       await cancelFriendRequest(currentUid, friendUid)
       friendRequestStatus.value = 'none'
     } else if (friendRequestStatus.value === 'accepted') {
-      const confirmClear = confirm('你們已是好友，是否清除待處理的好友邀請？')
-      if (!confirmClear) return
       await clearPendingFriendRequests(currentUid, friendUid)
     } else {
       // 發送好友請求
