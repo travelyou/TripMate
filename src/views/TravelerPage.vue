@@ -141,6 +141,12 @@ const handlePostSuccess = () => {
   loadTravelers(false)
 }
 
+// 關閉發文 Modal 並重置草稿狀態
+const handlePostModalClose = () => {
+  isPostingModalOpen.value = false
+  selectedDraft.value = null
+}
+
 // 開啟草稿編輯
 const openDraft = (draft) => {
   if (draft.type === 'traveler' && draft.data) {
@@ -300,7 +306,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
   <TravelerPostModal
     v-if="isPostingModalOpen"
     :draft-data="selectedDraft"
-    @close="isPostingModalOpen = false; selectedDraft = null"
+    @close="handlePostModalClose"
     @success="handlePostSuccess"
   />
 

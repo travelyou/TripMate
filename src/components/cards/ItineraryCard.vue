@@ -16,8 +16,6 @@ import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 
-const router = useRouter()
-
 const props = defineProps({
   itinerary: {
     type: Object,
@@ -26,6 +24,7 @@ const props = defineProps({
 })
 
 const userStore = useUserStore()
+const router = useRouter()
 const emit = defineEmits(['open-detail', 'open-share'])
 
 const handleAgencyClick = (e) => {

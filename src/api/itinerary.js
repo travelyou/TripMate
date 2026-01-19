@@ -1,13 +1,12 @@
 import axios from 'axios'
 import { auth } from '@/firebase/config'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+import { API_BASE_URL } from './config'
 
 // 取得所有精選行程 (列表用)
 export const getItineraries = async (filters = {}) => {
   try {
     // 這裡傳送 query string 給後端進行篩選
-    const response = await axios.get(`${API_URL}/itineraries`, { params: filters })
+    const response = await axios.get(`${API_BASE_URL}/itineraries`, { params: filters })
     return response.data
   } catch (error) {
     console.error('Error fetching itineraries:', error)
@@ -18,7 +17,7 @@ export const getItineraries = async (filters = {}) => {
 // 取得單一行程詳細資料 (包含 days 和 packingList)
 export const getItineraryById = async (id) => {
   try {
-    const response = await axios.get(`${API_URL}/itineraries/${id}`)
+    const response = await axios.get(`${API_BASE_URL}/itineraries/${id}`)
     return response.data
 
     /* --- 如果後端還沒好，可以使用下方的 Mock 資料測試 --- */
@@ -64,7 +63,7 @@ export const createItinerary = async (payload) => {
     // 根據你的 CSV 結構，後端需要接收 itinerary (days) 和 packingList
     // payload 應該包含: title, price, ... itinerary: { days: [] }, packingList: []
 
-    const response = await axios.post(`${API_URL}/itineraries`, payload, {
+    const response = await axios.post(`${API_BASE_URL}/itineraries`, payload, {
       headers: {
         Authorization: token ? `Bearer ${token}` : '',
       },

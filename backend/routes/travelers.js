@@ -27,6 +27,7 @@ router.get('/', async (req, res) => {
     console.log('收到獲取旅伴列表請求')
     const { status, location, limit = 20, offset = 0 } = req.query
 
+    // ★ 修改：加上別名 t
     let query = `
       SELECT
         t.id,
@@ -43,15 +44,14 @@ router.get('/', async (req, res) => {
         t.banner_image,
         t.author_uid,
         t.author_name,
-        COALESCE(u.avatar, t.author_avatar) as author_avatar,
-        COALESCE(u.spirit_animal, t.spirit_animal) as spirit_animal,
+        t.author_avatar,
+        t.spirit_animal,
         t.likes_count,
         t.saves_count,
         t.views_count,
         t.created_at,
         t.updated_at
       FROM travelers.travelers t
-      LEFT JOIN users u ON t.author_uid = u.uid
       WHERE t.deleted_at IS NULL
     `
 
@@ -239,12 +239,11 @@ router.get('/:id', async (req, res) => {
         ${bannerPosSelect}
         t.author_uid,
         t.author_name AS "author",
-        COALESCE(u.avatar, t.author_avatar) AS "avatar",
-        COALESCE(u.spirit_animal, t.spirit_animal) AS "spiritAnimal",
+        t.author_avatar AS "avatar",
+        t.spirit_animal AS "spiritAnimal",
         t.likes_count AS "likes",
         t.views_count
       FROM travelers.travelers t
-      LEFT JOIN users u ON t.author_uid = u.uid
       WHERE t.id = $1 AND t.deleted_at IS NULL
     `
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -36,7 +36,6 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
-
 const props = defineProps({
   draftData: {
     type: Object,
@@ -218,6 +217,34 @@ const editor = useEditor({
     if (fieldErrors.value.content) fieldErrors.value.content = ''
   },
 })
+
+watch(
+  () => props.draftData,
+  (newDraft) => {
+    if (newDraft && newDraft.data) {
+      const draft = newDraft.data
+      postData.value.category = draft.category || ''
+      postData.value.title = draft.title || ''
+      postData.value.content = draft.content || ''
+      postData.value.location = draft.location || ''
+      postData.value.start_date = draft.start_date || ''
+      postData.value.end_date = draft.end_date || ''
+      postData.value.max_people = draft.max_people || 2
+      postData.value.tags = draft.tags || []
+
+      if (editor.value && draft.content) {
+        nextTick(() => {
+          try {
+            editor.value.commands.setContent(draft.content, false)
+          } catch (error) {
+            console.error('[發文編輯器] 載入草稿內容失敗:', error)
+          }
+        })
+      }
+    }
+  },
+  { immediate: true },
+)
 
 const setFontKai = () => {
   if (editor.value) editor.value.chain().focus().setFontFamily('BiauKai, DFKai-SB, 標楷體').run()
@@ -749,32 +776,6 @@ const handleClose = () => {
   if (isSubmitting.value) return
   emit('close')
 }
-
-watch(() => props.draftData, (newDraft) => {
-  if (newDraft && newDraft.data) {
-    const draft = newDraft.data
-    postData.value.title = draft.title || ''
-    postData.value.content = draft.content || ''
-    postData.value.location = draft.location || ''
-    postData.value.start_date = draft.start_date || ''
-    postData.value.end_date = draft.end_date || ''
-    postData.value.max_people = draft.max_people || 2
-    postData.value.tags = draft.tags || []
-
-    if (draft.itinerary && draft.itinerary.days) {
-      postData.value.itinerary.days = draft.itinerary.days
-    }
-
-    if (draft.packingList && Array.isArray(draft.packingList)) {
-      postData.value.packingList = draft.packingList
-    }
-
-    if (draft.banner_image) {
-      postData.value.banner_image = draft.banner_image
-      bannerPreview.value = draft.banner_image
-    }
-  }
-}, { immediate: true })
 
 onMounted(() => {
   if (postData.value.itinerary.days.length === 0) {

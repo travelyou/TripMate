@@ -1,11 +1,7 @@
 import { API_BASE_URL } from './config'
 
 // 獲取所有貼文
-export async function fetchPosts(paramsOrPage = 1, limit = 10, category = null) {
-  const params =
-    typeof paramsOrPage === 'object' && paramsOrPage !== null
-      ? paramsOrPage
-      : { page: paramsOrPage, limit, category }
+export async function fetchPosts(params = {}) {
   const { page = 1, limit: finalLimit = 10, category: finalCategory = null } = params
 
   console.log('[API] fetchPosts 開始')

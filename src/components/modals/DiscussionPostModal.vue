@@ -140,8 +140,13 @@ const ResetStyleOnEnter = Extension.create({
     return {
       Enter: ({ editor }) => {
         try {
-          if (!editor || !editor.state || !editor.view) {
-            return false
+          if (!editor || !editor.state || !editor.view) return false
+
+          if (editor.isActive('bulletList') || editor.isActive('orderedList')) return false
+
+          // 處理標題換行變段落
+          if (editor.isActive('heading')) {
+            return editor.chain().focus().splitBlock().setParagraph().run()
           }
 
           const { state } = editor
@@ -244,7 +249,7 @@ const ResetStyleOnEnter = Extension.create({
             return false
           }
         } catch (error) {
-          console.error('[發文編輯器的] Enter 鍵出錯了:', error)
+          console.error('[發文編輯器] Enter 鍵處理錯誤:', error)
           return false
         }
       },
@@ -268,7 +273,6 @@ const editor = useEditor({
       allowBase64: true,
     }),
     ResetStyleOnEnter,
-
     CharacterCount.configure({
       limit: CHARACTER_LIMIT,
     }),
@@ -285,7 +289,7 @@ const editor = useEditor({
         errors.value.content = ''
       }
     } catch (error) {
-      console.error('[發文編輯器的] 更新內容出錯了:', error)
+      console.error('[發文編輯器] 更新內容錯誤:', error)
     }
   },
   onCreate: ({ editor }) => {
@@ -293,7 +297,7 @@ const editor = useEditor({
       try {
         editor.commands.setContent(postData.value.content, false)
       } catch (error) {
-        console.error('[發文編輯器的] 初始化失敗:', error)
+        console.error('[發文編輯器] 初始化內容失敗:', error)
       }
     }
   },
@@ -341,7 +345,7 @@ watch(
           editor.value.commands.setContent(newContent, false)
         }
       } catch (error) {
-        console.error('[發文編輯器的] 內容同步出錯了:', error)
+        console.error('[發文編輯器] 內容同步錯誤:', error)
       }
     }
   },
@@ -415,7 +419,7 @@ const validateForm = () => {
   }
 
   if (editor.value && editor.value.storage.characterCount.characters() > CHARACTER_LIMIT) {
-    errors.value.content = `內容不能超過 ${CHARACTER_LIMIT} 字（目前 ${editor.value.storage.characterCount.characters()} 字）`
+    errors.value.content = `內容不能超過 ${CHARACTER_LIMIT} 字`
     isValid = false
   }
 
@@ -433,14 +437,14 @@ const validateTags = () => {
   }
 
   if (postData.value.tags.length > 5) {
-    errors.value.tags = `標籤數量不能超過 5 個（目前 ${postData.value.tags.length} 個）`
+    errors.value.tags = `標籤數量不能超過 5 個`
     return errors.value.tags
   }
 
   for (let i = 0; i < postData.value.tags.length; i++) {
     const tag = postData.value.tags[i]
     if (tag && tag.trim().length > 30) {
-      errors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字（目前 ${tag.trim().length} 字）`
+      errors.value.tags = `第 ${i + 1} 個標籤不能超過 30 字`
       return errors.value.tags
     }
   }
@@ -488,9 +492,7 @@ const handleImageSelect = async (event) => {
   if (files.length === 0) return
 
   if (imagePreviews.value.length >= 1) {
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
+    if (fileInputRef.value) fileInputRef.value.value = ''
     return
   }
 
@@ -513,9 +515,7 @@ const handleImageSelect = async (event) => {
   }
 
   if (validFiles.length === 0) {
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
+    if (fileInputRef.value) fileInputRef.value.value = ''
     return
   }
 
@@ -582,9 +582,7 @@ const removeImage = (index) => {
   imagePreviews.value.splice(index, 1)
   imageFiles.value.splice(index, 1)
   uploadedImageUrls.value.splice(index, 1)
-  if (index === 0 && imagePreviews.value.length > 0) {
-    bannerPositionY.value = 50
-  } else if (imagePreviews.value.length === 0) {
+  if (imagePreviews.value.length === 0) {
     bannerPositionY.value = 50
   }
 }
@@ -597,7 +595,7 @@ const addTag = (tagText) => {
   }
 
   if (cleanTag.length > 30) {
-    errors.value.tags = `標籤不能超過 30 字（目前 ${cleanTag.length} 字）`
+    errors.value.tags = `標籤不能超過 30 字`
     return
   }
 
@@ -624,27 +622,21 @@ const removeTag = (index) => {
 watch(
   () => postData.value.title,
   () => {
-    if (errors.value.title) {
-      errors.value.title = ''
-    }
+    if (errors.value.title) errors.value.title = ''
   },
 )
 
 watch(
   () => tagSearch.value,
   () => {
-    if (errors.value.tags) {
-      errors.value.tags = ''
-    }
+    if (errors.value.tags) errors.value.tags = ''
   },
 )
 
 watch(
   () => postData.value.content,
   () => {
-    if (errors.value.content && postData.value.content) {
-      errors.value.content = ''
-    }
+    if (errors.value.content && postData.value.content) errors.value.content = ''
   },
 )
 
@@ -711,15 +703,11 @@ const handleClose = () => {
       } else {
         alert('請至少輸入標題才能儲存草稿')
         const stillClose = confirm('是否仍要關閉？')
-        if (stillClose) {
-          emit('close')
-        }
+        if (stillClose) emit('close')
       }
     } else {
       const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
-      if (confirmClose) {
-        emit('close')
-      }
+      if (confirmClose) emit('close')
     }
   } else {
     emit('close')
@@ -805,13 +793,8 @@ const executeSubmit = async () => {
 }
 
 const handleFinalSubmit = async () => {
-  if (isSubmitting.value) {
-    return
-  }
-
-  if (!validateForm()) {
-    return
-  }
+  if (isSubmitting.value) return
+  if (!validateForm()) return
 
   if (!auth.currentUser) {
     formError.value = '請先登入'
@@ -819,10 +802,8 @@ const handleFinalSubmit = async () => {
   }
 
   emit('close')
-
   sessionStorage.setItem('is_submitting_discussion_post', 'true')
   sessionStorage.setItem('submit_start_time', Date.now().toString())
-
   executeSubmit()
 }
 
@@ -840,13 +821,12 @@ watch(
         imagePreviews.value = draft.imagePreviews
       }
 
-      // 確保編輯器內容也被更新
       if (editor.value && draft.content) {
         nextTick(() => {
           try {
             editor.value.commands.setContent(draft.content, false)
           } catch (error) {
-            console.error('[發文編輯器的] 載入草稿內容失敗:', error)
+            console.error('[發文編輯器] 載入草稿內容失敗:', error)
           }
         })
       }
@@ -867,13 +847,12 @@ onMounted(() => {
       imagePreviews.value = draft.imagePreviews
     }
 
-    // 確保編輯器內容也被更新
     if (editor.value && draft.content) {
       nextTick(() => {
         try {
           editor.value.commands.setContent(draft.content, false)
         } catch (error) {
-          console.error('[發文編輯器的] 載入草稿內容失敗:', error)
+          console.error('[發文編輯器] 載入草稿內容失敗:', error)
         }
       })
     }
@@ -919,111 +898,111 @@ onMounted(() => {
         <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
           <XIcon class="w-6 h-6 text-gray-500" />
         </button>
-        </div>
+      </div>
 
-        <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
-          <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
-            <div
-              v-for="step in ['edit', 'tags', 'preview']"
-              :key="step"
-              :class="[
-                'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
-                currentStep === step
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-400',
-              ]"
-            >
-              {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
-            </div>
+      <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
+        <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
+          <div
+            v-for="step in ['edit', 'tags', 'preview']"
+            :key="step"
+            :class="[
+              'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
+              currentStep === step
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-400',
+            ]"
+          >
+            {{ step === 'edit' ? '編輯內容' : step === 'tags' ? '標籤設定' : '預覽文章' }}
           </div>
         </div>
+      </div>
 
-        <div
-          :class="[
-            'flex-1 overflow-y-auto custom-scrollbar',
-            currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
-          ]"
-        >
-          <div v-if="currentStep === 'edit'" class="space-y-6">
-            <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">
-                選擇看板 <span class="text-red-500">*</span>
+      <div
+        :class="[
+          'flex-1 overflow-y-auto custom-scrollbar',
+          currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
+        ]"
+      >
+        <div v-if="currentStep === 'edit'" class="space-y-6">
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">
+              選擇看板 <span class="text-red-500">*</span>
+            </label>
+            <select
+              v-model="postData.category"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
+              :class="{ 'border-red-500': errors.category }"
+            >
+              <option value="" disabled selected>請選擇看板</option>
+              <option v-for="category in categories" :key="category" :value="category">
+                {{ category }}
+              </option>
+            </select>
+            <p v-if="errors.category" class="text-red-500 text-xs mt-1">{{ errors.category }}</p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-bold text-gray-700">
+                標題 <span class="text-red-500">*</span>
               </label>
-              <select
-                v-model="postData.category"
-                class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
-                :class="{ 'border-red-500': errors.category }"
-              >
-                <option value="" disabled selected>請選擇看板</option>
-                <option v-for="category in categories" :key="category" :value="category">
-                  {{ category }}
-                </option>
-              </select>
-              <p v-if="errors.category" class="text-red-500 text-xs mt-1">{{ errors.category }}</p>
-            </div>
-
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="block text-sm font-bold text-gray-700">
-                  標題 <span class="text-red-500">*</span>
-                </label>
-                <span
-                  :class="[
-                    'text-xs',
-                    postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
-                  ]"
-                >
-                  {{ postData.title.trim().length }}/35
-                </span>
-              </div>
-              <input
-                v-model="postData.title"
-                type="text"
-                placeholder="輸入一個吸引人的標題..."
+              <span
                 :class="[
-                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
-                  errors.title
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-200 focus:border-green-500',
+                  'text-xs',
+                  postData.title.trim().length > 35 ? 'text-red-500 font-bold' : 'text-gray-400',
                 ]"
-                maxlength="35"
-              />
-              <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
-            </div>
-
-            <div class="space-y-2">
-              <label class="block text-sm font-bold text-gray-700"
-                >封面圖片 <span class="text-red-500">*</span></label
               >
-              <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
+                {{ postData.title.trim().length }}/35
+              </span>
+            </div>
+            <input
+              v-model="postData.title"
+              type="text"
+              placeholder="輸入一個吸引人的標題..."
+              :class="[
+                'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                errors.title
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500',
+              ]"
+              maxlength="35"
+            />
+            <p v-if="errors.title" class="mt-1 text-sm text-red-500">{{ errors.title }}</p>
+          </div>
+
+          <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700"
+              >封面圖片 <span class="text-red-500">*</span></label
+            >
+            <div v-if="imagePreviews.length > 0" class="flex flex-wrap gap-3 mb-2">
+              <div
+                v-for="(url, index) in imagePreviews"
+                :key="index"
+                class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
+                @mousedown.prevent="startDragBanner"
+                @mousemove="onDragBanner"
+                @mouseup="stopDragBanner"
+                @mouseleave="stopDragBanner"
+              >
+                <img
+                  :src="url"
+                  alt="預覽"
+                  class="w-full h-full object-cover pointer-events-none"
+                  :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                />
                 <div
-                  v-for="(url, index) in imagePreviews"
-                  :key="index"
-                  class="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group cursor-move select-none"
-                  @mousedown.prevent="startDragBanner"
-                  @mousemove="onDragBanner"
-                  @mouseup="stopDragBanner"
-                  @mouseleave="stopDragBanner"
+                  class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
                 >
-                  <img
-                    :src="url"
-                    alt="預覽"
-                    class="w-full h-full object-cover pointer-events-none"
-                    :style="{ objectPosition: `center ${bannerPositionY}%` }"
-                  />
-                  <div
-                    class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
-                  >
-                    上下拖曳調整位置
-                  </div>
-                  <button
-                    class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
-                    @click.stop="removeImage(index)"
-                  >
-                    <XIcon class="w-5 h-5" />
-                  </button>
+                  上下拖曳調整位置
                 </div>
+                <button
+                  class="absolute top-2 right-2 bg-black/50 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center transition"
+                  @click.stop="removeImage(index)"
+                >
+                  <XIcon class="w-5 h-5" />
+                </button>
               </div>
+            </div>
             <div v-if="isUploading" class="w-full bg-gray-200 rounded-full h-3 mb-2">
               <div
                 class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
@@ -1336,7 +1315,6 @@ onMounted(() => {
                 />
               </div>
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
-              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 class="text-secondary-700 text-base mb-4 leading-relaxed prose prose-lg max-w-none"
                 v-html="postData.content"
@@ -1364,61 +1342,61 @@ onMounted(() => {
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-          <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
-          <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
-            <div
-              class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
-              :style="{ width: submitProgress + '%' }"
-            >
-              <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
-            </div>
+      <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
+        <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
+        <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div
+            class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+            :style="{ width: submitProgress + '%' }"
+          >
+            <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
           </div>
-          <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
-            {{ submitStatus }}
-          </p>
-          <div class="flex gap-3">
+        </div>
+        <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
+          {{ submitStatus }}
+        </p>
+        <div class="flex gap-3">
+          <button
+            type="button"
+            :disabled="isSubmitting"
+            class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="handleSaveDraft"
+          >
+            <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
+          </button>
+          <template v-if="currentStep === 'preview'">
             <button
-              type="button"
               :disabled="isSubmitting"
-              class="flex items-center justify-center px-4 py-3 text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="handleSaveDraft"
+              class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="prevStep"
             >
-              <SaveIcon class="w-5 h-5 mr-2" /> 暫存草稿
+              返回修改
             </button>
-            <template v-if="currentStep === 'preview'">
-              <button
-                :disabled="isSubmitting"
-                class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="prevStep"
-              >
-                返回修改
-              </button>
-              <button
-                :disabled="isSubmitting"
-                class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="handleFinalSubmit"
-              >
-                <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
-                <span v-if="!isSubmitting">確認發布</span>
-                <span v-else>發布中...</span>
-              </button>
-            </template>
             <button
-              v-else
-              :disabled="isUploading || isSubmitting"
-              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="nextStep"
+              :disabled="isSubmitting"
+              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="handleFinalSubmit"
             >
-              下一步
+              <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
+              <span v-if="!isSubmitting">確認發布</span>
+              <span v-else>發布中...</span>
             </button>
-          </div>
+          </template>
+          <button
+            v-else
+            :disabled="isUploading || isSubmitting"
+            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="nextStep"
+          >
+            下一步
+          </button>
         </div>
       </div>
     </div>
-    </div>
-  </template>
+  </div>
+</template>
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {
