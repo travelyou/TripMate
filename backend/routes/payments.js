@@ -367,16 +367,20 @@ router.get('/linepay/confirm', async (req, res) => {
       await client.query('ROLLBACK')
       return res.status(400).send(lp?.returnMessage || 'LINE Pay confirm failed')
     }
-
     // 更新 payment + order
-    await client.query(`更新 commerce.payments 為 status='PAID', updated_at=NOW() WHERE id=$1`, [
-      paymentId,
-    ])
-    await client.query(`更新 commerce.orders 為 status='PAID', updated_at=NOW() WHERE id=$1`, [
-      pay.orderId,
-    ])
+    await client.query(
+      `UPDATE commerce.payments
+    SET status = 'PAID'
+    WHERE id = $1`,
+      [paymentId],
+    )
 
-    await client.query('COMMIT')
+    await client.query(
+      `UPDATE commerce.orders
+    SET status = 'PAID'
+    WHERE id = $1`,
+      [pay.orderId],
+    )
 
     // 導回前端 Step5
     return res.redirect(
