@@ -11,25 +11,17 @@ import {
   Calendar as CalendarIcon,
   Users as UsersIcon,
   CheckSquare as CheckSquareIcon,
-  Save as SaveIcon,
-  Map as MapIcon,
-  MessageCircle as MessageCircleIcon,
-  Heart as HeartIcon,
-  Bookmark as BookmarkIcon,
-  Bold as BoldIcon,
-  Italic as ItalicIcon,
-  Underline as UnderlineIcon,
-  Strikethrough as StrikethroughIcon,
   Heading2 as Heading2Icon,
   Heading3 as Heading3Icon,
   Type as TypeIcon,
-  Minus as MinusIcon,
   AlignLeft as AlignLeftIcon,
   AlignCenter as AlignCenterIcon,
   Palette as PaletteIcon,
+  Bold as BoldIcon,
+  Italic as ItalicIcon,
+  Underline as UnderlineIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
@@ -49,7 +41,6 @@ import CharacterCount from '@tiptap/extension-character-count'
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
-const myItineraryStore = useMyItineraryStore()
 
 const currentStep = ref('basic')
 const formError = ref('')
@@ -67,7 +58,6 @@ const fieldErrors = ref({
   banner: '',
 })
 
-const previewActiveTab = ref('itinerary')
 const CHARACTER_LIMIT = 100000
 
 const categories = [
@@ -76,10 +66,20 @@ const categories = [
   '亞洲其他',
   '歐美紐澳',
   '海島度假',
-  '攝影/興趣',
+  '攝影',
   '自駕共乘',
   '其他',
 ]
+
+// --- ★ 新增：取得今天日期字串 (YYYY-MM-DD) ---
+const getTodayString = () => {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const minDate = getTodayString()
 
 const bannerPositionY = ref(50)
 const isDraggingBanner = ref(false)
@@ -141,14 +141,13 @@ const postData = ref({
   tags: [],
   itinerary: { days: [] },
   packingList: [],
-  status: 'published',
+  status: '招募中',
 })
 
 const bannerPreview = ref('')
 const bannerFileInput = ref(null)
 const bannerFile = ref(null)
 const editorFileInputRef = ref(null)
-const uploadProgress = ref(0)
 const isUploading = ref(false)
 const submitProgress = ref(0)
 const isSubmitting = ref(false)
@@ -184,102 +183,8 @@ const ResetStyleOnEnter = Extension.create({
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        try {
-          if (!editor || !editor.state || !editor.view) {
-            return false
-          }
-
-          const { state } = editor
-          const { selection } = state
-
-          const docSize = state.doc.content.size
-          if (selection.$from.pos < 0 || selection.$from.pos > docSize) {
-            return false
-          }
-
-          if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
-            return false
-          }
-
-          if (editor.isActive('heading', { level: 2 })) {
-            if (!editor.can().splitBlock()) {
-              return false
-            }
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const newState = editor.state
-                    const newSelection = newState.selection(
-                      newSelection.$from.pos >= 0 &&
-                        newSelection.$from.pos <= newState.doc.content.size &&
-                        editor.can().setHeading({ level: 2 }),
-                    )
-                  }
-                } catch {}
-              })
-            }
-            return splitSuccess
-          }
-
-          if (editor.isActive('heading', { level: 3 })) {
-            if (!editor.can().splitBlock()) {
-              return false
-            }
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const newState = editor.state
-                    const newSelection = newState.selection(
-                      newSelection.$from.pos >= 0 &&
-                        newSelection.$from.pos <= newState.doc.content.size &&
-                        editor.can().setHeading({ level: 3 }),
-                    )
-                  }
-                } catch {}
-              })
-            }
-            return splitSuccess
-          }
-
-          if (!editor.can().splitBlock()) {
-            return false
-          }
-
-          try {
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const currentState = editor.state
-                    const currentSelection = currentState.selection
-                    const currentDocSize = currentState.doc.content.size
-
-                    if (
-                      currentSelection.$from.pos >= 0 &&
-                      currentSelection.$from.pos <= currentDocSize &&
-                      currentSelection.$from.pos === currentSelection.$to.pos &&
-                      editor.can().unsetAllMarks()
-                    ) {
-                      editor.chain().focus().unsetAllMarks().run()
-                    }
-                  }
-                } catch {}
-              })
-            }
-            return splitSuccess
-          } catch (error) {
-            console.error('[發文編輯器的] 普通段落 Enter 鍵出錯了:', error)
-            return false
-          }
-        } catch (error) {
-          console.error('[發文編輯器的] Enter 鍵出錯了:', error)
-          return false
-        }
+        if (editor.isActive('bulletList') || editor.isActive('orderedList')) return false
+        return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
       },
     }
   },
@@ -354,7 +259,6 @@ const validateBasic = () => {
 
   let hasError = false
 
-  // ★ 新增：分類驗證
   if (!postData.value.category) {
     fieldErrors.value.category = '請選擇分類'
     hasError = true
@@ -383,14 +287,29 @@ const validateBasic = () => {
     hasError = true
   }
 
+  // ★ 新增：日期驗證邏輯
   if (!postData.value.start_date) {
     fieldErrors.value.start_date = '請選擇開始日期'
     hasError = true
+  } else {
+    // 檢查是否早於今天
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const startDate = new Date(postData.value.start_date)
+    if (startDate < today) {
+      fieldErrors.value.start_date = '開始日期不能早於今天'
+      hasError = true
+    }
   }
 
   if (!postData.value.end_date) {
     fieldErrors.value.end_date = '請選擇結束日期'
     hasError = true
+  } else if (postData.value.start_date) {
+    if (new Date(postData.value.end_date) < new Date(postData.value.start_date)) {
+      fieldErrors.value.end_date = '結束日期不能早於開始日期'
+      hasError = true
+    }
   }
 
   if (hasError) return '請檢查並修正表單錯誤'
@@ -408,7 +327,6 @@ const handleBannerSelect = async (event) => {
   }
   try {
     isUploading.value = true
-    uploadProgress.value = 0
     fieldErrors.value.banner = ''
     bannerPositionY.value = 50
 
@@ -563,7 +481,8 @@ const executeSubmit = async () => {
 
     if (response.success) {
       alert('發文成功')
-      window.location.reload()
+      emit('success')
+      emit('close')
     } else {
       alert('發布失敗：' + response.message)
     }
@@ -580,7 +499,6 @@ const handleFinalSubmit = async () => {
     formError.value = '請先登入'
     return
   }
-  emit('close')
   executeSubmit()
 }
 
@@ -947,6 +865,7 @@ onMounted(() => {
               <input
                 v-model="postData.start_date"
                 type="date"
+                :min="minDate"
                 :class="[
                   'w-full p-3 border-2 rounded-xl focus:outline-none transition',
                   fieldErrors.start_date
@@ -963,6 +882,7 @@ onMounted(() => {
               <input
                 v-model="postData.end_date"
                 type="date"
+                :min="postData.start_date || minDate"
                 :class="[
                   'w-full p-3 border-2 rounded-xl focus:outline-none transition',
                   fieldErrors.end_date
@@ -1244,42 +1164,45 @@ onMounted(() => {
       </div>
 
       <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-        <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
+        <p
+          v-if="formError"
+          class="text-red-500 font-bold text-sm text-center flex items-center justify-center"
+        >
+          <AlertIcon class="w-4 h-4 mr-1" />
+          {{ formError }}
+        </p>
+
         <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
           <div
-            class="bg-primary-600 h-3 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+            class="bg-primary-600 h-3 rounded-full transition-all duration-300"
             :style="{ width: submitProgress + '%' }"
-          >
-            <span class="text-xs font-bold text-white">{{ submitProgress }}%</span>
-          </div>
+          ></div>
         </div>
         <p v-if="isSubmitting" class="text-sm text-center text-primary-600 font-bold">
           {{ submitStatus }}
         </p>
-        <div class="flex gap-3">
+
+        <div class="flex gap-3 justify-end">
           <template v-if="currentStep === 'preview'">
             <button
-              type="button"
-              :disabled="isSubmitting"
-              class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition"
+              v-if="!isSubmitting"
+              class="px-6 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
-              type="button"
               :disabled="isSubmitting"
-              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md"
+              class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
               @click="handleFinalSubmit"
             >
-              <span v-if="!isSubmitting">確認發布</span><span v-else>發布中...</span>
+              {{ isSubmitting ? '發布中...' : '確認發布' }}
             </button>
           </template>
           <button
             v-else
-            type="button"
             :disabled="isUploading || isSubmitting"
-            class="flex-1 py-3 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold transition shadow-md disabled:opacity-50"
+            class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
             @click="nextStep"
           >
             下一步
