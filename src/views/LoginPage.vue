@@ -397,7 +397,7 @@ const registerErrors = ref({
       <img :src="tripMateIcon" alt="TripMate Logo" class="h-8 sm:h-10 md:h-12 w-auto" />
     </button>
 
-    <div class="flex flex-col lg:flex-row items-center gap-8 lg:gap-12 flex-1">
+    <div class="flex flex-col lg:flex-row items-center lg:gap-12 flex-1">
       <div class="flex items-center justify-center order-1 lg:order-none w-full lg:w-1/2">
         <img
           :src="loginPageImage"
@@ -503,7 +503,7 @@ const registerErrors = ref({
             >
               <div class="formInput flex flex-row gap-2">
                 <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label class="text-base sm:text-lg">註冊身分</label>
+                  <label class="text-base sm:text-lg">選擇身分</label>
                   <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <label class="flex-1 cursor-pointer">
                       <input
