@@ -192,14 +192,18 @@ const initBalls = () => {
   ballRadius.value = calculateBallRadius()
   const radius = ballRadius.value
 
-      if (balls.value.length > 0) {
-        balls.value.forEach((ball) => {
-          ball.radius = radius
-          ball.mass = radius * radius * 0.01
+  const hasSameCount = balls.value.length === props.wishlist.length
+  if (balls.value.length > 0 && hasSameCount) {
+    balls.value.forEach((ball, index) => {
+      ball.radius = radius
+      ball.mass = radius * radius * 0.01
+      ball.text = props.wishlist[index]
+      ball.index = index
+      ball.color = BALL_COLORS[index % BALL_COLORS.length]
 
-          ball.x = Math.max(radius, Math.min(containerWidth - radius, ball.x))
-          ball.y = Math.max(radius, Math.min(containerHeight - radius, ball.y))
-        })
+      ball.x = Math.max(radius, Math.min(containerWidth - radius, ball.x))
+      ball.y = Math.max(radius, Math.min(containerHeight - radius, ball.y))
+    })
 
     nextTick(() => {
       const ballElements = container.querySelectorAll('.wish-ball')
@@ -211,6 +215,7 @@ const initBalls = () => {
     })
     return
   }
+
   balls.value = props.wishlist.map((item, index) => {
     const x = Math.random() * (containerWidth - radius * 2) + radius
     const y = Math.random() * (containerHeight - radius * 2) + radius

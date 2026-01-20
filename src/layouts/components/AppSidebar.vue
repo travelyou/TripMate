@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 const emit = defineEmits(['open-mobile-actions'])
@@ -50,50 +51,40 @@ const menuItems = [
   },
 ]
 
-// 計算當前用戶的個人檔案路由
-const currentUserProfilePath = computed(() => {
-  if (userStore.isLoggedIn && userStore.currentUser?.uid) {
-    return `/profile/${userStore.currentUser.uid}`
+const { isVendor } = storeToRefs(userStore)
+
+const bottomMenuItems = computed(() => {
+  const items = [
+    {
+      name: 'my_itinerary',
+      label: '我的行程',
+      icon: CalendarIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    },
+  ]
+
+  if (isVendor.value && userStore.currentUser?.uid) {
+    items.push({
+      name: 'VendorProfile',
+      params: { id: userStore.currentUser.uid },
+      label: '廠商檔案',
+      icon: UserIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    })
+  } else if (!isVendor.value) {
+    items.push({
+      name: 'profile',
+      label: '個人檔案',
+      icon: UserIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    })
   }
-  return '/profile'
+
+  return items
 })
-
-// 判斷是否應該高亮「個人檔案」按鈕
-const isProfileActive = computed(() => {
-  // 只有在查看自己的個人檔案時才高亮
-  if (route.name === 'profile' && route.params.uid) {
-    return route.params.uid === userStore.currentUser?.uid
-  }
-  // 如果路由是 /profile 且沒有 uid，也高亮（會自動跳轉到當前用戶）
-  return route.name === 'profile' && !route.params.uid
-})
-
-const bottomMenuItems = [
-  {
-    name: 'my_itinerary',
-    label: '我的行程',
-    icon: CalendarIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-  },
-  {
-    name: 'profile',
-    label: '個人檔案',
-    icon: UserIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-    isCustomRoute: true, // 標記為自定義路由
-  },
-
-  {
-    name: 'VendorProfile',
-    params: { id: 'test' },
-    label: '廠商檔案',
-    icon: UserIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-  },
-]
 
 const mobileNavItems = [
   { name: 'home', label: '首頁', icon: HomeIcon },
@@ -111,6 +102,27 @@ function goToCollections() {
   // 修改這裡，不再彈出 alert
   // alert('收藏功能開發中')
   router.push({ name: 'collections' }) // 假設你有設定 collections 路由
+}
+
+// 判斷是否為當前活躍路由
+function isActiveRoute(item) {
+  // 如果不是 profile 路由，直接比較 route.name
+  if (item.name !== 'profile') {
+    return route.name === item.name
+  }
+
+  // 對於 profile 路由，只有在查看自己的頁面時才高亮
+  if (route.name === 'profile') {
+    // 如果有 uid 參數，表示在查看別人的頁面
+    if (route.params.uid) {
+      // 只有當 uid 等於當前使用者的 uid 時才高亮
+      return route.params.uid === userStore.currentUser?.uid
+    }
+    // 沒有 uid 參數，表示在查看自己的頁面
+    return true
+  }
+
+  return false
 }
 
 const handleMobileNavClick = (item) => {
@@ -166,12 +178,10 @@ const handleMobileNavClick = (item) => {
         <RouterLink
           v-for="item in bottomMenuItems"
           :key="item.name"
-          :to="item.isCustomRoute ? currentUserProfilePath : { name: item.name, params: item.params }"
+          :to="{ name: item.name, params: item.params }"
           :class="[
             'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            item.isCustomRoute
-              ? (isProfileActive ? 'bg-primary-50 shadow-md' : 'hover:shadow-md')
-              : (route.name === item.name ? 'bg-primary-50 shadow-md' : 'hover:shadow-md'),
+            isActiveRoute(item) ? 'bg-primary-50 shadow-md' : 'hover:shadow-md',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />

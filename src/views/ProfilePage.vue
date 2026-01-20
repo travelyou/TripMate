@@ -294,8 +294,6 @@ const handleAddFriend = async () => {
       await cancelFriendRequest(currentUid, friendUid)
       friendRequestStatus.value = 'none'
     } else if (friendRequestStatus.value === 'accepted') {
-      const confirmClear = confirm('你們已是好友，是否清除待處理的好友邀請？')
-      if (!confirmClear) return
       await clearPendingFriendRequests(currentUid, friendUid)
     } else {
       // 發送好友請求
@@ -322,6 +320,18 @@ const handleAddFriend = async () => {
       alert('操作失敗：' + (error.message || '未知錯誤'))
     }
   }
+}
+
+const handleChatWithFriend = (friend) => {
+  console.log('Chat with friend:', friend.name)
+  // Future: 導向聊天頁面
+}
+
+const handleChatWithUser = () => {
+  const targetUserId = route.params.uid || user.value.uid
+  console.log('開始與使用者聊天:', targetUserId)
+  // TODO: 導向聊天頁面
+  alert('聊天功能開發中，即將導向聊天頁面')
 }
 
 const openDetail = (post, focusComment = false) => {
@@ -620,6 +630,14 @@ const loadProfileData = async () => {
         userStore.currentUser.friends = profileData.friends
         userStore.currentUser.reviews = profileData.reviews
         userStore.currentUser.tags = profileData.user.tags || []
+
+        const hasPersonality =
+          personalityStore.savedResult || personalityStore.result
+        if (!hasPersonality && userStore.currentUser?.spiritAnimal) {
+          personalityStore.hydrateResultFromSpiritAnimal(
+            userStore.currentUser.spiritAnimal,
+          )
+        }
       }
 
       profileStats.value = profileData.stats || {

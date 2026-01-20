@@ -52,7 +52,7 @@
         <!-- 未登入時顯示登入/註冊按鈕 -->
         <button
           v-if="!userStore.isLoggedIn"
-          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 bg-primary-600 hover:bg-primary-700 rounded-full transition ml-1 whitespace-nowrap"
+          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 hover:bg-primary-400 rounded-xl transition ml-1 whitespace-nowrap"
           @click="goToLogin"
         >
           <span class="hidden sm:inline">登入 / 註冊</span>
@@ -94,12 +94,31 @@
                 </p>
               </div>
               <div class="p-1 space-y-1">
+                <!-- 一般使用者顯示 -->
                 <button
+                  v-if="!userStore.isVendor"
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
                   @click="handleProfileClick"
                 >
                   <UserIcon class="w-4 h-4 mr-3" />我的帳號
                 </button>
+
+                <!-- 廠商顯示 -->
+                <template v-else>
+                  <button
+                    class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                    @click="goToVendorProfile"
+                  >
+                    <UserIcon class="w-4 h-4 mr-3" />廠商檔案
+                  </button>
+                  <button
+                    class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                    @click="goToVendorDashboard"
+                  >
+                    <AwardIcon class="w-4 h-4 mr-3" />廠商後台
+                  </button>
+                </template>
+
                 <button
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium lg:hidden"
                   @click="goToFavorites"
@@ -157,6 +176,7 @@ import {
   Info as InfoIcon,
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
+  Award as AwardIcon,
 } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -165,6 +185,24 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const headerSearchQuery = ref('')
+
+const goToVendorDashboard = () => {
+  closeMenu()
+  router.push('/vendor/dashboard')
+}
+
+const goToVendorProfile = () => {
+  closeMenu()
+  // 導向到自己的廠商檔案
+  // 需確保 userStore.currentUser.uid 存在，且後端有該 ID 的廠商資料
+  // 這裡假設廠商 ID = User UID (單一帳號制)
+  const vendorId = userStore.currentUser?.uid
+  if (vendorId) {
+    router.push({ name: 'VendorProfile', params: { id: vendorId } })
+  } else {
+    router.push('/vendor/dashboard') // Fallback
+  }
+}
 
 const hasCartItems = computed(
   () => (checkoutStore.cartItems?.length ?? 0) > 0 || checkoutStore.tourGroups.length > 0,

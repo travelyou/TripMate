@@ -12,7 +12,23 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'chat', 'open-profile'])
+const emit = defineEmits(['close', 'chat', 'open-profile'])
+
+const emitChat = (friend) => {
+  if (!friend) return
+  emit('chat', friend)
+
+  const uid = friend.uid || friend.id
+  if (uid) {
+    const chatUser = {
+      uid,
+      name: friend.name || friend.nickname,
+      nickname: friend.nickname || friend.name,
+      avatar: friend.avatar || '',
+    }
+    window.dispatchEvent(new CustomEvent('open-chat', { detail: { user: chatUser } }))
+  }
+}
 </script>
 
 <template>
@@ -48,7 +64,7 @@ defineEmits(['close', 'chat', 'open-profile'])
           v-for="friend in friends"
           :key="friend.id"
           class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition group cursor-pointer"
-          @click="$emit('chat', friend)"
+          @click="emitChat(friend)"
         >
           <button
             class="flex items-center gap-3 text-left"
@@ -69,7 +85,7 @@ defineEmits(['close', 'chat', 'open-profile'])
           <button
             class="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition opacity-100 group-hover:opacity-100"
             title="聊聊"
-            @click.stop="$emit('chat', friend)"
+            @click.stop="emitChat(friend)"
           >
             <MessageCircle class="w-4 h-4" />
           </button>
