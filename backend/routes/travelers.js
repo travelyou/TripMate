@@ -52,6 +52,7 @@ router.get('/', async (req, res) => {
         t.created_at,
         t.updated_at
       FROM travelers.travelers t
+      LEFT JOIN users u ON t.author_uid = u.uid
       WHERE t.deleted_at IS NULL
     `
 
