@@ -299,7 +299,18 @@ const handleAddFriend = async () => {
   }
 
   try {
-    const { addFriend, cancelFriendRequest } = await import('@/api/profile')
+    const { addFriend, cancelFriendRequest, removeFriend } = await import('@/api/profile')
+
+    // 如果已經是好友，显示解除好友选项
+    if (friendRequestStatus.value === 'accepted') {
+      const confirmRemove = confirm('確定要解除好友關係嗎？')
+      if (!confirmRemove) return
+      await removeFriend(currentUid, friendUid)
+      friendRequestStatus.value = 'none'
+      await refreshCurrentUserFriends()
+      await checkFriendRequestStatus()
+      return
+    }
 
     // 如果已經發送請求，則取消請求
     if (friendRequestStatus.value === 'sent') {
@@ -307,8 +318,6 @@ const handleAddFriend = async () => {
       if (!confirmCancel) return
       await cancelFriendRequest(currentUid, friendUid)
       friendRequestStatus.value = 'none'
-    } else if (friendRequestStatus.value === 'accepted') {
-      await clearPendingFriendRequests(currentUid, friendUid)
     } else {
       // 發送好友請求
       const result = await addFriend(currentUid, friendUid)

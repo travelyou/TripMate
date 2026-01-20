@@ -5,8 +5,9 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  deleteUser,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createOrUpdateUser, getUserProfile } from '@/api/users'
@@ -116,6 +117,7 @@ const handleLogin = async () => {
       console.error('獲取 Firestore 用戶資料失敗：', error)
     }
 
+    // 自动修复：检查并同步Neon数据库
     try {
       const userRole = userData.role || 'user'
       const vendorId =
@@ -123,17 +125,53 @@ const handleLogin = async () => {
           ? null
           : userData.vendorId || userData.vendor_id || null
 
-      await createOrUpdateUser({
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-        nickname: userData.nickname || '',
-        location: userData.location || '台灣',
-        avatar: userData.avatar || '',
-        bio: userData.bio || null,
-        spirit_animal: userData.spiritAnimal || null,
-        role: userRole,
-        vendor_id: vendorId,
-      })
+      // 先检查Neon中是否存在用户
+      let neonUserExists = false
+      try {
+        const neonUser = await getUserProfile(userCredential.user.uid)
+        neonUserExists = neonUser && neonUser.uid
+      } catch (checkError) {
+        console.log('檢查 Neon 用戶時出錯（可能不存在）：', checkError)
+      }
+
+      // 如果Neon中不存在，尝试创建/更新
+      if (!neonUserExists) {
+        console.log('檢測到 Neon 資料庫中沒有用戶資料，正在自動修復...')
+        try {
+          await createOrUpdateUser({
+            uid: userCredential.user.uid,
+            email: userCredential.user.email,
+            nickname: userData.nickname || userCredential.user.email?.split('@')[0] || '用戶',
+            location: userData.location || '台灣',
+            avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
+            bio: userData.bio || null,
+            spirit_animal: userData.spiritAnimal || null,
+            role: userRole,
+            vendor_id: vendorId,
+          })
+          console.log('✅ 自動修復成功：Neon 資料庫已同步')
+        } catch (syncError) {
+          console.error('⚠️ 自動修復失敗（但不影響登入）：', syncError)
+          // 不阻止登录，但记录错误
+        }
+      } else {
+        // 如果存在，尝试更新（确保数据是最新的）
+        try {
+          await createOrUpdateUser({
+            uid: userCredential.user.uid,
+            email: userCredential.user.email,
+            nickname: userData.nickname || '',
+            location: userData.location || '台灣',
+            avatar: userData.avatar || '',
+            bio: userData.bio || null,
+            spirit_animal: userData.spiritAnimal || null,
+            role: userRole,
+            vendor_id: vendorId,
+          })
+        } catch (updateError) {
+          console.error('更新 Neon 資料庫失敗（但不影響登入）：', updateError)
+        }
+      }
     } catch (syncError) {
       console.error('同步到 Neon 資料庫失敗（但不影響登入）：', syncError)
     }
@@ -269,55 +307,113 @@ const handleRegister = async () => {
       return
     }
 
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      registerForm.value.email,
-      registerForm.value.password,
-    )
-
-    const userData = {
-      realName: registerForm.value.realName.trim(),
-      nickname: registerForm.value.nickname.trim(),
-      email: registerForm.value.email,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
-      bio: '',
-      spiritAnimal: '',
-      createdAt: new Date(),
-    }
-    await setDoc(doc(db, 'users', userCredential.user.uid), userData)
-
+    // 先尝试创建Neon用户（通过API检查是否可以连接）
+    let neonUserCreated = false
+    let userCredential = null
+    let userData = null
+    
     try {
+      // 先创建Firebase用户
+      userCredential = await createUserWithEmailAndPassword(
+        auth,
+        registerForm.value.email,
+        registerForm.value.password,
+      )
+
+      userData = {
+        realName: registerForm.value.realName.trim(),
+        nickname: registerForm.value.nickname.trim(),
+        email: registerForm.value.email,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
+        bio: '',
+        spiritAnimal: '',
+        createdAt: new Date(),
+      }
+      
+      // 创建Firestore用户数据
+      await setDoc(doc(db, 'users', userCredential.user.uid), userData)
+
+      // 尝试同步到Neon数据库
       const finalRole = registerForm.value.role || 'user'
       const vendorId = finalRole === 'vendor' ? null : null
 
-      await createOrUpdateUser({
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-        nickname: userData.nickname,
-        real_name: userData.realName,
-        avatar: userData.avatar,
-        bio: userData.bio,
-        spirit_animal: userData.spiritAnimal,
-        role: finalRole,
-        vendor_id: vendorId,
-      })
-
-      userStore.markAsRecentlyRegistered(userCredential.user.uid)
-    } catch (syncError) {
-      console.error('同步到 Neon 資料庫失敗：', syncError)
-      const errorMessage =
-        syncError.response?.data?.error ||
-        syncError.response?.data?.details ||
-        syncError.message ||
-        '未知錯誤'
-      registerErrors.value.general = '註冊成功，但資料同步到資料庫失敗：' + errorMessage
+      try {
+        await createOrUpdateUser({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          nickname: userData.nickname,
+          real_name: userData.realName,
+          avatar: userData.avatar,
+          bio: userData.bio,
+          spirit_animal: userData.spiritAnimal,
+          role: finalRole,
+          vendor_id: vendorId,
+        })
+        neonUserCreated = true
+        userStore.markAsRecentlyRegistered(userCredential.user.uid)
+      } catch (syncError) {
+        console.error('同步到 Neon 資料庫失敗，開始回滾：', syncError)
+        
+        // 回滚：删除Firebase用户和Firestore数据
+        try {
+          // 删除Firestore数据
+          await deleteDoc(doc(db, 'users', userCredential.user.uid))
+        } catch (firestoreError) {
+          console.error('刪除 Firestore 資料失敗：', firestoreError)
+        }
+        
+        try {
+          // 删除Firebase用户
+          await deleteUser(userCredential.user)
+        } catch (deleteError) {
+          console.error('刪除 Firebase 用戶失敗：', deleteError)
+          // 如果删除失败，记录错误但继续抛出原始错误
+        }
+        
+        const errorMessage =
+          syncError.response?.data?.error ||
+          syncError.response?.data?.details ||
+          syncError.response?.data?.message ||
+          syncError.message ||
+          '未知錯誤'
+        
+        // 检查是否是数据库连接问题
+        if (
+          syncError.message?.includes('Failed to fetch') ||
+          syncError.message?.includes('NetworkError') ||
+          syncError.response?.status === 503
+        ) {
+          throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
+        }
+        
+        throw new Error('資料同步到資料庫失敗：' + errorMessage)
+      }
+    } catch (error) {
+      // 如果Neon同步失败且Firebase用户已创建，确保已回滚
+      if (userCredential && !neonUserCreated) {
+        // 已经在上面尝试回滚了，这里只是记录
+        console.error('註冊流程失敗，已嘗試回滾 Firebase 用戶')
+      }
+      throw error
     }
 
-    applyUserProfileToStore({
-      uid: userCredential.user.uid,
-      email: userCredential.user.email,
-      ...userData,
-    })
+    // 只有在Neon同步成功后才继续
+    if (userCredential && userData && neonUserCreated) {
+      applyUserProfileToStore({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        ...userData,
+      })
+
+      await userStore.logout()
+
+      activeTab.value = 'login'
+      loginForm.value.email = registerForm.value.email
+      loginForm.value.password = ''
+
+      registerForm.value.password = ''
+      registerForm.value.confirmPassword = ''
+    }
 
     await userStore.logout()
 
@@ -329,6 +425,12 @@ const handleRegister = async () => {
     registerForm.value.confirmPassword = ''
   } catch (error) {
     console.error('註冊失敗：', error.code, error.message)
+    
+    // 如果是我们抛出的自定义错误，显示给用户
+    if (error.message && !error.code) {
+      registerErrors.value.general = error.message
+      return
+    }
 
     registerErrors.value = {
       realName: '',

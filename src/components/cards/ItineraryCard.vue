@@ -344,7 +344,7 @@ onUnmounted(() => {
         {{ props.itinerary.title || '無標題' }}
       </h3>
 
-      <p class="text-secondary-500 text-sm line-clamp-2 mb-3 h-10">
+      <p class="text-gray-900 text-sm line-clamp-2 mb-3 h-10">
         {{ previewContent }}
       </p>
 

@@ -95,7 +95,7 @@ const loadMessagesFromStorage = (friendUid) => {
 const chatRooms = computed(() => {
   const rooms = []
 
-  // 添加收到的好友請求
+  // 只添加收到的好友請求（不显示已发送的）
   friendRequests.value.received.forEach(request => {
     rooms.push({
       id: `request-received-${request.uid}`,
@@ -106,21 +106,6 @@ const chatRooms = computed(() => {
       lastMessage: '好友請求待處理',
       lastMessageTime: '',
       unreadCount: 1,
-      request: request
-    })
-  })
-
-  // 添加發送的好友請求
-  friendRequests.value.sent.forEach(request => {
-    rooms.push({
-      id: `request-sent-${request.uid}`,
-      type: 'friend-request-sent',
-      uid: request.uid,
-      name: request.name || request.nickname || '未知用戶',
-      avatar: request.avatar || '',
-      lastMessage: '等待對方回應',
-      lastMessageTime: '',
-      unreadCount: 0,
       request: request
     })
   })
@@ -162,6 +147,29 @@ const loadChatHistory = async (uid, friendUid) => {
 
     if (mappedMessages.length > 0) {
       saveMessagesToStorage(friendUid, mappedMessages)
+      // 检查是否有新消息（未读）
+      const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+      if (currentUid) {
+        const unreadKey = `unread_${currentUid}_${friendUid}`
+        const unreadData = localStorage.getItem(unreadKey)
+        let lastReadTime = null
+        if (unreadData) {
+          try {
+            const unreadInfo = JSON.parse(unreadData)
+            lastReadTime = unreadInfo.lastReadTime
+          } catch (e) {
+            // ignore
+          }
+        }
+        const lastMessage = mappedMessages[mappedMessages.length - 1]
+        if (lastMessage && lastMessage.type !== 'user') {
+          const lastMessageTime = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
+          if (!lastReadTime || lastMessageTime > new Date(lastReadTime).getTime()) {
+            // 有新消息，触发更新事件
+            window.dispatchEvent(new CustomEvent('message-updated'))
+          }
+        }
+      }
     }
 
     // 更新聊天室的消息列表
@@ -277,6 +285,9 @@ const openOrCreateChatRoom = async (user) => {
       avatar: newRoom.avatar,
       messages: []
     }
+
+    // 触发新建聊天室事件
+    window.dispatchEvent(new CustomEvent('new-chat-room'))
   }
 
   // 載入對話次數
@@ -285,7 +296,16 @@ const openOrCreateChatRoom = async (user) => {
   // 從數據庫載入聊天記錄
   await loadChatHistory(currentUid, targetUid)
 
+  // 标记为已读（打开聊天室时）
+  const unreadKey = `unread_${currentUid}_${targetUid}`
+  localStorage.setItem(unreadKey, JSON.stringify({
+    lastReadTime: new Date().toISOString()
+  }))
+
   scrollToBottom()
+  
+  // 触发消息更新事件（清除未读计数）
+  window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
 const loadFriends = async () => {
@@ -413,6 +433,8 @@ const sendMessage = async () => {
 
     persistChatRooms()
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
+    // 触发消息更新事件
+    window.dispatchEvent(new CustomEvent('message-updated'))
 
     scrollToBottom()
   } catch (error) {
@@ -442,6 +464,8 @@ const sendMessage = async () => {
     messageInput.value = ''
     persistChatRooms()
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
+    // 触发消息更新事件
+    window.dispatchEvent(new CustomEvent('message-updated'))
     scrollToBottom()
   }
 }
@@ -462,17 +486,20 @@ const handleChatRoomClick = async (room) => {
         alert('接受好友請求失敗：' + (error.message || '未知錯誤'))
       }
     } else {
+      // 拒绝好友请求：只是删除记录，不发送回应
       try {
         const { rejectFriendRequest } = await import('@/api/profile')
         const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
         await rejectFriendRequest(currentUid, room.uid)
         await loadFriends()
+        // 重新加载好友请求列表
+        const { getFriendRequests } = await import('@/api/profile')
+        const requests = await getFriendRequests(currentUid)
+        friendRequests.value = requests || { received: [], sent: [] }
       } catch (error) {
         console.error('拒絕好友請求失敗：', error)
       }
     }
-  } else if (room.type === 'friend-request-sent') {
-    alert(`已向 ${room.name} 發送好友請求，等待對方回應`)
   } else if (room.type === 'chat') {
     // 打開聊天室
     activeChatRoom.value = {
@@ -706,8 +733,6 @@ watch(chatRoomsList, () => {
             class="flex items-center gap-3 p-3 hover:bg-white rounded-xl transition cursor-pointer border-2"
             :class="room.type === 'friend-request-received'
               ? 'border-yellow-400 bg-yellow-50 hover:border-yellow-500'
-              : room.type === 'friend-request-sent'
-              ? 'border-blue-300 bg-blue-50 hover:border-blue-400'
               : 'border-transparent hover:border-primary-200'"
             @click="handleChatRoomClick(room)"
           >
@@ -729,7 +754,6 @@ watch(chatRoomsList, () => {
                 <div class="font-bold text-gray-800 text-sm truncate">
                   {{ room.name }}
                   <span v-if="room.type === 'friend-request-received'" class="text-yellow-600">（好友請求）</span>
-                  <span v-if="room.type === 'friend-request-sent'" class="text-blue-600">（已發送）</span>
                 </div>
                 <div v-if="room.lastMessageTime" class="text-xs text-gray-500 ml-2 flex-shrink-0">{{ room.lastMessageTime }}</div>
               </div>

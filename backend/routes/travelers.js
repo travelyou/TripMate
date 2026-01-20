@@ -285,15 +285,35 @@ router.post('/:id/applications', async (req, res) => {
       return res.status(400).json({ success: false, message: '訊息長度不能超過200字' })
     }
 
-    // 检查是否已经报名过
+    // 检查是否已经报名过（pending或accepted状态）
     const existingApp = await pool.query(
-      `SELECT id FROM travelers.traveler_applications
-       WHERE traveler_id = $1 AND author_uid = $2 AND status = 'pending'`,
+      `SELECT id, status FROM travelers.traveler_applications
+       WHERE traveler_id = $1 AND author_uid = $2 AND status IN ('pending', 'accepted')`,
       [id, author_uid]
     )
 
     if (existingApp.rows.length > 0) {
-      return res.status(400).json({ success: false, message: '您已經報名過了' })
+      const status = existingApp.rows[0].status
+      if (status === 'pending') {
+        return res.status(400).json({ success: false, message: '您已經報名過了，請等待作者審核' })
+      } else if (status === 'accepted') {
+        return res.status(400).json({ success: false, message: '您已經被接受報名了' })
+      }
+    }
+
+    // 如果之前被拒绝，允许重新报名（删除旧记录）
+    const rejectedApp = await pool.query(
+      `SELECT id FROM travelers.traveler_applications
+       WHERE traveler_id = $1 AND author_uid = $2 AND status = 'rejected'`,
+      [id, author_uid]
+    )
+
+    if (rejectedApp.rows.length > 0) {
+      // 删除旧的被拒绝的报名记录，允许重新报名
+      await pool.query(
+        `DELETE FROM travelers.traveler_applications WHERE id = $1`,
+        [rejectedApp.rows[0].id]
+      )
     }
 
     const result = await pool.query(
@@ -468,6 +488,41 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
     res.status(500).json({ success: false, message: '接受報名失敗', error: error.message })
   } finally {
     client.release()
+  }
+})
+
+// 获取用户的群组聊天室列表
+router.get('/group-chat-rooms', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+
+    const { user_uid } = req.query
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+
+    const result = await pool.query(
+      `SELECT
+        r.id,
+        r.traveler_id,
+        r.name,
+        r.created_by,
+        r.created_at,
+        t.title as traveler_title
+      FROM public.group_chat_rooms r
+      LEFT JOIN travelers.travelers t ON r.traveler_id = t.id
+      WHERE EXISTS (
+        SELECT 1 FROM public.group_chat_members m
+        WHERE m.room_id = r.id AND m.user_uid = $1
+      )
+      ORDER BY r.created_at DESC`,
+      [user_uid]
+    )
+
+    res.json({ success: true, data: result.rows })
+  } catch (error) {
+    console.error('獲取群組聊天室列表失敗:', error)
+    res.status(500).json({ success: false, message: '獲取群組聊天室列表失敗', error: error.message })
   }
 })
 

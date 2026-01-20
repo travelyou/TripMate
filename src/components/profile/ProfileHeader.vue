@@ -153,18 +153,18 @@ const shouldMarquee = computed(() => {
              <!-- Mobile Visitor Buttons -->
              <div v-else class="flex gap-2 self-end mt-1">
                <button
-                 :class="[
-                   'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg transition',
-                   friendRequestStatus === 'accepted'
-                     ? 'bg-green-500/20 text-green-700 border border-green-500'
-                     : friendRequestStatus === 'sent'
-                     ? 'bg-orange-500/20 text-white border border-orange-500'
-                     : 'bg-white text-primary-600 hover:bg-gray-100'
-                 ]"
+                :class="[
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg transition',
+                  friendRequestStatus === 'accepted'
+                    ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
+                    : friendRequestStatus === 'sent'
+                    ? 'bg-orange-500/20 text-white border border-orange-500'
+                    : 'bg-white text-primary-600 hover:bg-gray-100'
+                ]"
                  @click="$emit('add-friend')"
                >
-                 <UserPlus class="w-4 h-4" />
-                 {{ friendRequestStatus === 'accepted' ? '已是好友' : friendRequestStatus === 'sent' ? '已發送邀請' : '加好友' }}
+              <UserPlus class="w-4 h-4" />
+              {{ friendRequestStatus === 'accepted' ? '解除好友' : friendRequestStatus === 'sent' ? '已發送邀請' : '加好友' }}
                </button>
                <button
                  class="flex items-center gap-1.5 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-xs font-bold shadow-lg hover:bg-secondary-500 transition"
@@ -285,7 +285,7 @@ const shouldMarquee = computed(() => {
               :class="[
                 'flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base font-bold shadow-lg transition',
                 friendRequestStatus === 'accepted'
-                  ? 'bg-white text-primary-600 border border-primary-600'
+                  ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
                   : friendRequestStatus === 'sent'
                   ? 'bg-white/20 text-white border border-white'
                   : 'bg-white text-primary-600 hover:bg-gray-100'
@@ -293,7 +293,7 @@ const shouldMarquee = computed(() => {
               @click="$emit('add-friend')"
             >
               <UserPlus class="w-5 h-5" />
-              {{ friendRequestStatus === 'accepted' ? '已是好友' : friendRequestStatus === 'sent' ? '已發送邀請' : '加好友' }}
+              {{ friendRequestStatus === 'accepted' ? '解除好友' : friendRequestStatus === 'sent' ? '已發送邀請' : '加好友' }}
             </button>
             <button
               class="flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 bg-secondary-400 text-white rounded-full text-sm md:text-base font-bold shadow-lg hover:bg-secondary-500 transition"

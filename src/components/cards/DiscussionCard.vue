@@ -291,7 +291,7 @@ onUnmounted(() => {
       {{ post.title }}
     </h3>
 
-    <p class="text-gray-600 text-sm mb-4 line-clamp-5 whitespace-pre-wrap leading-relaxed">
+    <p class="text-gray-900 text-sm mb-4 line-clamp-5 whitespace-pre-wrap leading-relaxed">
       {{ previewContent }}
     </p>
 

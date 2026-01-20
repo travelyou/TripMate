@@ -195,9 +195,19 @@ const isAuthor = computed(() => {
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
+// 检查用户是否已报名（pending或accepted状态）
+const hasApplied = computed(() => {
+  if (!myApplication.value) return false
+  return myApplication.value.status === 'pending' || myApplication.value.status === 'accepted'
+})
+
 const handleApply = () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能報名')
+    return
+  }
+  // 如果已经报名，不允许再次报名
+  if (hasApplied.value) {
     return
   }
   emit('open-apply', localTravelerData.value)
@@ -285,9 +295,10 @@ const handleSubmitApplication = async () => {
 
   try {
     await submitApplication(localTravelerData.value.id, applicationMessage.value.trim())
-    applicationMessage.value = ''
     // 重新加载报名信息
     await loadApplications()
+    applicationMessage.value = ''
+    // 显示成功提示
     alert('報名成功！')
   } catch (err) {
     applicationError.value = err.response?.data?.message || '提交失敗，請稍後再試'
@@ -398,7 +409,13 @@ onMounted(async () => {
     likesCount.value = props.traveler.likes || 0
     localComments.value = props.traveler.commentsData || []
     await fetchFullTravelerDetails()
-    if (currentUserUid.value) await loadLikesInfo()
+    if (currentUserUid.value) {
+      await loadLikesInfo()
+      // 如果不是作者，加载自己的报名状态
+      if (!isAuthor.value) {
+        await loadApplications()
+      }
+    }
   }
   if (props.scrollToComments) {
     jumpToComments()
@@ -638,20 +655,35 @@ onMounted(async () => {
               </button>
               <button
                 v-else-if="localTravelerData.status === '招募中' && !isExpired"
-                class="flex items-center space-x-1 transition group text-secondary-400 hover:text-blue-600"
+                :disabled="hasApplied"
+                :class="[
+                  'flex items-center space-x-1 transition group',
+                  hasApplied
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-secondary-400 hover:text-blue-600'
+                ]"
                 @click="handleApply"
-                title="報名"
+                :title="hasApplied ? '已報名' : '報名'"
               >
                 <UserPlusIcon
-                  class="w-5 h-5 transition-transform group-active:scale-125"
+                  :class="[
+                    'w-5 h-5 transition-transform',
+                    hasApplied ? '' : 'group-active:scale-125'
+                  ]"
                 />
               </button>
               <button
                 v-if="localTravelerData.status === '招募中' && !isExpired && !isAuthor"
-                class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md relative z-30"
+                :disabled="hasApplied"
+                :class="[
+                  'ml-auto px-6 py-2 rounded-full font-bold transition shadow-md relative z-30',
+                  hasApplied
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                ]"
                 @click="handleApply"
               >
-                私訊報名
+                {{ hasApplied ? (myApplication?.status === 'pending' ? '已報名（待審核）' : '已接受報名') : '私訊報名' }}
               </button>
               <div v-else class="ml-auto text-secondary-400 font-bold">
                 {{ localTravelerData.status }}
@@ -685,7 +717,7 @@ onMounted(async () => {
                   }})
                 </button>
                 <button
-                  v-if="localTravelerData.status === '招募中' && !isExpired"
+                  v-if="localTravelerData.status === '招募中' && !isExpired && isAuthor"
                   :class="[
                     'px-6 py-3 font-bold transition relative',
                     activeTab === 'applications'
@@ -694,7 +726,7 @@ onMounted(async () => {
                   ]"
                   @click="jumpToApplications"
                 >
-                  <UserPlusIcon class="w-5 h-5 inline mr-2" /> {{ isAuthor ? '目前報名的人' : '報名' }}
+                  <UserPlusIcon class="w-5 h-5 inline mr-2" /> 目前報名的人
                 </button>
               </div>
             </div>
@@ -785,9 +817,9 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div v-if="activeTab === 'applications'">
+            <div v-if="activeTab === 'applications' && isAuthor">
               <!-- 作者视角：显示所有报名清单 -->
-              <div v-if="isAuthor">
+              <div>
                 <div v-if="isLoadingApplications" class="text-center py-10 text-gray-500">載入中...</div>
                 <div v-else-if="applications.length === 0" class="text-center py-10 text-gray-500">
                   目前還沒有報名
@@ -846,10 +878,6 @@ onMounted(async () => {
                     <p class="text-gray-700 whitespace-pre-wrap">{{ app.message }}</p>
                   </div>
                 </div>
-              </div>
-              <!-- 非作者视角：不显示任何内容，只使用"私訊報名"按钮 -->
-              <div v-else class="text-center py-10 text-gray-400">
-                <p class="mb-4">請使用上方的「私訊報名」按鈕進行報名</p>
               </div>
             </div>
 
@@ -992,6 +1020,7 @@ onMounted(async () => {
 :deep(.rich-content p) {
   margin-bottom: 1.25em;
   font-size: 1.1rem;
+  color: #111827;
 }
 :deep(.rich-content ul) {
   list-style-type: disc;
