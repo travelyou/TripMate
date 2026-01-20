@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getVendorProfile } from '@/api/vendor'
+import { getVendorProfile, getVendorItineraries, getVendorPosts } from '@/api/vendor'
 import { createItinerary as createItineraryApi } from '@/api/itinerary'
+// 若有 discussion API 請解開下方註解
+// import { createDiscussion as createDiscussionApi } from '@/api/discussions'
 
 export const useVendorStore = defineStore('vendor', () => {
   const currentVendor = ref(null)
@@ -11,6 +13,8 @@ export const useVendorStore = defineStore('vendor', () => {
   const loading = ref(false)
   const error = ref(null)
 
+  // 🔴 MOCK DATA - 廠商基本資料 (Deprecated: Use API)
+  /*
   const mockVendor = {
     id: 'vendor001',
     name: '環遊世界旅行社',
@@ -25,7 +29,10 @@ export const useVendorStore = defineStore('vendor', () => {
       '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。',
     isVerified: true,
   }
+  */
 
+  // 🔴 MOCK DATA - 貼文 (Deprecated)
+  /*
   const mockPosts = [
     {
       id: 1,
@@ -64,7 +71,10 @@ export const useVendorStore = defineStore('vendor', () => {
       tags: ['冰島', '極光', '攝影', '歐洲', '北歐'],
     },
   ]
+  */
 
+  // 🔴 MOCK DATA - 行程 (Deprecated)
+  /*
   const mockItineraries = [
     {
       id: 1,
@@ -151,7 +161,10 @@ export const useVendorStore = defineStore('vendor', () => {
       highlights: ['在地小吃', '咖啡文化', '法式建築'],
     },
   ]
+  */
 
+  // 🔴 MOCK DATA - 評價 (Deprecated)
+  /*
   const mockReviews = [
     {
       id: 1,
@@ -180,6 +193,10 @@ export const useVendorStore = defineStore('vendor', () => {
   ]
   */
 
+  // ========================================
+  // Actions
+  // ========================================
+
   const fetchVendorProfile = async (id) => {
     loading.value = true
     error.value = null
@@ -188,31 +205,54 @@ export const useVendorStore = defineStore('vendor', () => {
       if (res.success && res.data && res.data.name !== '預設廠商') {
         currentVendor.value = res.data
       } else {
-        currentVendor.value = { ...mockVendor, id }
+        // API 失敗不再使用 Mock Data
+        currentVendor.value = null
+        error.value = '無法讀取廠商資料'
       }
-    } catch {
-      currentVendor.value = { ...mockVendor, id }
+    } catch (err) {
+      console.error('Error:', err)
+      currentVendor.value = null
+      error.value = err.message
     } finally {
       loading.value = false
     }
   }
 
-  const fetchVendorPosts = async () => {
-    vendorPosts.value = mockPosts
+  const fetchVendorPosts = async (id) => {
+    // 移除 Mock Data fallback
+    try {
+      const res = await getVendorPosts(id)
+      if (res.success) {
+        vendorPosts.value = res.data
+      } else {
+        vendorPosts.value = []
+      }
+    } catch {
+      vendorPosts.value = []
+    }
   }
 
   const fetchVendorItineraries = async (id, filter = {}) => {
-    let result = [...mockItineraries]
-
-    if (filter.region && filter.region !== '全部') {
-      result = result.filter((item) => item.region === filter.region)
+    try {
+      const res = await getVendorItineraries(id)
+      if (res.success) {
+        let result = res.data
+        // 前端簡單過濾 (若後端未做)
+        if (filter.region && filter.region !== '全部') {
+          result = result.filter((item) => item.region === filter.region)
+        }
+        vendorItineraries.value = result
+      } else {
+        vendorItineraries.value = []
+      }
+    } catch {
+      vendorItineraries.value = []
     }
-
-    vendorItineraries.value = result
   }
 
-  const fetchVendorReviews = async () => {
-    vendorReviews.value = mockReviews
+  const fetchVendorReviews = async (id) => {
+    // API 尚未完成，暫時置空
+    vendorReviews.value = []
   }
 
   const updateVendorProfile = async (vendorId, profileData) => {
