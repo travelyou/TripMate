@@ -13,7 +13,6 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'select'])
 
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 const mapContainer = ref(null)
 const searchInput = ref(null)
 const isLoading = ref(true)
@@ -70,14 +69,13 @@ const initMap = async () => {
     return
   }
 
-  // 驗證 API Key 格式（Google Maps API Key 通常以 AIzaSy 開頭，長度約 39 字符）
+  // 驗證 API Key 格式（有效的 API Key 通常以 AIzaSy 開頭，長度至少 30 個字符）
   if (apiKey.length < 30 || !apiKey.startsWith('AIza')) {
-    console.error('[Google Maps] initMap: API Key 格式不正確')
-    console.error('[Google Maps] API Key 長度:', apiKey.length)
-    console.error('[Google Maps] API Key 開頭:', apiKey.substring(0, 10))
-    alert('Google Maps API Key 格式不正確\n\n請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY 是否完整\n\n正確的 API Key 應該以 "AIza" 開頭，長度約 39 個字符')
-    isLoading.value = false
-    return
+    console.warn('[Google Maps] API Key 格式可能不正確')
+    console.warn('[Google Maps] 有效的 API Key 應該以 AIza 開頭，長度至少 30 個字符')
+    console.warn('[Google Maps] 當前 API Key 長度:', apiKey.length)
+    console.warn('[Google Maps] 當前 API Key 開頭:', apiKey.substring(0, Math.min(10, apiKey.length)))
+    // 不阻止執行，讓 Google Maps API 自己驗證
   }
 
   // 确保 setOptions 已设置
@@ -134,16 +132,25 @@ const initMap = async () => {
 
     // 獲取 mapId（從環境變數）
     // 注意：使用 AdvancedMarkerElement 需要有效的 mapId
-    // 如果沒有設定 VITE_GOOGLE_MAPS_MAP_ID，將無法使用 AdvancedMarkerElement
-    // 請在 Google Cloud Console 創建專屬的 Map ID
+    // 有效的 Map ID 通常是長字符串（至少 10 個字符），例如：8e0a97a1b2c3d4e5f6g7h8i9j0k1l2m
+    // 如果 Map ID 太短或格式不正確，將視為無效並回退到舊版 API
     // 參考：https://developers.google.com/maps/documentation/javascript/get-map-id
-    const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
-    
+    const rawMapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
+    // 驗證 Map ID 格式：有效的 Map ID 應該至少 10 個字符，且不應該是純數字
+    let mapId = rawMapId && rawMapId.length >= 10 && rawMapId.trim() !== '' ? rawMapId.trim() : null
+
     if (!mapId) {
-      console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID')
-      console.warn('[Google Maps] AdvancedMarkerElement 需要有效的 Map ID')
-      console.warn('[Google Maps] 請在 Google Cloud Console 創建 Map ID 並設定環境變數')
+      if (rawMapId) {
+        console.warn('[Google Maps] Map ID 格式無效:', rawMapId)
+        console.warn('[Google Maps] 有效的 Map ID 應該是至少 10 個字符的字符串')
+      } else {
+        console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID')
+      }
+      console.warn('[Google Maps] 將使用舊版 Marker API（會顯示棄用警告，但功能正常）')
+      console.warn('[Google Maps] 如需使用 AdvancedMarkerElement，請在 Google Cloud Console 創建有效的 Map ID')
       console.warn('[Google Maps] 參考：https://developers.google.com/maps/documentation/javascript/get-map-id')
+    } else {
+      console.log('[Google Maps] 使用 Map ID:', mapId.substring(0, 10) + '...')
     }
 
     // 構建地圖配置
@@ -154,18 +161,43 @@ const initMap = async () => {
       fullscreenControl: false,
       streetViewControl: false,
     }
-    
-    // 只有在有 mapId 時才添加（避免 ApiProjectMapError）
+
+    // 只有在有有效的 mapId 時才添加（避免 ApiProjectMapError）
     if (mapId) {
       mapConfig.mapId = mapId
     }
 
+    // 嘗試創建地圖
+    // 注意：即使有 mapId，如果 mapId 無效，Google Maps 可能會在異步加載時報錯
+    // 我們先嘗試創建，如果後續出現 ApiProjectMapError，會在 catch 區塊處理
     map = new MapClass(mapContainer.value, mapConfig)
+
+    // 監聽地圖錯誤事件，處理 ApiProjectMapError
+    map.addListener('error', (error) => {
+      console.error('[Google Maps] 地圖錯誤事件:', error)
+      if (mapId && (error?.message?.includes('ApiProjectMapError') || error?.code === 'ApiProjectMapError')) {
+        console.warn('[Google Maps] 檢測到 ApiProjectMapError，Map ID 可能無效')
+        console.warn('[Google Maps] 將回退到不使用 Map ID 的配置')
+        // 重新創建地圖，不使用 mapId
+        const fallbackConfig = { ...mapConfig }
+        delete fallbackConfig.mapId
+        try {
+          map = new MapClass(mapContainer.value, fallbackConfig)
+          mapId = null // 清除 mapId，強制使用舊版 Marker
+          console.log('[Google Maps] 已重新初始化地圖（不使用 Map ID）')
+        } catch (retryError) {
+          console.error('[Google Maps] 重新初始化失敗:', retryError)
+        }
+      }
+    })
 
     // 初始化標記 - 使用 AdvancedMarkerElement（新 API）
     // 注意：AdvancedMarkerElement 需要有效的 mapId
-    // 如果沒有 mapId，將回退到舊版 Marker（會顯示棄用警告）
-    if (mapId) {
+    // 如果沒有 mapId 或 mapId 無效，將回退到舊版 Marker（會顯示棄用警告）
+    // 使用 let 以便在錯誤處理中重新賦值
+    let effectiveMapId = mapId
+
+    if (effectiveMapId) {
       try {
         const pinElement = new PinElement({
           background: '#4285F4',
@@ -180,9 +212,12 @@ const initMap = async () => {
           content: pinElement.element,
           gmpDraggable: true, // 允許拖拉標記
         })
+        console.log('[Google Maps] AdvancedMarkerElement 初始化成功')
       } catch (error) {
         console.error('[Google Maps] AdvancedMarkerElement 初始化失敗:', error)
         console.warn('[Google Maps] 回退到舊版 Marker API')
+        // 清除 mapId，強制使用舊版 Marker
+        effectiveMapId = null
         // 回退到舊版 Marker（如果 AdvancedMarkerElement 失敗）
         const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
         if (LegacyMarker) {
@@ -198,7 +233,7 @@ const initMap = async () => {
       }
     } else {
       // 沒有 mapId，使用舊版 Marker（會顯示棄用警告，但功能正常）
-      console.warn('[Google Maps] 未設定 Map ID，使用舊版 Marker API（已棄用）')
+      console.warn('[Google Maps] 未設定有效的 Map ID，使用舊版 Marker API（已棄用）')
       const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
       if (LegacyMarker) {
         marker = new LegacyMarker({
@@ -218,7 +253,7 @@ const initMap = async () => {
     }
 
     // 監聽標記拖拉結束事件，反查地點
-    marker.addListener('dragend', (e) => {
+    marker.addListener('dragend', () => {
       // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 getPosition() 方法
       const position = marker.position || marker.getPosition?.()
       if (position) {
@@ -243,15 +278,95 @@ const initMap = async () => {
   } catch (error) {
     console.error('Google Maps Load Error:', error)
     const errorMessage = error.message || error.toString()
-    let userMessage = 'Google Maps 載入失敗'
+    const errorString = JSON.stringify(error, null, 2)
 
-    if (errorMessage.includes('ApiProjectMapError') || errorMessage.includes('NoApiKeys')) {
-      userMessage = 'Google Maps API Key 設定錯誤\n\n請檢查：\n1. 環境變數 VITE_GOOGLE_MAPS_API_KEY 是否正確設定\n2. API Key 是否有效\n3. 是否已啟用必要的 API\n4. 是否已啟用計費帳戶'
+    // 檢查是否是 ApiProjectMapError
+    if (errorMessage.includes('ApiProjectMapError') || errorString.includes('ApiProjectMapError')) {
+      console.warn('[Google Maps] ApiProjectMapError - Map ID 可能無效或不存在')
+      console.warn('[Google Maps] 嘗試不使用 Map ID 重新初始化...')
+
+      // 嘗試重新初始化，不使用 mapId
+      // 需要重新載入 libraries，因為它們在 try 區塊中定義
+      try {
+        const [mapsLib, placesLib, markerLib] = await Promise.all([
+          importLibrary('maps'),
+          importLibrary('places'),
+          importLibrary('marker')
+        ])
+
+        const MapClass = mapsLib.Map
+        const center = props.initialLocation?.lat ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng } : { lat: 25.033964, lng: 121.564468 }
+
+        const fallbackConfig = {
+          center: center,
+          zoom: 15,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+        }
+        // 確保不使用 mapId
+        delete fallbackConfig.mapId
+
+        map = new MapClass(mapContainer.value, fallbackConfig)
+
+        // 建立 google 物件結構
+        window.google = window.google || {}
+        window.google.maps = window.google.maps || {}
+        window.google.maps.places = window.google.maps.places || {}
+        window.google.maps.places.Autocomplete = placesLib.Autocomplete
+        window.google.maps.Geocoder = mapsLib.Geocoder
+        window.google.maps.Animation = mapsLib.Animation || {}
+        window.google.maps.event = mapsLib.event || {}
+        google = window.google
+
+        // 重新初始化標記（使用舊版 API）
+        const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
+        if (LegacyMarker) {
+          marker = new LegacyMarker({
+            map: map,
+            position: center,
+            draggable: true,
+            animation: google.maps.Animation?.DROP || null,
+          })
+
+          // 設置事件監聽
+          marker.addListener('dragend', () => {
+            const position = marker.getPosition?.()
+            if (position) {
+              geocodePosition(position)
+            }
+          })
+
+          map.addListener('click', (e) => {
+            if (marker.setPosition) {
+              marker.setPosition(e.latLng)
+            }
+            geocodePosition(e.latLng)
+          })
+
+          // 初始化搜尋框
+          initAutocomplete()
+
+          console.log('[Google Maps] 已成功回退到舊版 API，地圖應該可以正常使用')
+          isLoading.value = false
+          return // 成功回退，直接返回
+        }
+      } catch (retryError) {
+        console.error('[Google Maps] 回退初始化也失敗:', retryError)
+      }
+
+      // 如果回退失敗，顯示警告但不阻止用戶
+      console.warn('[Google Maps] 已嘗試自動修復，如果地圖仍無法顯示，請檢查 Map ID')
+    } else if (errorMessage.includes('NoApiKeys') || errorString.includes('NoApiKeys')) {
+      console.error('[Google Maps] NoApiKeys - API Key 可能未正確設定')
+      alert('Google Maps API Key 設定錯誤\n\n請檢查：\n1. 環境變數 VITE_GOOGLE_MAPS_API_KEY 是否正確設定\n2. API Key 是否完整（應該以 AIzaSy 開頭）\n3. API Key 是否有效\n4. 是否已啟用必要的 API（Maps JavaScript API、Places API 等）\n5. 是否已啟用計費帳戶\n\n詳細錯誤：' + errorMessage)
     } else if (errorMessage.includes('RefererNotAllowedMapError')) {
-      userMessage = 'API Key 限制設定錯誤\n\n請在 Google Cloud Console 中添加當前網址到允許清單'
+      alert('API Key 限制設定錯誤\n\n請在 Google Cloud Console 中添加當前網址到允許清單\n\n詳細錯誤：' + errorMessage)
+    } else {
+      // 其他錯誤，顯示通用錯誤訊息
+      console.error('[Google Maps] 未知錯誤:', error)
+      alert('Google Maps 載入失敗\n\n詳細錯誤：' + errorMessage)
     }
-
-    alert(userMessage + '\n\n詳細錯誤：' + errorMessage)
   } finally {
     isLoading.value = false
   }
