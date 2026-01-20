@@ -254,7 +254,7 @@ const goToCollections = () => {
 
 const goToAbout = () => {
   closeMenu()
-  alert('關於我們頁面開發中')
+  router.push({ name: 'about' })
 }
 
 const goToSearchPage = () => {

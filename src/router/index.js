@@ -12,6 +12,14 @@ const router = createRouter({
       component: HomePage,
     },
     {
+      path: '/about',
+      name: 'about',
+      component: () => import('@/views/AboutUsPage.vue'),
+      meta: {
+        hideAd: true,
+      },
+    },
+    {
       path: '/discussion',
       name: 'discussion',
       component: () => import('@/views/DiscussionPage.vue'),
