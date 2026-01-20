@@ -70,6 +70,16 @@ const initMap = async () => {
     return
   }
 
+  // 驗證 API Key 格式（Google Maps API Key 通常以 AIzaSy 開頭，長度約 39 字符）
+  if (apiKey.length < 30 || !apiKey.startsWith('AIza')) {
+    console.error('[Google Maps] initMap: API Key 格式不正確')
+    console.error('[Google Maps] API Key 長度:', apiKey.length)
+    console.error('[Google Maps] API Key 開頭:', apiKey.substring(0, 10))
+    alert('Google Maps API Key 格式不正確\n\n請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY 是否完整\n\n正確的 API Key 應該以 "AIza" 開頭，長度約 39 個字符')
+    isLoading.value = false
+    return
+  }
+
   // 确保 setOptions 已设置
   if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
     try {
@@ -122,40 +132,85 @@ const initMap = async () => {
     // 重設 local 的 google 變數指向 window.google
     google = window.google
 
-    // 獲取 mapId（從環境變數或使用默認值）
-    // 注意：使用 AdvancedMarkerElement 需要 mapId
-    // 如果沒有設定 VITE_GOOGLE_MAPS_MAP_ID，可以使用 'DEMO_MAP_ID'（僅用於測試）
-    // 生產環境建議在 Google Cloud Console 創建專屬的 Map ID
+    // 獲取 mapId（從環境變數）
+    // 注意：使用 AdvancedMarkerElement 需要有效的 mapId
+    // 如果沒有設定 VITE_GOOGLE_MAPS_MAP_ID，將無法使用 AdvancedMarkerElement
+    // 請在 Google Cloud Console 創建專屬的 Map ID
     // 參考：https://developers.google.com/maps/documentation/javascript/get-map-id
-    const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'
+    const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
     
-    if (!import.meta.env.VITE_GOOGLE_MAPS_MAP_ID) {
-      console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID，使用 DEMO_MAP_ID。生產環境建議設定專屬 Map ID')
+    if (!mapId) {
+      console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID')
+      console.warn('[Google Maps] AdvancedMarkerElement 需要有效的 Map ID')
+      console.warn('[Google Maps] 請在 Google Cloud Console 創建 Map ID 並設定環境變數')
+      console.warn('[Google Maps] 參考：https://developers.google.com/maps/documentation/javascript/get-map-id')
     }
 
-    map = new MapClass(mapContainer.value, {
+    // 構建地圖配置
+    const mapConfig = {
       center: center,
       zoom: 15,
       mapTypeControl: false,
       fullscreenControl: false,
       streetViewControl: false,
-      mapId: mapId, // AdvancedMarkerElement 需要 mapId
-    })
+    }
+    
+    // 只有在有 mapId 時才添加（避免 ApiProjectMapError）
+    if (mapId) {
+      mapConfig.mapId = mapId
+    }
+
+    map = new MapClass(mapContainer.value, mapConfig)
 
     // 初始化標記 - 使用 AdvancedMarkerElement（新 API）
-    const pinElement = new PinElement({
-      background: '#4285F4',
-      borderColor: '#137333',
-      glyphColor: '#ffffff',
-      scale: 1.1,
-    })
+    // 注意：AdvancedMarkerElement 需要有效的 mapId
+    // 如果沒有 mapId，將回退到舊版 Marker（會顯示棄用警告）
+    if (mapId) {
+      try {
+        const pinElement = new PinElement({
+          background: '#4285F4',
+          borderColor: '#137333',
+          glyphColor: '#ffffff',
+          scale: 1.1,
+        })
 
-    marker = new AdvancedMarkerElement({
-      map: map,
-      position: center,
-      content: pinElement.element,
-      gmpDraggable: true, // 允許拖拉標記
-    })
+        marker = new AdvancedMarkerElement({
+          map: map,
+          position: center,
+          content: pinElement.element,
+          gmpDraggable: true, // 允許拖拉標記
+        })
+      } catch (error) {
+        console.error('[Google Maps] AdvancedMarkerElement 初始化失敗:', error)
+        console.warn('[Google Maps] 回退到舊版 Marker API')
+        // 回退到舊版 Marker（如果 AdvancedMarkerElement 失敗）
+        const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
+        if (LegacyMarker) {
+          marker = new LegacyMarker({
+            map: map,
+            position: center,
+            draggable: true,
+            animation: google.maps.Animation?.DROP || null,
+          })
+        } else {
+          throw new Error('無法初始化標記：缺少 Map ID 且舊版 Marker 不可用')
+        }
+      }
+    } else {
+      // 沒有 mapId，使用舊版 Marker（會顯示棄用警告，但功能正常）
+      console.warn('[Google Maps] 未設定 Map ID，使用舊版 Marker API（已棄用）')
+      const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
+      if (LegacyMarker) {
+        marker = new LegacyMarker({
+          map: map,
+          position: center,
+          draggable: true,
+          animation: google.maps.Animation?.DROP || null,
+        })
+      } else {
+        throw new Error('無法初始化標記：缺少 Map ID 且舊版 Marker 不可用')
+      }
+    }
 
     // 如果有初始地點，設置選中狀態
     if (props.initialLocation) {
@@ -164,14 +219,22 @@ const initMap = async () => {
 
     // 監聽標記拖拉結束事件，反查地點
     marker.addListener('dragend', (e) => {
-      const position = marker.position
-      geocodePosition(position)
+      // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 getPosition() 方法
+      const position = marker.position || marker.getPosition?.()
+      if (position) {
+        geocodePosition(position)
+      }
     })
 
     // 點擊地圖也能移動標記
     map.addListener('click', (e) => {
+      // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 setPosition() 方法
+      if (marker.position !== undefined) {
         marker.position = e.latLng
-        geocodePosition(e.latLng)
+      } else if (marker.setPosition) {
+        marker.setPosition(e.latLng)
+      }
+      geocodePosition(e.latLng)
     })
 
     // 初始化搜尋框
@@ -229,7 +292,12 @@ const initAutocomplete = () => {
             map.setCenter(place.geometry.location)
             map.setZoom(17)
         }
-        marker.position = place.geometry.location
+        // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 setPosition() 方法
+        if (marker.position !== undefined) {
+          marker.position = place.geometry.location
+        } else if (marker.setPosition) {
+          marker.setPosition(place.geometry.location)
+        }
 
         // 設定選中地點
         selectedPlace.value = {
@@ -300,7 +368,12 @@ watch(() => props.isOpen, (newVal) => {
 
              map.setCenter(center)
              if (marker) {
-               marker.position = center
+               // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 setPosition() 方法
+               if (marker.position !== undefined) {
+                 marker.position = center
+               } else if (marker.setPosition) {
+                 marker.setPosition(center)
+               }
              }
              searchKeyword.value = props.initialLocation?.name || ''
              selectedPlace.value = props.initialLocation || null
