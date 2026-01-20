@@ -241,20 +241,62 @@ const initMap = async () => {
 
     // 監聽 window 錯誤事件（捕獲異步 ApiProjectMapError）
     const errorHandler = (event) => {
-      const errorMsg = event.message || event.error?.message || ''
-      if (errorMsg.includes('ApiProjectMapError') && mapId && !errorHandled) {
+      const errorMsg = event.message || event.error?.message || event.error?.toString() || ''
+      const errorUrl = event.filename || event.source?.location?.href || ''
+
+      // 檢查是否是 ApiProjectMapError
+      if ((errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) && mapId && !errorHandled) {
         errorHandled = true
         console.warn('[Google Maps] 從 window 錯誤事件檢測到 ApiProjectMapError')
+        console.warn('[Google Maps] 錯誤訊息:', errorMsg)
         event.preventDefault() // 阻止錯誤繼續傳播
         handleApiProjectMapError()
       }
     }
 
+    // 監聽未處理的 Promise rejection
+    const unhandledRejectionHandler = (event) => {
+      const errorMsg = event.reason?.message || event.reason?.toString() || ''
+      if (errorMsg.includes('ApiProjectMapError') && mapId && !errorHandled) {
+        errorHandled = true
+        console.warn('[Google Maps] 從 Promise rejection 檢測到 ApiProjectMapError')
+        event.preventDefault()
+        handleApiProjectMapError()
+      }
+    }
+
     window.addEventListener('error', errorHandler, true)
+    window.addEventListener('unhandledrejection', unhandledRejectionHandler, true)
+
+    // 監聽地圖 idle 事件，在地圖載入完成後檢查
+    if (map && map.addListener) {
+      map.addListener('idle', () => {
+        // 地圖載入完成後，檢查是否有錯誤
+        setTimeout(() => {
+          if (mapId && !errorHandled) {
+            try {
+              // 嘗試訪問地圖屬性來驗證
+              const zoom = map.getZoom?.()
+              if (zoom === undefined || zoom === null) {
+                console.warn('[Google Maps] 地圖可能未正常載入，可能是 Map ID 問題')
+              }
+            } catch (checkError) {
+              // 如果訪問地圖屬性失敗，可能是 Map ID 問題
+              if (checkError.message?.includes('ApiProjectMapError') || checkError.toString().includes('ApiProjectMapError')) {
+                errorHandled = true
+                console.warn('[Google Maps] 從地圖屬性檢查檢測到 ApiProjectMapError')
+                handleApiProjectMapError()
+              }
+            }
+          }
+        }, 1000)
+      })
+    }
 
     // 在組件卸載時移除監聽器
     const cleanup = () => {
       window.removeEventListener('error', errorHandler, true)
+      window.removeEventListener('unhandledrejection', unhandledRejectionHandler, true)
     }
 
     // 存儲清理函數以便後續使用
@@ -262,6 +304,21 @@ const initMap = async () => {
       window.__GOOGLE_MAPS_ERROR_HANDLERS__ = []
     }
     window.__GOOGLE_MAPS_ERROR_HANDLERS__.push(cleanup)
+
+    // 設置延遲檢查，因為 ApiProjectMapError 可能在異步加載時發生
+    setTimeout(() => {
+      // 檢查控制台是否有 ApiProjectMapError（通過檢查地圖狀態）
+      if (map && mapId && !errorHandled) {
+        try {
+          const bounds = map.getBounds?.()
+          if (!bounds) {
+            console.warn('[Google Maps] 地圖邊界未設置，可能是 Map ID 問題')
+          }
+        } catch {
+          // 忽略檢查錯誤
+        }
+      }
+    }, 2000)
 
     // 初始化標記 - 使用 AdvancedMarkerElement（新 API）
     // 注意：AdvancedMarkerElement 需要有效的 mapId
@@ -285,6 +342,26 @@ const initMap = async () => {
           gmpDraggable: true, // 允許拖拉標記
         })
         console.log('[Google Maps] AdvancedMarkerElement 初始化成功')
+
+        // 設置延遲檢查，如果之後出現 ApiProjectMapError，會自動回退
+        setTimeout(() => {
+          if (marker && mapId && !errorHandled) {
+            try {
+              // 嘗試訪問標記屬性來驗證它是否仍然有效
+              const pos = marker.position
+              if (!pos) {
+                console.warn('[Google Maps] AdvancedMarkerElement position 無效，可能是 Map ID 問題')
+              }
+            } catch (checkError) {
+              const errorMsg = checkError.message || checkError.toString() || ''
+              if (errorMsg.includes('ApiProjectMapError')) {
+                errorHandled = true
+                console.warn('[Google Maps] 從標記檢查檢測到 ApiProjectMapError')
+                handleApiProjectMapError()
+              }
+            }
+          }
+        }, 3000)
       } catch (error) {
         console.error('[Google Maps] AdvancedMarkerElement 初始化失敗:', error)
         console.warn('[Google Maps] 回退到舊版 Marker API')
