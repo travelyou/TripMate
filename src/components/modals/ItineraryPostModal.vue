@@ -169,7 +169,10 @@ const ResetStyleOnEnter = Extension.create({
 const editor = useEditor({
   content: postData.value.description,
   extensions: [
-    StarterKit,
+    StarterKit.configure({
+      // 明確排除 underline，避免與單獨添加的 Underline extension 衝突
+      underline: false,
+    }),
     Underline,
     TextStyle,
     FontFamily,
