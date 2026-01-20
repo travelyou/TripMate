@@ -198,9 +198,17 @@ const initMap = async () => {
 
     // 監聽全域 Google Maps 錯誤（ApiProjectMapError 通常在異步時發生）
     let errorHandled = false
+    let currentMapId = mapId // 保存 mapId 的引用，以便在錯誤處理中使用
 
     // 處理 ApiProjectMapError 的函數
     const handleApiProjectMapError = async () => {
+      if (errorHandled) {
+        console.log('[Google Maps] 錯誤已經處理過，跳過重複處理')
+        return
+      }
+
+      console.log('[Google Maps] 開始回退流程...')
+      console.log('[Google Maps] 當前 Map ID:', currentMapId ? currentMapId.substring(0, 15) + '...' : '無')
       try {
         console.log('[Google Maps] 開始回退流程...')
 
@@ -226,7 +234,8 @@ const initMap = async () => {
         delete fallbackConfig.mapId
 
         map = new MapClass(mapContainer.value, fallbackConfig)
-        mapId = null // 清除 mapId，強制使用舊版 Marker
+        currentMapId = null // 清除 mapId，強制使用舊版 Marker
+        mapId = null // 同步更新外部 mapId
 
         // 重新初始化標記（使用舊版 API）
         const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
@@ -277,24 +286,29 @@ const initMap = async () => {
       }
 
       // 檢查是否是 ApiProjectMapError
-      if ((errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) && mapId && !errorHandled) {
-        errorHandled = true
+      if ((errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) && currentMapId && !errorHandled) {
         console.warn('[Google Maps] 從 window 錯誤事件檢測到 ApiProjectMapError')
         console.warn('[Google Maps] Map ID 可能與 API Key 不匹配，或 Map ID 無效')
         console.warn('[Google Maps] 將自動回退到不使用 Map ID 的配置')
+        errorHandled = true
         event.preventDefault() // 阻止錯誤繼續傳播
-        handleApiProjectMapError()
+        // 使用 setTimeout 確保在當前執行上下文完成後再處理
+        setTimeout(() => {
+          handleApiProjectMapError()
+        }, 100)
       }
     }
 
     // 監聽未處理的 Promise rejection
     const unhandledRejectionHandler = (event) => {
       const errorMsg = event.reason?.message || event.reason?.toString() || ''
-      if (errorMsg.includes('ApiProjectMapError') && mapId && !errorHandled) {
-        errorHandled = true
+      if (errorMsg.includes('ApiProjectMapError') && currentMapId && !errorHandled) {
         console.warn('[Google Maps] 從 Promise rejection 檢測到 ApiProjectMapError')
+        errorHandled = true
         event.preventDefault()
-        handleApiProjectMapError()
+        setTimeout(() => {
+          handleApiProjectMapError()
+        }, 100)
       }
     }
 
@@ -306,7 +320,7 @@ const initMap = async () => {
       map.addListener('idle', () => {
         // 地圖載入完成後，檢查是否有錯誤
         setTimeout(() => {
-          if (mapId && !errorHandled) {
+          if (currentMapId && !errorHandled) {
             try {
               // 嘗試訪問地圖屬性來驗證
               const zoom = map.getZoom?.()
@@ -341,7 +355,7 @@ const initMap = async () => {
     // 設置延遲檢查，因為 ApiProjectMapError 可能在異步加載時發生
     setTimeout(() => {
       // 檢查控制台是否有 ApiProjectMapError（通過檢查地圖狀態）
-      if (map && mapId && !errorHandled) {
+      if (map && currentMapId && !errorHandled) {
         try {
           const bounds = map.getBounds?.()
           if (!bounds) {
@@ -378,7 +392,7 @@ const initMap = async () => {
 
         // 設置延遲檢查，如果之後出現 ApiProjectMapError，會自動回退
         setTimeout(() => {
-          if (marker && mapId && !errorHandled) {
+          if (marker && currentMapId && !errorHandled) {
             try {
               // 嘗試訪問標記屬性來驗證它是否仍然有效
               const pos = marker.position
