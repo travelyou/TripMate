@@ -61,7 +61,84 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// 2. 取得該廠商發布的行程
+/**
+ * GET /api/vendors/:id/posts
+ * 取得廠商貼文列表
+ * 對應 Table: discussion.discussion (使用 author_uid 關聯)
+ */
+router.get('/:id/posts', async (req, res) => {
+  try {
+    const { id } = req.params
+    console.log('📋 [Vendors] 取得廠商貼文，廠商 ID:', id)
+
+    // 使用 JOIN 查詢真實統計數據
+    const query = `
+      SELECT
+        d.id,
+        d.author_uid,
+        d.title,
+        d.content,
+        d.image_urls,
+        d.tags,
+        d.created_at,
+        d.updated_at,
+        COUNT(DISTINCT l.id) as likes,
+        COUNT(DISTINCT cm.id) as comments
+      FROM discussion.discussion d
+      LEFT JOIN public.likes l
+        ON d.id = l.post_id AND l.board = 'discussion'
+      LEFT JOIN public.comments cm
+        ON d.id = cm.post_id AND cm.post_type = 'discussion'
+      WHERE d.author_uid = $1
+      GROUP BY d.id, d.author_uid, d.title, d.content, d.image_urls,
+               d.tags, d.created_at, d.updated_at
+      ORDER BY d.created_at DESC
+    `
+
+    const result = await pool.query(query, [id])
+
+    console.log('✅ [Vendors] 找到', result.rows.length, '筆貼文')
+
+    const formattedPosts = result.rows.map((post) => {
+      // 處理 image_urls: 如果是陣列取第一張，如果是字串直接用
+      let image = ''
+      if (Array.isArray(post.image_urls) && post.image_urls.length > 0) {
+        image = post.image_urls[0]
+      } else if (typeof post.image_urls === 'string') {
+        image = post.image_urls
+      }
+
+      return {
+        id: post.id,
+        vendorId: post.author_uid,
+        title: post.title,
+        content: post.content,
+        image: image || 'https://placehold.co/600x400?text=No+Image', // Fallback
+        likes: parseInt(post.likes) || 0,
+        comments: parseInt(post.comments) || 0,
+        time: post.created_at, // 直接回傳 ISO 時間，前端再格式化
+        tags: post.tags || [],
+        createdAt: post.created_at,
+        updatedAt: post.updated_at,
+      }
+    })
+
+    res.json(formattedPosts)
+  } catch (error) {
+    console.error('❌ [Vendors] 取得廠商貼文錯誤:', error)
+    res.status(500).json({
+      success: false,
+      message: '取得廠商貼文失敗',
+      error: error.message,
+    })
+  }
+})
+
+/**
+ * GET /api/vendors/:id/itineraries
+ * 取得廠商行程列表
+ * 對應 Table: itinerary.itineraries (使用 author_uid 關聯)
+ */
 router.get('/:id/itineraries', async (req, res) => {
   const { id } = req.params
   if (!isUUID(id)) return res.json({ success: true, data: [] })
@@ -72,22 +149,6 @@ router.get('/:id/itineraries', async (req, res) => {
     res.json({ success: true, data: result.rows })
   } catch (err) {
     console.error('查詢廠商行程失敗:', err)
-    res.json({ success: true, data: [] })
-  }
-})
-
-// 3. 取得該廠商發布的貼文
-router.get('/:id/posts', async (req, res) => {
-  const { id } = req.params
-  if (!isUUID(id)) return res.json({ success: true, data: [] })
-
-  try {
-    // 假設你的資料表是 discussions (或 discussion.discussion)
-    const query = `SELECT * FROM discussions WHERE author_uid = $1 ORDER BY created_at DESC`
-    const result = await pool.query(query, [id])
-    res.json({ success: true, data: result.rows })
-  } catch (err) {
-    console.error('查詢廠商貼文失敗:', err)
     res.json({ success: true, data: [] })
   }
 })
