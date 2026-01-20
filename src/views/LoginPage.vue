@@ -67,7 +67,7 @@
           >
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="email" class="text-sm sm:text-base">
+                <label for="email" class="text-sm sm:text-base text-gray-900">
                   電子信箱
                   <span class="text-sm text-gray-500 font-normal block sm:inline">(必須包含@)</span>
                 </label>
@@ -134,7 +134,7 @@
           >
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label class="text-sm sm:text-base mb-2">註冊身分</label>
+                <label class="text-sm sm:text-base mb-2 text-gray-900">註冊身分</label>
                 <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <label class="flex items-start cursor-pointer flex-1">
                     <input
@@ -169,7 +169,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="realName" class="text-sm sm:text-base">姓名</label>
+                <label for="realName" class="text-sm sm:text-base text-gray-900">姓名</label>
                 <input
                   id="realName"
                   v-model="registerForm.realName"
@@ -188,7 +188,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="nickname" class="text-sm sm:text-base">暱稱(公開)</label>
+                <label for="nickname" class="text-sm sm:text-base text-gray-900">暱稱(公開)</label>
                 <input
                   id="nickname"
                   v-model="registerForm.nickname"
@@ -207,7 +207,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="email" class="text-sm sm:text-base">
+                <label for="email" class="text-sm sm:text-base text-gray-900">
                   電子信箱
                   <span class="text-xs text-gray-500 font-normal block sm:inline">(必須包含@)</span>
                 </label>
@@ -229,7 +229,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="password" class="text-sm sm:text-base">
+                <label for="password" class="text-sm sm:text-base text-gray-900">
                   密碼
                   <span class="text-xs text-gray-500 font-normal block sm:inline"
                     >(6位以上英、數字，必須包含大小寫)</span
@@ -253,7 +253,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="confirmPassword" class="text-sm sm:text-base">確認密碼</label>
+                <label for="confirmPassword" class="text-sm sm:text-base text-gray-900">確認密碼</label>
                 <input
                   id="confirmPassword"
                   v-model="registerForm.confirmPassword"

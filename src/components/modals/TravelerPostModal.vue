@@ -1398,34 +1398,34 @@ const jumpToStep = (targetStep) => {
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
+    class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm"
   >
     <div
       :class="[
-        'modal-content-container bg-white w-full flex flex-col shadow-2xl rounded-2xl overflow-hidden transition-all duration-300',
-        currentStep === 'preview' ? 'max-w-5xl h-[90vh]' : 'max-w-4xl h-[90vh]',
+        'modal-content-container bg-white w-full flex flex-col shadow-2xl rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300',
+        currentStep === 'preview' ? 'max-w-5xl h-[95vh] sm:h-[90vh]' : 'max-w-4xl h-[95vh] sm:h-[90vh]',
       ]"
     >
-      <div class="flex items-center justify-between p-4 border-b border-gray-100 bg-white z-10">
-        <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100 bg-white z-10">
+        <div class="flex items-center gap-2 sm:gap-3">
           <button
             v-if="currentStep !== 'basic' && currentStep !== 'preview'"
-            class="p-2 hover:bg-gray-100 rounded-full transition"
+            class="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition"
             @click="prevStep"
           >
-            <ArrowLeftIcon class="w-5 h-5 text-gray-500" />
+            <ArrowLeftIcon class="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
           </button>
-          <h2 class="text-xl font-bold text-gray-800">
+          <h2 class="text-base sm:text-xl font-bold text-gray-800">
             {{ currentStep === 'preview' ? '預覽招募貼文' : '找旅伴招募' }}
           </h2>
         </div>
-        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
-          <XIcon class="w-6 h-6 text-gray-500" />
+        <button class="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
+          <XIcon class="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
         </button>
       </div>
 
-      <div v-if="currentStep !== 'preview'" class="px-6 border-b border-gray-100">
-        <div class="flex items-center space-x-8 text-sm font-bold overflow-x-auto">
+      <div v-if="currentStep !== 'preview'" class="px-3 sm:px-6 border-b border-gray-100">
+        <div class="flex items-center space-x-4 sm:space-x-8 text-xs sm:text-sm font-bold overflow-x-auto">
           <button
             v-for="step in ['basic', 'itinerary', 'packing', 'tags', 'preview']"
             :key="step"
@@ -1456,10 +1456,10 @@ const jumpToStep = (targetStep) => {
       <div
         :class="[
           'flex-1 overflow-y-auto custom-scrollbar',
-          currentStep === 'preview' ? 'p-0' : 'p-6 space-y-6',
+          currentStep === 'preview' ? 'p-0' : 'p-3 sm:p-6 space-y-4 sm:space-y-6',
         ]"
       >
-        <div v-if="currentStep === 'basic'" class="space-y-6">
+        <div v-if="currentStep === 'basic'" class="space-y-4 sm:space-y-6">
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2"
               >分類 <span class="text-red-500">*</span></label
@@ -1763,14 +1763,14 @@ const jumpToStep = (targetStep) => {
           </div>
         </div>
 
-        <div v-else-if="currentStep === 'itinerary'" class="space-y-6">
+        <div v-else-if="currentStep === 'itinerary'" class="space-y-4 sm:space-y-6">
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-bold text-gray-800">行程安排</h3>
+            <h3 class="text-base sm:text-lg font-bold text-gray-800">行程安排</h3>
             <button
-              class="px-4 py-2 bg-green-50 text-green-600 rounded-lg font-bold hover:bg-green-100 flex items-center gap-2"
+              class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-green-50 text-green-600 rounded-lg font-bold hover:bg-green-100 flex items-center gap-1.5 sm:gap-2"
               @click="addDay"
             >
-              <PlusIcon class="w-4 h-4" /> 新增天數
+              <PlusIcon class="w-3 h-3 sm:w-4 sm:h-4" /> <span class="hidden sm:inline">新增天數</span><span class="sm:hidden">新增</span>
             </button>
           </div>
           <div ref="dayListContainer" class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar">
@@ -1794,9 +1794,9 @@ const jumpToStep = (targetStep) => {
               <!-- 移除修改日期按鈕 -->
             </div>
             <!-- 調整左側內距以容納時間軸 (pl-32) -->
-            <div class="relative pl-32 space-y-6">
+            <div class="relative pl-20 sm:pl-32 space-y-4 sm:space-y-6">
               <!-- 時間軸直獻 (裝飾用) - 調整位置至 7.5rem -->
-              <div class="absolute left-[7.5rem] top-2 bottom-4 w-0.5 bg-gray-200"></div>
+              <div class="absolute left-[4.5rem] sm:left-[7.5rem] top-2 bottom-4 w-0.5 bg-gray-200"></div>
 
               <Draggable
                 v-model="currentDay.activities"
@@ -1813,7 +1813,7 @@ const jumpToStep = (targetStep) => {
                   <div class="activity-wrapper">
                     <div class="relative flex items-start gap-4 group">
                     <!-- 左側：獨立時間軸 (絕對定位負值，移至卡片左側空白處) -->
-                    <div class="absolute -left-[7rem] mt-0 text-right w-24 flex flex-col items-end z-10">
+                    <div class="absolute -left-[4.5rem] sm:-left-[7rem] mt-0 text-right w-20 sm:w-24 flex flex-col items-end z-10">
                       <!-- 使用 Ant Design TimePicker 取代原生 input，支援 24h 與驗證邏輯 -->
                       <a-time-picker
                         v-model:value="activity.time"
@@ -1826,19 +1826,19 @@ const jumpToStep = (targetStep) => {
                         :allow-clear="false"
                         :disabled-hours="() => getDisabledHours(actIndex)"
                         :disabled-minutes="(selectedHour) => getDisabledMinutes(selectedHour, actIndex)"
-                        class="w-24 shadow-sm font-bold"
+                        class="w-20 sm:w-24 shadow-sm font-bold text-xs sm:text-sm"
                         :bordered="true"
                         @open-change="(open) => handleTimeOpenChange(open, activity)"
                         @select="(val) => handleTimeSelect(val, activity)"
                       />
                       <!-- 連接線與圓點 -->
-                      <div class="absolute top-[1.1rem] -right-[1.6rem] w-4 h-0.5 bg-gray-300"></div>
-                      <div class="absolute top-[0.9rem] -right-[1.85rem] w-3 h-3 rounded-full bg-green-500 border-2 border-white ring-1 ring-gray-200"></div>
+                      <div class="absolute top-[1.1rem] -right-[1.2rem] sm:-right-[1.6rem] w-3 sm:w-4 h-0.5 bg-gray-300"></div>
+                      <div class="absolute top-[0.9rem] -right-[1.4rem] sm:-right-[1.85rem] w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-green-500 border-2 border-white ring-1 ring-gray-200"></div>
                     </div>
 
                     <!-- 右側：行程卡片 -->
-                    <div class="flex-1 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                      <div class="flex gap-3">
+                    <div class="flex-1 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div class="flex gap-2 sm:gap-3">
                          <!-- 拖曳手把 (移到卡片內) -->
                          <div class="cursor-move drag-handle mt-1 text-gray-300 hover:text-gray-600">
                             <GripVerticalIcon class="w-5 h-5" />
@@ -2407,8 +2407,8 @@ const jumpToStep = (targetStep) => {
        </div>
     </div>
 
-      <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-        <p v-if="formError" class="text-red-500 font-bold text-sm text-center">{{ formError }}</p>
+      <div class="p-3 sm:p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
+        <p v-if="formError" class="text-red-500 font-bold text-xs sm:text-sm text-center">{{ formError }}</p>
 
         <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
           <div
@@ -2420,18 +2420,18 @@ const jumpToStep = (targetStep) => {
           {{ submitStatus }}
         </p>
 
-        <div class="flex gap-3 justify-end">
+        <div class="flex gap-2 sm:gap-3 justify-end">
           <template v-if="currentStep === 'preview'">
             <button
               v-if="!isSubmitting"
-              class="px-6 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition"
+              class="px-4 sm:px-6 py-2 text-xs sm:text-sm bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
               :disabled="isSubmitting"
-              class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
+              class="px-4 sm:px-6 py-2 text-xs sm:text-sm bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
               @click="handleFinalSubmit"
             >
               {{ isSubmitting ? '發布中...' : '確認發布' }}
@@ -2440,7 +2440,7 @@ const jumpToStep = (targetStep) => {
           <button
             v-else
             :disabled="isUploading || isSubmitting"
-            class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
+            class="px-4 sm:px-6 py-2 text-xs sm:text-sm bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
             @click="nextStep"
           >
             下一步
