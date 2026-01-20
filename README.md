@@ -14,7 +14,8 @@
 ## TripMate 專案簡介
 
 **[TripMate](https://tripmate-mayoyo.com/) 是一個智慧旅遊社群平台，解決旅行者最核心的問題：找到志同道合的旅伴。**
-![TripMate Logo](src\assets\pic\loginPage-removebg.png)
+
+![TripMate Logo](./src/assets/pic/loginPage-removebg.png)
 
 透過整合社群互動、行程規劃、旅伴配對與 AI 助手，為使用者提供一站式的旅遊體驗。
 
@@ -79,7 +80,7 @@
 
 ---
 
-![TripMate Logo](src\assets\icons\TripMate_icon_white.png)
+![TripMate Logo](.src/assets/icons/TripMate_icon_white.png)
 
 ## TripMate 使用方式
 
