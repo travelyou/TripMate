@@ -135,11 +135,29 @@ const initMap = async () => {
     // 有效的 Map ID 通常是長字符串（至少 10 個字符），例如：8e0a97a1b2c3d4e5f6g7h8i9j0k1l2m
     // 如果 Map ID 太短或格式不正確，將視為無效並回退到舊版 API
     // 參考：https://developers.google.com/maps/documentation/javascript/get-map-id
+
+    // 詳細調試：檢查所有可能的環境變數來源
+    console.log('[Google Maps] 環境變數調試:')
+    console.log('[Google Maps] import.meta.env.MODE:', import.meta.env.MODE)
+    console.log('[Google Maps] import.meta.env.DEV:', import.meta.env.DEV)
+    console.log('[Google Maps] import.meta.env.PROD:', import.meta.env.PROD)
+    console.log('[Google Maps] 所有 VITE_ 開頭的環境變數:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')))
+
     const rawMapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
 
     // 詳細日誌，幫助調試
     console.log('[Google Maps] 原始 Map ID 值:', rawMapId ? (rawMapId.length > 20 ? rawMapId.substring(0, 20) + '...' : rawMapId) : '未定義')
+    console.log('[Google Maps] Map ID 類型:', typeof rawMapId)
     console.log('[Google Maps] Map ID 長度:', rawMapId?.length || 0)
+    console.log('[Google Maps] Map ID 是否為 undefined:', rawMapId === undefined)
+    console.log('[Google Maps] Map ID 是否為 null:', rawMapId === null)
+    console.log('[Google Maps] Map ID 是否為空字符串:', rawMapId === '')
+
+    // 嘗試從不同來源讀取（調試用）
+    if (!rawMapId) {
+      console.warn('[Google Maps] 嘗試從其他來源讀取 Map ID...')
+      console.warn('[Google Maps] window.__VITE_GOOGLE_MAPS_MAP_ID__:', window.__VITE_GOOGLE_MAPS_MAP_ID__)
+    }
 
     // 清理和驗證 Map ID
     // 如果 Map ID 包含其他環境變數的內容（格式錯誤），嘗試提取正確的部分
