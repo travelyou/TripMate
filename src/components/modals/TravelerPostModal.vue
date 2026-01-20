@@ -687,13 +687,23 @@ const getDirections = async (origin, destination, mode) => {
   }
 
   try {
-    // 嘗試載入 routes library，如果失敗則嘗試從 maps library 取得
+    // 載入 routes library
     let routesLib = null
+    let mapsLib = null
+    
     try {
       routesLib = await importLibrary('routes')
     } catch (routesError) {
       console.warn('[Google Maps] routes library 載入失敗，嘗試使用 maps library:', routesError)
-      routesLib = await importLibrary('maps')
+      // 如果 routes library 載入失敗，嘗試從 maps library 取得
+      mapsLib = await importLibrary('maps')
+      routesLib = mapsLib
+    }
+
+    // 如果還是沒有，載入 maps library 作為備用
+    if (!routesLib) {
+      mapsLib = await importLibrary('maps')
+      routesLib = mapsLib
     }
 
     // 檢查 DirectionsService 是否存在
@@ -702,18 +712,35 @@ const getDirections = async (origin, destination, mode) => {
       return null
     }
 
+    // 確保 window.google.maps 結構存在，以便使用 TravelMode 常數
+    if (!window.google) {
+      window.google = {}
+    }
+    if (!window.google.maps) {
+      window.google.maps = {}
+    }
+    
+    // 從 routesLib 或 mapsLib 取得 TravelMode 常數
+    if (routesLib.TravelMode) {
+      window.google.maps.TravelMode = routesLib.TravelMode
+    } else if (mapsLib && mapsLib.TravelMode) {
+      window.google.maps.TravelMode = mapsLib.TravelMode
+    }
+
     const DirectionsService = routesLib.DirectionsService
     const service = new DirectionsService()
 
     // 轉換 travelMode 字串為對應的常數
     let travelModeConstant
     if (typeof mode === 'string') {
-      // 如果 window.google 存在，使用其常數
-      if (window.google && window.google.maps && window.google.maps.TravelMode) {
+      // 優先使用 window.google.maps.TravelMode
+      if (window.google.maps.TravelMode && window.google.maps.TravelMode[mode]) {
         travelModeConstant = window.google.maps.TravelMode[mode]
+      } else if (routesLib.TravelMode && routesLib.TravelMode[mode]) {
+        travelModeConstant = routesLib.TravelMode[mode]
       } else {
-        // 否則直接使用字串（API 可能接受字串）
-        travelModeConstant = mode
+        // 如果找不到常數，直接使用字串（API 可能接受字串）
+        travelModeConstant = mode.toUpperCase()
       }
     } else {
       travelModeConstant = mode

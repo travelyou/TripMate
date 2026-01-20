@@ -31,7 +31,7 @@ const selectedPlace = ref(null)
 onMounted(() => {
   if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-    
+
     if (!apiKey) {
       console.error('[Google Maps] API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY')
       console.error('[Google Maps] 當前環境變數值:', {
@@ -40,9 +40,9 @@ onMounted(() => {
       })
       return
     }
-    
+
     console.log('[Google Maps] 設定 API Key:', apiKey.substring(0, 10) + '...')
-    
+
     try {
       setOptions({
         apiKey: apiKey,
@@ -60,7 +60,7 @@ onMounted(() => {
 
 const initMap = async () => {
   isLoading.value = true
-  
+
   // 再次检查 API Key
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!apiKey) {
@@ -69,7 +69,7 @@ const initMap = async () => {
     isLoading.value = false
     return
   }
-  
+
   // 确保 setOptions 已设置
   if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
     try {
@@ -88,7 +88,7 @@ const initMap = async () => {
       return
     }
   }
-  
+
   try {
     console.log('[GoogleMaps] 初始化地圖，使用的 API Key:', apiKey ? apiKey.substring(0, 10) + '...' : '未定義')
 
@@ -99,28 +99,27 @@ const initMap = async () => {
         importLibrary('marker')
     ])
 
-    // 為了相容原本的寫法，我們可以把 google 物件模擬出來，或是直接用 library 裡的類別
-    // 這裡我們直接獲取類別
+    // 從 library 中取得類別
     const MapClass = mapsLib.Map
     const MarkerClass = markerLib.Marker
     const AutocompleteClass = placesLib.Autocomplete
-    // const GeocoderClass = mapsLib.Geocoder
-    // 修正：Geocoder 可能需要 'geocoding' library，或者如果它是核心的一部分。
-    // 通常 google.maps.Geocoder 在 'geocoding' library 或者 legacy 'maps' 裡。
-    // 我們多載一個 geocoding 比較保險
-    const geocodingLib = await importLibrary('geocoding').catch(e => {
-        console.warn('Geocoding lib load failed, maybe in maps?', e)
-        return null
-    })
-
-    // 為了讓下方的 google.maps.Map ... 繼續運作，我們可以建立一個假的 google 物件結構，
-    // 或是直接重構下方的 code。重構比較好。
-
-    // 預設台北 101
+    const GeocoderClass = mapsLib.Geocoder // Geocoder 在 maps library 中
 
     // 預設台北 101
     const defaultCenter = { lat: 25.033964, lng: 121.564468 }
     const center = props.initialLocation?.lat ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng } : defaultCenter
+
+    // 建立 google 物件結構，供後續使用
+    window.google = window.google || {}
+    window.google.maps = window.google.maps || {}
+    window.google.maps.places = window.google.maps.places || {}
+    window.google.maps.places.Autocomplete = AutocompleteClass
+    window.google.maps.Geocoder = GeocoderClass
+    window.google.maps.Animation = mapsLib.Animation || {} // Animation 常數
+    window.google.maps.event = mapsLib.event || {} // Event 系統
+
+    // 重設 local 的 google 變數指向 window.google
+    google = window.google
 
     map = new MapClass(mapContainer.value, {
       center: center,
@@ -138,23 +137,8 @@ const initMap = async () => {
       map: map,
       position: center,
       draggable: true, // 允許拖拉標記
-      animation: google ? google.maps.Animation.DROP : null, // Animation 可能要從某個 lib 拿，或是省略
+      animation: google.maps.Animation?.DROP || null, // 從 mapsLib 取得 Animation
     })
-
-    // 把 google 物件保留給其他 function 用 (如 Autocomplete 需要 google.maps.places.Autocomplete)
-    // 但我們也可以把 AutocompleteClass 存到變數
-    // 這裡為了方便 autocomplete 和 geocoder 函數使用，我們將它們存為全域引用或直接傳遞
-
-    // 因為 geocodePosition 和 initAutocomplete 依賴 google 物件
-    // 我們快速重新建立一個 google.maps 代理，讓舊 code 不用大改
-    window.google = window.google || {}
-    window.google.maps = window.google.maps || {}
-    window.google.maps.places = window.google.maps.places || {}
-    window.google.maps.places.Autocomplete = AutocompleteClass
-    window.google.maps.Geocoder = geocodingLib ? geocodingLib.Geocoder : (mapsLib.Geocoder || null)
-
-    // 重設 local 的 google 變數指向 window.google 以防萬一
-    google = window.google
 
     // 如果有初始地點，設置選中狀態
     if (props.initialLocation) {
@@ -180,13 +164,13 @@ const initMap = async () => {
     console.error('Google Maps Load Error:', error)
     const errorMessage = error.message || error.toString()
     let userMessage = 'Google Maps 載入失敗'
-    
+
     if (errorMessage.includes('ApiProjectMapError') || errorMessage.includes('NoApiKeys')) {
       userMessage = 'Google Maps API Key 設定錯誤\n\n請檢查：\n1. 環境變數 VITE_GOOGLE_MAPS_API_KEY 是否正確設定\n2. API Key 是否有效\n3. 是否已啟用必要的 API\n4. 是否已啟用計費帳戶'
     } else if (errorMessage.includes('RefererNotAllowedMapError')) {
       userMessage = 'API Key 限制設定錯誤\n\n請在 Google Cloud Console 中添加當前網址到允許清單'
     }
-    
+
     alert(userMessage + '\n\n詳細錯誤：' + errorMessage)
   } finally {
     isLoading.value = false
@@ -194,7 +178,10 @@ const initMap = async () => {
 }
 
 const initAutocomplete = () => {
-    if (!searchInput.value || !google) return
+    if (!searchInput.value || !google || !google.maps || !google.maps.places) {
+        console.warn('[Google Maps] Autocomplete 初始化失敗：google 物件未準備好')
+        return
+    }
 
     autocomplete = new google.maps.places.Autocomplete(searchInput.value, {
         fields: ['formatted_address', 'geometry', 'name', 'place_id'],
@@ -237,19 +224,33 @@ const initAutocomplete = () => {
 
 // 反查座標 (Geocoding)
 const geocodePosition = (latLng) => {
+    if (!google || !google.maps || !google.maps.Geocoder) {
+        console.error('[Google Maps] Geocoder 未初始化')
+        return
+    }
+
     const geocoder = new google.maps.Geocoder()
-    geocoder.geocode({ location: latLng }, (results, status) => {
+
+    // 確保 latLng 是正確格式（可能是 LatLng 物件或 {lat, lng}）
+    const location = latLng.lat && typeof latLng.lat === 'function'
+        ? latLng
+        : { lat: latLng.lat, lng: latLng.lng }
+
+    geocoder.geocode({ location: location }, (results, status) => {
         if (status === 'OK' && results[0]) {
-             selectedPlace.value = {
+            const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
+            const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
+
+            selectedPlace.value = {
                 name: results[0].address_components[0]?.long_name || '選定位置', // 嘗試抓第一個部分當名稱，或是用地址
                 address: results[0].formatted_address,
-                lat: latLng.lat(),
-                lng: latLng.lng(),
+                lat: lat,
+                lng: lng,
                 placeId: results[0].place_id
             }
             searchKeyword.value = results[0].formatted_address // 更新搜尋框顯示地址
         } else {
-             console.log('Geocoder failed due to: ' + status)
+            console.log('Geocoder failed due to: ' + status)
         }
     })
 }
