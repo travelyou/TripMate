@@ -406,261 +406,252 @@ const registerErrors = ref({
         />
       </div>
 
-        <div class="mx-4 sm:mx-10 mb-12 sm:mb-16 mt-4 sm:mt-0 order-2 lg:order-none w-full lg:w-1/2">
-          <div class="w-full flex items-center justify-center mb-3">
-            <div class="flex w-full max-w-sm items-center justify-center gap-6 sm:gap-8">
-              <button
-                type="button"
-                :class="[
-                  'pb-2 text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 border-b-2',
-                  activeTab === 'login'
-                    ? 'text-white border-white'
-                    : 'text-gray-300 border-transparent',
-                ]"
-                @click="activeTab = 'login'"
-              >
-                登入
-              </button>
-              <button
-                type="button"
-                :class="[
-                  'pb-2 text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 border-b-2',
-                  activeTab === 'register'
-                    ? 'text-white border-white'
-                    : 'text-gray-300 border-transparent',
-                ]"
-                @click="activeTab = 'register'"
-              >
-                註冊
-              </button>
-            </div>
-          </div>
-
-          <div class="form-wrapper w-full flex items-center justify-center px-2 sm:px-0">
-            <form
-              v-if="activeTab === 'login'"
-              class="formContainer w-full max-w-lg bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 flex flex-col gap-3"
-              @submit.prevent="handleLogin"
+      <div class="mx-4 sm:mx-10 mb-12 sm:mb-16 mt-4 sm:mt-0 order-2 lg:order-none w-full lg:w-1/2">
+        <div class="w-full flex items-center justify-center mb-3">
+          <div class="flex w-full max-w-sm items-center justify-center gap-6 sm:gap-8">
+            <button
+              type="button"
+              :class="[
+                'pb-2 text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 border-b-2',
+                activeTab === 'login'
+                  ? 'text-white border-white'
+                  : 'text-gray-300 border-transparent',
+              ]"
+              @click="activeTab = 'login'"
             >
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="email" class="text-base sm:text-lg"> 帳號 </label>
-                  <input
-                    id="email"
-                    v-model="loginForm.email"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      loginErrors.email ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="email"
-                    placeholder="請輸入電子信箱"
-                    @input="loginErrors.email = ''"
-                  />
-                  <span v-if="loginErrors.email" class="text-red-500 text-sm">{{
-                    loginErrors.email
-                  }}</span>
-                </div>
-              </div>
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="password" class="text-base sm:text-lg"> 密碼 </label>
-                  <input
-                    id="password"
-                    v-model="loginForm.password"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      loginErrors.password ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="password"
-                    placeholder="請輸入密碼"
-                    @input="loginErrors.password = ''"
-                  />
-                  <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
-                    loginErrors.password
-                  }}</span>
-                </div>
-              </div>
-              <div v-if="loginErrors.general" class="text-red-500 text-xs sm:text-sm text-center">
-                {{ loginErrors.general }}
-              </div>
-              <button
-                type="submit"
-                class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
-              >
-                登入
-              </button>
-              <a
-                href="#"
-                class="block text-center text-xs sm:text-sm text-gray-600 hover:text-primary-500 transition-colors cursor-pointer"
-                @click.prevent="handleForgotPassword"
-                >忘記密碼?</a
-              >
-            </form>
-            <form
-              v-else
-              class="formContainer w-full max-w-2xl bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 flex flex-col gap-3"
-              @submit.prevent="handleRegister"
+              登入
+            </button>
+            <button
+              type="button"
+              :class="[
+                'pb-2 text-xl sm:text-2xl md:text-3xl font-semibold transition-colors duration-200 border-b-2',
+                activeTab === 'register'
+                  ? 'text-white border-white'
+                  : 'text-gray-300 border-transparent',
+              ]"
+              @click="activeTab = 'register'"
             >
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label class="text-base sm:text-lg">選擇身分</label>
-                  <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    <label class="flex-1 cursor-pointer">
-                      <input
-                        v-model="registerForm.role"
-                        type="radio"
-                        value="user"
-                        class="sr-only peer"
-                      />
-                      <div
-                        class="flex items-start gap-2 rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition text-gray-700 peer-checked:bg-primary-500 peer-checked:text-white"
-                      >
-                        <div class="flex flex-col">
-                          <span class="text-sm sm:text-base">一般用戶</span>
-                          <span class="text-xs mt-0.5 opacity-80"
-                            >可瀏覽、找旅伴、發布找旅伴行程</span
-                          >
-                        </div>
-                      </div>
-                    </label>
-                    <label class="flex-1 cursor-pointer">
-                      <input
-                        v-model="registerForm.role"
-                        type="radio"
-                        value="vendor"
-                        class="sr-only peer"
-                      />
-                      <div
-                        class="flex items-start gap-2 rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition text-gray-700 peer-checked:bg-primary-500 peer-checked:text-white"
-                      >
-                        <div class="flex flex-col">
-                          <span class="text-sm sm:text-base">廠商</span>
-                          <span class="text-xs mt-0.5 opacity-80"
-                            >額外擁有廠商資料、發布精選行程</span
-                          >
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="realName" class="text-sm sm:text-base">姓名</label>
-                  <input
-                    id="realName"
-                    v-model="registerForm.realName"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      registerErrors.realName ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="text"
-                    placeholder="請輸入本名(不公開)"
-                    @input="registerErrors.realName = ''"
-                  />
-                  <span v-if="registerErrors.realName" class="text-red-500 text-sm">
-                    {{ registerErrors.realName }}
-                  </span>
-                </div>
-              </div>
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="nickname" class="text-sm sm:text-base">暱稱</label>
-                  <input
-                    id="nickname"
-                    v-model="registerForm.nickname"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      registerErrors.nickname ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="text"
-                    placeholder="請輸入使用者暱稱(公開)"
-                    @input="registerErrors.nickname = ''"
-                  />
-                  <span v-if="registerErrors.nickname" class="text-red-500 text-sm">
-                    {{ registerErrors.nickname }}
-                  </span>
-                </div>
-              </div>
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="email" class="text-sm sm:text-base">
-                    電子信箱
-                  </label>
-                  <input
-                    id="email"
-                    v-model="registerForm.email"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      registerErrors.email ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="email"
-                    placeholder="請輸入電子信箱"
-                    @input="registerErrors.email = ''"
-                  />
-                  <span v-if="registerErrors.email" class="text-red-500 text-sm">
-                    {{ registerErrors.email }}
-                  </span>
-                </div>
-              </div>
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="password" class="text-sm sm:text-base">
-                    密碼
-
-                  </label>
-                  <input
-                    id="password"
-                    v-model="registerForm.password"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      registerErrors.password ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="password"
-                    placeholder="6位以上英、數字，必須包含大小寫"
-                    @input="registerErrors.password = ''"
-                  />
-                  <span v-if="registerErrors.password" class="text-red-500 text-sm">
-                    {{ registerErrors.password }}
-                  </span>
-                </div>
-              </div>
-              <div class="formInput flex flex-row gap-2">
-                <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                  <label for="confirmPassword" class="text-sm sm:text-base">確認密碼</label>
-                  <input
-                    id="confirmPassword"
-                    v-model="registerForm.confirmPassword"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                      registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
-                    ]"
-                    type="password"
-                    placeholder="請再次輸入密碼"
-                    @input="registerErrors.confirmPassword = ''"
-                  />
-                  <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
-                    {{ registerErrors.confirmPassword }}
-                  </span>
-                </div>
-              </div>
-
-              <div
-                v-if="registerErrors.general"
-                class="text-red-500 text-xs sm:text-sm text-center"
-              >
-                {{ registerErrors.general }}
-              </div>
-              <button
-                type="submit"
-                class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
-              >
-                註冊
-              </button>
-            </form>
+              註冊
+            </button>
           </div>
         </div>
 
+        <div class="form-wrapper w-full flex items-center justify-center px-2 sm:px-0">
+          <form
+            v-if="activeTab === 'login'"
+            class="formContainer w-full max-w-lg bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 flex flex-col gap-3"
+            @submit.prevent="handleLogin"
+          >
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="email" class="text-base sm:text-lg"> 電子信箱 </label>
+                <input
+                  id="email"
+                  v-model="loginForm.email"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    loginErrors.email ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="email"
+                  placeholder="請輸入電子信箱"
+                  @input="loginErrors.email = ''"
+                />
+                <span v-if="loginErrors.email" class="text-red-500 text-sm">{{
+                  loginErrors.email
+                }}</span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="password" class="text-base sm:text-lg"> 密碼 </label>
+                <input
+                  id="password"
+                  v-model="loginForm.password"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    loginErrors.password ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請輸入密碼"
+                  @input="loginErrors.password = ''"
+                />
+                <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
+                  loginErrors.password
+                }}</span>
+              </div>
+            </div>
+            <div v-if="loginErrors.general" class="text-red-500 text-xs sm:text-sm text-center">
+              {{ loginErrors.general }}
+            </div>
+            <button
+              type="submit"
+              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
+            >
+              登入
+            </button>
+            <a
+              href="#"
+              class="block text-center text-xs sm:text-sm text-gray-600 hover:text-primary-500 transition-colors cursor-pointer"
+              @click.prevent="handleForgotPassword"
+              >忘記密碼?</a
+            >
+          </form>
+          <form
+            v-else
+            class="formContainer w-full max-w-2xl bg-white rounded-lg shadow-lg p-4 sm:p-5 md:p-6 flex flex-col gap-3"
+            @submit.prevent="handleRegister"
+          >
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label class="text-base sm:text-lg">選擇身分</label>
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <label class="flex-1 cursor-pointer">
+                    <input
+                      v-model="registerForm.role"
+                      type="radio"
+                      value="user"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="flex items-start gap-2 rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition text-gray-700 peer-checked:bg-primary-500 peer-checked:text-white"
+                    >
+                      <div class="flex flex-col">
+                        <span class="text-sm sm:text-base">一般用戶</span>
+                        <span class="text-xs mt-0.5 opacity-80"
+                          >可瀏覽、找旅伴、發布找旅伴行程</span
+                        >
+                      </div>
+                    </div>
+                  </label>
+                  <label class="flex-1 cursor-pointer">
+                    <input
+                      v-model="registerForm.role"
+                      type="radio"
+                      value="vendor"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="flex items-start gap-2 rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition text-gray-700 peer-checked:bg-primary-500 peer-checked:text-white"
+                    >
+                      <div class="flex flex-col">
+                        <span class="text-sm sm:text-base">廠商</span>
+                        <span class="text-xs mt-0.5 opacity-80"
+                          >額外擁有廠商資料、發布精選行程</span
+                        >
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="realName" class="text-sm sm:text-base">姓名</label>
+                <input
+                  id="realName"
+                  v-model="registerForm.realName"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.realName ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="text"
+                  placeholder="請輸入本名(不公開)"
+                  @input="registerErrors.realName = ''"
+                />
+                <span v-if="registerErrors.realName" class="text-red-500 text-sm">
+                  {{ registerErrors.realName }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="nickname" class="text-sm sm:text-base">暱稱</label>
+                <input
+                  id="nickname"
+                  v-model="registerForm.nickname"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.nickname ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="text"
+                  placeholder="請輸入使用者暱稱(公開)"
+                  @input="registerErrors.nickname = ''"
+                />
+                <span v-if="registerErrors.nickname" class="text-red-500 text-sm">
+                  {{ registerErrors.nickname }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="email" class="text-sm sm:text-base"> 電子信箱 </label>
+                <input
+                  id="email"
+                  v-model="registerForm.email"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.email ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="email"
+                  placeholder="請輸入電子信箱"
+                  @input="registerErrors.email = ''"
+                />
+                <span v-if="registerErrors.email" class="text-red-500 text-sm">
+                  {{ registerErrors.email }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="password" class="text-sm sm:text-base"> 密碼 </label>
+                <input
+                  id="password"
+                  v-model="registerForm.password"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.password ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="6位以上英、數字，必須包含大小寫"
+                  @input="registerErrors.password = ''"
+                />
+                <span v-if="registerErrors.password" class="text-red-500 text-sm">
+                  {{ registerErrors.password }}
+                </span>
+              </div>
+            </div>
+            <div class="formInput flex flex-row gap-2">
+              <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
+                <label for="confirmPassword" class="text-sm sm:text-base">確認密碼</label>
+                <input
+                  id="confirmPassword"
+                  v-model="registerForm.confirmPassword"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請再次輸入密碼"
+                  @input="registerErrors.confirmPassword = ''"
+                />
+                <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
+                  {{ registerErrors.confirmPassword }}
+                </span>
+              </div>
+            </div>
+
+            <div v-if="registerErrors.general" class="text-red-500 text-xs sm:text-sm text-center">
+              {{ registerErrors.general }}
+            </div>
+            <button
+              type="submit"
+              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
+            >
+              註冊
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </template>
