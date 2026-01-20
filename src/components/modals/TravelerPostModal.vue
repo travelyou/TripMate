@@ -1357,7 +1357,7 @@ const executeSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = '正在提交貼文...'
+    submitStatus.value = '正在提交貼文中...'
 
     const response = await createTraveler(optimizedPayload)
 

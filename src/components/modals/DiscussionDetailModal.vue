@@ -51,7 +51,7 @@ const handleAuthorClick = () => {
 }
 const normalizedComments = computed(() => {
   if (localComments.value.length > 0) return localComments.value
-  // 尝试从多个可能的字段获取留言
+  // 嘗試從多個可能的欄位獲取留言
   return localPostData.value.comments || 
          localPostData.value.commentsData || 
          []
@@ -102,23 +102,23 @@ const loadLikesInfo = async () => {
   }
 }
 
-// 加载完整的贴文详情和留言
+// 載入完整的貼文詳情和留言
 const loadFullPostDetails = async () => {
   if (!props.post?.id) return
   
   try {
     const postData = await fetchPostById(props.post.id)
     
-    // 更新本地数据
+    // 更新本地資料
     localPostData.value = {
       ...localPostData.value,
       ...postData,
-      // 确保 commentsData 被正确处理
+      // 確保 commentsData 被正確處理
       comments: postData.commentsData || postData.comments || [],
       commentsData: postData.commentsData || postData.comments || [],
     }
     
-    // 格式化留言数据
+    // 格式化留言資料
     if (localPostData.value.commentsData && Array.isArray(localPostData.value.commentsData)) {
       localComments.value = localPostData.value.commentsData.map(comment => {
         const formatTime = (timestamp) => {
@@ -150,7 +150,7 @@ const loadFullPostDetails = async () => {
       localComments.value = []
     }
     
-    // 更新点赞数
+    // 更新按讚數
     if (postData.likes_count !== undefined) {
       likesCount.value = postData.likes_count
     }
@@ -189,7 +189,7 @@ const submitComment = async () => {
       post_type: 'discussion',
     })
 
-    // 重新加载完整的贴文详情以获取最新留言
+    // 重新載入完整的貼文詳情以獲取最新留言
     await loadFullPostDetails()
     
     newComment.value = ''
@@ -216,15 +216,15 @@ onAuthStateChanged(auth, async (user) => {
 })
 
 onMounted(async () => {
-  // 初始化本地数据
+  // 初始化本地資料
   localComments.value = props.post.comments || props.post.commentsData || []
   likesCount.value = props.post.likes || props.post.likes_count || 0
   
-  // 如果 props.post 中没有完整的留言数据，主动加载
+  // 如果 props.post 中沒有完整的留言資料，主動載入
   if (!props.post.commentsData && props.post.id) {
     await loadFullPostDetails()
   } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
-    // 格式化已有的留言数据
+    // 格式化已有的留言資料
     localComments.value = props.post.commentsData.map(comment => {
       const formatTime = (timestamp) => {
         if (!timestamp) return '剛剛'

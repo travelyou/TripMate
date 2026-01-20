@@ -756,7 +756,7 @@ const executeSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = props.postToEdit ? '正在更新貼文...' : '正在提交貼文...'
+    submitStatus.value = props.postToEdit ? '正在更新貼文中...' : '正在提交貼文中...'
     
     const response = props.postToEdit 
       ? await updatePost(props.postToEdit.id, payload)

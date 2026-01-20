@@ -77,7 +77,7 @@ export const deleteTraveler = async (id) => {
   }
 }
 
-// 提交报名
+// 提交報名
 export const submitApplication = async (travelerId, message) => {
   try {
     const { auth } = await import('@/firebase/config')
@@ -100,7 +100,7 @@ export const submitApplication = async (travelerId, message) => {
   }
 }
 
-// 获取报名列表（作者）
+// 獲取報名列表（作者）
 export const getApplications = async (travelerId) => {
   try {
     const { auth } = await import('@/firebase/config')
@@ -136,7 +136,7 @@ export const acceptApplication = async (travelerId, applicationId) => {
 }
 
 // 拒绝报名
-// 获取用户的群组聊天室列表
+// 獲取用戶的群組聊天室列表
 export const getGroupChatRooms = async () => {
   const userStore = useUserStore()
   if (!userStore.currentUser?.uid) {

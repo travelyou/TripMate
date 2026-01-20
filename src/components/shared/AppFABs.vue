@@ -11,7 +11,7 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const unreadMessageCount = ref(0)
 
-// 计算未读消息总数
+// 計算未讀訊息總數
 const calculateUnreadCount = () => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) {
@@ -22,7 +22,7 @@ const calculateUnreadCount = () => {
   try {
     let totalUnread = 0
 
-    // 检查好友请求
+    // 檢查好友請求
     const friendRequestsKey = `friend_requests_${currentUid}`
     const friendRequestsData = localStorage.getItem(friendRequestsKey)
     if (friendRequestsData) {
@@ -32,11 +32,11 @@ const calculateUnreadCount = () => {
           totalUnread += requests.received.length
         }
       } catch (e) {
-        console.warn('解析好友请求失败:', e)
+        console.warn('解析好友請求失敗:', e)
       }
     }
 
-    // 检查聊天室和未读消息
+    // 檢查聊天室和未讀訊息
     const chatRoomsKey = `tripmate-private-chats-${currentUid}`
     const chatRoomsData = localStorage.getItem(chatRoomsKey)
     if (chatRoomsData) {
@@ -70,11 +70,11 @@ const calculateUnreadCount = () => {
           })
         }
       } catch (e) {
-        console.warn('解析聊天室数据失败:', e)
+        console.warn('解析聊天室資料失敗:', e)
       }
     }
 
-    // 检查新建的聊天室
+    // 檢查新建的聊天室
     const newChatRoomsKey = `new_chat_rooms_${currentUid}`
     const newChatRoomsData = localStorage.getItem(newChatRoomsKey)
     if (newChatRoomsData) {
@@ -84,24 +84,24 @@ const calculateUnreadCount = () => {
           totalUnread += newRooms.length
         }
       } catch (e) {
-        console.warn('解析新建聊天室数据失败:', e)
+        console.warn('解析新建聊天室資料失敗:', e)
       }
     }
 
-    // 限制最多显示9
+    // 限制最多顯示9
     unreadMessageCount.value = Math.min(totalUnread, 9)
   } catch (error) {
-    console.error('计算未读消息失败:', error)
+    console.error('計算未讀訊息失敗:', error)
     unreadMessageCount.value = 0
   }
 }
 
-// 监听消息变化
+// 監聽訊息變化
 const handleMessageUpdate = () => {
   calculateUnreadCount()
 }
 
-// 监听新建聊天室
+// 監聽新建聊天室
 const handleNewChatRoom = () => {
   calculateUnreadCount()
 }
@@ -123,7 +123,7 @@ onUnmounted(() => {
   }
 })
 
-// 监听用户登录状态
+// 監聽用戶登入狀態
 watch(() => userStore.currentUser, () => {
   calculateUnreadCount()
 }, { deep: true })

@@ -14,7 +14,7 @@ const result = computed(() => store.result) // 測驗結果
 const handleSave = async () => {
   const saved = await store.saveResult()
   if (!saved) {
-    alert('保存失敗，請確認已登入且後端服務正常')
+    alert('儲存失敗，請確認已登入且後端服務正常')
     return
   }
   router.push('/profile')

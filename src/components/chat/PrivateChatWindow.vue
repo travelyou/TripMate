@@ -17,7 +17,7 @@ const props = defineProps({
 const userStore = useUserStore()
 const activeTab = ref('chatrooms') // 'chatrooms' 或 'friends'
 const activeChatRoom = ref(null) // 當前打開的聊天室 { type, uid, name, avatar, messages, ... }
-const avatarErrors = ref({}) // 記錄哪些頭像加載失敗
+const avatarErrors = ref({}) // 記錄哪些頭像載入失敗
 
 // 聊天室列表（動態創建的聊天室）
 const chatRoomsList = ref([])
@@ -95,7 +95,7 @@ const loadMessagesFromStorage = (friendUid) => {
 const chatRooms = computed(() => {
   const rooms = []
 
-  // 只添加收到的好友請求（不显示已发送的）
+  // 只添加收到的好友請求（不顯示已發送的）
   friendRequests.value.received.forEach(request => {
     rooms.push({
       id: `request-received-${request.uid}`,
@@ -147,7 +147,7 @@ const loadChatHistory = async (uid, friendUid) => {
 
     if (mappedMessages.length > 0) {
       saveMessagesToStorage(friendUid, mappedMessages)
-      // 检查是否有新消息（未读）
+      // 檢查是否有新訊息（未讀）
       const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
       if (currentUid) {
         const unreadKey = `unread_${currentUid}_${friendUid}`
@@ -165,14 +165,14 @@ const loadChatHistory = async (uid, friendUid) => {
         if (lastMessage && lastMessage.type !== 'user') {
           const lastMessageTime = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
           if (!lastReadTime || lastMessageTime > new Date(lastReadTime).getTime()) {
-            // 有新消息，触发更新事件
+            // 有新訊息，觸發更新事件
             window.dispatchEvent(new CustomEvent('message-updated'))
           }
         }
       }
     }
 
-    // 更新聊天室的消息列表
+    // 更新聊天室的訊息列表
     const room = chatRoomsList.value.find(r => r.uid === friendUid)
     if (room) {
       room.messages = messages.value
@@ -183,7 +183,7 @@ const loadChatHistory = async (uid, friendUid) => {
 
     persistChatRooms()
 
-    console.log('[loadChatHistory] 載入聊天記錄:', messages.value.length, '條消息')
+    console.log('[loadChatHistory] 載入聊天記錄:', messages.value.length, '條訊息')
   } catch (error) {
     console.error('載入聊天記錄失敗：', error)
     // 失敗時不重置，保持當前狀態
@@ -286,7 +286,7 @@ const openOrCreateChatRoom = async (user) => {
       messages: []
     }
 
-    // 触发新建聊天室事件
+    // 觸發新建聊天室事件
     window.dispatchEvent(new CustomEvent('new-chat-room'))
   }
 
@@ -296,7 +296,7 @@ const openOrCreateChatRoom = async (user) => {
   // 從數據庫載入聊天記錄
   await loadChatHistory(currentUid, targetUid)
 
-  // 标记为已读（打开聊天室时）
+  // 標記為已讀（打開聊天室時）
   const unreadKey = `unread_${currentUid}_${targetUid}`
   localStorage.setItem(unreadKey, JSON.stringify({
     lastReadTime: new Date().toISOString()
@@ -304,7 +304,7 @@ const openOrCreateChatRoom = async (user) => {
 
   scrollToBottom()
   
-  // 触发消息更新事件（清除未读计数）
+  // 觸發訊息更新事件（清除未讀計數）
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
@@ -350,7 +350,7 @@ const sendMessage = async () => {
     const { incrementChatInteraction } = await import('@/api/profile')
     const data = await incrementChatInteraction(currentUid, activeChatRoom.value.uid)
 
-    console.log('[sendMessage] API 返回數據:', data)
+    console.log('[sendMessage] API 返回資料:', data)
     console.log('[sendMessage] 發送前狀態:', {
       count: chatInteractionCount.value.count,
       remaining: chatInteractionCount.value.remaining,
@@ -400,12 +400,12 @@ const sendMessage = async () => {
 
   }
 
-  // 2. 保存消息到數據庫
+  // 2. 保存訊息到資料庫
   try {
     const { saveChatMessage } = await import('@/api/profile')
     const savedMessage = await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
 
-    // 3. 加入使用者的訊息（使用數據庫返回的消息ID）
+    // 3. 加入使用者的訊息（使用資料庫返回的訊息ID）
     const userMessage = {
       id: savedMessage.message?.id || Date.now(),
       type: 'user',
@@ -433,13 +433,13 @@ const sendMessage = async () => {
 
     persistChatRooms()
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
-    // 触发消息更新事件
+    // 觸發訊息更新事件
     window.dispatchEvent(new CustomEvent('message-updated'))
 
     scrollToBottom()
   } catch (error) {
-    console.error('保存消息失敗：', error)
-    // 即使保存失敗，也顯示消息（但不會持久化）
+    console.error('保存訊息失敗：', error)
+    // 即使保存失敗，也顯示訊息（但不會持久化）
     const userMessage = {
       id: Date.now(),
       type: 'user',
@@ -464,7 +464,7 @@ const sendMessage = async () => {
     messageInput.value = ''
     persistChatRooms()
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
-    // 触发消息更新事件
+    // 觸發訊息更新事件
     window.dispatchEvent(new CustomEvent('message-updated'))
     scrollToBottom()
   }
@@ -486,13 +486,13 @@ const handleChatRoomClick = async (room) => {
         alert('接受好友請求失敗：' + (error.message || '未知錯誤'))
       }
     } else {
-      // 拒绝好友请求：只是删除记录，不发送回应
+      // 拒絕好友請求：只是刪除記錄，不發送回應
       try {
         const { rejectFriendRequest } = await import('@/api/profile')
         const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
         await rejectFriendRequest(currentUid, room.uid)
         await loadFriends()
-        // 重新加载好友请求列表
+        // 重新載入好友請求列表
         const { getFriendRequests } = await import('@/api/profile')
         const requests = await getFriendRequests(currentUid)
         friendRequests.value = requests || { received: [], sent: [] }

@@ -112,7 +112,7 @@ const activeTabsData = computed(() => {
   
   return {
     hostedTrips: hostedTravelers.value
-      // 再次确保只显示该用户自己创建的贴文
+      // 再次確保只顯示該用戶自己創建的貼文
       .filter(traveler => {
         const travelerUid = traveler.author_uid || traveler.authorUid
         return travelerUid === targetUidValue
@@ -135,7 +135,7 @@ const activeTabsData = computed(() => {
         author_uid: traveler.author_uid || traveler.authorUid,
       })),
     posts: userPosts.value
-      // 再次确保只显示该用户自己发布的贴文
+      // 再次確保只顯示該用戶自己發布的貼文
       .filter(post => {
         const postUid = post.author_uid || post.authorUid
         return postUid === targetUidValue
@@ -301,7 +301,7 @@ const handleAddFriend = async () => {
   try {
     const { addFriend, cancelFriendRequest, removeFriend } = await import('@/api/profile')
 
-    // 如果已經是好友，显示解除好友选项
+    // 如果已經是好友，顯示解除好友選項
     if (friendRequestStatus.value === 'accepted') {
       const confirmRemove = confirm('確定要解除好友關係嗎？')
       if (!confirmRemove) return
@@ -610,7 +610,7 @@ const loadHostedTravelers = async (uid) => {
     })
     
     if (response.success && response.data) {
-      // 确保只显示该用户自己创建的贴文（双重验证）
+      // 確保只顯示該用戶自己創建的貼文（雙重驗證）
       hostedTravelers.value = response.data.filter(traveler => 
         traveler.author_uid === uid || traveler.authorUid === uid
       )
@@ -635,12 +635,12 @@ const loadUserPosts = async (uid) => {
     })
     
     if (data && data.posts) {
-      // 确保只显示该用户自己发布的贴文（双重验证）
+      // 確保只顯示該用戶自己發布的貼文（雙重驗證）
       const filteredPosts = data.posts.filter(post => 
         post.author_uid === uid
       )
       
-      // 使用 discussionsStore 的 transformPost 方法转换数据
+      // 使用 discussionsStore 的 transformPost 方法轉換資料
       const transformedPosts = filteredPosts.map(post => {
         const formatTime = (timestamp) => {
           if (!timestamp) return '剛剛'

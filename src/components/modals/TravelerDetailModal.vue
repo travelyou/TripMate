@@ -58,7 +58,7 @@ const processingIds = ref(new Set())
 const applicationMessage = ref('')
 const isSubmittingApplication = ref(false)
 const applicationError = ref('')
-const myApplication = ref(null) // 当前用户的报名信息
+const myApplication = ref(null) // 當前用戶的報名資訊
 
 const handleAuthorClick = () => {
   const authorUid = props.traveler.author_uid || localTravelerData.value?.author_uid
@@ -179,7 +179,7 @@ const toggleCommentLike = (item) => {
   item.isLiked = !item.isLiked
 }
 
-// 检查文章是否已过期
+// 檢查文章是否已過期
 const isExpired = computed(() => {
   const traveler = localTravelerData.value
   if (!traveler.end_date) return false
@@ -195,7 +195,7 @@ const isAuthor = computed(() => {
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
-// 检查用户是否已报名（pending或accepted状态）
+// 檢查用戶是否已報名（pending或accepted狀態）
 const hasApplied = computed(() => {
   if (!myApplication.value) return false
   return myApplication.value.status === 'pending' || myApplication.value.status === 'accepted'
@@ -206,7 +206,7 @@ const handleApply = () => {
     alert('請先登入後才能報名')
     return
   }
-  // 如果已经报名，不允许再次报名
+  // 如果已經報名，不允許再次報名
   if (hasApplied.value) {
     return
   }
@@ -231,17 +231,17 @@ const loadApplications = async () => {
   isLoadingApplications.value = true
   try {
     if (isAuthor.value) {
-      // 作者：获取所有报名列表
+      // 作者：獲取所有報名列表
       const response = await getApplications(localTravelerData.value.id)
       if (response.success) {
         applications.value = response.data || []
       }
     } else {
-      // 非作者：只获取自己的报名信息
+      // 非作者：只獲取自己的報名資訊
       const response = await getApplications(localTravelerData.value.id)
       if (response.success) {
         const allApplications = response.data || []
-        // 找到当前用户的报名
+        // 找到當前用戶的報名
         myApplication.value = allApplications.find(
           app => app.author_uid === currentUserUid.value
         ) || null
@@ -295,10 +295,10 @@ const handleSubmitApplication = async () => {
 
   try {
     await submitApplication(localTravelerData.value.id, applicationMessage.value.trim())
-    // 重新加载报名信息
+    // 重新載入報名資訊
     await loadApplications()
     applicationMessage.value = ''
-    // 显示成功提示
+    // 顯示成功提示
     alert('報名成功！')
   } catch (err) {
     applicationError.value = err.response?.data?.message || '提交失敗，請稍後再試'
@@ -411,7 +411,7 @@ onMounted(async () => {
     await fetchFullTravelerDetails()
     if (currentUserUid.value) {
       await loadLikesInfo()
-      // 如果不是作者，加载自己的报名状态
+      // 如果不是作者，載入自己的報名狀態
       if (!isAuthor.value) {
         await loadApplications()
       }
@@ -818,7 +818,7 @@ onMounted(async () => {
             </div>
 
             <div v-if="activeTab === 'applications' && isAuthor">
-              <!-- 作者视角：显示所有报名清单 -->
+              <!-- 作者視角：顯示所有報名清單 -->
               <div>
                 <div v-if="isLoadingApplications" class="text-center py-10 text-gray-500">載入中...</div>
                 <div v-else-if="applications.length === 0" class="text-center py-10 text-gray-500">
