@@ -1,9 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
-
-// Actually, let's just use the global script loading if simpler, OR use the library correctly.
-// The error suggested: import { setOptions, importLibrary } from ...
-// Let's try that.
+import { ref, watch, onMounted } from 'vue'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import { MapPin as MapPinIcon, Search as SearchIcon, X as XIcon, Loader2 } from 'lucide-vue-next'
 
@@ -31,27 +27,70 @@ let google = null
 // 當前選中的地點狀態
 const selectedPlace = ref(null)
 
-// 使用 v2 函數式 API (放在 initMap 外或保證只執行一次)
-// 由於這是 script setup，這些 code 會在 component setup 時執行一次。
-// 如果 component 被多次 mount，setOptions 有可能被警告，但通常沒事。
-// 為了安全起見，我們可以檢查是否已設定，或者移到更全域的地方。
-// 這裡簡單做個全域旗標檢查
-if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-  setOptions({
-    apiKey: apiKey,
-    version: 'weekly',
-    libraries: ['places', 'maps', 'marker'],
-    language: 'zh-TW',
-  })
-  window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
-}
+// 初始化 Google Maps 配置（在组件挂载时执行）
+onMounted(() => {
+  if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    
+    if (!apiKey) {
+      console.error('[Google Maps] API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY')
+      console.error('[Google Maps] 當前環境變數值:', {
+        hasKey: !!import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        keyLength: import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.length || 0
+      })
+      return
+    }
+    
+    console.log('[Google Maps] 設定 API Key:', apiKey.substring(0, 10) + '...')
+    
+    try {
+      setOptions({
+        apiKey: apiKey,
+        version: 'weekly',
+        libraries: ['places', 'maps', 'marker', 'geocoding', 'routes'],
+        language: 'zh-TW',
+      })
+      window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
+      console.log('[Google Maps] setOptions 設定成功')
+    } catch (error) {
+      console.error('[Google Maps] setOptions 失敗:', error)
+    }
+  }
+})
 
 const initMap = async () => {
-    isLoading.value = true
+  isLoading.value = true
+  
+  // 再次检查 API Key
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  if (!apiKey) {
+    console.error('[Google Maps] initMap: API Key 未設定')
+    alert('Google Maps API Key 未設定，請檢查環境變數設定')
+    isLoading.value = false
+    return
+  }
+  
+  // 确保 setOptions 已设置
+  if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
     try {
-        const apiKey = API_KEY
-        console.log('[GoogleMaps] 初始化地圖，使用的 API Key:', apiKey ? apiKey.substring(0, 10) + '...' : '未定義')
+      setOptions({
+        apiKey: apiKey,
+        version: 'weekly',
+        libraries: ['places', 'maps', 'marker', 'geocoding', 'routes'],
+        language: 'zh-TW',
+      })
+      window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
+      console.log('[Google Maps] initMap: setOptions 設定成功')
+    } catch (error) {
+      console.error('[Google Maps] initMap: setOptions 失敗:', error)
+      alert('Google Maps 設定失敗：' + error.message)
+      isLoading.value = false
+      return
+    }
+  }
+  
+  try {
+    console.log('[GoogleMaps] 初始化地圖，使用的 API Key:', apiKey ? apiKey.substring(0, 10) + '...' : '未定義')
 
     // 載入必要的 Library (平行載入)
     const [mapsLib, placesLib, markerLib] = await Promise.all([
@@ -139,7 +178,16 @@ const initMap = async () => {
 
   } catch (error) {
     console.error('Google Maps Load Error:', error)
-    alert('Google Maps 載入失敗，請檢查網路或 API Key 設定。')
+    const errorMessage = error.message || error.toString()
+    let userMessage = 'Google Maps 載入失敗'
+    
+    if (errorMessage.includes('ApiProjectMapError') || errorMessage.includes('NoApiKeys')) {
+      userMessage = 'Google Maps API Key 設定錯誤\n\n請檢查：\n1. 環境變數 VITE_GOOGLE_MAPS_API_KEY 是否正確設定\n2. API Key 是否有效\n3. 是否已啟用必要的 API\n4. 是否已啟用計費帳戶'
+    } else if (errorMessage.includes('RefererNotAllowedMapError')) {
+      userMessage = 'API Key 限制設定錯誤\n\n請在 Google Cloud Console 中添加當前網址到允許清單'
+    }
+    
+    alert(userMessage + '\n\n詳細錯誤：' + errorMessage)
   } finally {
     isLoading.value = false
   }
@@ -229,12 +277,16 @@ watch(() => props.isOpen, (newVal) => {
                 : { lat: 25.033964, lng: 121.564468 }
 
              map.setCenter(center)
-             marker.setPosition(center)
+             if (marker) {
+               marker.setPosition(center)
+             }
              searchKeyword.value = props.initialLocation?.name || ''
              selectedPlace.value = props.initialLocation || null
 
              // 重新觸發 resize 確保顯示正常
-             google.maps.event.trigger(map, 'resize')
+             if (google && google.maps && google.maps.event) {
+               google.maps.event.trigger(map, 'resize')
+             }
         }
     }, 100)
   }

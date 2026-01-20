@@ -661,40 +661,96 @@ const insertTransportActivity = async () => {
 }
 
 const getDirections = async (origin, destination, mode) => {
-// 檢查是否已經設定過 Global Options
+  // 檢查 API Key
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  if (!apiKey) {
+    console.error('[Google Maps] getDirections: API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY')
+    return null
+  }
+
+  // 確保 setOptions 只設置一次，並且使用相同的配置
   if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
-    setOptions({
-      apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-      version: 'weekly',
-      libraries: ['routes'],
-    })
-    window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
+    try {
+      console.log('[Google Maps] getDirections: 設定 API Key')
+      setOptions({
+        apiKey: apiKey,
+        version: 'weekly',
+        libraries: ['routes', 'places', 'maps', 'geocoding'],
+        language: 'zh-TW',
+      })
+      window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
+      console.log('[Google Maps] getDirections: setOptions 設定成功')
+    } catch (error) {
+      console.error('[Google Maps] getDirections: setOptions 失敗:', error)
+      return null
+    }
   }
 
   try {
-    const routesLib = await importLibrary('routes').catch(() => importLibrary('maps'))
+    // 嘗試載入 routes library，如果失敗則嘗試從 maps library 取得
+    let routesLib = null
+    try {
+      routesLib = await importLibrary('routes')
+    } catch (routesError) {
+      console.warn('[Google Maps] routes library 載入失敗，嘗試使用 maps library:', routesError)
+      routesLib = await importLibrary('maps')
+    }
+
+    // 檢查 DirectionsService 是否存在
+    if (!routesLib || !routesLib.DirectionsService) {
+      console.error('[Google Maps] DirectionsService 不可用')
+      return null
+    }
+
     const DirectionsService = routesLib.DirectionsService
     const service = new DirectionsService()
+
+    // 轉換 travelMode 字串為對應的常數
+    let travelModeConstant
+    if (typeof mode === 'string') {
+      // 如果 window.google 存在，使用其常數
+      if (window.google && window.google.maps && window.google.maps.TravelMode) {
+        travelModeConstant = window.google.maps.TravelMode[mode]
+      } else {
+        // 否則直接使用字串（API 可能接受字串）
+        travelModeConstant = mode
+      }
+    } else {
+      travelModeConstant = mode
+    }
 
     const request = {
       origin: { lat: origin.lat, lng: origin.lng },
       destination: { lat: destination.lat, lng: destination.lng },
-      travelMode: mode,
+      travelMode: travelModeConstant || mode,
     }
 
     return new Promise((resolve) => {
       service.route(request, (result, status) => {
-        if (status === 'OK' && result.routes[0] && result.routes[0].legs[0]) {
+        if (status === 'OK' && result && result.routes && result.routes[0] && result.routes[0].legs && result.routes[0].legs[0]) {
           const leg = result.routes[0].legs[0]
           resolve(leg.duration) // { text: "10 mins", value: 600 }
         } else {
-          console.error('Directions request failed due to ' + status)
+          console.error('[Google Maps] Directions request failed due to:', status)
+          if (status === 'ZERO_RESULTS') {
+            console.warn('[Google Maps] 找不到路線，可能是起點或終點無效')
+          } else if (status === 'REQUEST_DENIED') {
+            console.error('[Google Maps] 請求被拒絕，請檢查：')
+            console.error('  1. API Key 是否正確')
+            console.error('  2. 是否已啟用 Routes API')
+            console.error('  3. 是否已啟用計費帳戶')
+            console.error('  4. API Key 限制設定是否正確')
+          } else if (status === 'OVER_QUERY_LIMIT') {
+            console.error('[Google Maps] API 請求超過配額限制')
+          } else if (status === 'INVALID_REQUEST') {
+            console.error('[Google Maps] 無效的請求，請檢查起點和終點座標')
+          }
           resolve(null)
         }
       })
     })
   } catch (error) {
-    console.error('Google Maps Load Error', error)
+    console.error('[Google Maps] Load Error:', error)
     return null
   }
 }
