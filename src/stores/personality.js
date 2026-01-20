@@ -488,22 +488,24 @@ export const usePersonalityStore = defineStore('personalityTest', {
       if (!result) return false
 
       const userStore = useUserStore()
-      if (!userStore.firebaseUser || !userStore.firebaseUser.uid) {
+      const uid =
+        userStore.firebaseUser?.uid || userStore.currentUser?.uid || userStore.currentUser?.id
+      if (!uid) {
         console.error('無法保存測驗結果：用戶未登入')
         return false
       }
 
-      this.savedResult = result
       const spiritAnimalValue = `${result.animalEmoji} ${result.animalName}`
-
-      userStore.updateProfile({
-        spiritAnimal: spiritAnimalValue,
-      })
 
       try {
         const { updateUserProfile } = await import('@/api/users')
-        await updateUserProfile(userStore.firebaseUser.uid, {
+        await updateUserProfile(uid, {
           spirit_animal: spiritAnimalValue,
+        })
+
+        this.savedResult = result
+        userStore.updateProfile({
+          spiritAnimal: spiritAnimalValue,
         })
         return true
       } catch (error) {
