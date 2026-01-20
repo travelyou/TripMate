@@ -172,24 +172,96 @@ const initMap = async () => {
     // 我們先嘗試創建，如果後續出現 ApiProjectMapError，會在 catch 區塊處理
     map = new MapClass(mapContainer.value, mapConfig)
 
-    // 監聽地圖錯誤事件，處理 ApiProjectMapError
-    map.addListener('error', (error) => {
-      console.error('[Google Maps] 地圖錯誤事件:', error)
-      if (mapId && (error?.message?.includes('ApiProjectMapError') || error?.code === 'ApiProjectMapError')) {
-        console.warn('[Google Maps] 檢測到 ApiProjectMapError，Map ID 可能無效')
-        console.warn('[Google Maps] 將回退到不使用 Map ID 的配置')
-        // 重新創建地圖，不使用 mapId
-        const fallbackConfig = { ...mapConfig }
-        delete fallbackConfig.mapId
-        try {
-          map = new MapClass(mapContainer.value, fallbackConfig)
-          mapId = null // 清除 mapId，強制使用舊版 Marker
-          console.log('[Google Maps] 已重新初始化地圖（不使用 Map ID）')
-        } catch (retryError) {
-          console.error('[Google Maps] 重新初始化失敗:', retryError)
+    // 監聽全域 Google Maps 錯誤（ApiProjectMapError 通常在異步時發生）
+    let errorHandled = false
+
+    // 處理 ApiProjectMapError 的函數
+    const handleApiProjectMapError = async () => {
+      try {
+        console.log('[Google Maps] 開始回退流程...')
+
+        // 清除現有地圖和標記
+        if (marker) {
+          marker.map = null
+          marker = null
         }
+        if (map) {
+          // 清理地圖
+          google.maps.event.clearInstanceListeners(map)
+        }
+
+        // 重新創建地圖，不使用 mapId
+        const fallbackConfig = {
+          center: center,
+          zoom: 15,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+        }
+        // 明確不使用 mapId
+        delete fallbackConfig.mapId
+
+        map = new MapClass(mapContainer.value, fallbackConfig)
+        mapId = null // 清除 mapId，強制使用舊版 Marker
+
+        // 重新初始化標記（使用舊版 API）
+        const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
+        if (LegacyMarker) {
+          marker = new LegacyMarker({
+            map: map,
+            position: center,
+            draggable: true,
+            animation: google.maps.Animation?.DROP || null,
+          })
+
+          // 重新設置事件監聽
+          marker.addListener('dragend', () => {
+            const position = marker.getPosition?.()
+            if (position) {
+              geocodePosition(position)
+            }
+          })
+
+          map.addListener('click', (e) => {
+            if (marker.setPosition) {
+              marker.setPosition(e.latLng)
+            }
+            geocodePosition(e.latLng)
+          })
+
+          // 重新初始化搜尋框
+          initAutocomplete()
+
+          console.log('[Google Maps] 已成功回退到舊版 API（不使用 Map ID）')
+        }
+      } catch (retryError) {
+        console.error('[Google Maps] 回退初始化失敗:', retryError)
       }
-    })
+    }
+
+    // 監聽 window 錯誤事件（捕獲異步 ApiProjectMapError）
+    const errorHandler = (event) => {
+      const errorMsg = event.message || event.error?.message || ''
+      if (errorMsg.includes('ApiProjectMapError') && mapId && !errorHandled) {
+        errorHandled = true
+        console.warn('[Google Maps] 從 window 錯誤事件檢測到 ApiProjectMapError')
+        event.preventDefault() // 阻止錯誤繼續傳播
+        handleApiProjectMapError()
+      }
+    }
+
+    window.addEventListener('error', errorHandler, true)
+
+    // 在組件卸載時移除監聽器
+    const cleanup = () => {
+      window.removeEventListener('error', errorHandler, true)
+    }
+
+    // 存儲清理函數以便後續使用
+    if (!window.__GOOGLE_MAPS_ERROR_HANDLERS__) {
+      window.__GOOGLE_MAPS_ERROR_HANDLERS__ = []
+    }
+    window.__GOOGLE_MAPS_ERROR_HANDLERS__.push(cleanup)
 
     // 初始化標記 - 使用 AdvancedMarkerElement（新 API）
     // 注意：AdvancedMarkerElement 需要有效的 mapId
