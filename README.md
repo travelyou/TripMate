@@ -80,12 +80,6 @@
 
 https://github.com/yuntailee
 
-後端建立：Express + PostgreSQL + Serverless
-資料庫設計：多 Schema + 索引優化 + 資料完整性
-登入驗證：Firebase Auth + 多身分管理 + 資料同步
-API 整合：12+ API 模組 + 統一錯誤處理
-聊天系統：即時聊天 + AI 助手 + 好友名單
-抽卡配對：串接資料庫
 ---
 
 ![TripMate Logo](./src/assets/icons/TripMate_icon.png)
