@@ -182,6 +182,16 @@ const handleEditPost = (post) => {
   isPostingModalOpen.value = true
 }
 
+const handleCardEdit = (post) => {
+  postToEdit.value = post
+  isPostingModalOpen.value = true
+}
+
+const handleCardDelete = (post) => {
+  // 删除已经在卡片组件中处理，这里只需要刷新列表
+  loadDiscussionsData(false)
+}
+
 const handlePostModalClose = () => {
   isPostingModalOpen.value = false
   postToEdit.value = null
@@ -280,6 +290,8 @@ const tryOpenDraft = () => {
             @comment="openDiscussionDetailModal(post, true)"
             @share="openShareModal(post.id)"
             @like="handleCardLike"
+            @edit="handleCardEdit"
+            @delete="handleCardDelete"
           />
         </template>
 

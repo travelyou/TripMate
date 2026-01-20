@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -11,6 +11,11 @@ import {
   MessageCircle as MessageCircleIcon,
   Repeat2 as Repeat2Icon,
   Building as BuildingIcon,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Share2,
+  Flag,
 } from 'lucide-vue-next'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
@@ -25,7 +30,7 @@ const props = defineProps({
 
 const userStore = useUserStore()
 const router = useRouter()
-const emit = defineEmits(['open-detail', 'open-share'])
+const emit = defineEmits(['open-detail', 'open-share', 'edit', 'delete'])
 
 const handleAgencyClick = (e) => {
   e.stopPropagation()
@@ -42,6 +47,11 @@ const handleAgencyClick = (e) => {
 const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(props.itinerary.likes || 0)
+const showMenu = ref(false)
+const isReported = ref(false)
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('info')
 const itemData = computed(() => ({
   id: props.itinerary.id,
   type: 'itinerary',
@@ -123,12 +133,93 @@ onAuthStateChanged(auth, async (user) => {
   else isLiked.value = false
 })
 
+const isAuthor = computed(() => {
+  const authorUid = props.itinerary.author_uid || props.itinerary.authorUid
+  return currentUserUid.value && authorUid && currentUserUid.value === authorUid
+})
+
+const toggleMenu = (e) => {
+  e.stopPropagation()
+  showMenu.value = !showMenu.value
+}
+
+const closeMenu = () => {
+  showMenu.value = false
+}
+
+const showToastNotification = (message, type = 'info') => {
+  toastMessage.value = message
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 5000)
+}
+
+const handleEdit = (e) => {
+  e.stopPropagation()
+  closeMenu()
+  emit('edit', props.itinerary)
+}
+
+const handleDelete = async (e) => {
+  e.stopPropagation()
+  closeMenu()
+  
+  if (!confirm('確定要刪除此行程嗎？')) {
+    return
+  }
+  
+  try {
+    // 使用axios直接调用删除API
+    const axios = (await import('axios')).default
+    const { API_BASE_URL } = await import('@/api/config')
+    await axios.delete(`${API_BASE_URL}/itineraries/${props.itinerary.id}`)
+    emit('delete', props.itinerary)
+    window.location.reload()
+  } catch (error) {
+    console.error('刪除失敗:', error)
+    alert('刪除失敗，請稍後再試')
+  }
+}
+
+const handleShare = async (e) => {
+  e.stopPropagation()
+  closeMenu()
+  try {
+    const url = `${window.location.origin}/featured-itinerary#itinerary-${props.itinerary.id}`
+    await navigator.clipboard.writeText(url)
+    showToastNotification('已複製貼文網址', 'info')
+  } catch (error) {
+    console.error('複製失敗:', error)
+    alert('複製失敗，請稍後再試')
+  }
+}
+
+const handleReport = (e) => {
+  e.stopPropagation()
+  closeMenu()
+  isReported.value = true
+  showToastNotification('已經向管理員提出檢舉 謝謝', 'success')
+}
+
+const handleClickOutside = (event) => {
+  if (showMenu.value && !event.target.closest('.post-menu-container')) {
+    closeMenu()
+  }
+}
+
 onMounted(async () => {
   const user = auth.currentUser
   if (user) {
     currentUserUid.value = user.uid
     await loadLikesInfo()
   }
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -137,6 +228,76 @@ onMounted(async () => {
     class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border border-secondary-200 shadow-md bg-white group flex flex-col h-full"
     @click="emit('open-detail', props.itinerary, false)"
   >
+    <!-- 三点菜单按钮 -->
+    <div class="absolute top-2 right-2 post-menu-container z-30">
+      <button
+        class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
+        @click="toggleMenu"
+      >
+        <MoreVertical class="w-5 h-5" />
+      </button>
+      
+      <!-- 菜单下拉 -->
+      <div
+        v-if="showMenu"
+        class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
+      >
+        <button
+          v-if="isAuthor"
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+          @click="handleEdit"
+        >
+          <Edit class="w-4 h-4" />
+          <span>編輯</span>
+        </button>
+        <button
+          v-if="isAuthor"
+          class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition"
+          @click="handleDelete"
+        >
+          <Trash2 class="w-4 h-4" />
+          <span>刪除</span>
+        </button>
+        <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
+        <button
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+          @click="handleShare"
+        >
+          <Share2 class="w-4 h-4" />
+          <span>分享</span>
+        </button>
+        <button
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+          @click="handleReport"
+        >
+          <Flag class="w-4 h-4" />
+          <span>檢舉</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-all duration-300 ease-out"
+        enter-from-class="opacity-0 translate-y-4"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition-all duration-300 ease-in"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 translate-y-4"
+      >
+        <div
+          v-if="showToast"
+          :class="[
+            'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
+            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+          ]"
+        >
+          <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>
+        </div>
+      </Transition>
+    </Teleport>
+
     <div class="relative w-full aspect-[4/3] overflow-hidden bg-secondary-100">
       <div
         v-if="props.itinerary.category"

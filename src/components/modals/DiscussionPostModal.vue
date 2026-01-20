@@ -26,7 +26,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
-import { createPost } from '@/api/discussions'
+import { createPost, updatePost } from '@/api/discussions'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
@@ -42,6 +42,10 @@ import CharacterCount from '@tiptap/extension-character-count'
 
 const props = defineProps({
   draftData: {
+    type: Object,
+    default: null,
+  },
+  postToEdit: {
     type: Object,
     default: null,
   },
@@ -752,23 +756,26 @@ const executeSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = '正在提交貼文...'
-    const response = await createPost(payload)
+    submitStatus.value = props.postToEdit ? '正在更新貼文...' : '正在提交貼文...'
+    
+    const response = props.postToEdit 
+      ? await updatePost(props.postToEdit.id, payload)
+      : await createPost(payload)
 
     submitProgress.value = 100
-    submitStatus.value = '發布成功！'
+    submitStatus.value = props.postToEdit ? '更新成功！' : '發布成功！'
 
     if (response) {
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
 
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('發文成功！', {
-          body: '您的貼文已成功發布',
+        new Notification(props.postToEdit ? '更新成功！' : '發文成功！', {
+          body: props.postToEdit ? '您的貼文已成功更新' : '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
       } else {
-        alert('發文成功！')
+        alert(props.postToEdit ? '更新成功！' : '發文成功！')
       }
       window.location.reload()
     }
@@ -838,8 +845,65 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => props.postToEdit,
+  (post) => {
+    if (post) {
+      postData.value.category = post.category || ''
+      postData.value.title = post.title || ''
+      postData.value.content = post.content || ''
+      postData.value.tags = post.tags || []
+
+      if (post.banner) {
+        imagePreviews.value = [post.banner]
+        uploadedImageUrls.value = [post.banner]
+      }
+      if (post.image_urls && post.image_urls.length > 0) {
+        imagePreviews.value = [post.banner, ...post.image_urls].filter(Boolean)
+        uploadedImageUrls.value = [post.banner, ...post.image_urls].filter(Boolean)
+      }
+
+      if (editor.value && post.content) {
+        nextTick(() => {
+          try {
+            editor.value.commands.setContent(post.content, false)
+          } catch (error) {
+            console.error('[發文編輯器] 載入編輯內容失敗:', error)
+          }
+        })
+      }
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
-  if (props.draftData && props.draftData.data) {
+  if (props.postToEdit) {
+    const post = props.postToEdit
+    postData.value.category = post.category || ''
+    postData.value.title = post.title || ''
+    postData.value.content = post.content || ''
+    postData.value.tags = post.tags || []
+
+    if (post.banner) {
+      imagePreviews.value = [post.banner]
+      uploadedImageUrls.value = [post.banner]
+    }
+    if (post.image_urls && post.image_urls.length > 0) {
+      imagePreviews.value = [post.banner, ...post.image_urls].filter(Boolean)
+      uploadedImageUrls.value = [post.banner, ...post.image_urls].filter(Boolean)
+    }
+
+    if (editor.value && post.content) {
+      nextTick(() => {
+        try {
+          editor.value.commands.setContent(post.content, false)
+        } catch (error) {
+          console.error('[發文編輯器] 載入編輯內容失敗:', error)
+        }
+      })
+    }
+  } else if (props.draftData && props.draftData.data) {
     const draft = props.draftData.data
     postData.value.category = draft.category || ''
     postData.value.title = draft.title || ''
@@ -1059,14 +1123,14 @@ onMounted(() => {
               </span>
             </div>
             <div
-              class="border-2 rounded-xl overflow-hidden transition flex flex-col bg-white"
+              class="border-2 rounded-xl overflow-x-hidden transition flex flex-col bg-white"
               :class="
                 errors.content ? 'border-red-500' : 'border-gray-200 focus-within:border-green-500'
               "
             >
               <div
                 v-if="editor"
-                class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-20"
+                class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-30 shadow-sm"
               >
                 <button
                   :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 2 }) }"
@@ -1205,7 +1269,7 @@ onMounted(() => {
                   @change="handleEditorImageSelect"
                 />
               </div>
-              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white" />
+              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white rounded-b-xl" />
             </div>
             <p v-if="errors.content" class="mt-1 text-sm text-red-500">{{ errors.content }}</p>
           </div>

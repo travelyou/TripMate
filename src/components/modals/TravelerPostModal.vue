@@ -1659,7 +1659,7 @@ const jumpToStep = (targetStep) => {
               >
             </div>
             <div
-              class="border-2 rounded-xl overflow-hidden transition flex flex-col bg-white"
+              class="border-2 rounded-xl overflow-x-hidden transition flex flex-col bg-white"
               :class="
                 fieldErrors.content
                   ? 'border-red-500'
@@ -1668,7 +1668,7 @@ const jumpToStep = (targetStep) => {
             >
               <div
                 v-if="editor"
-                class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-20"
+                class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-30 shadow-sm"
               >
                 <button
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
@@ -1790,7 +1790,7 @@ const jumpToStep = (targetStep) => {
                   @change="handleEditorImageSelect"
                 />
               </div>
-              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white" />
+              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white rounded-b-xl" />
             </div>
             <p v-if="fieldErrors.content" class="mt-1 text-sm text-red-500">
               {{ fieldErrors.content }}

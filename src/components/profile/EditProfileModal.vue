@@ -221,12 +221,12 @@ function restoreStamp(key) {
           <div class="md:col-span-2 min-w-0 w-full">
             <div class="flex items-center justify-between mb-1.5 sm:mb-2 gap-1.5 sm:gap-2">
               <label class="block text-xs sm:text-sm font-medium text-secondary-700 flex-shrink-0">個人簡介</label>
-              <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.bio || '').length }}/100</span>
+              <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.bio || '').length }}/200</span>
             </div>
             <textarea
               v-model="editForm.bio"
               rows="3"
-              maxlength="100"
+              maxlength="200"
               class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none resize-none box-border break-words"
             ></textarea>
           </div>

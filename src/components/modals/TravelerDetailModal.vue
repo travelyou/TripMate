@@ -14,6 +14,9 @@ import {
   Camera as CameraIcon,
   CheckSquare as CheckSquareIcon,
   FileText as FileTextIcon,
+  UserPlus as UserPlusIcon,
+  Check as CheckIcon,
+  X as XCloseIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -21,7 +24,7 @@ import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
-import { getTravelerById, incrementView } from '@/api/travelers'
+import { getTravelerById, incrementView, getApplications, acceptApplication, rejectApplication, submitApplication } from '@/api/travelers'
 import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
@@ -38,7 +41,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'traveler-updated'])
+const emit = defineEmits(['close', 'traveler-updated', 'open-apply', 'open-applications'])
 
 const currentUserUid = ref(null)
 const isLiked = ref(false)
@@ -49,6 +52,13 @@ const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const contentContainerRef = ref(null)
 const localComments = ref([])
+const applications = ref([])
+const isLoadingApplications = ref(false)
+const processingIds = ref(new Set())
+const applicationMessage = ref('')
+const isSubmittingApplication = ref(false)
+const applicationError = ref('')
+const myApplication = ref(null) // 当前用户的报名信息
 
 const handleAuthorClick = () => {
   const authorUid = props.traveler.author_uid || localTravelerData.value?.author_uid
@@ -169,8 +179,128 @@ const toggleCommentLike = (item) => {
   item.isLiked = !item.isLiked
 }
 
+// 检查文章是否已过期
+const isExpired = computed(() => {
+  const traveler = localTravelerData.value
+  if (!traveler.end_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const endDate = new Date(traveler.end_date)
+  endDate.setHours(0, 0, 0, 0)
+  return endDate < today
+})
+
+const isAuthor = computed(() => {
+  const authorUid = localTravelerData.value?.author_uid || props.traveler?.author_uid
+  return currentUserUid.value && authorUid && currentUserUid.value === authorUid
+})
+
+const handleApply = () => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能報名')
+    return
+  }
+  emit('open-apply', localTravelerData.value)
+}
+
+const handleViewApplications = () => {
+  activeTab.value = 'applications'
+  loadApplications()
+}
+
+const jumpToApplications = () => {
+  activeTab.value = 'applications'
+  loadApplications()
+  const tabElement = document.getElementById('traveler-tab-nav')
+  if (tabElement) {
+    tabElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+const loadApplications = async () => {
+  isLoadingApplications.value = true
+  try {
+    if (isAuthor.value) {
+      // 作者：获取所有报名列表
+      const response = await getApplications(localTravelerData.value.id)
+      if (response.success) {
+        applications.value = response.data || []
+      }
+    } else {
+      // 非作者：只获取自己的报名信息
+      const response = await getApplications(localTravelerData.value.id)
+      if (response.success) {
+        const allApplications = response.data || []
+        // 找到当前用户的报名
+        myApplication.value = allApplications.find(
+          app => app.author_uid === currentUserUid.value
+        ) || null
+      }
+    }
+  } catch (error) {
+    console.error('載入報名列表失敗:', error)
+  } finally {
+    isLoadingApplications.value = false
+  }
+}
+
+const handleAcceptApplication = async (application) => {
+  if (processingIds.value.has(application.id)) return
+
+  processingIds.value.add(application.id)
+  try {
+    await acceptApplication(localTravelerData.value.id, application.id)
+    await loadApplications()
+    emit('application-updated')
+  } catch (error) {
+    console.error('接受報名失敗:', error)
+    alert('接受報名失敗，請稍後再試')
+  } finally {
+    processingIds.value.delete(application.id)
+  }
+}
+
+const handleRejectApplication = async (application) => {
+  if (processingIds.value.has(application.id)) return
+
+  if (!confirm('確定要拒絕此報名嗎？')) return
+
+  processingIds.value.add(application.id)
+  try {
+    await rejectApplication(localTravelerData.value.id, application.id)
+    await loadApplications()
+  } catch (error) {
+    console.error('拒絕報名失敗:', error)
+    alert('拒絕報名失敗，請稍後再試')
+  } finally {
+    processingIds.value.delete(application.id)
+  }
+}
+
+const handleSubmitApplication = async () => {
+  if (!applicationMessage.value.trim() || applicationMessage.value.length > 200 || isSubmittingApplication.value) return
+
+  isSubmittingApplication.value = true
+  applicationError.value = ''
+
+  try {
+    await submitApplication(localTravelerData.value.id, applicationMessage.value.trim())
+    applicationMessage.value = ''
+    // 重新加载报名信息
+    await loadApplications()
+    alert('報名成功！')
+  } catch (err) {
+    applicationError.value = err.response?.data?.message || '提交失敗，請稍後再試'
+  } finally {
+    isSubmittingApplication.value = false
+  }
+}
+
 const submitComment = async () => {
   if (!newComment.value.trim()) return
+  if (isExpired.value) {
+    return // 已过期的文章不能留言
+  }
   if (!userStore.isLoggedIn || !currentUserUid.value) {
     alert('請先登入後才能留言')
     return
@@ -302,6 +432,19 @@ onMounted(async () => {
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
           >留言區</span
+        >
+      </button>
+
+      <button
+        v-if="localTravelerData.status === '招募中' && !isExpired"
+        class="absolute right-full top-56 z-0 bg-blue-500 text-white py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-blue-600 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-blue-600/20"
+        title="跳轉至報名區"
+        @click="jumpToApplications"
+      >
+        <UserPlusIcon class="w-5 h-5 fill-current" />
+        <span
+          class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
+          >報名</span
         >
       </button>
 
@@ -481,10 +624,31 @@ onMounted(async () => {
                 />
               </button>
               <button
-                v-if="localTravelerData.status === '招募中'"
-                class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md"
+                v-if="isAuthor"
+                class="flex items-center space-x-1 transition group text-secondary-400 hover:text-blue-600"
+                @click="handleViewApplications"
+                title="查看報名清單"
               >
-                聯繫作者
+                <UserPlusIcon
+                  class="w-5 h-5 transition-transform group-active:scale-125"
+                />
+              </button>
+              <button
+                v-else-if="localTravelerData.status === '招募中' && !isExpired"
+                class="flex items-center space-x-1 transition group text-secondary-400 hover:text-blue-600"
+                @click="handleApply"
+                title="報名"
+              >
+                <UserPlusIcon
+                  class="w-5 h-5 transition-transform group-active:scale-125"
+                />
+              </button>
+              <button
+                v-if="localTravelerData.status === '招募中' && !isExpired && !isAuthor"
+                class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-700 transition shadow-md relative z-30"
+                @click="handleApply"
+              >
+                私訊報名
               </button>
               <div v-else class="ml-auto text-secondary-400 font-bold">
                 {{ localTravelerData.status }}
@@ -516,6 +680,18 @@ onMounted(async () => {
                   <MessageCircleIcon class="w-5 h-5 inline mr-2" /> 留言討論 ({{
                     totalCommentCount
                   }})
+                </button>
+                <button
+                  v-if="localTravelerData.status === '招募中' && !isExpired"
+                  :class="[
+                    'px-6 py-3 font-bold transition relative',
+                    activeTab === 'applications'
+                      ? 'text-primary-600 border-b-4 border-primary-600'
+                      : 'text-secondary-400 hover:text-secondary-600',
+                  ]"
+                  @click="jumpToApplications"
+                >
+                  <UserPlusIcon class="w-5 h-5 inline mr-2" /> {{ isAuthor ? '目前報名的人' : '報名' }}
                 </button>
               </div>
             </div>
@@ -606,6 +782,74 @@ onMounted(async () => {
               </div>
             </div>
 
+            <div v-if="activeTab === 'applications'">
+              <!-- 作者视角：显示所有报名清单 -->
+              <div v-if="isAuthor">
+                <div v-if="isLoadingApplications" class="text-center py-10 text-gray-500">載入中...</div>
+                <div v-else-if="applications.length === 0" class="text-center py-10 text-gray-500">
+                  目前還沒有報名
+                </div>
+                <div v-else class="space-y-4">
+                  <div
+                    v-for="app in applications"
+                    :key="app.id"
+                    class="border-2 border-gray-200 rounded-lg p-4 hover:border-primary-300 transition"
+                  >
+                    <div class="flex items-start justify-between mb-3">
+                      <div class="flex items-center space-x-3">
+                        <img
+                          :src="app.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.author_uid}`"
+                          class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                        />
+                        <div>
+                          <p class="font-bold text-gray-800">{{ app.author_name || '匿名用戶' }}</p>
+                          <p class="text-xs text-gray-400">{{ formatTime(app.created_at) }}</p>
+                        </div>
+                      </div>
+                      <div
+                        v-if="app.status === 'pending'"
+                        class="flex items-center space-x-2"
+                      >
+                        <button
+                          :disabled="processingIds.has(app.id)"
+                          class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                          @click="handleAcceptApplication(app)"
+                          title="接受"
+                        >
+                          <CheckIcon class="w-4 h-4" />
+                        </button>
+                        <button
+                          :disabled="processingIds.has(app.id)"
+                          class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                          @click="handleRejectApplication(app)"
+                          title="拒絕"
+                        >
+                          <XCloseIcon class="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div
+                        v-else-if="app.status === 'accepted'"
+                        class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-bold"
+                      >
+                        已接受
+                      </div>
+                      <div
+                        v-else-if="app.status === 'rejected'"
+                        class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold"
+                      >
+                        已拒絕
+                      </div>
+                    </div>
+                    <p class="text-gray-700 whitespace-pre-wrap">{{ app.message }}</p>
+                  </div>
+                </div>
+              </div>
+              <!-- 非作者视角：不显示任何内容，只使用"私訊報名"按钮 -->
+              <div v-else class="text-center py-10 text-gray-400">
+                <p class="mb-4">請使用上方的「私訊報名」按鈕進行報名</p>
+              </div>
+            </div>
+
             <div v-if="activeTab === 'comments'" ref="commentsSectionRef">
               <div v-if="normalizedComments.length" class="space-y-4">
                 <div
@@ -671,7 +915,11 @@ onMounted(async () => {
       </div>
 
       <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-secondary-200 bg-white">
-        <div v-if="userStore.isLoggedIn && currentUserUid" class="flex space-x-3">
+        <div v-if="isExpired" class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+          <p class="text-gray-600 font-bold mb-1">此招募已結束</p>
+          <p class="text-gray-500 text-sm">日期已過期，無法再留言</p>
+        </div>
+        <div v-else-if="userStore.isLoggedIn && currentUserUid" class="flex space-x-3">
           <input
             ref="commentInputRef"
             v-model="newComment"

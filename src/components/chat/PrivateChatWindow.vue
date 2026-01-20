@@ -17,6 +17,7 @@ const props = defineProps({
 const userStore = useUserStore()
 const activeTab = ref('chatrooms') // 'chatrooms' 或 'friends'
 const activeChatRoom = ref(null) // 當前打開的聊天室 { type, uid, name, avatar, messages, ... }
+const avatarErrors = ref({}) // 記錄哪些頭像加載失敗
 
 // 聊天室列表（動態創建的聊天室）
 const chatRoomsList = ref([])
@@ -537,6 +538,23 @@ watch(chatRoomsList, () => {
         >
           <ArrowLeftIcon class="w-5 h-5" />
         </button>
+        <div
+          v-if="activeChatRoom && activeChatRoom.avatar && !avatarErrors[`chat-${activeChatRoom.uid}`]"
+          class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex-shrink-0 overflow-hidden"
+        >
+          <img
+            :src="activeChatRoom.avatar"
+            :alt="activeChatRoom.name"
+            class="w-full h-full object-cover"
+            @error="avatarErrors[`chat-${activeChatRoom.uid}`] = true"
+          />
+        </div>
+        <div
+          v-else-if="activeChatRoom"
+          class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center flex-shrink-0"
+        >
+          <UserIcon class="w-5 h-5 text-white" />
+        </div>
         <div>
           <h3 class="font-bold text-lg">
             {{ activeChatRoom ? activeChatRoom.name : '私人聊天' }}
@@ -569,9 +587,19 @@ watch(chatRoomsList, () => {
         >
           <div
             v-if="msg.type !== 'user'"
-            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700"
+            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700 overflow-hidden"
           >
-            <UserIcon class="w-5 h-5 text-white" />
+            <img
+              v-if="activeChatRoom && activeChatRoom.avatar && !avatarErrors[`msg-${activeChatRoom.uid}`]"
+              :src="activeChatRoom.avatar"
+              :alt="activeChatRoom.name"
+              class="w-full h-full object-cover"
+              @error="avatarErrors[`msg-${activeChatRoom.uid}`] = true"
+            />
+            <UserIcon
+              v-else
+              class="w-5 h-5 text-white"
+            />
           </div>
 
           <div
@@ -587,9 +615,19 @@ watch(chatRoomsList, () => {
 
           <div
             v-if="msg.type === 'user'"
-            class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0 border-2 border-gray-400"
+            class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0 border-2 border-gray-400 overflow-hidden"
           >
-            <UserIcon class="w-5 h-5 text-gray-600" />
+            <img
+              v-if="userStore.currentUser && userStore.currentUser.avatar && !avatarErrors['current-user']"
+              :src="userStore.currentUser.avatar"
+              :alt="userStore.currentUser.name || userStore.currentUser.nickname"
+              class="w-full h-full object-cover"
+              @error="avatarErrors['current-user'] = true"
+            />
+            <UserIcon
+              v-else
+              class="w-5 h-5 text-gray-600"
+            />
           </div>
         </div>
 
@@ -673,17 +711,18 @@ watch(chatRoomsList, () => {
               : 'border-transparent hover:border-primary-200'"
             @click="handleChatRoomClick(room)"
           >
-            <div
-              v-if="room.avatar"
-              class="w-12 h-12 rounded-full bg-gray-200 object-cover border-2 border-primary-200 flex-shrink-0 overflow-hidden"
-            >
-              <img :src="room.avatar" :alt="room.name" class="w-full h-full object-cover" />
-            </div>
-            <div
-              v-else
-              class="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700"
-            >
-              <MessageCircleIcon class="w-6 h-6 text-white" />
+            <div class="w-12 h-12 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+              <img
+                v-if="room.avatar && !avatarErrors[room.id]"
+                :src="room.avatar"
+                :alt="room.name"
+                class="w-full h-full object-cover"
+                @error="avatarErrors[room.id] = true"
+              />
+              <MessageCircleIcon
+                v-if="!room.avatar || !room.avatar.trim() || avatarErrors[room.id]"
+                class="w-6 h-6 text-primary-600"
+              />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between mb-1">
@@ -724,12 +763,19 @@ watch(chatRoomsList, () => {
             @click="handleFriendClick(friend)"
           >
             <div class="flex items-center gap-3 flex-1 min-w-0">
-              <img
-                :src="friend.avatar || ''"
-                class="w-12 h-12 rounded-full bg-gray-200 object-cover border-2 border-primary-200 flex-shrink-0"
-                alt="Avatar"
-                @error="$event.target.src = ''"
-              />
+              <div class="w-12 h-12 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <img
+                  v-if="friend.avatar && friend.avatar.trim() && !avatarErrors[friend.id || friend.uid]"
+                  :src="friend.avatar"
+                  :alt="friend.name || friend.nickname"
+                  class="w-full h-full object-cover"
+                  @error="avatarErrors[friend.id || friend.uid] = true"
+                />
+                <UserIcon
+                  v-if="!friend.avatar || !friend.avatar.trim() || avatarErrors[friend.id || friend.uid]"
+                  class="w-6 h-6 text-primary-600"
+                />
+              </div>
               <div class="flex-1 min-w-0">
                 <div class="font-bold text-gray-800 text-sm truncate">
                   {{ friend.name || friend.nickname || '未知用戶' }}

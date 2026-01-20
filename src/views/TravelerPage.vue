@@ -6,8 +6,11 @@ import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
+import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
 import { getTravelers } from '@/api/travelers'
 import { useMyItineraryStore } from '@/stores/myItinerary'
+import { auth } from '@/firebase/config'
 
 const myItineraryStore = useMyItineraryStore()
 const route = useRoute()
@@ -16,6 +19,8 @@ const { drafts } = storeToRefs(myItineraryStore)
 
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
+const isApplyModalOpen = ref(false)
+const isApplicationsModalOpen = ref(false)
 const selectedTraveler = ref(null)
 const selectedDraft = ref(null) // 用於存儲要打開的草稿
 const shouldScrollToComments = ref(false)
@@ -75,7 +80,19 @@ const loadTravelers = async (isLoadMore = false) => {
     const response = await getTravelers(params)
 
     if (response.success) {
-      const newData = response.data || []
+      let newData = response.data || []
+
+      // 如果不是通过author_uid筛选（即不是个人档案页面），过滤掉过期的文章
+      if (!params.author_uid) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        newData = newData.filter((traveler) => {
+          if (!traveler.end_date) return true // 如果没有结束日期，保留
+          const endDate = new Date(traveler.end_date)
+          endDate.setHours(0, 0, 0, 0)
+          return endDate >= today // 只保留未过期的文章
+        })
+      }
 
       // 判斷是否還有下一頁
       if (newData.length < 20) {
@@ -131,6 +148,50 @@ const handleCategoryChange = (cat) => {
 // 資料更新回調
 const handleTravelerUpdated = () => {
   // 更新單筆資料或重新載入，這裡簡單處理重新載入
+  loadTravelers(false)
+}
+
+const handleCardEdit = (traveler) => {
+  // 将traveler数据转换为draftData格式
+  selectedDraft.value = {
+    type: 'traveler',
+    data: {
+      category: traveler.category || '',
+      title: traveler.title || '',
+      content: traveler.content || '',
+      location: traveler.location || '',
+      start_date: traveler.start_date || '',
+      end_date: traveler.end_date || '',
+      max_people: traveler.max_people || traveler.people?.split('/')[1] || 2,
+      tags: traveler.tags || [],
+      banner_image: traveler.image || '',
+      itinerary: traveler.itinerary || { days: [] },
+      packingList: traveler.packingList || [],
+    }
+  }
+  isPostingModalOpen.value = true
+}
+
+const handleCardDelete = (traveler) => {
+  // 删除已经在卡片组件中处理，这里只需要刷新列表
+  loadTravelers(false)
+}
+
+const handleOpenApply = (traveler) => {
+  selectedTraveler.value = traveler
+  isApplyModalOpen.value = true
+}
+
+const handleOpenApplications = (traveler) => {
+  selectedTraveler.value = traveler
+  isApplicationsModalOpen.value = true
+}
+
+const handleApplySuccess = () => {
+  loadTravelers(false)
+}
+
+const handleApplicationUpdated = () => {
   loadTravelers(false)
 }
 
@@ -275,6 +336,10 @@ watch(() => route.query.openDraft, (newDraftId) => {
             class="h-full w-full"
             :traveler="traveler"
             @click="openTravelerDetail(traveler, false)"
+            @edit="handleCardEdit"
+            @delete="handleCardDelete"
+            @open-apply="handleOpenApply"
+            @open-applications="handleOpenApplications"
           />
         </div>
       </div>
@@ -316,5 +381,21 @@ watch(() => route.query.openDraft, (newDraftId) => {
     :scroll-to-comments="shouldScrollToComments"
     @close="closeTravelerDetail"
     @traveler-updated="handleTravelerUpdated"
+    @open-apply="handleOpenApply"
+    @open-applications="handleOpenApplications"
+  />
+
+  <TravelerApplyModal
+    v-if="isApplyModalOpen"
+    :traveler="selectedTraveler"
+    @close="isApplyModalOpen = false"
+    @success="handleApplySuccess"
+  />
+
+  <TravelerApplicationsModal
+    v-if="isApplicationsModalOpen"
+    :traveler="selectedTraveler"
+    @close="isApplicationsModalOpen = false"
+    @application-updated="handleApplicationUpdated"
   />
 </template>

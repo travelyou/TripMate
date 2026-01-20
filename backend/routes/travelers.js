@@ -25,7 +25,7 @@ const checkBannerPositionYAvailable = async () => {
 router.get('/', async (req, res) => {
   try {
     console.log('收到獲取旅伴列表請求')
-    const { status, location, category, limit = 20, offset = 0 } = req.query
+    const { status, location, category, author_uid, limit = 20, offset = 0 } = req.query
 
     // ★ 修改：加上別名 t
     let query = `
@@ -58,6 +58,12 @@ router.get('/', async (req, res) => {
 
     const params = []
     let paramIndex = 1
+
+    if (author_uid) {
+      query += ` AND t.author_uid = $${paramIndex}`
+      params.push(author_uid)
+      paramIndex++
+    }
 
     if (status) {
       query += ` AND t.status = $${paramIndex}`
@@ -137,6 +143,8 @@ router.get('/', async (req, res) => {
         status: row.status,
         tags: row.tags,
         date: dateStr,
+        start_date: row.start_date,
+        end_date: row.end_date,
         created_at: timeStr,
         people: `${row.current_people || 0}/${row.max_people || 2}`,
         image: row.banner_image,
@@ -205,6 +213,304 @@ router.post('/:id/view', async (req, res) => {
   }
 })
 
+// 报名相关路由（必须在 /:id 之前，避免路由冲突）
+// 确保报名表存在
+const ensureApplicationsTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS travelers.traveler_applications (
+      id SERIAL PRIMARY KEY,
+      traveler_id INTEGER NOT NULL REFERENCES travelers.travelers(id) ON DELETE CASCADE,
+      author_uid VARCHAR(255) NOT NULL,
+      author_name VARCHAR(255),
+      author_avatar TEXT,
+      message TEXT NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_traveler_applications_traveler_id 
+     ON travelers.traveler_applications(traveler_id)`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_traveler_applications_author_uid 
+     ON travelers.traveler_applications(author_uid)`,
+  )
+}
+
+// 确保群组聊天室表存在
+const ensureGroupChatRoomsTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS public.group_chat_rooms (
+      id SERIAL PRIMARY KEY,
+      traveler_id INTEGER REFERENCES travelers.travelers(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      created_by VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS public.group_chat_members (
+      id SERIAL PRIMARY KEY,
+      room_id INTEGER NOT NULL REFERENCES public.group_chat_rooms(id) ON DELETE CASCADE,
+      user_uid VARCHAR(255) NOT NULL,
+      joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(room_id, user_uid)
+    )`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_group_chat_members_room_id 
+     ON public.group_chat_members(room_id)`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_group_chat_members_user_uid 
+     ON public.group_chat_members(user_uid)`,
+  )
+}
+
+// 提交报名
+router.post('/:id/applications', async (req, res) => {
+  try {
+    await ensureApplicationsTable()
+    
+    const { id } = req.params
+    const { message, author_uid, author_name, author_avatar } = req.body
+
+    if (!message || !author_uid) {
+      return res.status(400).json({ success: false, message: '缺少必填欄位' })
+    }
+
+    if (message.length > 200) {
+      return res.status(400).json({ success: false, message: '訊息長度不能超過200字' })
+    }
+
+    // 检查是否已经报名过
+    const existingApp = await pool.query(
+      `SELECT id FROM travelers.traveler_applications 
+       WHERE traveler_id = $1 AND author_uid = $2 AND status = 'pending'`,
+      [id, author_uid]
+    )
+
+    if (existingApp.rows.length > 0) {
+      return res.status(400).json({ success: false, message: '您已經報名過了' })
+    }
+
+    const result = await pool.query(
+      `INSERT INTO travelers.traveler_applications (traveler_id, author_uid, author_name, author_avatar, message, status)
+       VALUES ($1, $2, $3, $4, $5, 'pending')
+       RETURNING *`,
+      [id, author_uid, author_name || '匿名用戶', author_avatar, message]
+    )
+
+    res.json({ success: true, data: result.rows[0] })
+  } catch (error) {
+    console.error('提交報名失敗:', error)
+    res.status(500).json({ success: false, message: '提交報名失敗', error: error.message })
+  }
+})
+
+// 获取报名列表
+router.get('/:id/applications', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { user_uid } = req.query
+
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+
+    // 验证贴文是否存在
+    const travelerResult = await pool.query(
+      `SELECT author_uid FROM travelers.travelers WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    )
+
+    if (travelerResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到此貼文' })
+    }
+
+    const authorUid = travelerResult.rows[0].author_uid
+    
+    // 如果是作者，返回所有报名列表
+    if (user_uid === authorUid) {
+      const result = await pool.query(
+        `SELECT id, author_uid, author_name, author_avatar, message, status, created_at
+         FROM travelers.traveler_applications
+         WHERE traveler_id = $1
+         ORDER BY created_at DESC`,
+        [id]
+      )
+      return res.json({ success: true, data: result.rows })
+    } else {
+      // 如果不是作者，只返回自己的报名信息
+      const result = await pool.query(
+        `SELECT id, author_uid, author_name, author_avatar, message, status, created_at
+         FROM travelers.traveler_applications
+         WHERE traveler_id = $1 AND author_uid = $2
+         ORDER BY created_at DESC`,
+        [id, user_uid]
+      )
+      return res.json({ success: true, data: result.rows })
+    }
+  } catch (error) {
+    console.error('獲取報名列表失敗:', error)
+    res.status(500).json({ success: false, message: '獲取報名列表失敗', error: error.message })
+  }
+})
+
+// 接受报名
+router.post('/:id/applications/:applicationId/accept', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await ensureGroupChatRoomsTable()
+
+    const { id, applicationId } = req.params
+    const { user_uid } = req.body
+
+    // 验证是否为作者
+    const travelerResult = await client.query(
+      `SELECT author_uid, title FROM travelers.travelers WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    )
+
+    if (travelerResult.rows.length === 0) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ success: false, message: '找不到此貼文' })
+    }
+
+    const traveler = travelerResult.rows[0]
+    if (user_uid !== traveler.author_uid) {
+      await client.query('ROLLBACK')
+      return res.status(403).json({ success: false, message: '只有作者可以接受報名' })
+    }
+
+    // 更新报名状态
+    const updateResult = await client.query(
+      `UPDATE travelers.traveler_applications 
+       SET status = 'accepted', updated_at = NOW()
+       WHERE id = $1 AND traveler_id = $2 AND status = 'pending'
+       RETURNING *`,
+      [applicationId, id]
+    )
+
+    if (updateResult.rows.length === 0) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ success: false, message: '找不到此報名或已被處理' })
+    }
+
+    const application = updateResult.rows[0]
+
+    // 检查是否已存在群组聊天室
+    let roomResult = await client.query(
+      `SELECT id FROM public.group_chat_rooms WHERE traveler_id = $1`,
+      [id]
+    )
+
+    let roomId
+    if (roomResult.rows.length === 0) {
+      // 创建新的群组聊天室
+      const newRoomResult = await client.query(
+        `INSERT INTO public.group_chat_rooms (traveler_id, name, created_by)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [id, traveler.title || '旅行群組', user_uid]
+      )
+      roomId = newRoomResult.rows[0].id
+
+      // 添加作者为群组成员
+      await client.query(
+        `INSERT INTO public.group_chat_members (room_id, user_uid)
+         VALUES ($1, $2)
+         ON CONFLICT (room_id, user_uid) DO NOTHING`,
+        [roomId, user_uid]
+      )
+    } else {
+      roomId = roomResult.rows[0].id
+    }
+
+    // 添加被接受的报名者为群组成员
+    await client.query(
+      `INSERT INTO public.group_chat_members (room_id, user_uid)
+       VALUES ($1, $2)
+       ON CONFLICT (room_id, user_uid) DO NOTHING`,
+      [roomId, application.author_uid]
+    )
+
+    // 获取所有已接受的报名者，确保他们都在群组中
+    const acceptedApps = await client.query(
+      `SELECT author_uid FROM travelers.traveler_applications
+       WHERE traveler_id = $1 AND status = 'accepted'`,
+      [id]
+    )
+
+    for (const app of acceptedApps.rows) {
+      await client.query(
+        `INSERT INTO public.group_chat_members (room_id, user_uid)
+         VALUES ($1, $2)
+         ON CONFLICT (room_id, user_uid) DO NOTHING`,
+        [roomId, app.author_uid]
+      )
+    }
+
+    await client.query('COMMIT')
+
+    res.json({
+      success: true,
+      data: application,
+      room_id: roomId,
+      message: '已接受報名，群組聊天室已創建',
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('接受報名失敗:', error)
+    res.status(500).json({ success: false, message: '接受報名失敗', error: error.message })
+  } finally {
+    client.release()
+  }
+})
+
+// 拒绝报名
+router.post('/:id/applications/:applicationId/reject', async (req, res) => {
+  try {
+    const { id, applicationId } = req.params
+    const { user_uid } = req.body
+
+    // 验证是否为作者
+    const travelerResult = await pool.query(
+      `SELECT author_uid FROM travelers.travelers WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    )
+
+    if (travelerResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到此貼文' })
+    }
+
+    if (user_uid !== travelerResult.rows[0].author_uid) {
+      return res.status(403).json({ success: false, message: '只有作者可以拒絕報名' })
+    }
+
+    // 更新报名状态
+    const updateResult = await pool.query(
+      `UPDATE travelers.traveler_applications 
+       SET status = 'rejected', updated_at = NOW()
+       WHERE id = $1 AND traveler_id = $2 AND status = 'pending'
+       RETURNING *`,
+      [applicationId, id]
+    )
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到此報名或已被處理' })
+    }
+
+    res.json({ success: true, data: updateResult.rows[0] })
+  } catch (error) {
+    console.error('拒絕報名失敗:', error)
+    res.status(500).json({ success: false, message: '拒絕報名失敗', error: error.message })
+  }
+})
+
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -233,6 +539,8 @@ router.get('/:id', async (req, res) => {
         t.category,
         t.status,
         t.tags,
+        t.start_date,
+        t.end_date,
         CASE
           WHEN t.start_date = t.end_date THEN TO_CHAR(t.start_date, 'YYYY/MM/DD')
           ELSE TO_CHAR(t.start_date, 'YYYY/MM/DD') || ' - ' || TO_CHAR(t.end_date, 'YYYY/MM/DD')
@@ -517,6 +825,103 @@ router.post('/', async (req, res) => {
   }
 })
 
+// 报名相关路由（必须在 /:id 之前，避免路由冲突）
+// 确保报名表存在
+const ensureApplicationsTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS travelers.traveler_applications (
+      id SERIAL PRIMARY KEY,
+      traveler_id INTEGER NOT NULL REFERENCES travelers.travelers(id) ON DELETE CASCADE,
+      author_uid VARCHAR(255) NOT NULL,
+      author_name VARCHAR(255),
+      author_avatar TEXT,
+      message TEXT NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_traveler_applications_traveler_id 
+     ON travelers.traveler_applications(traveler_id)`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_traveler_applications_author_uid 
+     ON travelers.traveler_applications(author_uid)`,
+  )
+}
+
+// 确保群组聊天室表存在
+const ensureGroupChatRoomsTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS public.group_chat_rooms (
+      id SERIAL PRIMARY KEY,
+      traveler_id INTEGER REFERENCES travelers.travelers(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      created_by VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS public.group_chat_members (
+      id SERIAL PRIMARY KEY,
+      room_id INTEGER NOT NULL REFERENCES public.group_chat_rooms(id) ON DELETE CASCADE,
+      user_uid VARCHAR(255) NOT NULL,
+      joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(room_id, user_uid)
+    )`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_group_chat_members_room_id 
+     ON public.group_chat_members(room_id)`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_group_chat_members_user_uid 
+     ON public.group_chat_members(user_uid)`,
+  )
+}
+
+// 提交报名
+router.post('/:id/applications', async (req, res) => {
+  try {
+    await ensureApplicationsTable()
+    
+    const { id } = req.params
+    const { message, author_uid, author_name, author_avatar } = req.body
+
+    if (!message || !author_uid) {
+      return res.status(400).json({ success: false, message: '缺少必填欄位' })
+    }
+
+    if (message.length > 200) {
+      return res.status(400).json({ success: false, message: '訊息長度不能超過200字' })
+    }
+
+    // 检查是否已经报名过
+    const existingApp = await pool.query(
+      `SELECT id FROM travelers.traveler_applications 
+       WHERE traveler_id = $1 AND author_uid = $2 AND status = 'pending'`,
+      [id, author_uid]
+    )
+
+    if (existingApp.rows.length > 0) {
+      return res.status(400).json({ success: false, message: '您已經報名過了' })
+    }
+
+    const result = await pool.query(
+      `INSERT INTO travelers.traveler_applications (traveler_id, author_uid, author_name, author_avatar, message, status)
+       VALUES ($1, $2, $3, $4, $5, 'pending')
+       RETURNING *`,
+      [id, author_uid, author_name || '匿名用戶', author_avatar, message]
+    )
+
+    res.json({ success: true, data: result.rows[0] })
+  } catch (error) {
+    console.error('提交報名失敗:', error)
+    res.status(500).json({ success: false, message: '提交報名失敗', error: error.message })
+  }
+})
+
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -619,6 +1024,7 @@ router.put('/:id', async (req, res) => {
   }
 })
 
+// DELETE /api/travelers/:id - 刪除貼文（必須放在最後，避免與其他路由衝突）
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params

@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
-import { Heart, MessageCircle, Repeat2, Bookmark } from 'lucide-vue-next'
+import { Heart, MessageCircle, Repeat2, Bookmark, MoreVertical, Edit, Trash2, Share2, Flag } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 import { useUserStore } from '@/stores/user'
 import { toggleLike, getLikesInfo } from '@/api/likes'
+import { deletePost } from '@/api/discussions'
 import { auth } from '@/firebase/config'
 
 const router = useRouter()
@@ -28,12 +29,17 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['click', 'like', 'comment', 'share'])
+const emit = defineEmits(['click', 'like', 'comment', 'share', 'edit', 'delete'])
 const userStore = useUserStore()
 
 const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(props.post.likes || 0)
+const showMenu = ref(false)
+const isReported = ref(false)
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('info') // 'info' for share, 'success' for report
 
 const itemData = computed(() => ({
   id: props.post.id,
@@ -114,12 +120,93 @@ onAuthStateChanged(auth, async (user) => {
   }
 })
 
+const isAuthor = computed(() => {
+  const authorUid = props.post.author_uid || props.post.authorUid
+  return currentUserUid.value && authorUid && currentUserUid.value === authorUid
+})
+
+const toggleMenu = (e) => {
+  e.stopPropagation()
+  showMenu.value = !showMenu.value
+}
+
+const closeMenu = () => {
+  showMenu.value = false
+}
+
+const showToastNotification = (message, type = 'info') => {
+  toastMessage.value = message
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 5000)
+}
+
+const handleEdit = (e) => {
+  e.stopPropagation()
+  closeMenu()
+  emit('edit', props.post)
+}
+
+const handleDelete = async (e) => {
+  e.stopPropagation()
+  closeMenu()
+  
+  if (!confirm('確定要刪除此貼文嗎？')) {
+    return
+  }
+  
+  try {
+    await deletePost(props.post.id)
+    emit('delete', props.post)
+    // 刷新页面或更新列表
+    window.location.reload()
+  } catch (error) {
+    console.error('刪除失敗:', error)
+    alert('刪除失敗，請稍後再試')
+  }
+}
+
+const handleShare = async (e) => {
+  e.stopPropagation()
+  closeMenu()
+  try {
+    const url = `${window.location.origin}/discussion#post-${props.post.id}`
+    await navigator.clipboard.writeText(url)
+    showToastNotification('已複製貼文網址', 'info')
+  } catch (error) {
+    console.error('複製失敗:', error)
+    alert('複製失敗，請稍後再試')
+  }
+}
+
+const handleReport = (e) => {
+  e.stopPropagation()
+  closeMenu()
+  isReported.value = true
+  showToastNotification('已經向管理員提出檢舉 謝謝', 'success')
+  // 这里可以添加实际的检举API调用
+}
+
+// 点击外部关闭菜单
+const handleClickOutside = (event) => {
+  if (showMenu.value && !event.target.closest('.post-menu-container')) {
+    closeMenu()
+  }
+}
+
 onMounted(async () => {
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
     currentUserUid.value = firebaseUser.uid
     await loadLikesInfo()
   }
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -128,6 +215,54 @@ onMounted(async () => {
     class="p-5 bg-white transition relative cursor-pointer shadow-md hover:shadow-lg rounded-xl border-2 border-secondary-200"
     @click="$emit('click', post)"
   >
+    <!-- 三点菜单按钮 -->
+    <div class="absolute top-4 right-4 post-menu-container z-30">
+      <button
+        class="p-2 rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-gray-700"
+        @click="toggleMenu"
+      >
+        <MoreVertical class="w-5 h-5" />
+      </button>
+      
+      <!-- 菜单下拉 -->
+      <div
+        v-if="showMenu"
+        class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
+      >
+        <button
+          v-if="isAuthor"
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+          @click="handleEdit"
+        >
+          <Edit class="w-4 h-4" />
+          <span>編輯</span>
+        </button>
+        <button
+          v-if="isAuthor"
+          class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition"
+          @click="handleDelete"
+        >
+          <Trash2 class="w-4 h-4" />
+          <span>刪除</span>
+        </button>
+        <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
+        <button
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+          @click="handleShare"
+        >
+          <Share2 class="w-4 h-4" />
+          <span>分享</span>
+        </button>
+        <button
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+          @click="handleReport"
+        >
+          <Flag class="w-4 h-4" />
+          <span>檢舉</span>
+        </button>
+      </div>
+    </div>
+
     <div class="flex items-center space-x-3 mb-4">
       <img
         :src="post.avatar"
@@ -259,5 +394,27 @@ onMounted(async () => {
         <Repeat2 class="w-4 h-4" />
       </button>
     </div>
+
+    <!-- Toast 通知 -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-all duration-300 ease-out"
+        enter-from-class="opacity-0 translate-y-4"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition-all duration-300 ease-in"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 translate-y-4"
+      >
+        <div
+          v-if="showToast"
+          :class="[
+            'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
+            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+          ]"
+        >
+          <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
