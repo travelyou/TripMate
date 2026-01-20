@@ -402,7 +402,7 @@ const registerErrors = ref({
         <img
           :src="loginPageImage"
           alt="loginPage"
-          class="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl"
+          class="w-full max-w-60 md:max-w-md lg:max-w-lg xl:max-w-xl"
         />
       </div>
 
