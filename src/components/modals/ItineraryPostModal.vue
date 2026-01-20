@@ -44,6 +44,13 @@ import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
 
+const props = defineProps({
+  itineraryToEdit: {
+    type: Object,
+    default: null,
+  },
+})
+
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 
@@ -634,11 +641,11 @@ if (postData.value.itinerary.days.length === 0) {
               >
             </div>
             <div
-              class="border-2 rounded-xl overflow-hidden transition flex flex-col bg-white border-gray-200 focus-within:border-primary-500"
+              class="border-2 rounded-xl overflow-x-hidden transition flex flex-col bg-white border-gray-200 focus-within:border-primary-500"
             >
               <div
                 v-if="editor"
-                class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-20"
+                class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-30 shadow-sm"
               >
                 <button
                   @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
@@ -760,7 +767,7 @@ if (postData.value.itinerary.days.length === 0) {
                   @change="handleEditorImageSelect"
                 />
               </div>
-              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white" />
+              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white rounded-b-xl" />
             </div>
           </div>
 

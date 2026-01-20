@@ -4,9 +4,11 @@ import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useItineraryStore } from '@/stores/itinerary'
 import { usePersonalityStore } from '@/stores/personality'
+import { getTravelers } from '@/api/travelers'
 
 // Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -91,7 +93,9 @@ const tabs = computed(() => {
 })
 
 const isDetailModalOpen = ref(false)
+const isTravelerDetailModalOpen = ref(false)
 const selectedPost = ref(null)
+const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
@@ -100,32 +104,42 @@ const isAvatarCropOpen = ref(false)
 const avatarFileToCrop = ref(null)
 const avatarCropModalRef = ref(null)
 
+const hostedTravelers = ref([])
+const userPosts = ref([])
+
 const activeTabsData = computed(() => {
+  const targetUidValue = targetUid.value
+  
   return {
-    hostedTrips: (itineraryStore.myItineraries || []).map((trip) => ({
-      id: trip.id,
-      title: trip.title,
-      content: trip.description,
-      image: trip.image,
-      author: user.value?.name || '',
-      avatar: user.value?.avatar || '',
-      spiritAnimal: user.value?.spiritAnimal || '🦁 樂天派',
-      location: trip.location || '台灣',
-      date: trip.startDate,
-      status: trip.status || '招募中',
-      people: `${trip.participants}/${trip.maxParticipants}`,
-      comments: 0,
-      tags: ['行程', trip.status],
-      isAuthor: true,
-      commentsData: [],
-    })),
-    posts: (discussionsStore.discussions || []).filter((p) =>
-      user.value && (
-        p.author === user.value.name ||
-        p.author === user.value.nickname ||
-        p.author_uid === user.value.uid
-      )
-    ),
+    hostedTrips: hostedTravelers.value
+      // 再次确保只显示该用户自己创建的贴文
+      .filter(traveler => {
+        const travelerUid = traveler.author_uid || traveler.authorUid
+        return travelerUid === targetUidValue
+      })
+      .map((traveler) => ({
+        id: traveler.id,
+        title: traveler.title,
+        content: traveler.content,
+        image: traveler.image,
+        author: traveler.author,
+        avatar: traveler.avatar,
+        spiritAnimal: traveler.spiritAnimal,
+        location: traveler.location,
+        date: traveler.date,
+        status: traveler.status,
+        people: traveler.people,
+        comments: traveler.comments || 0,
+        tags: traveler.tags || [],
+        category: traveler.category,
+        author_uid: traveler.author_uid || traveler.authorUid,
+      })),
+    posts: userPosts.value
+      // 再次确保只显示该用户自己发布的贴文
+      .filter(post => {
+        const postUid = post.author_uid || post.authorUid
+        return postUid === targetUidValue
+      }),
     reviews: (user.value && user.value.reviews) || [],
   }
 })
@@ -334,10 +348,21 @@ const handleChatWithUser = () => {
   alert('聊天功能開發中，即將導向聊天頁面')
 }
 
-const openDetail = (post, focusComment = false) => {
-  selectedPost.value = post
-  shouldScrollToComments.value = focusComment
-  isDetailModalOpen.value = true
+const openDetail = (item, focusComment = false) => {
+  // 判断是 traveler 还是 discussion post
+  // 如果 item 来自 TabHostedTrips（有 author_uid 且在 hostedTrips 列表中），则打开 TravelerDetailModal
+  const isTraveler = item.type === 'traveler' || 
+    (item.author_uid && activeTabsData.value.hostedTrips.some(t => t.id === item.id))
+  
+  if (isTraveler) {
+    selectedTraveler.value = item
+    shouldScrollToComments.value = focusComment
+    isTravelerDetailModalOpen.value = true
+  } else {
+    selectedPost.value = item
+    shouldScrollToComments.value = focusComment
+    isDetailModalOpen.value = true
+  }
 }
 
 const handleSaveField = async ({ field, data }) => {
@@ -565,6 +590,95 @@ const closePersonalityResult = () => {
 }
 
 const loading = ref(false)
+const loadHostedTravelers = async (uid) => {
+  if (!uid) return
+  
+  try {
+    const response = await getTravelers({
+      author_uid: uid,
+      limit: 100,
+      offset: 0
+    })
+    
+    if (response.success && response.data) {
+      // 确保只显示该用户自己创建的贴文（双重验证）
+      hostedTravelers.value = response.data.filter(traveler => 
+        traveler.author_uid === uid || traveler.authorUid === uid
+      )
+    } else {
+      hostedTravelers.value = []
+    }
+  } catch (error) {
+    console.error('載入主揪的旅行失敗：', error)
+    hostedTravelers.value = []
+  }
+}
+
+const loadUserPosts = async (uid) => {
+  if (!uid) return
+  
+  try {
+    const { fetchPosts } = await import('@/api/discussions')
+    const data = await fetchPosts({
+      author_uid: uid,
+      page: 1,
+      limit: 100
+    })
+    
+    if (data && data.posts) {
+      // 确保只显示该用户自己发布的贴文（双重验证）
+      const filteredPosts = data.posts.filter(post => 
+        post.author_uid === uid
+      )
+      
+      // 使用 discussionsStore 的 transformPost 方法转换数据
+      const transformedPosts = filteredPosts.map(post => {
+        const formatTime = (timestamp) => {
+          if (!timestamp) return '剛剛'
+          const now = new Date()
+          const postTime = new Date(timestamp)
+          const diffMs = now - postTime
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+          const diffDays = Math.floor(diffHours / 24)
+          if (diffDays > 0) return `${diffDays}天前`
+          if (diffHours > 0) return `${diffHours}小時前`
+          const diffMins = Math.floor(diffMs / (1000 * 60))
+          if (diffMins > 0) return `${diffMins}分鐘前`
+          return '剛剛'
+        }
+        
+        return {
+          id: post.id,
+          author: post.author_name || post.author_uid || '匿名用戶',
+          author_uid: post.author_uid,
+          spiritAnimal: post.author_spirit_animal || '',
+          avatar: post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_uid}`,
+          time: formatTime(post.created_at),
+          title: post.title,
+          content: post.content,
+          image: post.banner || null,
+          banner: post.banner || null,
+          image_urls: post.image_urls || [],
+          likes: post.likes_count || 0,
+          comments: post.comments_count || 0,
+          tags: post.tags || [],
+          commentsData: [],
+          board: 'discussion',
+          category: post.category,
+          created_at: post.created_at,
+          updated_at: post.updated_at,
+        }
+      })
+      userPosts.value = transformedPosts
+    } else {
+      userPosts.value = []
+    }
+  } catch (error) {
+    console.error('載入用戶貼文失敗：', error)
+    userPosts.value = []
+  }
+}
+
 const loadProfileData = async () => {
   viewingUser.value = null
 
@@ -585,6 +699,12 @@ const loadProfileData = async () => {
   try {
     const { getProfile } = await import('@/api/profile')
     const profileData = await getProfile(uidToLoad)
+    
+    // 載入主揪的旅行（找旅伴貼文）
+    await loadHostedTravelers(uidToLoad)
+    
+    // 載入用戶的貼文
+    await loadUserPosts(uidToLoad)
 
     // 如果不是當前用戶，檢查好友請求狀態
     if (!isCurrentUser.value) {
@@ -657,6 +777,8 @@ const loadProfileData = async () => {
 watch(() => route.params.uid, (newUid, oldUid) => {
   if (newUid !== oldUid) {
     viewingUser.value = null
+    hostedTravelers.value = []
+    userPosts.value = []
     loadProfileData()
   }
 }, { immediate: false })
@@ -664,6 +786,8 @@ watch(() => route.params.uid, (newUid, oldUid) => {
 watch(() => targetUid.value, (newUid, oldUid) => {
   if (newUid !== oldUid && newUid) {
     viewingUser.value = null
+    hostedTravelers.value = []
+    userPosts.value = []
     loadProfileData()
   }
 }, { immediate: false })
@@ -784,6 +908,13 @@ onMounted(() => {
       :post="selectedPost"
       :scroll-to-comments="shouldScrollToComments"
       @close="isDetailModalOpen = false"
+    />
+
+    <TravelerDetailModal
+      v-if="isTravelerDetailModalOpen"
+      :traveler="selectedTraveler"
+      :scroll-to-comments="shouldScrollToComments"
+      @close="isTravelerDetailModalOpen = false"
     />
 
     <PersonalityResultModal

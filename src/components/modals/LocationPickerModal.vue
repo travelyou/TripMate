@@ -235,16 +235,39 @@ const initMap = async () => {
       errorHandled = true
 
       try {
+        console.log('[Google Maps] 步驟 1: 清除現有地圖和標記')
 
         // 清除現有地圖和標記
         if (marker) {
-          marker.map = null
+          try {
+            // 嘗試移除標記
+            if (marker.map) {
+              marker.map = null
+            }
+            if (marker.setMap && typeof marker.setMap === 'function') {
+              marker.setMap(null)
+            }
+          } catch (markerError) {
+            console.warn('[Google Maps] 清除標記時出錯:', markerError)
+          }
           marker = null
         }
+
         if (map) {
-          // 清理地圖
-          google.maps.event.clearInstanceListeners(map)
+          // 清理地圖事件監聽器（如果可用）
+          try {
+            if (google && google.maps && google.maps.event && typeof google.maps.event.clearInstanceListeners === 'function') {
+              google.maps.event.clearInstanceListeners(map)
+              console.log('[Google Maps] 已清除地圖事件監聽器')
+            } else {
+              console.warn('[Google Maps] clearInstanceListeners 不可用，跳過清理')
+            }
+          } catch (clearError) {
+            console.warn('[Google Maps] 清除地圖事件監聽器時出錯:', clearError)
+          }
         }
+
+        console.log('[Google Maps] 步驟 2: 重新創建地圖（不使用 Map ID）')
 
         // 重新創建地圖，不使用 mapId
         const fallbackConfig = {
@@ -257,20 +280,27 @@ const initMap = async () => {
         // 明確不使用 mapId
         delete fallbackConfig.mapId
 
+        console.log('[Google Maps] 步驟 3: 創建新地圖實例')
         map = new MapClass(mapContainer.value, fallbackConfig)
+        console.log('[Google Maps] 新地圖創建成功')
+
         currentMapId = null // 清除 mapId，強制使用舊版 Marker
         mapId = null // 同步更新外部 mapId
 
+        console.log('[Google Maps] 步驟 4: 重新初始化標記（使用舊版 API）')
         // 重新初始化標記（使用舊版 API）
         const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
         if (LegacyMarker) {
+          console.log('[Google Maps] 找到舊版 Marker API，開始創建標記')
           marker = new LegacyMarker({
             map: map,
             position: center,
             draggable: true,
             animation: google.maps.Animation?.DROP || null,
           })
+          console.log('[Google Maps] 舊版 Marker 創建成功')
 
+          console.log('[Google Maps] 步驟 5: 重新設置事件監聽')
           // 重新設置事件監聽
           marker.addListener('dragend', () => {
             const position = marker.getPosition?.()
@@ -286,13 +316,27 @@ const initMap = async () => {
             geocodePosition(e.latLng)
           })
 
+          console.log('[Google Maps] 步驟 6: 重新初始化搜尋框')
           // 重新初始化搜尋框
           initAutocomplete()
 
-          console.log('[Google Maps] 已成功回退到舊版 API（不使用 Map ID）')
+          console.log('[Google Maps] ✅ 已成功回退到舊版 API（不使用 Map ID）')
+          console.log('[Google Maps] 地圖現在應該可以正常使用了')
+        } else {
+          console.error('[Google Maps] ❌ 舊版 Marker 不可用，無法回退')
+          throw new Error('舊版 Marker API 不可用')
         }
       } catch (retryError) {
-        console.error('[Google Maps] 回退初始化失敗:', retryError)
+        console.error('[Google Maps] ❌ 回退初始化失敗:', retryError)
+        console.error('[Google Maps] 錯誤詳情:', {
+          message: retryError.message,
+          stack: retryError.stack?.substring(0, 300),
+          name: retryError.name
+        })
+        // 即使回退失敗，也嘗試繼續使用現有地圖
+        console.warn('[Google Maps] 將嘗試繼續使用現有地圖配置')
+        // 設置 isLoading 為 false，讓用戶知道載入已完成（即使有錯誤）
+        isLoading.value = false
       }
     }
 

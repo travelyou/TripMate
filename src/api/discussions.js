@@ -2,13 +2,18 @@ import { API_BASE_URL } from './config'
 
 // 獲取所有貼文
 export async function fetchPosts(params = {}) {
-  const { page = 1, limit: finalLimit = 10, category: finalCategory = null } = params
+  const { page = 1, limit: finalLimit = 10, category: finalCategory = null, author_uid } = params
 
   console.log('[API] fetchPosts 開始')
-  console.log('[API] 參數:', { page, limit: finalLimit, category: finalCategory })
+  console.log('[API] 參數:', { page, limit: finalLimit, category: finalCategory, author_uid })
 
   try {
     let url = `${API_BASE_URL}/discussions?page=${page}&limit=${finalLimit}`
+
+    // 檢查 author_uid 是否有效
+    if (author_uid) {
+      url += `&author_uid=${encodeURIComponent(author_uid)}`
+    }
 
     // 檢查 category 是否有效
     if (finalCategory && finalCategory !== '全部') {

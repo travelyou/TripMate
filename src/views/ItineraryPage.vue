@@ -70,10 +70,23 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
+const itineraryToEdit = ref(null)
+
 const handlePostSuccess = async () => {
   // 發布成功後，重新抓取列表資料
   await itinerariesStore.fetchItineraries()
   isPostModalOpen.value = false
+  itineraryToEdit.value = null
+}
+
+const handleCardEdit = (itinerary) => {
+  itineraryToEdit.value = itinerary
+  isPostModalOpen.value = true
+}
+
+const handleCardDelete = (itinerary) => {
+  // 删除已经在卡片组件中处理，这里只需要刷新列表
+  itinerariesStore.fetchItineraries()
 }
 
 // 初始化載入資料
@@ -148,6 +161,8 @@ onMounted(() => {
           :itinerary="itinerary"
           @open-detail="openDetailModal"
           @open-share="openShareModal"
+          @edit="handleCardEdit"
+          @delete="handleCardDelete"
         />
       </div>
     </div>
@@ -162,7 +177,8 @@ onMounted(() => {
 
   <ItineraryPostModal
     v-if="isPostModalOpen"
-    @close="isPostModalOpen = false"
+    :itinerary-to-edit="itineraryToEdit"
+    @close="() => { isPostModalOpen = false; itineraryToEdit = null }"
     @success="handlePostSuccess"
   />
 

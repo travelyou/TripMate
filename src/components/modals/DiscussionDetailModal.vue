@@ -15,6 +15,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { formatTime } from '@/utils/time'
+import { fetchPostById } from '@/api/discussions'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -49,7 +50,11 @@ const handleAuthorClick = () => {
   }
 }
 const normalizedComments = computed(() => {
-  return localComments.value.length > 0 ? localComments.value : localPostData.value.comments || []
+  if (localComments.value.length > 0) return localComments.value
+  // 尝试从多个可能的字段获取留言
+  return localPostData.value.comments || 
+         localPostData.value.commentsData || 
+         []
 })
 
 const totalCommentCount = computed(() => {
@@ -97,6 +102,63 @@ const loadLikesInfo = async () => {
   }
 }
 
+// 加载完整的贴文详情和留言
+const loadFullPostDetails = async () => {
+  if (!props.post?.id) return
+  
+  try {
+    const postData = await fetchPostById(props.post.id)
+    
+    // 更新本地数据
+    localPostData.value = {
+      ...localPostData.value,
+      ...postData,
+      // 确保 commentsData 被正确处理
+      comments: postData.commentsData || postData.comments || [],
+      commentsData: postData.commentsData || postData.comments || [],
+    }
+    
+    // 格式化留言数据
+    if (localPostData.value.commentsData && Array.isArray(localPostData.value.commentsData)) {
+      localComments.value = localPostData.value.commentsData.map(comment => {
+        const formatTime = (timestamp) => {
+          if (!timestamp) return '剛剛'
+          const now = new Date()
+          const postTime = new Date(timestamp)
+          const diffMs = now - postTime
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+          const diffDays = Math.floor(diffHours / 24)
+          if (diffDays > 0) return `${diffDays}天前`
+          if (diffHours > 0) return `${diffHours}小時前`
+          const diffMins = Math.floor(diffMs / (1000 * 60))
+          if (diffMins > 0) return `${diffMins}分鐘前`
+          return '剛剛'
+        }
+        
+        return {
+          id: comment.id,
+          author: comment.author_nickname || comment.author_name || comment.author_uid || '匿名用戶',
+          author_uid: comment.author_uid,
+          avatar: comment.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+          content: comment.content,
+          time: comment.created_at || comment.timestamp,
+          likes: comment.likes || 0,
+          replies: comment.replies || [],
+        }
+      })
+    } else {
+      localComments.value = []
+    }
+    
+    // 更新点赞数
+    if (postData.likes_count !== undefined) {
+      likesCount.value = postData.likes_count
+    }
+  } catch (error) {
+    console.error('載入貼文詳情失敗：', error)
+  }
+}
+
 const handleLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -124,27 +186,18 @@ const submitComment = async () => {
     await createComment(props.post.id, {
       author_uid: currentUserUid.value,
       content,
+      post_type: 'discussion',
     })
 
-    localComments.value = [
-      {
-        id: Date.now(),
-        author: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
-        avatar:
-          userStore.currentUser?.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
-        content,
-        time: new Date().toISOString(),
-        likes: 0,
-        replies: [],
-      },
-      ...normalizedComments.value,
-    ]
+    // 重新加载完整的贴文详情以获取最新留言
+    await loadFullPostDetails()
+    
     newComment.value = ''
     await nextTick()
     commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  } catch {
-    // Error handling
+  } catch (error) {
+    console.error('提交留言失敗：', error)
+    alert('提交留言失敗，請稍後再試')
   }
 }
 
@@ -163,8 +216,42 @@ onAuthStateChanged(auth, async (user) => {
 })
 
 onMounted(async () => {
-  localComments.value = props.post.comments || []
-  likesCount.value = props.post.likes || 0
+  // 初始化本地数据
+  localComments.value = props.post.comments || props.post.commentsData || []
+  likesCount.value = props.post.likes || props.post.likes_count || 0
+  
+  // 如果 props.post 中没有完整的留言数据，主动加载
+  if (!props.post.commentsData && props.post.id) {
+    await loadFullPostDetails()
+  } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
+    // 格式化已有的留言数据
+    localComments.value = props.post.commentsData.map(comment => {
+      const formatTime = (timestamp) => {
+        if (!timestamp) return '剛剛'
+        const now = new Date()
+        const postTime = new Date(timestamp)
+        const diffMs = now - postTime
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+        const diffDays = Math.floor(diffHours / 24)
+        if (diffDays > 0) return `${diffDays}天前`
+        if (diffHours > 0) return `${diffHours}小時前`
+        const diffMins = Math.floor(diffMs / (1000 * 60))
+        if (diffMins > 0) return `${diffMins}分鐘前`
+        return '剛剛'
+      }
+      
+      return {
+        id: comment.id,
+        author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+        author_uid: comment.author_uid,
+        avatar: comment.author_avatar || comment.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+        content: comment.content,
+        time: comment.created_at || comment.timestamp || comment.time,
+        likes: comment.likes || 0,
+        replies: comment.replies || [],
+      }
+    })
+  }
 
   if (currentUserUid.value) {
     await loadLikesInfo()

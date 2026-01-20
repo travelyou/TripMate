@@ -9,15 +9,23 @@ router.get('/', async (req, res) => {
   console.log('🔵 [Backend GET /] ========== 開始 ==========')
 
   try {
-    const { page = 1, limit = 10, category } = req.query
+    const { page = 1, limit = 10, category, author_uid } = req.query
     const offset = (page - 1) * limit
 
     let whereClause = 'd.deleted_at IS NULL'
     const queryParams = [limit, offset]
+    let paramIndex = 3
+
+    if (author_uid) {
+      whereClause += ` AND d.author_uid = $${paramIndex}`
+      queryParams.push(author_uid)
+      paramIndex++
+    }
 
     if (category && category !== '全部') {
-      whereClause += ' AND d.category = $3'
+      whereClause += ` AND d.category = $${paramIndex}`
       queryParams.push(category)
+      paramIndex++
     }
 
     console.log('🔵 [Backend GET / Step 2] WHERE 子句:', whereClause)
@@ -68,9 +76,18 @@ router.get('/', async (req, res) => {
     // 查詢總數
     let countQuery = 'SELECT COUNT(*) FROM discussion.discussion WHERE deleted_at IS NULL'
     let countParams = []
+    let countParamIndex = 1
+    
+    if (author_uid) {
+      countQuery += ` AND author_uid = $${countParamIndex}`
+      countParams.push(author_uid)
+      countParamIndex++
+    }
+    
     if (category && category !== '全部') {
-      countQuery += ' AND category = $1'
+      countQuery += ` AND category = $${countParamIndex}`
       countParams.push(category)
+      countParamIndex++
     }
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
@@ -274,11 +291,17 @@ router.get('/:id', async (req, res) => {
     console.log('🔵 [Backend GET /:id] author_avatar:', discussion.author_avatar || 'NULL')
     console.log('🔵 [Backend GET /:id] author_uid:', discussion.author_uid)
 
-    // 獲取留言
+    // 獲取留言，JOIN users 表獲取最新用戶資訊
     const commentsResult = await pool.query(
-      `SELECT * FROM public.comments
-       WHERE post_id = $1 AND post_type = 'discussion' AND deleted_at IS NULL
-       ORDER BY created_at ASC`,
+      `SELECT 
+        c.*,
+        COALESCE(u.nickname, c.author_name) as author_nickname,
+        COALESCE(u.avatar, c.author_avatar) as author_avatar,
+        u.spirit_animal as author_spirit_animal
+      FROM public.comments c
+      LEFT JOIN users u ON c.author_uid = u.uid
+      WHERE c.post_id = $1 AND c.post_type = 'discussion' AND c.deleted_at IS NULL
+      ORDER BY c.created_at ASC`,
       [idNum],
     )
 

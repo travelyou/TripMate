@@ -5,6 +5,7 @@ import { API_BASE_URL } from './config'
 export const getTravelers = async (filters = {}) => {
   try {
     const params = new URLSearchParams()
+    if (filters.author_uid) params.append('author_uid', filters.author_uid)
     if (filters.status) params.append('status', filters.status)
     if (filters.location) params.append('location', filters.location)
     if (filters.category) params.append('category', filters.category)
@@ -72,6 +73,82 @@ export const deleteTraveler = async (id) => {
     return response.data
   } catch (error) {
     console.error('刪除旅伴貼文失敗：', error)
+    throw error
+  }
+}
+
+// 提交报名
+export const submitApplication = async (travelerId, message) => {
+  try {
+    const { auth } = await import('@/firebase/config')
+    const user = auth.currentUser
+    if (!user) throw new Error('請先登入')
+
+    const { useUserStore } = await import('@/stores/user')
+    const userStore = useUserStore()
+
+    const response = await axios.post(`${API_BASE_URL}/travelers/${travelerId}/applications`, {
+      message,
+      author_uid: user.uid,
+      author_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
+      author_avatar: userStore.currentUser?.avatar || null,
+    })
+    return response.data
+  } catch (error) {
+    console.error('提交報名失敗：', error)
+    throw error
+  }
+}
+
+// 获取报名列表（作者）
+export const getApplications = async (travelerId) => {
+  try {
+    const { auth } = await import('@/firebase/config')
+    const user = auth.currentUser
+    if (!user) throw new Error('請先登入')
+
+    const response = await axios.get(
+      `${API_BASE_URL}/travelers/${travelerId}/applications?user_uid=${user.uid}`,
+    )
+    return response.data
+  } catch (error) {
+    console.error('獲取報名列表失敗：', error)
+    throw error
+  }
+}
+
+// 接受报名
+export const acceptApplication = async (travelerId, applicationId) => {
+  try {
+    const { auth } = await import('@/firebase/config')
+    const user = auth.currentUser
+    if (!user) throw new Error('請先登入')
+
+    const response = await axios.post(
+      `${API_BASE_URL}/travelers/${travelerId}/applications/${applicationId}/accept`,
+      { user_uid: user.uid },
+    )
+    return response.data
+  } catch (error) {
+    console.error('接受報名失敗：', error)
+    throw error
+  }
+}
+
+// 拒绝报名
+export const rejectApplication = async (travelerId, applicationId) => {
+  try {
+    const { auth } = await import('@/firebase/config')
+    const user = auth.currentUser
+    if (!user) throw new Error('請先登入')
+
+    const response = await axios.post(
+      `${API_BASE_URL}/travelers/${travelerId}/applications/${applicationId}/reject`,
+      { user_uid: user.uid },
+    )
+    return response.data
+  } catch (error) {
+    console.error('拒絕報名失敗：', error)
     throw error
   }
 }
