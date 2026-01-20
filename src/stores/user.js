@@ -484,8 +484,5 @@ export const useUserStore = defineStore('user', () => {
     hiddenStamps,
     hideStamp,
     restoreStamp,
-    // Permissions
-    isVendor,
-    isAdmin,
   }
 })

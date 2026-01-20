@@ -250,7 +250,7 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  const fetchVendorReviews = async (id) => {
+  const fetchVendorReviews = async () => {
     // API 尚未完成，暫時置空
     vendorReviews.value = []
   }
