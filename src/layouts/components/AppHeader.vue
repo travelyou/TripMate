@@ -52,7 +52,7 @@
         <!-- 未登入時顯示登入/註冊按鈕 -->
         <button
           v-if="!userStore.isLoggedIn"
-          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 bg-primary-600 hover:bg-primary-700 rounded-full transition ml-1 whitespace-nowrap"
+          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 hover:bg-primary-400 rounded-xl transition ml-1 whitespace-nowrap"
           @click="goToLogin"
         >
           <span class="hidden sm:inline">登入 / 註冊</span>
