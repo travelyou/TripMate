@@ -255,7 +255,7 @@ router.get('/', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit)
 
     let query =
-      'SELECT uid, email, nickname, real_name, avatar, role, vendor_id, created_at FROM users'
+      'SELECT uid, email, nickname, real_name, avatar, role, vendor_id, created_at, location, bio, spirit_animal, tags FROM users'
     const params = []
 
     if (role && ['user', 'vendor', 'admin'].includes(role)) {

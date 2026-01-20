@@ -12,13 +12,22 @@ function normalizeUserData(data) {
     // 名稱容錯 (優先使用 displayName，沒有則找 display_name，再沒有就顯示 User)
     displayName: data.displayName || data.display_name || 'User',
 
+    // 暱稱/顯示名稱（給個人頁與頭像使用）
+    nickname: data.nickname || data.displayName || data.display_name || '',
+
     // 頭像容錯
     photoURL: data.photoURL || data.photo_url || '',
+    avatar: data.avatar || data.photoURL || data.photo_url || '',
 
     // 其他文字欄位
     bio: data.bio || '',
     location: data.location || '',
     email: data.email || '',
+    spirit_animal: data.spirit_animal || data.spiritAnimal || '',
+    spiritAnimal: data.spiritAnimal || data.spirit_animal || '',
+    role: data.role || 'user',
+    vendor_id: data.vendor_id || data.vendorId || null,
+    tags: Array.isArray(data.tags) ? data.tags : [],
 
     stats: data.stats || {
       followers: 0,
@@ -112,4 +121,37 @@ export async function updateUserProfile(uid, userData) {
   }
   const data = await response.json()
   return data
+}
+
+// 取得用戶列表
+export async function getUsers({ page = 1, limit = 100, role } = {}) {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  if (role) params.set('role', role)
+
+  const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`)
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+    throw new Error(errorData.error || errorData.message || errorData.details || '獲取用戶列表失敗')
+  }
+
+  const data = await response.json()
+  return Array.isArray(data) ? data : data?.data || []
+}
+
+// 取得所有用戶（分頁拉取）
+export async function getAllUsers({ limit = 100, role } = {}) {
+  const results = []
+  let page = 1
+
+  while (true) {
+    const batch = await getUsers({ page, limit, role })
+    if (!Array.isArray(batch) || batch.length === 0) break
+    results.push(...batch)
+    if (batch.length < limit) break
+    page += 1
+  }
+
+  return results
 }

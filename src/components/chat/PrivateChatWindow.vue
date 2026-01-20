@@ -232,7 +232,10 @@ const scrollToBottom = async () => {
 
 // 打開或創建聊天室
 const openOrCreateChatRoom = async (user) => {
-  if (!user || !user.uid) return
+  if (!user) return
+
+  const targetUid = user.uid || user.id
+  if (!targetUid) return
 
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) return
@@ -241,13 +244,13 @@ const openOrCreateChatRoom = async (user) => {
   activeTab.value = 'chatrooms'
 
   // 檢查是否已存在聊天室
-  const existingRoom = chatRoomsList.value.find(r => r.uid === user.uid)
+  const existingRoom = chatRoomsList.value.find(r => r.uid === targetUid)
 
   if (existingRoom) {
     // 打開現有聊天室
     activeChatRoom.value = {
       type: 'chat',
-      uid: user.uid,
+      uid: targetUid,
       name: user.name || user.nickname || '未知用戶',
       avatar: user.avatar || '',
       messages: existingRoom.messages || []
@@ -255,7 +258,7 @@ const openOrCreateChatRoom = async (user) => {
   } else {
     // 創建新聊天室
     const newRoom = {
-      uid: user.uid,
+      uid: targetUid,
       name: user.name || user.nickname || '未知用戶',
       nickname: user.nickname || user.name || '',
       avatar: user.avatar || '',
@@ -276,10 +279,10 @@ const openOrCreateChatRoom = async (user) => {
   }
 
   // 載入對話次數
-  await loadChatInteractionCount(currentUid, user.uid)
+  await loadChatInteractionCount(currentUid, targetUid)
 
   // 從數據庫載入聊天記錄
-  await loadChatHistory(currentUid, user.uid)
+  await loadChatHistory(currentUid, targetUid)
 
   scrollToBottom()
 }

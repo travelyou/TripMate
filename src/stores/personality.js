@@ -417,6 +417,39 @@ const ANIMAL_PROFILES = {
   },
 }
 
+const buildResultByKey = (key) => {
+  const profile = ANIMAL_PROFILES[key]
+  if (!profile) return null
+
+  const shareLink = typeof window !== 'undefined' ? `${window.location.origin}/test` : ''
+  const shareText =
+    `${profile.animalEmoji} 我是「${profile.animalName}」\n` +
+    `${profile.summary}\n\n` +
+    `#旅遊動物人格 ${profile.tags.map((t) => `#${t}`).join(' ')}\n\n` +
+    `來測看看：${shareLink}`
+
+  return {
+    key,
+    mbti: '',
+    shareLink,
+    shareText,
+    ...profile,
+  }
+}
+
+const findKeyBySpiritAnimal = (spiritAnimal) => {
+  if (!spiritAnimal || typeof spiritAnimal !== 'string') return null
+  const normalized = spiritAnimal.trim()
+  if (!normalized) return null
+
+  const entries = Object.entries(ANIMAL_PROFILES)
+  const matched = entries.find(([, profile]) => {
+    const fullName = `${profile.animalEmoji} ${profile.animalName}`
+    return normalized === fullName || normalized.includes(profile.animalName)
+  })
+  return matched ? matched[0] : null
+}
+
 export const usePersonalityStore = defineStore('personalityTest', {
   state: () => ({
     step: 'start',
@@ -488,28 +521,39 @@ export const usePersonalityStore = defineStore('personalityTest', {
       if (!result) return false
 
       const userStore = useUserStore()
-      if (!userStore.firebaseUser || !userStore.firebaseUser.uid) {
+      const uid =
+        userStore.firebaseUser?.uid || userStore.currentUser?.uid || userStore.currentUser?.id
+      if (!uid) {
         console.error('無法保存測驗結果：用戶未登入')
         return false
       }
 
-      this.savedResult = result
       const spiritAnimalValue = `${result.animalEmoji} ${result.animalName}`
-
-      userStore.updateProfile({
-        spiritAnimal: spiritAnimalValue,
-      })
 
       try {
         const { updateUserProfile } = await import('@/api/users')
-        await updateUserProfile(userStore.firebaseUser.uid, {
+        await updateUserProfile(uid, {
           spirit_animal: spiritAnimalValue,
+        })
+
+        this.savedResult = result
+        userStore.updateProfile({
+          spiritAnimal: spiritAnimalValue,
         })
         return true
       } catch (error) {
         console.error('保存測驗結果到資料庫失敗:', error)
         return false
       }
+    },
+    hydrateResultFromSpiritAnimal(spiritAnimal) {
+      const key = findKeyBySpiritAnimal(spiritAnimal)
+      if (!key) return false
+      const result = buildResultByKey(key)
+      if (!result) return false
+      this.savedResult = result
+      this.result = result
+      return true
     },
     resetTest() {
       this.step = 'start'

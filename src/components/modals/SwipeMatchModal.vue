@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   X as XIcon,
   Heart as HeartIcon,
@@ -11,104 +11,99 @@ import {
   Camera as CameraIcon,
   Tent as TentIcon,
 } from 'lucide-vue-next'
+import { useUserStore } from '@/stores/user'
+import { getAllUsers } from '@/api/users'
 
 // ==========================================
 // 1. 設定參數 (Configuration)
 // ==========================================
 
-const SWIPE_THRESHOLD = 100
-const FEEDBACK_THRESHOLD = 50
-const AUTO_SWIPE_DISTANCE = 1000
-const ROTATION_FACTOR = 0.1
-const ANIMATION_DURATION = 500
+const SWIPE_THRESHOLD = 100 //滑動超過 ±100px 觸發喜歡或不喜歡
+const FEEDBACK_THRESHOLD = 50 //滑動超過 ±50px 觸發喜歡或不喜歡
+const AUTO_SWIPE_DISTANCE = 1000 //自動滑動距離
+const ROTATION_FACTOR = 0.2 //旋轉角度
+const ANIMATION_DURATION = 500 //抽卡切換動畫時間
+const MAX_DAILY_SWIPES = 5 //每日最大抽卡次數
+const REAPPEAR_DAYS = 90 //拒絕後重新出現的卡-天數
+const REAPPEAR_MS = REAPPEAR_DAYS * 24 * 60 * 60 * 1000 //拒絕後重新出現的卡秒數
 
-const emit = defineEmits(['close'])
+defineEmits(['close'])
 
 // ==========================================
 // 2. 資料與狀態
 // ==========================================
 
-const candidates = ref([
-  {
-    id: 1,
-    name: '小雅',
-    age: 23,
-    location: '台北市',
-    spiritAnimal: '🐱 好奇寶寶',
-    image: 'https://api.dicebear.com/9.x/adventurer/svg?seed=Lisa&backgroundColor=b6e3f4',
-    bio: '剛畢業想去環島！找人一起騎機車吹風，我不怕曬，只怕餓肚子 🛵',
-    wishlist: ['蘭嶼', '綠島', '台南'],
-    activities: ['逛夜市', '看海', '騎機車', '探店'],
-    tags: ['機車環島', '銅板美食'],
-    gallery: [
-      'https://images.unsplash.com/photo-1558273614-2575dc29f427?q=60&w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=60&w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=600&auto=format&fit=crop',
-    ],
-    pastTrips: [
-      { id: 101, title: '花蓮三天兩夜', date: '2023.12', rating: 5 },
-      { id: 102, title: '澎湖花火節', date: '2023.06', rating: 4 },
-    ],
-  },
-  {
-    id: 2,
-    name: '阿豪',
-    age: 28,
-    location: '台中市',
-    spiritAnimal: '🦁 登山客',
-    image: 'https://api.dicebear.com/9.x/adventurer/svg?seed=Brian&backgroundColor=ffdfbf',
-    bio: '百岳進度 25/100。週末不想待在家，徵求山友一起撿三角點！⛰️',
-    wishlist: ['嘉明湖', '玉山', '富士山'],
-    activities: ['登山', '露營', '野炊', '看日出'],
-    tags: ['百岳', '野營'],
-    gallery: [
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?q=60&w=600&auto=format&fit=crop',
-    ],
-    pastTrips: [
-      { id: 201, title: '雪山主東峰', date: '2024.01', rating: 5 },
-      { id: 202, title: '奇萊南華', date: '2023.11', rating: 5 },
-      { id: 203, title: '合歡北峰', date: '2023.09', rating: 4 },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Kiki',
-    age: 26,
-    location: '高雄市',
-    spiritAnimal: '🦊 攝影迷',
-    image: 'https://api.dicebear.com/9.x/adventurer/svg?seed=Jessica&backgroundColor=ffd5dc',
-    bio: '喜歡帶著底片機隨處走走，想去日本拍櫻花，行程不用太趕 🌸',
-    wishlist: ['京都', '鎌倉', '北海道'],
-    activities: ['街拍', '逛美術館', '咖啡廳', '二手市集'],
-    tags: ['日系', '文青'],
-    gallery: [
-      'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=60&w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1522383225653-ed111181a951?q=60&w=600&auto=format&fit=crop',
-    ],
-    pastTrips: [{ id: 301, title: '東京獨旅', date: '2023.10', rating: 5 }],
-  },
-  {
-    id: 4,
-    name: '傑森',
-    age: 30,
-    location: '新竹市',
-    spiritAnimal: '🐻 咖啡控',
-    image: 'https://api.dicebear.com/9.x/adventurer/svg?seed=Christopher&backgroundColor=c0aede',
-    bio: '工程師的逃亡之旅，只想找個安靜的地方喝咖啡放空，不排行程就是最好的行程 ☕️',
-    wishlist: ['清邁', '墨爾本', '西雅圖'],
-    activities: ['手沖咖啡', '看書', '發呆', '散步'],
-    tags: ['放鬆', '不趕路'],
-    gallery: [
-      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=60&w=600&auto=format&fit=crop',
-    ],
-    pastTrips: [],
-  },
-])
+const userStore = useUserStore()
+const candidates = ref([])
+const isLoading = ref(true)
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10)
+const getStateKey = (uid) => `swipe_match_state_${uid || 'guest'}`
+
+const loadSwipeState = (uid) => {
+  const stateKey = getStateKey(uid)
+  try {
+    const raw = localStorage.getItem(stateKey)
+    const parsed = raw ? JSON.parse(raw) : null
+    const baseState = {
+      date: getTodayKey(),
+      count: 0,
+      rejections: {},
+    }
+
+    if (!parsed) return baseState
+    const rejections = parsed.rejections && typeof parsed.rejections === 'object' ? parsed.rejections : {}
+    const isSameDay = parsed.date === baseState.date
+
+    return {
+      date: baseState.date,
+      count: isSameDay ? Number(parsed.count || 0) : 0,
+      rejections: pruneRejections(rejections),
+    }
+  } catch (error) {
+    console.warn('[SwipeMatch] 讀取抽卡狀態失敗，已重置', error)
+    return {
+      date: getTodayKey(),
+      count: 0,
+      rejections: {},
+    }
+  }
+}
+
+const pruneRejections = (rejections) => {
+  const cutoff = Date.now() - REAPPEAR_MS
+  const cleaned = { ...rejections }
+  Object.keys(cleaned).forEach((uid) => {
+    if (Number(cleaned[uid]) < cutoff) delete cleaned[uid]
+  })
+  return cleaned
+}
+
+const saveSwipeState = (uid, state) => {
+  const stateKey = getStateKey(uid)
+  const payload = {
+    ...state,
+    rejections: pruneRejections(state.rejections || {}),
+  }
+  try {
+    localStorage.setItem(stateKey, JSON.stringify(payload))
+  } catch (error) {
+    console.warn('[SwipeMatch] 保存抽卡狀態失敗', error)
+  }
+}
+
+const getCurrentUserId = () => userStore.currentUser?.uid || userStore.currentUser?.id
+
+const swipeState = ref(loadSwipeState(getCurrentUserId()))
 
 const currentIndex = ref(0)
 const currentCard = computed(() => candidates.value[currentIndex.value])
-const isFinished = computed(() => !currentCard.value)
+const remainingSwipes = computed(() => Math.max(0, MAX_DAILY_SWIPES - (swipeState.value.count || 0)))
+const isLimitReached = computed(() => !isLoading.value && remainingSwipes.value <= 0)
+const isOutOfCards = computed(() => !isLoading.value && !currentCard.value)
+const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
+const isProcessing = ref(false)
+const loadSeq = ref(0)
 
 // 詳情頁狀態
 const isDetailOpen = ref(false)
@@ -174,15 +169,23 @@ const swipeFeedback = computed(() => {
 const autoSwipeDirection = ref(null)
 
 const handleButtonClick = (direction) => {
-  if (isFinished.value || autoSwipeDirection.value) return
+  if (isFinished.value || !currentCard.value || autoSwipeDirection.value || isProcessing.value) return
   isDetailOpen.value = false
+  isProcessing.value = true
   autoSwipeDirection.value = direction
   finishSwipe(direction)
 }
 
 // 觸控事件
 const onTouchStart = (e) => {
-  if (isFinished.value || autoSwipeDirection.value || isDetailOpen.value) return
+  if (
+    isFinished.value ||
+    !currentCard.value ||
+    autoSwipeDirection.value ||
+    isDetailOpen.value ||
+    isProcessing.value
+  )
+    return
   isDragging.value = true
   startX.value = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX
   currentX.value = startX.value
@@ -211,13 +214,145 @@ const onTouchEnd = () => {
 }
 
 const finishSwipe = (direction) => {
+  const swipedCard = currentCard.value
   setTimeout(() => {
+    if (swipedCard) {
+      const uid = getCurrentUserId()
+      swipeState.value = {
+        ...swipeState.value,
+        date: getTodayKey(),
+        count: (swipeState.value.count || 0) + 1,
+        rejections:
+          direction === 'left' && swipedCard.uid
+            ? {
+                ...(swipeState.value.rejections || {}),
+                [swipedCard.uid]: Date.now(),
+              }
+            : { ...(swipeState.value.rejections || {}) },
+      }
+      saveSwipeState(uid, swipeState.value)
+      if (direction === 'right') {
+        handleSwipeLike(swipedCard)
+      }
+    }
+
     currentIndex.value++
     autoSwipeDirection.value = null
     startX.value = 0
     currentX.value = 0
+    isProcessing.value = false
   }, ANIMATION_DURATION)
 }
+
+const handleSwipeLike = async (swipedCard) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid || !swipedCard?.uid) return
+
+  try {
+    const { likeSwipe } = await import('@/api/swipes')
+    const result = await likeSwipe(currentUid, swipedCard.uid)
+
+    if (result?.matched) {
+      try {
+        const { getProfile } = await import('@/api/profile')
+        const profileData = await getProfile(currentUid)
+        if (profileData?.friends) {
+          userStore.currentUser.friends = profileData.friends
+        }
+      } catch (error) {
+        console.warn('[SwipeMatch] 更新好友列表失敗：', error)
+      }
+
+      const chatUser = {
+        uid: swipedCard.uid,
+        name: swipedCard.name,
+        nickname: swipedCard.name,
+        avatar: swipedCard.image,
+      }
+      window.dispatchEvent(new CustomEvent('open-chat', { detail: { user: chatUser } }))
+    }
+  } catch (error) {
+    console.error('[SwipeMatch] 抽卡喜歡失敗：', error)
+  }
+}
+
+const shuffle = (list) => {
+  const result = [...list]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+const mapUserToCandidate = (user) => {
+  const uid = user.uid || user.id
+  const displayName =
+    user.nickname || user.real_name || (user.email ? user.email.split('@')[0] : '旅伴')
+  const avatar =
+    user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || displayName}`
+  const tags = Array.isArray(user.tags) ? user.tags : []
+
+  return {
+    id: uid,
+    uid,
+    name: displayName,
+    age: user.age || '—',
+    location: user.location || '台灣',
+    spiritAnimal: user.spirit_animal || '🐾 旅伴',
+    image: avatar,
+    bio: user.bio || '期待一起出發的新旅伴。',
+    wishlist: tags,
+    activities: [],
+    tags,
+    gallery: [],
+    pastTrips: [],
+  }
+}
+
+const loadCandidates = async (uid, state = swipeState.value) => {
+  isLoading.value = true
+  const seq = ++loadSeq.value
+  try {
+    const allUsers = await getAllUsers()
+    if (seq !== loadSeq.value) return
+    const rejections = state?.rejections || {}
+    const cutoff = Date.now() - REAPPEAR_MS
+
+    const filtered = allUsers
+      .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
+      .filter((user) => {
+        const userId = user.uid || user.id
+        if (!userId) return false
+        const rejectedAt = Number(rejections[userId])
+        return !rejectedAt || rejectedAt < cutoff
+      })
+      .map(mapUserToCandidate)
+
+    if (seq !== loadSeq.value) return
+    candidates.value = shuffle(filtered)
+    currentIndex.value = 0
+  } catch (error) {
+    console.error('[SwipeMatch] 載入用戶列表失敗', error)
+    if (seq !== loadSeq.value) return
+    candidates.value = []
+    currentIndex.value = 0
+  } finally {
+    if (seq === loadSeq.value) {
+      isLoading.value = false
+    }
+  }
+}
+
+watch(
+  () => getCurrentUserId(),
+  async (uid) => {
+    const state = loadSwipeState(uid)
+    swipeState.value = state
+    await loadCandidates(uid, state)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -231,7 +366,7 @@ const finishSwipe = (direction) => {
       class="relative w-full max-w-sm h-[650px] max-h-[calc(100dvh-2rem)] flex flex-col perspective-1000"
     >
       <div
-        v-if="isFinished"
+        v-if="isLimitReached"
         class="absolute inset-0 bg-[#fffef7] rounded-3xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-4 border-gray-800 z-0"
       >
         <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
@@ -240,15 +375,15 @@ const finishSwipe = (direction) => {
         <h3 class="text-xl font-bold text-gray-800 mb-2">今日配對次數已用完</h3>
         <p class="text-gray-500 mb-6 text-sm">明天再來看看有沒有新的旅伴吧！</p>
         <button
-          @click="$emit('close')"
           class="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-700 transition"
+          @click="$emit('close')"
         >
           關閉視窗
         </button>
       </div>
 
       <div
-        v-else
+        v-else-if="currentCard"
         ref="cardElement"
         class="relative w-full h-full bg-[#fffef7] rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-800 flex flex-col z-10 select-none touch-none"
         :style="cardStyle"
@@ -326,16 +461,16 @@ const finishSwipe = (direction) => {
           </div>
 
           <div class="flex justify-center items-center gap-6 mt-4" @touchstart.stop @mousedown.stop>
-            <button @click.stop="handleButtonClick('left')" class="action-btn-nope">
+            <button class="action-btn-nope" @click.stop="handleButtonClick('left')">
               <XIcon class="w-8 h-8 pointer-events-none" />
             </button>
             <button
-              @click.stop="openDetail"
               class="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-blue-100 hover:text-blue-500 transition cursor-pointer"
+              @click.stop="openDetail"
             >
               <InfoIcon class="w-5 h-5" />
             </button>
-            <button @click.stop="handleButtonClick('right')" class="action-btn-like">
+            <button class="action-btn-like" @click.stop="handleButtonClick('right')">
               <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
             </button>
           </div>
@@ -359,8 +494,8 @@ const finishSwipe = (direction) => {
               ></div>
 
               <button
-                @click="closeDetail"
                 class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/30 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/50 transition z-50"
+                @click="closeDetail"
               >
                 <ChevronDownIcon class="w-6 h-6" />
               </button>
@@ -470,6 +605,26 @@ const finishSwipe = (direction) => {
             </div>
           </div>
         </Transition>
+      </div>
+      <div
+        v-else
+        class="absolute inset-0 bg-[#fffef7] rounded-3xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-4 border-gray-800 z-0"
+      >
+        <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+          <SparklesIcon class="w-10 h-10 text-blue-500" />
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">
+          {{ isLoading ? '正在載入旅伴...' : '目前沒有可抽的旅伴' }}
+        </h3>
+        <p class="text-gray-500 mb-6 text-sm">
+          {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
+        </p>
+        <button
+          class="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-700 transition"
+          @click="$emit('close')"
+        >
+          關閉視窗
+        </button>
       </div>
     </div>
   </div>
