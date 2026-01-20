@@ -1,10 +1,10 @@
 <script setup>
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
-import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue' // [新增] 匯入旅伴詳情 Modal
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
-import { useTravelersStore } from '@/stores/travelers'
+import { useTravelersStore } from '@/stores/travelers' // 引入 Store
 import { useUserStore } from '@/stores/user'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -12,12 +12,13 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Users as UsersIcon,
+  Loader2 as Loader2Icon, // [新增] 引入 Loading Icon
 } from 'lucide-vue-next'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 const discussionsStore = useDiscussionsStore()
-const travelersStore = useTravelersStore()
+const travelersStore = useTravelersStore() // 使用 Store
 useUserStore()
 const router = useRouter()
 
@@ -60,9 +61,12 @@ onAuthStateChanged(auth, async (user) => {
 
 onMounted(async () => {
   try {
-    await discussionsStore.loadDiscussions()
-    // [建議] 如果 travelerStore 還沒實作 loadRecommendations，這裡可能需要呼叫
-    // await travelersStore.loadRecommendations()
+    // [修改] 這裡只做初始載入 (isLoadMore = false)
+    await Promise.all([
+      discussionsStore.loadDiscussions(),
+      travelersStore.loadRecommendations(false),
+    ])
+
     if (currentUserUid.value) {
       scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
     }
@@ -82,7 +86,7 @@ const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
 
-// --- [新增] 旅伴 Modal 狀態 ---
+// --- 旅伴 Modal 狀態 ---
 const isTravelerModalOpen = ref(false)
 const selectedTraveler = ref(null)
 
@@ -93,6 +97,19 @@ const scroll = (direction) => {
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth',
     })
+  }
+}
+
+// [新增] 監聽水平捲動事件
+const handleScroll = (e) => {
+  const { scrollLeft, scrollWidth, clientWidth } = e.target
+  // 當捲動到距離右邊剩 50px 時，且不是正在載入中，且還有更多資料
+  if (
+    scrollWidth - scrollLeft - clientWidth < 50 &&
+    !travelersStore.loading &&
+    travelersStore.hasMore
+  ) {
+    travelersStore.loadRecommendations(true) // true 代表載入更多
   }
 }
 
@@ -109,7 +126,7 @@ const closeDiscussionDetailModal = () => {
   shouldScrollToComments.value = false
 }
 
-// --- [新增] 開啟旅伴詳情 ---
+// 開啟旅伴詳情
 const openTravelerDetailModal = (traveler) => {
   selectedTraveler.value = traveler
   isTravelerModalOpen.value = true
@@ -162,7 +179,6 @@ const getTagColor = (tagText) => {
   return colors[index]
 }
 
-// [新增] 輔助函式：取得第一個標籤（相容字串或陣列）
 const getFirstTag = (item) => {
   if (item.tag) return item.tag
   if (item.tags && item.tags.length > 0) return item.tags[0]
@@ -199,6 +215,7 @@ const getFirstTag = (item) => {
         <div
           ref="scrollContainer"
           class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
+          @scroll="handleScroll"
         >
           <div
             v-for="item in travelersStore.recommendations"
@@ -247,6 +264,21 @@ const getFirstTag = (item) => {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div
+            v-if="travelersStore.loading && travelersStore.hasMore"
+            class="flex-shrink-0 w-[10%] min-w-24 h-48 rounded-2xl flex items-center justify-center snap-start"
+          >
+            <Loader2Icon class="w-8 h-8 text-primary animate-spin" />
+          </div>
+
+          <div
+            v-if="!travelersStore.hasMore && travelersStore.recommendations.length > 0"
+            class="flex-shrink-0 w-8 h-48 flex items-center justify-center text-gray-300 writing-vertical-lr text-xs font-bold tracking-widest"
+            style="writing-mode: vertical-rl"
+          >
+            THE END
           </div>
         </div>
       </div>
