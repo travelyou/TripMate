@@ -49,12 +49,20 @@ const handleOpenPersonalityResult = () => {
           >
             {{ props.personalityResult.animalName }}
           </div>
-          <button
-            class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-primary-50 text-primary-600 text-xs md:text-sm font-bold rounded-full hover:bg-primary-100 transition"
-            @click="handleOpenPersonalityResult"
-          >
-            查看詳情
-          </button>
+          <div class="mt-2 md:mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button
+              class="px-3 py-1 md:px-4 md:py-2 bg-primary-50 text-primary-600 text-xs md:text-sm font-bold rounded-full hover:bg-primary-100 transition"
+              @click="handleOpenPersonalityResult"
+            >
+              查看詳情
+            </button>
+            <router-link
+              to="/test"
+              class="px-3 py-1 md:px-4 md:py-2 bg-primary-50 text-primary-600 text-xs md:text-sm font-bold rounded-full hover:bg-primary-100 transition"
+            >
+              重新測驗
+            </router-link>
+          </div>
         </template>
         <template v-else>
           <div class="text-3xl md:text-5xl mb-1 md:mb-2 animate-bounce-slow">😓</div>

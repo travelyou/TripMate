@@ -618,6 +618,14 @@ const loadProfileData = async () => {
         userStore.currentUser.friends = profileData.friends
         userStore.currentUser.reviews = profileData.reviews
         userStore.currentUser.tags = profileData.user.tags || []
+
+        const hasPersonality =
+          personalityStore.savedResult || personalityStore.result
+        if (!hasPersonality && userStore.currentUser?.spiritAnimal) {
+          personalityStore.hydrateResultFromSpiritAnimal(
+            userStore.currentUser.spiritAnimal,
+          )
+        }
       }
 
       profileStats.value = profileData.stats || {

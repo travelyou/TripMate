@@ -38,6 +38,14 @@ const emit = defineEmits(['close'])
       <div class="flex-grow overflow-y-auto custom-scrollbar p-6">
         <ResultCard v-if="props.result" :result="props.result" />
         <div v-else class="py-16 text-center text-secondary-400">尚未測驗</div>
+        <div v-if="props.result" class="mt-6 flex justify-center">
+          <router-link
+            to="/test"
+            class="px-4 py-2 text-sm font-bold rounded-full bg-primary-50 text-primary-600 hover:bg-primary-100 transition"
+          >
+            重新測驗
+          </router-link>
+        </div>
       </div>
     </div>
   </div>
