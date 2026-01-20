@@ -276,22 +276,31 @@ const initMap = async () => {
     const errorHandler = (event) => {
       const errorMsg = event.message || event.error?.message || event.error?.toString() || ''
       const errorUrl = event.filename || event.source?.location?.href || ''
+      const errorStack = event.error?.stack || ''
 
-      // 詳細日誌
-      if (errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) {
+      // 詳細日誌 - 記錄所有可能的 ApiProjectMapError 相關錯誤
+      const isApiProjectMapError = errorMsg.includes('ApiProjectMapError') ||
+                                    errorUrl.includes('api-project-map-error') ||
+                                    errorStack.includes('ApiProjectMapError') ||
+                                    errorUrl.includes('error-messages#api-project-map-error')
+
+      if (isApiProjectMapError) {
         console.error('[Google Maps] 檢測到可能的 ApiProjectMapError')
         console.error('[Google Maps] 錯誤訊息:', errorMsg)
         console.error('[Google Maps] 錯誤 URL:', errorUrl)
-        console.error('[Google Maps] 當前 Map ID:', mapId ? mapId.substring(0, 15) + '...' : '無')
+        console.error('[Google Maps] 錯誤堆棧:', errorStack.substring(0, 200))
+        console.error('[Google Maps] 當前 Map ID:', currentMapId ? currentMapId.substring(0, 15) + '...' : '無')
+        console.error('[Google Maps] errorHandled 狀態:', errorHandled)
       }
 
       // 檢查是否是 ApiProjectMapError
-      if ((errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) && currentMapId && !errorHandled) {
+      if (isApiProjectMapError && currentMapId && !errorHandled) {
         console.warn('[Google Maps] 從 window 錯誤事件檢測到 ApiProjectMapError')
         console.warn('[Google Maps] Map ID 可能與 API Key 不匹配，或 Map ID 無效')
         console.warn('[Google Maps] 將自動回退到不使用 Map ID 的配置')
         errorHandled = true
         event.preventDefault() // 阻止錯誤繼續傳播
+        event.stopPropagation() // 阻止事件冒泡
         // 使用 setTimeout 確保在當前執行上下文完成後再處理
         setTimeout(() => {
           handleApiProjectMapError()
@@ -302,8 +311,14 @@ const initMap = async () => {
     // 監聽未處理的 Promise rejection
     const unhandledRejectionHandler = (event) => {
       const errorMsg = event.reason?.message || event.reason?.toString() || ''
-      if (errorMsg.includes('ApiProjectMapError') && currentMapId && !errorHandled) {
+      const errorStack = event.reason?.stack || ''
+
+      const isApiProjectMapError = errorMsg.includes('ApiProjectMapError') ||
+                                    errorStack.includes('ApiProjectMapError')
+
+      if (isApiProjectMapError && currentMapId && !errorHandled) {
         console.warn('[Google Maps] 從 Promise rejection 檢測到 ApiProjectMapError')
+        console.warn('[Google Maps] 錯誤原因:', errorMsg)
         errorHandled = true
         event.preventDefault()
         setTimeout(() => {
@@ -312,8 +327,32 @@ const initMap = async () => {
       }
     }
 
+    // 監聽 console.error（因為 Google Maps 可能通過 console.error 輸出錯誤）
+    const originalConsoleError = console.error
+    console.error = function(...args) {
+      const errorMsg = args.join(' ')
+      const isApiProjectMapError = errorMsg.includes('ApiProjectMapError') ||
+                                    errorMsg.includes('api-project-map-error')
+
+      if (isApiProjectMapError && currentMapId && !errorHandled) {
+        console.warn('[Google Maps] 從 console.error 檢測到 ApiProjectMapError')
+        errorHandled = true
+        setTimeout(() => {
+          handleApiProjectMapError()
+        }, 100)
+      }
+
+      // 調用原始的 console.error
+      originalConsoleError.apply(console, args)
+    }
+
+    // 使用 capture 模式捕獲所有錯誤
     window.addEventListener('error', errorHandler, true)
+    // 也監聽 bubbles 模式的錯誤（某些錯誤可能不會觸發 capture）
+    window.addEventListener('error', errorHandler, false)
     window.addEventListener('unhandledrejection', unhandledRejectionHandler, true)
+
+    console.log('[Google Maps] 錯誤監聽器已設置，等待捕獲 ApiProjectMapError...')
 
     // 監聽地圖 idle 事件，在地圖載入完成後檢查
     if (map && map.addListener) {
@@ -343,7 +382,12 @@ const initMap = async () => {
     // 在組件卸載時移除監聽器
     const cleanup = () => {
       window.removeEventListener('error', errorHandler, true)
+      window.removeEventListener('error', errorHandler, false)
       window.removeEventListener('unhandledrejection', unhandledRejectionHandler, true)
+      // 恢復原始的 console.error
+      if (originalConsoleError) {
+        console.error = originalConsoleError
+      }
     }
 
     // 存儲清理函數以便後續使用
