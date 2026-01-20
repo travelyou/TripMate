@@ -305,7 +305,6 @@ export const useUserStore = defineStore('user', () => {
         bio: profileData.bio || currentUser.value.bio,
         location: profileData.location || '台灣',
         spiritAnimal: profileData.spiritAnimal || currentUser.value.spiritAnimal,
-        role: profileData.role || 'user',
         vendorId: profileData.vendorId || null,
         tags: profileData.tags !== undefined ? (Array.isArray(profileData.tags) ? profileData.tags : []) : (currentUser.value.tags || []),
       }
@@ -362,8 +361,6 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const userRole = computed(() => currentUser.value?.role || 'user')
-  const isVendor = computed(() => userRole.value === 'vendor')
-  const isAdmin = computed(() => userRole.value === 'admin')
   const isRegularUser = computed(() => userRole.value === 'user')
 
   const recentlyRegisteredUsers = new Set()
