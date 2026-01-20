@@ -18,16 +18,16 @@ import { getAllUsers } from '@/api/users'
 // 1. 設定參數 (Configuration)
 // ==========================================
 
-const SWIPE_THRESHOLD = 100
-const FEEDBACK_THRESHOLD = 50
-const AUTO_SWIPE_DISTANCE = 1000
-const ROTATION_FACTOR = 0.1
-const ANIMATION_DURATION = 500
-const MAX_DAILY_SWIPES = 5
-const REAPPEAR_DAYS = 90
-const REAPPEAR_MS = REAPPEAR_DAYS * 24 * 60 * 60 * 1000
+const SWIPE_THRESHOLD = 100 //滑動超過 ±100px 觸發喜歡或不喜歡
+const FEEDBACK_THRESHOLD = 50 //滑動超過 ±50px 觸發喜歡或不喜歡
+const AUTO_SWIPE_DISTANCE = 1000 //自動滑動距離
+const ROTATION_FACTOR = 0.2 //旋轉角度
+const ANIMATION_DURATION = 500 //抽卡切換動畫時間
+const MAX_DAILY_SWIPES = 5 //每日最大抽卡次數
+const REAPPEAR_DAYS = 90 //拒絕後重新出現的卡-天數
+const REAPPEAR_MS = REAPPEAR_DAYS * 24 * 60 * 60 * 1000 //拒絕後重新出現的卡秒數
 
-const emit = defineEmits(['close'])
+defineEmits(['close'])
 
 // ==========================================
 // 2. 資料與狀態
@@ -58,7 +58,7 @@ const loadSwipeState = (uid) => {
     return {
       date: baseState.date,
       count: isSameDay ? Number(parsed.count || 0) : 0,
-      rejections,
+      rejections: pruneRejections(rejections),
     }
   } catch (error) {
     console.warn('[SwipeMatch] 讀取抽卡狀態失敗，已重置', error)
@@ -92,7 +92,9 @@ const saveSwipeState = (uid, state) => {
   }
 }
 
-const swipeState = ref(loadSwipeState(userStore.currentUser?.uid))
+const getCurrentUserId = () => userStore.currentUser?.uid || userStore.currentUser?.id
+
+const swipeState = ref(loadSwipeState(getCurrentUserId()))
 
 const currentIndex = ref(0)
 const currentCard = computed(() => candidates.value[currentIndex.value])
@@ -100,6 +102,8 @@ const remainingSwipes = computed(() => Math.max(0, MAX_DAILY_SWIPES - (swipeStat
 const isLimitReached = computed(() => !isLoading.value && remainingSwipes.value <= 0)
 const isOutOfCards = computed(() => !isLoading.value && !currentCard.value)
 const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
+const isProcessing = ref(false)
+const loadSeq = ref(0)
 
 // 詳情頁狀態
 const isDetailOpen = ref(false)
@@ -165,15 +169,23 @@ const swipeFeedback = computed(() => {
 const autoSwipeDirection = ref(null)
 
 const handleButtonClick = (direction) => {
-  if (isFinished.value || !currentCard.value || autoSwipeDirection.value) return
+  if (isFinished.value || !currentCard.value || autoSwipeDirection.value || isProcessing.value) return
   isDetailOpen.value = false
+  isProcessing.value = true
   autoSwipeDirection.value = direction
   finishSwipe(direction)
 }
 
 // 觸控事件
 const onTouchStart = (e) => {
-  if (isFinished.value || !currentCard.value || autoSwipeDirection.value || isDetailOpen.value) return
+  if (
+    isFinished.value ||
+    !currentCard.value ||
+    autoSwipeDirection.value ||
+    isDetailOpen.value ||
+    isProcessing.value
+  )
+    return
   isDragging.value = true
   startX.value = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX
   currentX.value = startX.value
@@ -205,7 +217,7 @@ const finishSwipe = (direction) => {
   const swipedCard = currentCard.value
   setTimeout(() => {
     if (swipedCard) {
-      const uid = userStore.currentUser?.uid
+      const uid = getCurrentUserId()
       swipeState.value = {
         ...swipeState.value,
         date: getTodayKey(),
@@ -228,6 +240,7 @@ const finishSwipe = (direction) => {
     autoSwipeDirection.value = null
     startX.value = 0
     currentX.value = 0
+    isProcessing.value = false
   }, ANIMATION_DURATION)
 }
 
@@ -297,11 +310,13 @@ const mapUserToCandidate = (user) => {
   }
 }
 
-const loadCandidates = async (uid) => {
+const loadCandidates = async (uid, state = swipeState.value) => {
   isLoading.value = true
+  const seq = ++loadSeq.value
   try {
     const allUsers = await getAllUsers()
-    const rejections = swipeState.value.rejections || {}
+    if (seq !== loadSeq.value) return
+    const rejections = state?.rejections || {}
     const cutoff = Date.now() - REAPPEAR_MS
 
     const filtered = allUsers
@@ -314,22 +329,27 @@ const loadCandidates = async (uid) => {
       })
       .map(mapUserToCandidate)
 
+    if (seq !== loadSeq.value) return
     candidates.value = shuffle(filtered)
     currentIndex.value = 0
   } catch (error) {
     console.error('[SwipeMatch] 載入用戶列表失敗', error)
+    if (seq !== loadSeq.value) return
     candidates.value = []
     currentIndex.value = 0
   } finally {
-    isLoading.value = false
+    if (seq === loadSeq.value) {
+      isLoading.value = false
+    }
   }
 }
 
 watch(
-  () => userStore.currentUser?.uid,
+  () => getCurrentUserId(),
   async (uid) => {
-    swipeState.value = loadSwipeState(uid)
-    await loadCandidates(uid)
+    const state = loadSwipeState(uid)
+    swipeState.value = state
+    await loadCandidates(uid, state)
   },
   { immediate: true },
 )
@@ -355,8 +375,8 @@ watch(
         <h3 class="text-xl font-bold text-gray-800 mb-2">今日配對次數已用完</h3>
         <p class="text-gray-500 mb-6 text-sm">明天再來看看有沒有新的旅伴吧！</p>
         <button
-          @click="$emit('close')"
           class="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-700 transition"
+          @click="$emit('close')"
         >
           關閉視窗
         </button>
@@ -441,16 +461,16 @@ watch(
           </div>
 
           <div class="flex justify-center items-center gap-6 mt-4" @touchstart.stop @mousedown.stop>
-            <button @click.stop="handleButtonClick('left')" class="action-btn-nope">
+            <button class="action-btn-nope" @click.stop="handleButtonClick('left')">
               <XIcon class="w-8 h-8 pointer-events-none" />
             </button>
             <button
-              @click.stop="openDetail"
               class="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-blue-100 hover:text-blue-500 transition cursor-pointer"
+              @click.stop="openDetail"
             >
               <InfoIcon class="w-5 h-5" />
             </button>
-            <button @click.stop="handleButtonClick('right')" class="action-btn-like">
+            <button class="action-btn-like" @click.stop="handleButtonClick('right')">
               <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
             </button>
           </div>
@@ -474,8 +494,8 @@ watch(
               ></div>
 
               <button
-                @click="closeDetail"
                 class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/30 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/50 transition z-50"
+                @click="closeDetail"
               >
                 <ChevronDownIcon class="w-6 h-6" />
               </button>
@@ -600,8 +620,8 @@ watch(
           {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
         </p>
         <button
-          @click="$emit('close')"
           class="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-700 transition"
+          @click="$emit('close')"
         >
           關閉視窗
         </button>
