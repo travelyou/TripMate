@@ -65,8 +65,8 @@ const shouldMarquee = computed(() => {
       </button>
       <button
         class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
-        :class="props.friendRequestStatus === 'accepted' 
-          ? 'bg-green-500/30 hover:bg-green-500/40' 
+        :class="props.friendRequestStatus === 'accepted'
+          ? 'bg-green-500/30 hover:bg-green-500/40'
           : 'bg-white/20 hover:bg-white/30'"
         :title="props.friendRequestStatus === 'accepted' ? '已是好友' : (props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友')"
         @click="$emit('add-friend')"
@@ -277,22 +277,22 @@ const shouldMarquee = computed(() => {
             >
               <Settings class="w-4 h-4 md:w-5 md:h-5" />
             </button>
+          </div>
 
-            <!-- Visitor Buttons -->
-            <div v-else class="flex gap-2">
-              <button
-                class="flex items-center gap-1 px-3 py-1.5 bg-white text-primary-600 rounded-full text-sm font-bold shadow-md hover:bg-gray-100 transition"
-                @click="$emit('add-friend')"
-              >
-                <UserPlus class="w-4 h-4" /> 加好友
-              </button>
-              <button
-                class="flex items-center gap-1 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-sm font-bold shadow-md hover:bg-secondary-500 transition"
-                @click="$emit('chat')"
-              >
-                <MessageCircle class="w-4 h-4" /> 聊聊
-              </button>
-            </div>
+          <!-- Visitor Buttons -->
+          <div v-else class="flex gap-2">
+            <button
+              class="flex items-center gap-1 px-3 py-1.5 bg-white text-primary-600 rounded-full text-sm font-bold shadow-md hover:bg-gray-100 transition"
+              @click="$emit('add-friend')"
+            >
+              <UserPlus class="w-4 h-4" /> 加好友
+            </button>
+            <button
+              class="flex items-center gap-1 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-sm font-bold shadow-md hover:bg-secondary-500 transition"
+              @click="$emit('chat')"
+            >
+              <MessageCircle class="w-4 h-4" /> 聊聊
+            </button>
           </div>
         </div>
       </div>
