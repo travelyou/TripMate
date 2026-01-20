@@ -80,7 +80,7 @@
 
 ---
 
-![TripMate Logo](./src/assets/icons/TripMate_icon_white.png)
+![TripMate Logo](./src/assets/icons/TripMate_icon.png)
 
 ## TripMate 使用方式
 
