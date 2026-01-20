@@ -24,6 +24,7 @@ function normalizeUserData(data) {
     location: data.location || '',
     email: data.email || '',
     spirit_animal: data.spirit_animal || data.spiritAnimal || '',
+    spiritAnimal: data.spiritAnimal || data.spirit_animal || '',
     role: data.role || 'user',
     vendor_id: data.vendor_id || data.vendorId || null,
     tags: Array.isArray(data.tags) ? data.tags : [],
