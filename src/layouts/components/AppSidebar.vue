@@ -104,6 +104,27 @@ function goToCollections() {
   router.push({ name: 'collections' }) // 假設你有設定 collections 路由
 }
 
+// 判斷是否為當前活躍路由
+function isActiveRoute(item) {
+  // 如果不是 profile 路由，直接比較 route.name
+  if (item.name !== 'profile') {
+    return route.name === item.name
+  }
+
+  // 對於 profile 路由，只有在查看自己的頁面時才高亮
+  if (route.name === 'profile') {
+    // 如果有 uid 參數，表示在查看別人的頁面
+    if (route.params.uid) {
+      // 只有當 uid 等於當前使用者的 uid 時才高亮
+      return route.params.uid === userStore.currentUser?.uid
+    }
+    // 沒有 uid 參數，表示在查看自己的頁面
+    return true
+  }
+
+  return false
+}
+
 const handleMobileNavClick = (item) => {
   if (item.name === 'menu') {
     emit('open-mobile-actions')
@@ -160,7 +181,7 @@ const handleMobileNavClick = (item) => {
           :to="{ name: item.name, params: item.params }"
           :class="[
             'flex items-center p-4 my-2 rounded-xl cursor-pointer transition-colors duration-150 w-full',
-            route.name === item.name ? 'bg-primary-50 shadow-md' : 'hover:shadow-md',
+            isActiveRoute(item) ? 'bg-primary-50 shadow-md' : 'hover:shadow-md',
           ]"
         >
           <component :is="item.icon" :class="['w-5 h-5 mr-3', item.iconColor]" />

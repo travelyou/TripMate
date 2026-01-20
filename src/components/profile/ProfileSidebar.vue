@@ -72,6 +72,7 @@ const handleOpenPersonalityResult = () => {
             尚未測驗
           </div>
           <router-link
+            v-if="isCurrentUser"
             to="/test"
             class="mt-2 md:mt-4 px-3 py-1 md:px-4 md:py-2 bg-primary-50 text-primary-600 text-xs md:text-sm font-bold rounded-full hover:bg-primary-100 transition"
           >
