@@ -1,121 +1,298 @@
+// src/stores/checkout.js
 import { reactive } from 'vue'
+import axios from 'axios'
+import { API_BASE_URL } from '@/api/config'
+
+// 你現有的 API（購物車與行程）
+import { fetchItinerariesByIds } from '@/api/itineraries'
+import { fetchCartItems, addCartItem, updateCartItemPersons, removeCartItem } from '@/api/cart'
+
+function toDateRange(it) {
+  const s = it?.start_date ? String(it.start_date).slice(0, 10) : ''
+  const e = it?.end_date ? String(it.end_date).slice(0, 10) : ''
+  if (s && e) return `${s} ~ ${e}`
+  return s || e || ''
+}
 
 export const checkoutStore = reactive({
-  // 購物車資料
-  tourGroups: [
-    {
-      id: 1,
-      title: '台北 101 觀景台 + 信義區美食之旅',
-      date: '2025年1月15日',
-      duration: '4小時',
-      price: 1800,
-      persons: 1,
-      description: '登上台北最高建築，俯瞰城市美景，品嚐在地特色美食',
-      image:
-        'https://readdy.ai/api/search-image?query=taipei%20101%20observatory%20deck%20with%20panoramic%20city%20view%2C%20modern%20skyscraper%20interior%20with%20floor%20to%20ceiling%20windows%2C%20tourists%20enjoying%20the%20scenic%20vista%2C%20clean%20white%20background%20with%20soft%20lighting&width=300&height=300&seq=cart1&orientation=squarish',
-    },
-    {
-      id: 2,
-      title: '九份老街 + 十分瀑布一日遊',
-      date: '2025年1月20日',
-      duration: '8小時',
-      price: 1400,
-      persons: 1,
-      description: '探索山城風情，體驗傳統文化，欣賞壯麗瀑布景觀',
-      image:
-        'https://readdy.ai/api/search-image?query=jiufen%20old%20street%20with%20traditional%20red%20lanterns%20and%20mountain%20scenery%2C%20charming%20taiwanese%20village%20architecture%2C%20tourists%20walking%20through%20narrow%20alleys%2C%20clean%20white%20background%20with%20warm%20ambient%20lighting&width=300&height=300&seq=cart2&orientation=squarish',
-    },
-  ],
+  // =========================
+  // Cart（後端為準）
+  // =========================
+  cartItems: [], // 後端 cart/items：[{ itineraryId, persons }]
+  tourGroups: [], // 給 ShoppingCartPage 用的整合資料
+  selectedCartTourId: null,
 
-  // 在購物車中選到的項目 ID（用於右側結算資訊）
-  selectedCartTourId: 1,
+  isCartLoading: false,
+  cartError: '',
 
-  // 要送到結帳流程的選中項目（在前往 /checkout/step1 前設定）
-  selectedTour: null,
+  // debounce 同步 persons 用
+  _personsSyncTimers: new Map(), // key: itineraryId, value: timeoutId
 
-  contact: {
-    name: '',
-    phone: '',
-    email: '',
-    note: '',
-  },
-  emergencyContact: {
-    name: '',
-    phone: '',
-  },
-
-  // 購物車中目前選的行程（getter）
-  get cartSelectedTour() {
-    return this.tourGroups.find((t) => t.id === this.selectedCartTourId)
-  },
-
-  // 購物車目前選中項目的小計
-  get cartTotalPrice() {
-    return this.cartSelectedTour ? this.cartSelectedTour.price * this.cartSelectedTour.persons : 0
-  },
-
-  // 注意：原本的 totalPrice 是針對送到 checkout 流程的 selectedTour
-  //之後金額必須在後端計算，避免被竄改
-  get totalPrice() {
-    return this.selectedTour ? this.selectedTour.price * this.selectedTour.persons : 0
-  },
-
+  // =========================
+  // Checkout（後端為準）
+  // =========================
+  contact: { name: '', phone: '', email: '', note: '' },
+  emergencyContact: { name: '', phone: '' },
   agree: false,
-  paymentMethod: '',
-  mobileProvider: '',
-  // 已完成訂單與最後一筆訂單
-  completedOrders: [],
-  lastOrder: null,
 
-  // 購物車操作方法
-  increasePersons(id) {
-    const t = this.tourGroups.find((x) => x.id === id)
-    if (t) t.persons++
+  // 注意：付款方式不要再靠「前端記憶」當真相
+  // 這裡保留只是為了 UI 選項用（真正顯示以 Step5 後端 latestPayment 為準）
+  paymentMethod: '',
+
+  // 建單後（後端回來的 id 才是唯一真相）
+  lastOrderId: null,
+  orderDetail: null, // GET /orders/:id 回來的資料：{ order, itinerary, latestPayment }
+
+  // =========================
+  // 相容層（避免你現有 Step3/Step4 爆炸）
+  // =========================
+  // 你的 Step3 目前用 checkoutStore.selectedTour
+  // 我把它改成「永遠從 cartSelectedTour 取」，不再讓前端自己存一份假資料。
+  get selectedTour() {
+    return this.cartSelectedTour
   },
-  decreasePersons(id) {
-    const t = this.tourGroups.find((x) => x.id === id)
-    if (t && t.persons > 1) t.persons--
+
+  get cartSelectedTour() {
+    return this.tourGroups.find((t) => t.id === this.selectedCartTourId) || null
   },
-  removeTour(id) {
-    this.tourGroups = this.tourGroups.filter((t) => t.id !== id)
-    if (this.tourGroups.length > 0) {
-      this.selectedCartTourId = this.tourGroups[0].id
-    } else {
-      this.selectedCartTourId = null
+
+  get cartTotalPrice() {
+    const t = this.cartSelectedTour
+    return t ? Number(t.price || 0) * Number(t.persons || 1) : 0
+  },
+
+  // =========================
+  // Cart actions
+  // =========================
+  _scheduleSyncPersons(itineraryId, persons) {
+    const PERSONS_SYNC_DEBOUNCE_MS = 600
+    const old = this._personsSyncTimers.get(itineraryId)
+    if (old) clearTimeout(old)
+
+    const timer = setTimeout(async () => {
+      try {
+        await updateCartItemPersons({ itineraryId, persons })
+        // 同步 raw cartItems（避免之後合併資料不一致）
+        const c = this.cartItems.find((x) => Number(x.itineraryId) === Number(itineraryId))
+        if (c) c.persons = persons
+      } catch (e) {
+        console.error('[syncPersons] failed:', e)
+        this.cartError = e?.message || '更新人數失敗'
+        // 失敗就以 DB 為準重抓，避免 UI/DB 不一致
+        await this.loadCartFromDb()
+      } finally {
+        this._personsSyncTimers.delete(itineraryId)
+      }
+    }, PERSONS_SYNC_DEBOUNCE_MS)
+
+    this._personsSyncTimers.set(itineraryId, timer)
+  },
+
+  async flushPersonsSync() {
+    const entries = Array.from(this._personsSyncTimers.entries())
+    this._personsSyncTimers.clear()
+
+    for (const [itineraryId] of entries) {
+      const t = this.tourGroups.find((x) => x.id === itineraryId)
+      if (!t) continue
+      const persons = Number(t.persons ?? 1)
+      await updateCartItemPersons({ itineraryId, persons })
     }
   },
+
+  async loadCartFromDb() {
+    try {
+      this.isCartLoading = true
+      this.cartError = ''
+
+      // 1) cart/items
+      const cartItems = await fetchCartItems()
+      this.cartItems = Array.isArray(cartItems) ? cartItems : []
+
+      const ids = this.cartItems.map((x) => Number(x.itineraryId)).filter(Number.isInteger)
+      if (!ids.length) {
+        this.tourGroups = []
+        this.selectedCartTourId = null
+        return
+      }
+
+      // 2) itineraries
+      const items = await fetchItinerariesByIds(ids)
+
+      // 3) 合併 persons
+      const personsMap = new Map(
+        this.cartItems
+          .map((c) => [Number(c.itineraryId), Number(c.persons ?? 1)])
+          .filter(([id]) => Number.isInteger(id)),
+      )
+
+      // 4) 映射成 UI shape
+      this.tourGroups = (items || []).map((it) => ({
+        id: it.id,
+        title: it.title ?? '',
+        description: it.content ?? '',
+        image: it.banner_image ?? '',
+        date: toDateRange(it),
+        duration: '',
+        price: Number(it.price ?? 0),
+        persons: personsMap.get(it.id) ?? 1,
+      }))
+
+      // 預設選第一個
+      if (!this.selectedCartTourId && this.tourGroups.length) {
+        this.selectedCartTourId = this.tourGroups[0].id
+      }
+
+      // 若原本選的已不存在，就改選第一個
+      if (
+        this.selectedCartTourId &&
+        !this.tourGroups.some((t) => t.id === this.selectedCartTourId)
+      ) {
+        this.selectedCartTourId = this.tourGroups[0]?.id ?? null
+      }
+    } catch (e) {
+      console.error('[loadCartFromDb] failed:', e)
+      this.cartError = e?.message || '載入購物車失敗'
+      this.tourGroups = []
+      this.selectedCartTourId = null
+    } finally {
+      this.isCartLoading = false
+    }
+  },
+
+  async addToCart(itineraryId, persons = 1) {
+    try {
+      this.cartError = ''
+      await addCartItem({ itineraryId, persons })
+      await this.loadCartFromDb()
+    } catch (e) {
+      console.error('[addToCart] failed:', e)
+      this.cartError = e?.message || '加入購物車失敗'
+    }
+  },
+
+  increasePersons(id) {
+    const t = this.tourGroups.find((x) => x.id === id)
+    if (!t) return
+    const next = Number(t.persons ?? 1) + 1
+    t.persons = next
+    this._scheduleSyncPersons(id, next)
+  },
+
+  decreasePersons(id) {
+    const t = this.tourGroups.find((x) => x.id === id)
+    if (!t) return
+    const current = Number(t.persons ?? 1)
+    if (current <= 1) return
+    const next = current - 1
+    t.persons = next
+    this._scheduleSyncPersons(id, next)
+  },
+
+  async removeTour(id) {
+    // 先更新 UI
+    const wasSelected = this.selectedCartTourId === id
+    this.tourGroups = this.tourGroups.filter((t) => t.id !== id)
+    if (wasSelected) this.selectedCartTourId = this.tourGroups[0]?.id ?? null
+
+    try {
+      await removeCartItem(id)
+      this.cartItems = this.cartItems.filter((c) => Number(c.itineraryId) !== Number(id))
+    } catch (e) {
+      console.error('[removeTour] failed:', e)
+      this.cartError = e?.message || '移除購物車項目失敗'
+      await this.loadCartFromDb()
+    }
+  },
+
   selectCartTourId(id) {
     this.selectedCartTourId = id
   },
 
-  // 儲存目前 checkout 為已完成訂單並重設 checkout 狀態
-  completeOrder() {
-    const order = {
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      tour: this.selectedTour ? { ...this.selectedTour } : null,
-      contact: { ...this.contact },
-      emergencyContact: { ...this.emergencyContact },
-      paymentMethod: this.paymentMethod,
-      mobileProvider: this.mobileProvider,
-      totalPrice: this.totalPrice,
-    }
-
-    this.completedOrders.push(order)
-    this.lastOrder = order
-
-    // 重設 checkoutStore 為預設值
-    this.selectedTour = null
+  // =========================
+  // Checkout actions（後端為準）
+  // =========================
+  resetCheckout() {
     this.contact = { name: '', phone: '', email: '', note: '' }
     this.emergencyContact = { name: '', phone: '' }
     this.agree = false
     this.paymentMethod = ''
-    this.mobileProvider = ''
 
-    // 選擇性：可將已下單的項目從購物車中移除（目前不啟用）
-    // if (order.tour) this.removeTour(order.tour.id)
+    this.lastOrderId = null
+    this.orderDetail = null
+  },
+
+  /**
+   * Step3 建單：POST /orders/from-cart
+   * - itineraryId 用「你在 cart 選的那筆」
+   * - contact / emergencyContact 送後端存檔
+   */
+  async createOrderFromSelectedCart() {
+    const tour = this.cartSelectedTour
+    if (!tour?.id) throw new Error('找不到要結帳的行程（selectedCartTourId）')
+
+    // 避免最後一秒還有 persons debounce 沒送出去
+    await this.flushPersonsSync()
+
+    const payload = {
+      itineraryId: tour.id,
+      contact: this.contact,
+      emergencyContact: this.emergencyContact,
+      // paymentMethod 先不要當真相，這裡不強制送；你也可以照舊送 mock
+      // paymentMethod: this.paymentMethod || 'mock',
+    }
+
+    const { data } = await axios.post(`${API_BASE_URL}/orders/from-cart`, payload)
+    if (!data?.ok) throw new Error(data?.message || '建立訂單失敗')
+
+    this.lastOrderId = data.orderId
+    localStorage.setItem('lastOrderId', data.orderId)
+    // 建完單後，後端會把 cart item 刪掉（你們一次只結帳一個）
+    await this.loadCartFromDb()
+
+    return data.orderId
+  },
+
+  /**
+   * Step4 / Step5：GET /orders/:id
+   * - 讓金額、行程、付款方式、付款狀態都以後端為準
+   */
+  async fetchOrderDetail(orderId) {
+    const id = Number(orderId || this.lastOrderId)
+    if (!Number.isInteger(id) || id <= 0) throw new Error('orderId 無效')
+
+    const { data } = await axios.get(`${API_BASE_URL}/orders/${id}`)
+    if (!data?.ok) throw new Error(data?.message || '讀取訂單失敗')
+
+    this.lastOrderId = id
+    localStorage.setItem('lastOrderId', id)
+    this.orderDetail = data
+    return data
+  },
+
+  async mockPay(paymentId) {
+    const { data } = await axios.get(`${API_BASE_URL}/payments/mock-pay`, { params: { paymentId } })
+    if (!data?.ok) throw new Error(data?.message || '付款失敗')
+    return data
+  },
+
+  /**
+   * Step4 建立付款：POST /payments/create
+   * - 回傳 paymentUrl（LINE Pay 要導轉）
+   */
+  async createPayment({ orderId, paymentMethod }) {
+    const id = Number(orderId || this.lastOrderId)
+    if (!Number.isInteger(id) || id <= 0) throw new Error('orderId 無效')
+    if (!paymentMethod) throw new Error('paymentMethod 必填')
+
+    const { data } = await axios.post(`${API_BASE_URL}/payments/create`, {
+      orderId: id,
+      paymentMethod,
+    })
+    if (!data?.ok) throw new Error(data?.message || '建立付款失敗')
+
+    // UI 記一下（但 Step5 顯示仍以後端 latestPayment 為準）
+    this.paymentMethod = paymentMethod
+    return data // { paymentId, paymentUrl, ... }
   },
 })
-
-//應該存到後端的資料:金額的計算、個人資料、訂單建立完成的資料
-//待完成:金流、加密通訊

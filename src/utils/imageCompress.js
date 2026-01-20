@@ -1,11 +1,6 @@
 export function compressImage(file, options = {}) {
   return new Promise((resolve, reject) => {
-    const {
-      maxWidth = 1920,
-      maxHeight = 1920,
-      quality = 0.8,
-      maxSizeMB = 2,
-    } = options
+    const { maxWidth = 1920, maxHeight = 1920, quality = 0.8, maxSizeMB = 2 } = options
 
     if (!file.type.startsWith('image/')) {
       resolve(file)
@@ -62,13 +57,13 @@ export function compressImage(file, options = {}) {
             })
 
             console.log(
-              `📦 [圖片壓縮] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${((1 - compressedFile.size / file.size) * 100).toFixed(1)}% 減少)`
+              `📦 [圖片壓縮] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${((1 - compressedFile.size / file.size) * 100).toFixed(1)}% 減少)`,
             )
 
             resolve(compressedFile)
           },
           file.type,
-          quality
+          quality,
         )
       }
 
@@ -86,4 +81,3 @@ export function compressImage(file, options = {}) {
     reader.readAsDataURL(file)
   })
 }
-

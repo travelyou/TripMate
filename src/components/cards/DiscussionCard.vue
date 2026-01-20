@@ -2,10 +2,24 @@
 import { computed, ref, onMounted } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Heart, MessageCircle, Repeat2, Bookmark } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 import { useUserStore } from '@/stores/user'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
+
+const router = useRouter()
+
+const handleAvatarClick = (e) => {
+  e.stopPropagation()
+  e.preventDefault()
+  const authorUid = props.post.author_uid || props.post.authorUid
+  if (authorUid) {
+    router.push({ path: `/profile/${authorUid}`, replace: false })
+  } else {
+    console.warn('無法跳轉：找不到作者 UID', props.post)
+  }
+}
 
 const props = defineProps({
   post: {
@@ -25,7 +39,7 @@ const itemData = computed(() => ({
   id: props.post.id,
   type: 'discussion',
   title: props.post.title,
-  image: props.post.banner, // 使用 banner 作為主圖
+  image: props.post.banner,
   banner: props.post.banner,
   author: props.post.author,
   avatar: props.post.avatar,
@@ -34,7 +48,28 @@ const itemData = computed(() => ({
   tags: props.post.tags,
   likes: likesCount.value,
   comments: props.post.comments,
+  category: props.post.category, // ★ 新增：確保收藏時也包含分類資訊
 }))
+
+// --- [最終版] 純文字清洗邏輯 ---
+const previewContent = computed(() => {
+  if (!props.post.content) return ''
+
+  let content = props.post.content
+
+  // 1. 預處理：把會造成換行的 HTML 標籤替換成換行符號 \n
+  content = content.replace(/<br\s*\/?>/gi, '\n')
+  content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
+
+  // 2. 強力剝除：建立一個暫存 DOM，利用 textContent 取得純文字
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = content
+  const plainText = tempDiv.textContent || tempDiv.innerText || ''
+
+  // 3. 回傳修剪後的純文字
+  return plainText.trim()
+})
+// -------------------------------------
 
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
@@ -48,7 +83,6 @@ const loadLikesInfo = async () => {
   }
 }
 
-// 處理按讚
 const handlePostLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
@@ -71,10 +105,8 @@ const handlePostLike = async () => {
   }
 }
 
-// 監聽 Firebase 認證狀態
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
-
   if (currentUserUid.value && props.post?.id) {
     await loadLikesInfo()
   } else {
@@ -82,7 +114,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 })
 
-// 組件掛載時載入按讚狀態
 onMounted(async () => {
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
@@ -100,12 +131,16 @@ onMounted(async () => {
     <div class="flex items-center space-x-3 mb-4">
       <img
         :src="post.avatar"
-        class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+        class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
         alt="作者頭像"
+        @click="handleAvatarClick"
       />
       <div>
         <div class="flex items-center space-x-2">
-          <span class="font-bold text-gray-800">{{ post.author }}</span>
+          <span 
+            class="font-bold text-gray-800 cursor-pointer hover:text-primary-600 transition"
+            @click="handleAvatarClick"
+          >{{ post.author }}</span>
           <span
             v-if="post.spiritAnimal"
             class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
@@ -121,14 +156,21 @@ onMounted(async () => {
       {{ post.title }}
     </h3>
 
-    <p class="text-gray-600 text-sm mb-4 line-clamp-4 leading-relaxed">
-      {{ post.content }}
+    <p class="text-gray-600 text-sm mb-4 line-clamp-5 whitespace-pre-wrap leading-relaxed">
+      {{ previewContent }}
     </p>
 
     <div
       v-if="post.banner"
-      class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100"
+      class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100 relative"
     >
+      <div
+        v-if="post.category"
+        class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+      >
+        {{ post.category }}
+      </div>
+
       <img
         :src="post.banner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -144,14 +186,22 @@ onMounted(async () => {
         'grid-cols-2': post.image_urls.length >= 2,
       }"
     >
-      <img
-        v-for="(url, idx) in post.image_urls.slice(0, 4)"
-        :key="idx"
-        :src="url"
-        class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
-        :alt="`圖片 ${idx + 1}`"
-      />
+      <div v-for="(url, idx) in post.image_urls.slice(0, 4)" :key="idx" class="relative">
+        <div
+          v-if="!post.banner && idx === 0 && post.category"
+          class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+        >
+          {{ post.category }}
+        </div>
+
+        <img
+          :src="url"
+          class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
+          :alt="`圖片 ${idx + 1}`"
+        />
+      </div>
     </div>
+
     <div
       v-if="post.tags && post.tags.length"
       class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3"
@@ -211,7 +261,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* pixel-card replaced by Tailwind classes in template */
-</style>

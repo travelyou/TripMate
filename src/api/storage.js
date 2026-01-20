@@ -22,7 +22,7 @@ export async function uploadImage(file, folder = 'posts', onProgress = null) {
 
     // 使用 uploadBytesResumable 以支持進度監聽
     const uploadTask = uploadBytesResumable(storageRef, file, {
-      cacheControl: 'public, max-age=3600'
+      cacheControl: 'public, max-age=3600',
     })
 
     // 返回 Promise，同時監聽進度
@@ -48,7 +48,7 @@ export async function uploadImage(file, folder = 'posts', onProgress = null) {
           } catch (error) {
             reject(new Error('獲取圖片 URL 失敗：' + (error?.message || String(error))))
           }
-        }
+        },
       )
     })
   } catch (error) {
@@ -62,25 +62,21 @@ export async function uploadMultipleImages(files, folder = 'posts', onProgress =
     const list = Array.from(files || [])
     const totalFiles = list.length
     let completedFiles = 0
-    
+
     const results = await Promise.all(
       list.map(async (file, index) => {
-        const result = await uploadImage(
-          file,
-          folder,
-          (progress) => {
-            // 計算整體進度：每個文件佔 100/totalFiles%，當前文件進度 * (1/totalFiles)
-            if (onProgress && typeof onProgress === 'function') {
-              const fileProgress = (completedFiles / totalFiles) * 100 + (progress / totalFiles)
-              onProgress(Math.round(fileProgress))
-            }
+        const result = await uploadImage(file, folder, (progress) => {
+          // 計算整體進度：每個文件佔 100/totalFiles%，當前文件進度 * (1/totalFiles)
+          if (onProgress && typeof onProgress === 'function') {
+            const fileProgress = (completedFiles / totalFiles) * 100 + progress / totalFiles
+            onProgress(Math.round(fileProgress))
           }
-        )
+        })
         completedFiles++
         return result
-      })
+      }),
     )
-    
+
     return results
   } catch (error) {
     console.error('批量圖片上傳失敗：', error)
@@ -118,5 +114,3 @@ export async function deleteImage(filePath, folder = 'posts') {
     throw new Error('圖片刪除失敗：' + error.message)
   }
 }
-
-

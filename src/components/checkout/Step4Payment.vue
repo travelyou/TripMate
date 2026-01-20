@@ -1,30 +1,99 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { checkoutStore } from '@/stores/checkout'
 import MainButton from './MainButton.vue'
-import SubButton from './SubButton.vue'
 
 const router = useRouter()
+const route = useRoute()
 
-// 付款方式
-const paymentMethod = ref('')
-// 行動支付選項
-const mobileProvider = ref('')
+const orderLoading = ref(false)
+const orderError = ref('')
+const payableAmount = ref(0)
 
+const orderId = computed(() => route.query.orderId || checkoutStore.lastOrder?.id)
+
+onMounted(async () => {
+  if (!orderId.value) return
+
+  orderLoading.value = true
+  orderError.value = ''
+  try {
+    const data = await checkoutStore.fetchOrderDetail(orderId.value)
+    payableAmount.value = Number(data?.order?.amount ?? 0)
+  } catch (e) {
+    orderError.value = e?.message || '讀取訂單失敗'
+    payableAmount.value = 0
+  } finally {
+    orderLoading.value = false
+  }
+})
+
+// =====================
+// 付款方式（兩層 UI）
+// =====================
+const paymentMethod = ref('') // 'credit' | 'mobile' | 'bank'
+const mobileProvider = ref('') // 'linepay' | 'applepay' | 'googlepay' | ...
+
+// 你要「擴充付款方式」主要就改這兩個設定：
+// 1) PAYMENT_PROVIDER：把 UI value 映射成後端 providerKey（不想映射就讓 value 本身就是 providerKey）
+// 2) REDIRECT_PROVIDERS：哪些 provider 需要導去第三方付款頁（如 linepay）
+const PAYMENT_PROVIDER = {
+  credit: 'credit',
+  bank: 'bank',
+  mobile: {
+    linepay: 'linepay',
+    applepay: 'applepay',
+    googlepay: 'googlepay',
+    // jkopay: 'jkopay',
+    // easywallet: 'easywallet',
+  },
+}
+
+const providerKey = computed(() => {
+  const method = paymentMethod.value
+  if (!method) return ''
+
+  if (method === 'mobile') {
+    const p = mobileProvider.value
+    if (!p) return ''
+    return PAYMENT_PROVIDER.mobile[p] || p
+  }
+
+  return PAYMENT_PROVIDER[method] || method
+})
+
+const REDIRECT_PROVIDERS = new Set([
+  'linepay',
+  'applepay',
+  'googlepay',
+  // 'jkopay',
+  // 'easywallet',
+])
+
+const shouldRedirect = computed(() => REDIRECT_PROVIDERS.has(providerKey.value))
+
+// =====================
 // 信用卡欄位及錯誤訊息
+// =====================
 const cardNumber = ref('')
 const cardName = ref('')
-const cardExpiry = ref('')
 const cardCVV = ref('')
+const cardExpiryMonth = ref('')
+const cardExpiryYear = ref('')
 
-// 錯誤訊息
+const expiryMonths = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
+
+const expiryYears = Array.from({ length: 12 }, (_, i) => {
+  const yy = (new Date().getFullYear() + i) % 100
+  return String(yy).padStart(2, '0')
+})
+
 const cardNumberError = ref('')
 const cardNameError = ref('')
 const cardExpiryError = ref('')
 const cardCVVError = ref('')
 
-// 清除信用卡錯誤訊息
 function clearCardErrors() {
   cardNumberError.value = ''
   cardNameError.value = ''
@@ -32,12 +101,10 @@ function clearCardErrors() {
   cardCVVError.value = ''
 }
 
-// 驗證信用卡卡號
 function isValidCardNumber(value) {
   if (!value) return false
   const s = String(value).replace(/[^0-9]/g, '')
   if (s.length < 13 || s.length > 19) return false
-  //  盧恩算法 (Luhn algorithm) 檢查
   let sum = 0
   let shouldDouble = false
   for (let i = s.length - 1; i >= 0; i--) {
@@ -52,92 +119,87 @@ function isValidCardNumber(value) {
   return sum % 10 === 0
 }
 
-// 驗證有效期限 MM/YY 格式且未過期
-function isValidExpiry(value) {
-  if (!value) return false
-  const m = String(value).trim()
-  const re = /^(0[1-9]|1[0-2])\/\d{2}$/
-  if (!re.test(m)) return false
-  const parts = m.split('/')
-  const month = parseInt(parts[0], 10)
-  const year = parseInt(parts[1], 10) + 2000
-  const expiryDate = new Date(year, month - 1 + 1, 1) // 到期後，次月的第一天
+function isValidExpiryMMYY(monthYY, yearYY) {
+  if (!monthYY || !yearYY) return false
+  const month = parseInt(monthYY, 10)
+  if (Number.isNaN(month) || month < 1 || month > 12) return false
+
+  const year = 2000 + parseInt(yearYY, 10)
+  if (Number.isNaN(year)) return false
+
+  // 到期日：下一個月 1 號 00:00
+  const expiryBoundary = new Date(year, month, 1) // month 直接用 1~12，JS 會當成 next month
   const now = new Date()
-  // MM/YY 是否未過期
-  return expiryDate > now
+  return expiryBoundary > now
 }
 
-// 驗證 CVV 為 3 或 4 位數字
 function isValidCVV(value) {
   if (!value) return false
   return /^\d{3,4}$/.test(String(value).trim())
 }
 
-// 選擇付款方式
+// 顯示控制
 const showCreditForm = computed(() => paymentMethod.value === 'credit')
 const showMobilePay = computed(() => paymentMethod.value === 'mobile')
 const showBankInfo = computed(() => paymentMethod.value === 'bank')
 
-// 前往完成訂單
-function confirmPayment() {
-  if (!paymentMethod.value) {
-    alert('請選擇付款方式')
-    return
+// （可選）信用卡驗證：你想嚴謹一點就打開這段
+function validateCreditForm() {
+  clearCardErrors()
+
+  if (!isValidCardNumber(cardNumber.value)) cardNumberError.value = '卡號格式不正確'
+  if (!cardName.value?.trim()) cardNameError.value = '請輸入持卡人姓名'
+  if (!isValidExpiryMMYY(cardExpiryMonth.value, cardExpiryYear.value)) {
+    cardExpiryError.value = '請選擇到期月/年'
   }
-  // 若選擇信用卡，先驗證信用卡欄位格式
+
+  if (!isValidCVV(cardCVV.value)) cardCVVError.value = 'CVV 格式不正確'
+
+  return (
+    !cardNumberError.value && !cardNameError.value && !cardExpiryError.value && !cardCVVError.value
+  )
+}
+
+// =====================
+// 付款流程
+// =====================
+const confirmPayment = async () => {
+  if (!orderId.value) return alert('找不到訂單編號 orderId')
+  if (!paymentMethod.value) return alert('請選擇付款方式')
+  if (paymentMethod.value === 'mobile' && !mobileProvider.value) return alert('請選擇行動支付方式')
+  if (!providerKey.value) return alert('付款方式設定錯誤（providerKey 空值）')
+
   if (paymentMethod.value === 'credit') {
-    clearCardErrors()
-    let valid = true
-
-    if (!cardName.value || !String(cardName.value).trim()) {
-      cardNameError.value = '請輸入持卡人姓名'
-      valid = false
-    }
-
-    if (!isValidCardNumber(cardNumber.value)) {
-      cardNumberError.value = '請輸入正確卡號'
-      valid = false
-    }
-
-    if (!isValidExpiry(cardExpiry.value)) {
-      cardExpiryError.value = '請輸入有效期限，格式 MM/YY，且未過期'
-      valid = false
-    }
-
-    if (!isValidCVV(cardCVV.value)) {
-      cardCVVError.value = '請輸入 3 或 4 位數安全碼'
-      valid = false
-    }
-
-    if (!valid) return
+    const ok = validateCreditForm()
+    if (!ok) return
   }
 
-  checkoutStore.paymentMethod = paymentMethod.value
-  if (paymentMethod.value === 'mobile') {
-    if (!mobileProvider.value) {
-      alert('請選擇行動支付方式')
+  try {
+    const { paymentId, paymentUrl } = await checkoutStore.createPayment({
+      orderId: orderId.value,
+      paymentMethod: providerKey.value,
+    })
+
+    if (shouldRedirect.value) {
+      if (!paymentUrl) throw new Error('缺少 paymentUrl')
+      window.location.href = paymentUrl
       return
     }
-    checkoutStore.mobileProvider = mobileProvider.value
-  }
 
-  // 儲存為已完成的訂單並清空 checkoutStore
-  if (typeof checkoutStore.completeOrder === 'function') {
-    checkoutStore.completeOrder()
+    // 非 redirect 的方式（先走 mock）
+    await checkoutStore.mockPay(paymentId)
+    router.push(`/checkout/step5?orderId=${orderId.value}`)
+  } catch (err) {
+    console.error(err)
+    alert(err?.message || '付款失敗')
   }
-
-  router.push('/checkout/step5')
 }
 
-// 上一步
-function backStep() {
-  router.push('/checkout/step3')
-}
 </script>
 
 <template>
   <section class="max-w-5xl mx-auto">
-    <div class="flex flex-col gap-10 md:flex-row">
+    <div class="flex flex-col gap-10 lg:flex-row">
       <!-- 左側：付款方式 -->
       <div class="flex-1 space-y-6">
         <!-- 安全提示 -->
@@ -220,12 +282,29 @@ function backStep() {
             <div class="flex flex-col gap-4 md:flex-row md:gap-8">
               <div class="flex flex-col gap-2">
                 <label>有效期限 <span class="text-red-500">*</span></label>
-                <input
-                  v-model="cardExpiry"
-                  class="border border-gray-300 rounded p-1"
-                  placeholder="MM/YY"
-                  @input="cardExpiryError = ''"
-                />
+                <div class="flex gap-2">
+                  <select
+                    v-model="cardExpiryMonth"
+                    class="border border-gray-300 rounded p-1 w-20 text-center"
+                    @change="cardExpiryError = ''"
+                  >
+                    <option value="" disabled>MM</option>
+                    <option v-for="month in expiryMonths" :key="month" :value="month">
+                      {{ month }}
+                    </option>
+                  </select>
+                  <span class="self-center">/</span>
+                  <select
+                    v-model="cardExpiryYear"
+                    class="border border-gray-300 rounded p-1 w-20 text-center"
+                    @change="cardExpiryError = ''"
+                  >
+                    <option value="" disabled>YY</option>
+                    <option v-for="year in expiryYears" :key="year" :value="year">
+                      {{ year }}
+                    </option>
+                  </select>
+                </div>
                 <p v-if="cardExpiryError" class="text-red-500 text-sm">
                   {{ cardExpiryError }}
                 </p>
@@ -251,25 +330,25 @@ function backStep() {
           <div class="flex flex-col gap-5">
             <label
               class="flex items-center gap-3 border p-4 rounded-lg cursor-pointer"
-              :class="mobileProvider === 'apple' ? 'border-blue-500 bg-blue-50' : ''"
+              :class="mobileProvider === 'applepay' ? 'border-blue-500 bg-blue-50' : ''"
             >
-              <input v-model="mobileProvider" type="radio" value="apple" />
+              <input v-model="mobileProvider" type="radio" value="applepay" />
               <span>Apple Pay</span>
             </label>
 
             <label
               class="flex items-center gap-3 border p-4 rounded-lg cursor-pointer"
-              :class="mobileProvider === 'google' ? 'border-blue-500 bg-blue-50' : ''"
+              :class="mobileProvider === 'googlepay' ? 'border-blue-500 bg-blue-50' : ''"
             >
-              <input v-model="mobileProvider" type="radio" value="google" />
+              <input v-model="mobileProvider" type="radio" value="googlepay" />
               <span>Google Pay</span>
             </label>
 
             <label
               class="flex items-center gap-3 border p-4 rounded-lg cursor-pointer"
-              :class="mobileProvider === 'line' ? 'border-blue-500 bg-blue-50' : ''"
+              :class="mobileProvider === 'linepay' ? 'border-blue-500 bg-blue-50' : ''"
             >
-              <input v-model="mobileProvider" type="radio" value="line" />
+              <input v-model="mobileProvider" type="radio" value="linepay" />
               <span>LINE Pay</span>
             </label>
           </div>
@@ -296,7 +375,7 @@ function backStep() {
             </div>
             <div class="flex justify-between font-bold text-blue-600">
               <span>轉帳金額</span>
-              <span>NT$ {{ checkoutStore.totalPrice }}</span>
+              <span>NT$ {{ payableAmount }}</span>
             </div>
           </div>
 
@@ -308,14 +387,14 @@ function backStep() {
       <div class="min-w-64 bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
         <h3 class="text-xl font-bold">訂單摘要</h3>
 
-        <div class="space-y-2">
+        <div class="space-y-4">
           <div class="mb-12 text-md">
             <p class="text-gray-500">行程名稱</p>
             <p>{{ checkoutStore.selectedTour?.title }}</p>
           </div>
 
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">出發日期</span>
+          <div class="flex flex-col gap-2 justify-between text-sm">
+            <span class="text-gray-500">行程日期</span>
             <span>{{ checkoutStore.selectedTour?.date }}</span>
           </div>
 
@@ -325,18 +404,17 @@ function backStep() {
           </div>
 
           <hr />
-
-          <div class="flex justify-between font-bold text-blue-600 text-lg">
-            <span>應付金額</span>
-            <span>NT$ {{ checkoutStore.totalPrice }}</span>
+          <div v-if="orderLoading">訂單金額載入中...</div>
+          <div v-else-if="orderError">{{ orderError }}</div>
+          <div v-else>
+            <div class="flex justify-between font-bold text-blue-600 text-lg">
+              <span>應付金額</span>
+              <span>NT$ {{ payableAmount }}</span>
+            </div>
           </div>
         </div>
         <div class="flex flex-col gap-3">
-          <MainButton @click="confirmPayment">
-            確認付款 NT$ {{ checkoutStore.totalPrice }}
-          </MainButton>
-
-          <SubButton @click="backStep"> 上一步 </SubButton>
+          <MainButton @click="confirmPayment"> 確認付款 </MainButton>
         </div>
         <div class="text-green-600 text-sm text-center">✔ 安全加密付款</div>
       </div>

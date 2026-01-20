@@ -7,8 +7,17 @@ export const getTravelers = async (filters = {}) => {
     const params = new URLSearchParams()
     if (filters.status) params.append('status', filters.status)
     if (filters.location) params.append('location', filters.location)
+    if (filters.category) params.append('category', filters.category)
     if (filters.limit) params.append('limit', filters.limit)
-    if (filters.offset) params.append('offset', filters.offset)
+
+    if (filters.offset !== undefined) {
+      params.append('offset', filters.offset)
+    } else if (filters.page && filters.limit) {
+      const pageNum = Number(filters.page) || 1
+      const limitNum = Number(filters.limit) || 20
+      const offset = Math.max(0, (pageNum - 1) * limitNum)
+      params.append('offset', offset)
+    }
 
     const response = await axios.get(`${API_BASE_URL}/travelers?${params.toString()}`)
     return response.data

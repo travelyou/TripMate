@@ -1,53 +1,104 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
-import {
-  Plus as PlusIcon,
-  Heart as HeartIcon,
-  MessageCircle as MessageCircleIcon,
-  Repeat2 as Repeat2Icon,
-  Bookmark as BookmarkIcon,
-} from 'lucide-vue-next'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
+import { useRoute, useRouter } from 'vue-router'
+import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
-import { useUserStore } from '@/stores/user'
+import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
-import { toggleLike } from '@/api/likes'
+import { storeToRefs } from 'pinia'
 
 // 引入組件
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
+import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 
 const discussionsStore = useDiscussionsStore()
-const userStore = useUserStore()
+const myItineraryStore = useMyItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const { drafts } = storeToRefs(myItineraryStore)
 
 const currentUserUid = ref(null)
+
+// --- 篩選狀態 ---
+const filterOptions = ref([
+  '全部',
+  '國內旅遊',
+  '亞洲旅遊',
+  '歐美紐澳',
+  '攝影愛好',
+  '交通建議',
+  '美食分享',
+  '住宿推薦',
+  '行程請益',
+  '其他',
+])
+const activeFilter = ref('全部')
+
+// --- ★ 分頁狀態 ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null) // 綁定到底部的 DOM 元素
+let observer = null // IntersectionObserver 實例
+
+// ★ 修改：載入文章 (支援分頁)
+const loadDiscussionsData = async (isLoadMore = false) => {
+  if (discussionsStore.loading) return // 防止重複觸發
+
+  try {
+    // 如果不是載入更多 (代表是切換分類或初始化)，重置狀態
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+      // 注意：這裡不手動清空 discussionsStore.discussions，交給 Store 的覆蓋邏輯處理
+      // 這樣可以避免畫面瞬間空白閃爍
+    }
+
+    const params = {
+      page: currentPage.value,
+      limit: 10,
+    }
+
+    if (activeFilter.value !== '全部') {
+      params.category = activeFilter.value
+    }
+
+    // 呼叫 Store，傳入是否為 loadMore
+    const data = await discussionsStore.loadDiscussions(params, isLoadMore)
+
+    // 判斷是否還有下一頁
+    if (data && data.posts) {
+      if (data.posts.length < 10) {
+        hasMore.value = false // 回傳少於 10 筆，代表沒資料了
+      } else {
+        // 準備下一頁
+        if (isLoadMore) {
+          currentPage.value++
+        } else {
+          // 如果是第一頁載入完，且數量足夠，下一頁就是 2
+          currentPage.value = 2
+        }
+      }
+    }
+  } catch (error) {
+    console.error('載入貼文失敗：', error)
+  }
+}
+
+// 監聽分類切換 -> 重新載入 (重置為第一頁)
+watch(activeFilter, () => {
+  loadDiscussionsData(false)
+})
 
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  if (
-    previousUid !== currentUserUid.value &&
-    currentUserUid.value &&
-    discussionsStore.discussions.length > 0
-  ) {
-    await Promise.all(
-      discussionsStore.discussions.map(async (post) => {
-        try {
-          const { getLikesInfo } = await import('@/api/likes')
-          const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
-          post.isLiked = info.isLiked
-          post.likes = info.likesCount || post.likes
-        } catch (error) {
-          console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
-        }
-      }),
-    )
-  } else if (!currentUserUid.value) {
-    discussionsStore.discussions.forEach((post) => {
-      post.isLiked = false
-    })
+  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+    // 登入狀態改變時，重新載入第一頁
+    loadDiscussionsData(false)
   }
 })
 
@@ -57,57 +108,61 @@ onMounted(async () => {
     currentUserUid.value = firebaseUser.uid
   }
 
-  try {
-    await discussionsStore.loadDiscussions()
-    if (currentUserUid.value) {
-      await Promise.all(
-        discussionsStore.discussions.map(async (post) => {
-          try {
-            const { getLikesInfo } = await import('@/api/likes')
-            const info = await getLikesInfo(post.id, currentUserUid.value, 'discussion')
-            post.isLiked = info.isLiked
-            post.likes = info.likesCount || post.likes
-          } catch (error) {
-            console.error(`載入貼文 ${post.id} 按讚狀態失敗：`, error)
-          }
-        }),
-      )
-    }
-  } catch (error) {
-    console.error('載入貼文失敗：', error)
+  // 1. 初始載入第一頁
+  await loadDiscussionsData(false)
+
+  // 2. ★ 設定 IntersectionObserver (無限捲動偵測)
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      // 如果看到底部元素 && 還有更多資料 && 目前沒有在載入中
+      if (entry.isIntersecting && hasMore.value && !discussionsStore.loading) {
+        console.log('👀 看到底部了，載入更多...')
+        loadDiscussionsData(true) // 載入更多
+      }
+    },
+    {
+      rootMargin: '100px', // 提早 100px 觸發，體驗更流暢
+    },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
   }
+  // 檢查是否有草稿需要打開
+  tryOpenDraft()
 })
 
-const handlePostLike = async (post) => {
-  if (!currentUserUid.value) {
-    alert('請先登入後才能按讚')
-    return
-  }
+onUnmounted(() => {
+  if (observer) observer.disconnect()
+})
 
-  try {
-    const result = await toggleLike(post.id, currentUserUid.value, 'discussion')
-    post.isLiked = result.liked
-    post.likes = result.likesCount
-  } catch (error) {
-    console.error('按讚操作失敗：', error)
-    alert('按讚操作失敗，請稍後再試')
+// 監聽路由變化
+watch(() => route.query.openDraft, (newDraftId) => {
+  if (newDraftId) {
+    nextTick(() => {
+      tryOpenDraft()
+    })
   }
-}
+})
 
 // 發文成功後的回調
 const handlePostSuccess = async () => {
   isPostingModalOpen.value = false
-  await discussionsStore.loadDiscussions()
+  postToEdit.value = null
+  // 發文成功後，重新整理列表 (回到第一頁)
+  loadDiscussionsData(false)
 }
 
 // --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
-
+const selectedDraft = ref(null) // 用於存儲要打開的草稿
 const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
+const postToEdit = ref(null)
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
@@ -121,6 +176,18 @@ const closeDiscussionDetailModal = () => {
   shouldScrollToComments.value = false
 }
 
+const handleEditPost = (post) => {
+  postToEdit.value = post
+  closeDiscussionDetailModal()
+  isPostingModalOpen.value = true
+}
+
+const handlePostModalClose = () => {
+  isPostingModalOpen.value = false
+  postToEdit.value = null
+  selectedDraft.value = null
+}
+
 const openShareModal = (postId) => {
   shareLink.value = `/post/${postId}`
   isShareModalOpen.value = true
@@ -131,32 +198,42 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// --- 篩選/搜尋狀態 ---
-const filterOptions = ref(['全部', '有圖', '新貼文', '找旅伴', '找話題'])
-const activeFilter = ref('全部')
+const handleCardLike = (updatedPostInfo) => {
+  const post = discussionsStore.discussions.find((p) => p.id === updatedPostInfo.id)
+  if (post) {
+    post.isLiked = updatedPostInfo.isLiked
+    post.likes = updatedPostInfo.likes
+  }
+}
+// 開啟草稿編輯
+const openDraft = (draft) => {
+  if (draft.type === 'discussion' && draft.data) {
+    // 設置草稿數據並打開 Modal
+    selectedDraft.value = draft
+    isPostingModalOpen.value = true
+  }
+}
 
-// Helper
-const getPostData = (post) => ({
-  id: post.id,
-  type: 'discussion',
-  title: post.title,
-  image: post.banner,
-  author: post.author,
-  avatar: post.avatar,
-  content: post.content,
-  time: post.time,
-  tags: post.tags,
-  likes: post.likes,
-  comments: post.comments,
-})
+// 嘗試打開草稿的函數
+const tryOpenDraft = () => {
+  const draftId = route.query.openDraft
+  if (draftId) {
+    const draft = drafts.value.find((d) => String(d.id) === String(draftId))
+    if (draft && draft.type === 'discussion') {
+      nextTick(() => {
+        openDraft(draft)
+        // 清除查詢參數
+        router.replace({ path: '/discussion', query: {} })
+      })
+    }
+  }
+}
 </script>
 
 <template>
   <div class="p-4 overflow-x-hidden">
     <div class="w-full">
-      <div
-        class="mb-6 mt-4 bg-primary rounded-xl p-5 shadow-primary-tall"
-      >
+      <div class="mb-6 mt-4 bg-primary rounded-xl p-5 shadow-primary-tall">
         <div class="flex justify-between items-center">
           <h1 class="text-2xl font-black text-white flex items-center">
             <MessageCircleIcon class="w-7 h-7 mr-3 text-white" />
@@ -176,14 +253,15 @@ const getPostData = (post) => ({
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
         <div class="flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-400 font-bold self-center mr-2">分類：</span>
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
+              'px-3 py-1 rounded-full font-bold transition border-2',
               activeFilter === filter
-                ? 'bg-primary text-secondary-50'
-                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
             @click="activeFilter = filter"
           >
@@ -193,128 +271,32 @@ const getPostData = (post) => ({
       </div>
 
       <div class="space-y-6">
-        <div
-          v-for="post in discussionsStore.discussions"
-          :key="post.id"
-          class="p-5 bg-white ring-1 ring-secondary-200 shadow-md rounded-2xl hover:shadow-lg transition cursor-pointer"
-        >
-          <div class="flex items-center space-x-3 mb-4">
-            <img
-              :src="post.avatar"
-              class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
-            />
-            <div>
-              <div class="flex items-center space-x-2">
-                <span class="font-bold text-secondary-800">{{ post.author }}</span>
-                <span
-                  class="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full"
-                >
-                  {{ post.spiritAnimal }}
-                </span>
-              </div>
-              <div class="text-xs text-secondary-400">{{ post.time }} • 討論區</div>
-            </div>
-          </div>
-
-          <h3
-            class="text-lg font-bold text-secondary-900 mb-2 cursor-pointer hover:text-primary-600"
+        <template v-if="discussionsStore.discussions.length > 0">
+          <DiscussionCard
+            v-for="post in discussionsStore.discussions"
+            :key="post.id"
+            :post="post"
             @click="openDiscussionDetailModal(post, false)"
-          >
-            {{ post.title }}
-          </h3>
+            @comment="openDiscussionDetailModal(post, true)"
+            @share="openShareModal(post.id)"
+            @like="handleCardLike"
+          />
+        </template>
 
-          <p class="text-secondary-600 text-sm mb-4 line-clamp-4 leading-relaxed">
-            {{ post.content }}
-          </p>
+        <div v-else-if="!discussionsStore.isLoading" class="text-center py-20 text-gray-500">
+          目前沒有這個分類的討論文章，來發一篇吧！
+        </div>
 
-          <!-- 顯示封面圖（banner） -->
+        <div ref="loadMoreTrigger" class="py-4 text-center">
           <div
-            v-if="post.banner"
-            class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100"
-          >
-            <img
-              :src="post.banner"
-              class="w-full h-full object-cover hover:scale-105 transition duration-500"
-              alt="討論封面"
-            />
-          </div>
-
-          <!-- 顯示內文圖片（image_urls），最多顯示 4 張 -->
+            v-if="discussionsStore.isLoading"
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
+          ></div>
           <div
-            v-if="post.image_urls && post.image_urls.length > 0"
-            class="grid gap-2 mb-4"
-            :class="{
-              'grid-cols-1': post.image_urls.length === 1,
-              'grid-cols-2': post.image_urls.length >= 2,
-            }"
+            v-else-if="!hasMore && discussionsStore.discussions.length > 0"
+            class="text-gray-400 text-sm"
           >
-            <img
-              v-for="(url, idx) in post.image_urls.slice(0, 4)"
-              :key="idx"
-              :src="url"
-              class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition"
-              :alt="`圖片 ${idx + 1}`"
-            />
-          </div>
-
-          <div
-            v-if="post.tags && post.tags.length"
-            class="flex flex-wrap gap-2 mb-4 border-b border-secondary-100 pb-3"
-          >
-            <span
-              v-for="tag in post.tags"
-              :key="tag"
-              class="text-xs font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full cursor-pointer hover:bg-primary-200 transition"
-            >
-              #{{ tag }}
-            </span>
-          </div>
-
-          <div class="flex items-center text-secondary-400 text-sm pt-1">
-            <button
-              class="flex items-center space-x-1 transition mr-6 group"
-              :class="post.isLiked ? 'text-red-500' : 'hover:text-red-500'"
-              @click.stop="handlePostLike(post)"
-            >
-              <HeartIcon
-                class="w-4 h-4 transition-transform group-active:scale-125"
-                :class="{ 'fill-current': post.isLiked }"
-              />
-              <span>{{ post.likes || 0 }}</span>
-            </button>
-
-            <button
-              class="flex items-center space-x-1 hover:text-primary-600 transition mr-6"
-              @click="openDiscussionDetailModal(post, true)"
-            >
-              <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
-            </button>
-
-            <button
-              class="flex items-center space-x-1 transition mr-6 group"
-              :class="
-                userStore.isCollected(getPostData(post))
-                  ? 'text-primary-500'
-                  : 'hover:text-primary-600'
-              "
-              @click.stop="
-                userStore.isCollected(getPostData(post))
-                  ? userStore.removeFromCollection(getPostData(post))
-                  : userStore.openCollectionModal(getPostData(post))
-              "
-            >
-              <BookmarkIcon
-                class="w-4 h-4 transition-transform group-active:scale-125"
-                :class="{ 'fill-current': userStore.isCollected(getPostData(post)) }"
-              />
-            </button>
-
-            <button
-              class="ml-auto flex items-center space-x-1 hover:text-secondary-600 transition"
-              @click="openShareModal(post.id)"
-            >
-              <Repeat2Icon class="w-4 h-4" />
-            </button>
+            已經到底囉，沒有更多貼文了 🏝️
           </div>
         </div>
       </div>
@@ -323,7 +305,9 @@ const getPostData = (post) => ({
 
   <DiscussionPostModal
     v-if="isPostingModalOpen"
-    @close="isPostingModalOpen = false"
+    :post-to-edit="postToEdit"
+    @close="handlePostModalClose"
+    :draft-data="selectedDraft"
     @success="handlePostSuccess"
   />
 
@@ -332,6 +316,7 @@ const getPostData = (post) => ({
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
+    @edit="handleEditPost"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

@@ -41,17 +41,32 @@
           <BellIcon class="w-6 h-6" />
         </button>
 
-        <router-link to="/cart" class="p-2 hover:bg-primary-600 rounded-full transition">
+        <router-link to="/cart" class="relative p-2 hover:bg-primary-600 rounded-full transition">
+          <span
+            v-if="hasCartItems"
+            class="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-primary-700"
+          ></span>
           <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-secondary-50" />
         </router-link>
 
-        <div ref="menuRef" class="relative ml-1">
+        <!-- 未登入時顯示登入/註冊按鈕 -->
+        <button
+          v-if="!userStore.isLoggedIn"
+          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 bg-primary-600 hover:bg-primary-700 rounded-full transition ml-1 whitespace-nowrap"
+          @click="goToLogin"
+        >
+          <span class="hidden sm:inline">登入 / 註冊</span>
+          <span class="sm:hidden">登入</span>
+        </button>
+
+        <!-- 已登入時顯示頭像選單 -->
+        <div v-else ref="menuRef" class="relative ml-1">
           <button
             class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm"
             @click="toggleMenu"
           >
             <img
-              v-if="userStore.isLoggedIn && userStore.userProfile.avatar"
+              v-if="userStore.userProfile.avatar"
               :src="userStore.userProfile.avatar"
               class="w-full h-full object-cover"
               alt="User Avatar"
@@ -131,6 +146,7 @@
 <script setup>
 import TripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 import { useUserStore } from '@/stores/user'
+import { checkoutStore } from '@/stores/checkout'
 import {
   Bell as BellIcon,
   LogOut as LogOutIcon,
@@ -142,13 +158,17 @@ import {
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const headerSearchQuery = ref('')
+
+const hasCartItems = computed(
+  () => (checkoutStore.cartItems?.length ?? 0) > 0 || checkoutStore.tourGroups.length > 0,
+)
 
 const handleDesktopSearch = () => {
   if (!headerSearchQuery.value.trim()) return

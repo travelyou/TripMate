@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted } from 'vue'
-import { Map as MapIcon, Plus as PlusIcon } from 'lucide-vue-next'
+import { ref, onMounted, computed } from 'vue'
+import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 
 import ItineraryCard from '@/components/cards/ItineraryCard.vue'
@@ -19,16 +19,32 @@ const selectedItinerary = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 
-// 篩選狀態
+// ★ 修改：更新為新的分類選項
 const filterOptions = ref([
   '全部',
-  '旅行社精選',
-  '導遊推薦',
-  '短天數(1-5日)',
-  '長天數(6日以上)',
-  '亞洲',
+  '國內旅遊',
+  '日韓旅遊',
+  '亞洲其他',
+  '歐美紐澳',
+  '海島度假',
+  '攝影/興趣',
+  '自駕共乘',
+  '其他',
 ])
 const activeFilter = ref('全部')
+
+// ★ 新增：前端分類篩選邏輯
+const filteredItineraries = computed(() => {
+  const itineraries = itinerariesStore.itineraries || []
+  if (activeFilter.value === '全部') {
+    return itineraries
+  }
+  return itineraries.filter((item) => {
+    // 兼容舊資料：如果沒有分類，歸類為「其他」
+    const itemCategory = item.category || '其他'
+    return itemCategory === activeFilter.value
+  })
+})
 
 // 處理開啟詳情彈窗
 const openDetailModal = (itinerary, focusComment = false) => {
@@ -76,12 +92,12 @@ onMounted(() => {
           <MapIcon class="w-6 h-6 mr-3 text-white" />
           精選行程
         </h1>
-
         <button
+          class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition shadow-md flex items-center"
           @click="isPostModalOpen = true"
-          class="bg-white text-primary-700 px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-primary-50 transition flex items-center"
         >
-          <PlusIcon class="w-4 h-4 mr-1" /> 上架行程
+          <PlusIcon class="w-5 h-5 mr-1" />
+          上架行程
         </button>
       </div>
 
@@ -109,15 +125,25 @@ onMounted(() => {
       <div v-else-if="itinerariesStore.error" class="text-center py-10 text-red-500">
         {{ itinerariesStore.error }}
       </div>
+
       <div
-        v-else-if="itinerariesStore.itineraries.length === 0"
-        class="text-center py-10 text-gray-500"
+        v-else-if="filteredItineraries.length === 0"
+        class="text-center py-20 text-gray-500 flex flex-col items-center"
       >
-        目前沒有行程資料
+        <XCircleIcon class="w-16 h-16 mb-4 text-gray-300" />
+        <p class="text-lg">目前沒有「{{ activeFilter }}」分類的行程</p>
+        <button
+          v-if="activeFilter !== '全部'"
+          class="mt-4 text-primary-600 font-bold hover:underline"
+          @click="activeFilter = '全部'"
+        >
+          查看全部行程
+        </button>
       </div>
+
       <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <ItineraryCard
-          v-for="itinerary in itinerariesStore.itineraries"
+          v-for="itinerary in filteredItineraries"
           :key="itinerary.id"
           :itinerary="itinerary"
           @open-detail="openDetailModal"
