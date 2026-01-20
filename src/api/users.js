@@ -155,3 +155,27 @@ export async function getAllUsers({ limit = 100, role } = {}) {
 
   return results
 }
+
+// 修复用户：为已存在的Firebase用户创建Neon记录
+export async function fixUser(uid, userData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/${uid}/fix`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '修復用戶失敗')
+    }
+
+    const data = await response.json()
+    return data.user || data
+  } catch (error) {
+    console.error('修復用戶失敗：', error)
+    throw error
+  }
+}

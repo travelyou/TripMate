@@ -197,6 +197,24 @@ export async function rejectFriendRequest(uid, friendUid) {
   }
 }
 
+// 解除好友關係
+export async function removeFriend(uid, friendUid) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}/remove`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.message || '解除好友關係失敗')
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('解除好友關係錯誤：', error)
+    throw error
+  }
+}
+
 // 獲取好友請求列表
 export async function getFriendRequests(uid) {
   try {

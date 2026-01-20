@@ -279,6 +279,70 @@ router.get('/', async (req, res) => {
   }
 })
 
+// 修复API：为已存在的Firebase用户创建Neon记录
+router.post('/:uid/fix', async (req, res) => {
+  try {
+    const { uid } = req.params
+    const { email, nickname, avatar, bio, spirit_animal, role, vendor_id } = req.body
+
+    if (!email) {
+      return res.status(400).json({
+        error: '缺少必填欄位',
+        message: 'email 為必填欄位',
+      })
+    }
+
+    // 检查用户是否已存在
+    const existingUser = await pool.query('SELECT uid FROM users WHERE uid = $1', [uid])
+
+    if (existingUser.rows.length > 0) {
+      return res.json({
+        message: '用戶已存在於 Neon 資料庫',
+        user: existingUser.rows[0],
+      })
+    }
+
+    // 创建新用户
+    const finalRole = role && ['user', 'vendor', 'admin'].includes(role) ? role : 'user'
+    let finalVendorId = vendor_id
+
+    if (finalRole === 'user' || finalRole === 'admin') {
+      finalVendorId = null
+    }
+
+    const insertQuery = `
+      INSERT INTO users (uid, email, nickname, avatar, bio, spirit_animal, role, vendor_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `
+
+    const insertParams = [
+      uid,
+      email,
+      nickname || null,
+      avatar || null,
+      bio || null,
+      spirit_animal || null,
+      finalRole,
+      finalVendorId,
+    ]
+
+    const result = await pool.query(insertQuery, insertParams)
+
+    res.status(201).json({
+      message: '用戶已成功修復並創建',
+      user: result.rows[0],
+    })
+  } catch (error) {
+    console.error('修復用戶失敗：', error)
+    res.status(500).json({
+      error: '修復用戶失敗',
+      message: error?.message || '無法修復用戶',
+      details: String(error),
+    })
+  }
+})
+
 router.get('/:uid', async (req, res) => {
   try {
     const { uid } = req.params

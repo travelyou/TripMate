@@ -338,7 +338,7 @@ onMounted(async () => {
             <div class="prose prose-lg max-w-none mb-6">
               <h3 class="font-bold text-xl mb-2 text-secondary-900">行程特色</h3>
               <div
-                class="rich-content text-secondary-700 leading-relaxed"
+                class="rich-content text-gray-900 leading-relaxed"
                 v-html="
                   localItineraryData.description || localItineraryData.content || '暫無詳細介紹'
                 "
@@ -547,6 +547,11 @@ onMounted(async () => {
 :deep(.rich-content) {
   font-size: 1rem;
   line-height: 1.75;
+  color: #111827;
+}
+:deep(.rich-content p) {
+  color: #111827;
+  margin-bottom: 1.25em;
 }
 :deep(.rich-content h2) {
   font-size: 1.5rem;

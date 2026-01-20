@@ -351,7 +351,7 @@ onMounted(async () => {
 
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div
-              class="prose prose-lg max-w-none mb-8 text-secondary-800 rich-content"
+              class="prose prose-lg max-w-none mb-8 text-gray-900 rich-content"
               v-html="processedContent"
             ></div>
 
@@ -497,6 +497,7 @@ onMounted(async () => {
 }
 
 :deep(.rich-content p) {
+  color: #111827;
   margin-bottom: 1.25em;
   font-size: 1.1rem;
 }

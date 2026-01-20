@@ -393,6 +393,57 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
   }
 })
 
+// 解除好友關係
+router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
+  try {
+    const { uid, friend_uid } = req.params
+
+    await ensureFriendsTable()
+
+    // 檢查 status 欄位
+    const statusCheck = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'friends' AND column_name = 'status'`,
+    )
+    const hasStatus = statusCheck.rows.length > 0
+
+    let result
+    if (hasStatus) {
+      // 刪除 accepted 狀態的好友關係（雙向）
+      result = await pool.query(
+        `DELETE FROM friends
+         WHERE ((user_uid = $1 AND friend_uid = $2)
+            OR (user_uid = $2 AND friend_uid = $1))
+           AND status = 'accepted'
+         RETURNING *`,
+        [uid, friend_uid],
+      )
+    } else {
+      // 如果沒有 status 欄位，刪除所有相關記錄
+      result = await pool.query(
+        `DELETE FROM friends
+         WHERE (user_uid = $1 AND friend_uid = $2)
+            OR (user_uid = $2 AND friend_uid = $1)
+         RETURNING *`,
+        [uid, friend_uid],
+      )
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '找不到好友關係' })
+    }
+
+    res.json({ success: true, message: '已解除好友關係' })
+  } catch (error) {
+    console.error('解除好友關係失敗：', error)
+    res.status(500).json({
+      error: '解除好友關係失敗',
+      message: error.message || '未知錯誤',
+    })
+  }
+})
+
 // 接受好友請求
 router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
   try {

@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -55,6 +55,7 @@ const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
+const unreadMessageCount = ref(0) // 未读消息总数
 
 /*
 // 背景圖片陣列
@@ -113,12 +114,134 @@ const handleOpenChat = (event) => {
   }
 }
 
+// 计算未读消息总数
+const calculateUnreadCount = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    unreadMessageCount.value = 0
+    return
+  }
+
+  try {
+    let totalUnread = 0
+
+    // 检查好友请求
+    const friendRequestsKey = `friend_requests_${currentUid}`
+    const friendRequestsData = localStorage.getItem(friendRequestsKey)
+    if (friendRequestsData) {
+      try {
+        const requests = JSON.parse(friendRequestsData)
+        if (requests.received && Array.isArray(requests.received)) {
+          totalUnread += requests.received.length
+        }
+      } catch (e) {
+        console.warn('解析好友请求失败:', e)
+      }
+    }
+
+    // 检查聊天室和未读消息
+    const chatRoomsKey = `tripmate-private-chats-${currentUid}`
+    const chatRoomsData = localStorage.getItem(chatRoomsKey)
+    if (chatRoomsData) {
+      try {
+        const rooms = JSON.parse(chatRoomsData)
+        if (Array.isArray(rooms)) {
+          rooms.forEach(room => {
+            if (room.unreadCount) {
+              totalUnread += room.unreadCount
+            } else if (room.messages && Array.isArray(room.messages)) {
+              // 如果没有unreadCount，检查最后一条消息是否是自己发送的
+              const lastMessage = room.messages[room.messages.length - 1]
+              if (lastMessage && lastMessage.type !== 'user') {
+                // 检查是否有未读标记
+                const unreadKey = `unread_${currentUid}_${room.uid}`
+                const unreadData = localStorage.getItem(unreadKey)
+                if (unreadData) {
+                  const unreadInfo = JSON.parse(unreadData)
+                  if (unreadInfo.lastReadTime) {
+                    const lastReadTime = new Date(unreadInfo.lastReadTime).getTime()
+                    const lastMessageTime = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
+                    if (lastMessageTime > lastReadTime) {
+                      totalUnread += 1
+                    }
+                  } else {
+                    totalUnread += 1
+                  }
+                } else {
+                  totalUnread += 1
+                }
+              }
+            }
+          })
+        }
+      } catch (e) {
+        console.warn('解析聊天室数据失败:', e)
+      }
+    }
+
+    // 检查新建的聊天室（通过检查是否有新消息但未打开过）
+    const newChatRoomsKey = `new_chat_rooms_${currentUid}`
+    const newChatRoomsData = localStorage.getItem(newChatRoomsKey)
+    if (newChatRoomsData) {
+      try {
+        const newRooms = JSON.parse(newChatRoomsData)
+        if (Array.isArray(newRooms)) {
+          totalUnread += newRooms.length
+        }
+      } catch (e) {
+        console.warn('解析新建聊天室数据失败:', e)
+      }
+    }
+
+    // 限制最多显示9
+    unreadMessageCount.value = Math.min(totalUnread, 9)
+  } catch (error) {
+    console.error('计算未读消息失败:', error)
+    unreadMessageCount.value = 0
+  }
+}
+
+// 监听消息变化
+const handleMessageUpdate = () => {
+  calculateUnreadCount()
+}
+
+// 监听新建聊天室
+const handleNewChatRoom = () => {
+  calculateUnreadCount()
+}
+
 // 在組件掛載時監聽全局事件
 onMounted(() => {
   window.addEventListener('open-chat', handleOpenChat)
+  window.addEventListener('message-updated', handleMessageUpdate)
+  window.addEventListener('new-chat-room', handleNewChatRoom)
+  // 初始计算未读消息
+  calculateUnreadCount()
+  // 定期检查未读消息（每5秒）
+  const interval = setInterval(calculateUnreadCount, 5000)
+  // 存储interval以便清理
+  window._unreadMessageInterval = interval
 })
 onUnmounted(() => {
   window.removeEventListener('open-chat', handleOpenChat)
+  window.removeEventListener('message-updated', handleMessageUpdate)
+  window.removeEventListener('new-chat-room', handleNewChatRoom)
+  if (window._unreadMessageInterval) {
+    clearInterval(window._unreadMessageInterval)
+    delete window._unreadMessageInterval
+  }
+})
+
+// 监听聊天窗口打开/关闭，更新未读计数
+watch(() => isPrivateChatOpen.value, (isOpen) => {
+  if (isOpen) {
+    // 打开聊天窗口时，延迟一下再重新计算（给时间加载数据）
+    setTimeout(calculateUnreadCount, 500)
+  } else {
+    // 关闭时也重新计算
+    calculateUnreadCount()
+  }
 })
 const handleToggleAiChat = () => {
   isAiChatOpen.value = !isAiChatOpen.value
@@ -316,11 +439,17 @@ const handleSubmitPost = async (postData) => {
               </div>
               <span class="text-xs font-bold text-gray-700">抽卡</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group" @click="handleTogglePrivateChat">
+            <button class="flex flex-col items-center gap-2 group relative" @click="handleTogglePrivateChat">
               <div
                 class="w-14 h-14 bg-green-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
               >
                 <MessageCircleIcon class="w-8 h-8 text-white" />
+                <span
+                  v-if="unreadMessageCount > 0"
+                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center border-2 border-white shadow-lg"
+                >
+                  {{ unreadMessageCount > 9 ? '9+' : unreadMessageCount }}
+                </span>
               </div>
               <span class="text-xs font-bold text-gray-700">聊天</span>
             </button>

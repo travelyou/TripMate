@@ -136,6 +136,23 @@ export const acceptApplication = async (travelerId, applicationId) => {
 }
 
 // 拒绝报名
+// 获取用户的群组聊天室列表
+export const getGroupChatRooms = async () => {
+  const userStore = useUserStore()
+  if (!userStore.currentUser?.uid) {
+    throw new Error('User not logged in.')
+  }
+  try {
+    const response = await axios.get(`${API_BASE_URL}/travelers/group-chat-rooms`, {
+      params: { user_uid: userStore.currentUser.uid },
+    })
+    return response.data
+  } catch (error) {
+    console.error('獲取群組聊天室列表失敗：', error)
+    throw error
+  }
+}
+
 export const rejectApplication = async (travelerId, applicationId) => {
   try {
     const { auth } = await import('@/firebase/config')
