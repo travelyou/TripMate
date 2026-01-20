@@ -320,18 +320,11 @@ const handleAddFriend = async () => {
       alert('操作失敗：' + (error.message || '未知錯誤'))
     }
   }
-=======
+}
+
 const handleChatWithFriend = (friend) => {
   console.log('Chat with friend:', friend.name)
   // Future: 導向聊天頁面
->>>>>>> 679ff3c (fix: 修正提示錯誤)
-}
-
-const handleAddFriend = () => {
-  const targetUserId = route.params.uid || user.value.uid
-  console.log('發送好友請求至:', targetUserId)
-  // TODO: 呼叫 API 或 Store action
-  alert('好友請求已發送！')
 }
 
 const handleChatWithUser = () => {
