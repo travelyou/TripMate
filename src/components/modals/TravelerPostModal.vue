@@ -20,6 +20,7 @@ import {
   Train as TrainIcon,
   Bike as BikeIcon,
   Footprints as WalkIcon,
+  GripVertical as GripVerticalIcon,
 } from 'lucide-vue-next'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import LocationPickerModal from './LocationPickerModal.vue'
@@ -498,11 +499,15 @@ const insertTransportActivity = async () => {
 }
 
 const getDirections = async (origin, destination, mode) => {
-  setOptions({
-    apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    version: 'weekly',
-    libraries: ['routes'],
-  })
+// 檢查是否已經設定過 Global Options
+  if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
+    setOptions({
+      apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+      version: 'weekly',
+      libraries: ['routes'],
+    })
+    window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
+  }
 
   try {
     const routesLib = await importLibrary('routes').catch(() => importLibrary('maps'))

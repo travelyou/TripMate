@@ -31,30 +31,27 @@ let google = null
 // 當前選中的地點狀態
 const selectedPlace = ref(null)
 
+// 使用 v2 函數式 API (放在 initMap 外或保證只執行一次)
+// 由於這是 script setup，這些 code 會在 component setup 時執行一次。
+// 如果 component 被多次 mount，setOptions 有可能被警告，但通常沒事。
+// 為了安全起見，我們可以檢查是否已設定，或者移到更全域的地方。
+// 這裡簡單做個全域旗標檢查
+if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  setOptions({
+    apiKey: apiKey,
+    version: 'weekly',
+    libraries: ['places', 'maps', 'marker'],
+    language: 'zh-TW',
+  })
+  window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
+}
+
 const initMap = async () => {
     isLoading.value = true
     try {
         const apiKey = API_KEY
         console.log('[GoogleMaps] 初始化地圖，使用的 API Key:', apiKey ? apiKey.substring(0, 10) + '...' : '未定義')
-
-    /*
-    const loader = new Loader({
-      apiKey: apiKey,
-      version: 'weekly',
-      libraries: ['places'],
-      language: 'zh-TW', // 強制繁體中文
-    })
-
-    google = await loader.load()
-    */
-
-    // 使用 v2 函數式 API
-    setOptions({
-      apiKey: apiKey,
-      version: 'weekly',
-      libraries: ['places', 'maps', 'marker'], // 顯式加載需要的庫
-      language: 'zh-TW',
-    })
 
     // 載入必要的 Library (平行載入)
     const [mapsLib, placesLib, markerLib] = await Promise.all([
@@ -92,7 +89,7 @@ const initMap = async () => {
       mapTypeControl: false,
       fullscreenControl: false,
       streetViewControl: false,
-      mapId: 'DEMO_MAP_ID', // v2 marker 需要 mapId，使用 DEMO 即可
+      // mapId: 'DEMO_MAP_ID', // 移除 mapId 以避免 ApiProjectMapError，除非使用者真的有設定
     })
 
     // 初始化標記
