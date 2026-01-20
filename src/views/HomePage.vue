@@ -1,5 +1,6 @@
 <script setup>
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue' // [新增] 匯入旅伴詳情 Modal
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -60,6 +61,8 @@ onAuthStateChanged(auth, async (user) => {
 onMounted(async () => {
   try {
     await discussionsStore.loadDiscussions()
+    // [建議] 如果 travelerStore 還沒實作 loadRecommendations，這裡可能需要呼叫
+    // await travelersStore.loadRecommendations()
     if (currentUserUid.value) {
       scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
     }
@@ -74,9 +77,14 @@ onBeforeUnmount(() => {
 
 const scrollContainer = ref(null)
 
+// --- 討論區 Modal 狀態 ---
 const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
+
+// --- [新增] 旅伴 Modal 狀態 ---
+const isTravelerModalOpen = ref(false)
+const selectedTraveler = ref(null)
 
 const scroll = (direction) => {
   if (scrollContainer.value) {
@@ -88,6 +96,7 @@ const scroll = (direction) => {
   }
 }
 
+// 開啟討論區詳情
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
@@ -98,6 +107,17 @@ const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
+}
+
+// --- [新增] 開啟旅伴詳情 ---
+const openTravelerDetailModal = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerModalOpen.value = true
+}
+
+const closeTravelerDetailModal = () => {
+  isTravelerModalOpen.value = false
+  selectedTraveler.value = null
 }
 
 const isShareModalOpen = ref(false)
@@ -141,6 +161,13 @@ const getTagColor = (tagText) => {
   const index = Math.abs(hash) % colors.length
   return colors[index]
 }
+
+// [新增] 輔助函式：取得第一個標籤（相容字串或陣列）
+const getFirstTag = (item) => {
+  if (item.tag) return item.tag
+  if (item.tags && item.tags.length > 0) return item.tags[0]
+  return '旅遊'
+}
 </script>
 
 <template>
@@ -177,7 +204,7 @@ const getTagColor = (tagText) => {
             v-for="item in travelersStore.recommendations"
             :key="item.id"
             class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
-            @click="openDiscussionDetailModal(item, false)"
+            @click="openTravelerDetailModal(item)"
           >
             <img
               :src="item.image"
@@ -191,11 +218,11 @@ const getTagColor = (tagText) => {
               <div class="flex justify-between items-start">
                 <span
                   :class="[
-                    getTagColor(item.tag),
+                    getTagColor(getFirstTag(item)),
                     'text-white border-2 border-white/50 px-2 py-0.5 text-[10px] font-bold rounded -rotate-2 shadow-sm',
                   ]"
                 >
-                  {{ item.tag }}
+                  {{ getFirstTag(item) }}
                 </span>
 
                 <div
@@ -274,5 +301,12 @@ const getTagColor = (tagText) => {
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
   />
+
+  <TravelerDetailModal
+    v-if="isTravelerModalOpen"
+    :traveler="selectedTraveler"
+    @close="closeTravelerDetailModal"
+  />
+
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
