@@ -101,7 +101,8 @@ const initMap = async () => {
 
     // 從 library 中取得類別
     const MapClass = mapsLib.Map
-    const MarkerClass = markerLib.Marker
+    const AdvancedMarkerElement = markerLib.AdvancedMarkerElement
+    const PinElement = markerLib.PinElement
     const AutocompleteClass = placesLib.Autocomplete
     const GeocoderClass = mapsLib.Geocoder // Geocoder 在 maps library 中
 
@@ -121,23 +122,39 @@ const initMap = async () => {
     // 重設 local 的 google 變數指向 window.google
     google = window.google
 
+    // 獲取 mapId（從環境變數或使用默認值）
+    // 注意：使用 AdvancedMarkerElement 需要 mapId
+    // 如果沒有設定 VITE_GOOGLE_MAPS_MAP_ID，可以使用 'DEMO_MAP_ID'（僅用於測試）
+    // 生產環境建議在 Google Cloud Console 創建專屬的 Map ID
+    // 參考：https://developers.google.com/maps/documentation/javascript/get-map-id
+    const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'
+    
+    if (!import.meta.env.VITE_GOOGLE_MAPS_MAP_ID) {
+      console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID，使用 DEMO_MAP_ID。生產環境建議設定專屬 Map ID')
+    }
+
     map = new MapClass(mapContainer.value, {
       center: center,
       zoom: 15,
       mapTypeControl: false,
       fullscreenControl: false,
       streetViewControl: false,
-      // mapId: 'DEMO_MAP_ID', // 移除 mapId 以避免 ApiProjectMapError，除非使用者真的有設定
+      mapId: mapId, // AdvancedMarkerElement 需要 mapId
     })
 
-    // 初始化標記
-    // 注意：v2 推薦用 AdvancedMarkerElement，但 MarkerClass (legacy) 如果有載入 marker 庫應該還能用
-    // 為了相容性，我們先試試 MarkerClass
-    marker = new MarkerClass({
+    // 初始化標記 - 使用 AdvancedMarkerElement（新 API）
+    const pinElement = new PinElement({
+      background: '#4285F4',
+      borderColor: '#137333',
+      glyphColor: '#ffffff',
+      scale: 1.1,
+    })
+
+    marker = new AdvancedMarkerElement({
       map: map,
       position: center,
-      draggable: true, // 允許拖拉標記
-      animation: google.maps.Animation?.DROP || null, // 從 mapsLib 取得 Animation
+      content: pinElement.element,
+      gmpDraggable: true, // 允許拖拉標記
     })
 
     // 如果有初始地點，設置選中狀態
@@ -146,14 +163,14 @@ const initMap = async () => {
     }
 
     // 監聽標記拖拉結束事件，反查地點
-    marker.addListener('dragend', () => {
-      const position = marker.getPosition()
+    marker.addListener('dragend', (e) => {
+      const position = marker.position
       geocodePosition(position)
     })
 
     // 點擊地圖也能移動標記
     map.addListener('click', (e) => {
-        marker.setPosition(e.latLng)
+        marker.position = e.latLng
         geocodePosition(e.latLng)
     })
 
@@ -183,6 +200,10 @@ const initAutocomplete = () => {
         return
     }
 
+    // 注意：google.maps.places.Autocomplete 已被棄用，建議使用 PlaceAutocompleteElement (Web Component)
+    // 但舊版 API 仍然可以正常使用，只是會顯示警告
+    // 如需完全消除警告，需要遷移到 Web Component 實現方式
+    // 參考：https://developers.google.com/maps/documentation/javascript/places-migration-overview
     autocomplete = new google.maps.places.Autocomplete(searchInput.value, {
         fields: ['formatted_address', 'geometry', 'name', 'place_id'],
         strictBounds: false,
@@ -208,7 +229,7 @@ const initAutocomplete = () => {
             map.setCenter(place.geometry.location)
             map.setZoom(17)
         }
-        marker.setPosition(place.geometry.location)
+        marker.position = place.geometry.location
 
         // 設定選中地點
         selectedPlace.value = {
@@ -279,7 +300,7 @@ watch(() => props.isOpen, (newVal) => {
 
              map.setCenter(center)
              if (marker) {
-               marker.setPosition(center)
+               marker.position = center
              }
              searchKeyword.value = props.initialLocation?.name || ''
              selectedPlace.value = props.initialLocation || null
