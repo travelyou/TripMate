@@ -27,7 +27,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit-profile', 'edit-bio', 'update-avatar', 'open-friends', 'chat', 'add-friend'])
+const emit = defineEmits(['edit-profile', 'edit-bio', 'update-avatar', 'open-friends', 'chat', 'add-friend', 'start-test'])
 
 const fileInputMobile = ref(null)
 const fileInputDesktop = ref(null)
@@ -52,32 +52,8 @@ const shouldMarquee = computed(() => {
   <div
     class="bg-primary-600 rounded-3xl p-5 md:p-8 mb-4 md:mb-8 text-white relative overflow-hidden shadow-sm border border-primary-700"
   >
-    <div class="absolute inset-0 bg-gradient-to-br from-primary-500/50 to-primary-800/60"></div>
 
-    <div v-if="!isCurrentUser" class="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2 z-20">
-      <button
-        class="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
-        title="聊聊"
-        @click="$emit('chat')"
-      >
-        <MessageCircle class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
-        <span class="hidden sm:inline">聊聊</span>
-      </button>
-      <button
-        class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-full text-white transition flex items-center gap-1.5 text-xs md:text-sm font-medium backdrop-blur-sm shadow-lg shrink-0 whitespace-nowrap"
-        :class="props.friendRequestStatus === 'accepted'
-          ? 'bg-green-500/30 hover:bg-green-500/40'
-          : 'bg-white/20 hover:bg-white/30'"
-        :title="props.friendRequestStatus === 'accepted' ? '已是好友' : (props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友')"
-        @click="$emit('add-friend')"
-      >
-        <UserPlus v-if="props.friendRequestStatus !== 'accepted'" class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
-        <span v-else class="text-base md:text-lg shrink-0">√</span>
-        <span class="hidden sm:inline">
-          {{ props.friendRequestStatus === 'accepted' ? '好友' : (props.friendRequestStatus === 'sent' ? '取消邀請' : '加好友') }}
-        </span>
-      </button>
-    </div>
+    <div class="absolute inset-0 bg-gradient-to-br from-primary-500/50 to-primary-800/60"></div>
 
     <div class="relative z-10">
       <div class="md:hidden flex flex-col gap-4">
@@ -134,7 +110,7 @@ const shouldMarquee = computed(() => {
                   </span>
                 </div>
               </div>
-            </div>
+           </div>
 
              <div class="flex gap-2 sm:gap-4 self-start" :class="{ 'mb-12 sm:mb-14': !isCurrentUser }">
                <button class="text-center group" @click="$emit('open-friends')">
@@ -157,6 +133,7 @@ const shouldMarquee = computed(() => {
                  <div class="text-sm sm:text-base font-bold text-white leading-tight">{{ stats.reviews }}</div>
                </div>
              </div>
+             <!-- Owner/Visitor Buttons -->
              <div v-if="isCurrentUser" class="flex items-center gap-1.5 sm:gap-2 self-end mt-1">
                <button
                  class="p-1 sm:p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
@@ -171,6 +148,21 @@ const shouldMarquee = computed(() => {
                  @click="$emit('edit-profile')"
                >
                  <Settings class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+               </button>
+             </div>
+             <!-- Mobile Visitor Buttons -->
+             <div v-else class="flex gap-2 self-end mt-1">
+               <button
+                 class="flex items-center gap-1.5 px-3 py-1.5 bg-white text-primary-600 rounded-full text-xs font-bold shadow-lg hover:bg-gray-100 transition"
+                 @click="$emit('add-friend')"
+               >
+                 <UserPlus class="w-4 h-4" /> 加好友
+               </button>
+               <button
+                 class="flex items-center gap-1.5 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-xs font-bold shadow-lg hover:bg-secondary-500 transition"
+                 @click="$emit('chat')"
+               >
+                 <MessageCircle class="w-4 h-4" /> 聊聊
                </button>
              </div>
           </div>
@@ -282,16 +274,16 @@ const shouldMarquee = computed(() => {
           <!-- Visitor Buttons -->
           <div v-else class="flex gap-2">
             <button
-              class="flex items-center gap-1 px-3 py-1.5 bg-white text-primary-600 rounded-full text-sm font-bold shadow-md hover:bg-gray-100 transition"
+              class="flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 bg-white text-primary-600 rounded-full text-sm md:text-base font-bold shadow-lg hover:bg-gray-100 transition"
               @click="$emit('add-friend')"
             >
-              <UserPlus class="w-4 h-4" /> 加好友
+              <UserPlus class="w-5 h-5" /> 加好友
             </button>
             <button
-              class="flex items-center gap-1 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-sm font-bold shadow-md hover:bg-secondary-500 transition"
+              class="flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 bg-secondary-400 text-white rounded-full text-sm md:text-base font-bold shadow-lg hover:bg-secondary-500 transition"
               @click="$emit('chat')"
             >
-              <MessageCircle class="w-4 h-4" /> 聊聊
+              <MessageCircle class="w-5 h-5" /> 聊聊
             </button>
           </div>
         </div>
