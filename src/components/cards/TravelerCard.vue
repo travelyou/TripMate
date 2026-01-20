@@ -56,7 +56,17 @@ const itemData = computed(() => ({
   people: props.traveler.people,
   tags: props.traveler.tags,
   comments: props.traveler.comments,
+  category: props.traveler.category, // 確保有這個欄位
 }))
+
+const previewContent = computed(() => {
+  if (!props.traveler.content) return ''
+  let content = props.traveler.content
+
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = content
+  return tempDiv.textContent || tempDiv.innerText || ''
+})
 
 const getStatusClasses = (status) => {
   switch (status) {
@@ -78,6 +88,13 @@ const getStatusClasses = (status) => {
       class="bg-white transition relative cursor-pointer rounded-xl border border-secondary-200 shadow hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] h-full flex flex-col"
     >
       <div
+        v-if="traveler.category"
+        class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl rounded-tl-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+      >
+        {{ traveler.category }}
+      </div>
+
+      <div
         :class="getStatusClasses(traveler.status)"
         class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-xl rounded-tr-xl border-b-2 border-l-2 border-primary-200 shadow-primary-sm z-10"
       >
@@ -92,10 +109,11 @@ const getStatusClasses = (status) => {
             :src="traveler.image"
             :alt="traveler.title"
             class="w-full h-full object-cover"
+            :style="{ objectPosition: `center ${traveler.banner_position_y || 50}%` }"
           />
 
           <div
-            class="absolute inset-x-0 bottom-0 h-[40%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/80 via-black/50 to-transparent flex flex-col justify-end"
+            class="absolute inset-x-0 bottom-0 h-[45%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end"
           >
             <div>
               <div class="flex items-center space-x-3 mb-2">
@@ -124,7 +142,7 @@ const getStatusClasses = (status) => {
                   {{ traveler.title }}
                 </h3>
                 <p class="text-sm text-white/85 mb-2 line-clamp-2 sm:line-clamp-1 xl:line-clamp-2">
-                  {{ traveler.content }}
+                  {{ previewContent }}
                 </p>
               </div>
             </div>

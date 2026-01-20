@@ -193,7 +193,7 @@ onMounted(async () => {
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
         >
-          內文
+          內文　
         </span>
       </button>
 
@@ -241,10 +241,12 @@ onMounted(async () => {
                 </div>
                 <div class="text-sm text-secondary-500">
                   {{ formatTime(localPostData.time) }}
+                  <span v-if="localPostData.category" class="ml-2 text-primary-600 font-bold">
+                    @ {{ localPostData.category }}
+                  </span>
                 </div>
               </div>
             </div>
-
             <h1 class="text-3xl font-black text-secondary-900 mb-4">{{ localPostData.title }}</h1>
 
             <div

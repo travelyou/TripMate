@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -12,8 +12,9 @@ import {
   Repeat2 as Repeat2Icon,
   Building as BuildingIcon,
 } from 'lucide-vue-next'
-
-const router = useRouter()
+import { toggleLike, getLikesInfo } from '@/api/likes'
+import { auth } from '@/firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
 
 const props = defineProps({
   itinerary: {
@@ -23,6 +24,7 @@ const props = defineProps({
 })
 
 const userStore = useUserStore()
+const router = useRouter()
 const emit = defineEmits(['open-detail', 'open-share'])
 
 const handleAgencyClick = (e) => {
@@ -37,7 +39,9 @@ const handleAgencyClick = (e) => {
     router.push({ path: `/profile/${authorUid}`, replace: false })
   }
 }
-
+const currentUserUid = ref(null)
+const isLiked = ref(false)
+const likesCount = ref(props.itinerary.likes || 0)
 const itemData = computed(() => ({
   id: props.itinerary.id,
   type: 'itinerary',
@@ -45,6 +49,18 @@ const itemData = computed(() => ({
   coverImage: props.itinerary.coverImage,
   price: props.itinerary.price,
 }))
+
+// --- HTML 轉純文字 (摘要用) ---
+const previewContent = computed(() => {
+  if (!props.itinerary.description) return ''
+  let content = props.itinerary.description
+  content = content.replace(/<br\s*\/?>/gi, '\n')
+  content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = content
+  const plainText = tempDiv.textContent || tempDiv.innerText || ''
+  return plainText.trim()
+})
 
 const formatPrice = (price) => {
   if (price === undefined || price === null) return '洽詢'
@@ -61,37 +77,58 @@ const displayLocation = computed(() => {
 
 const displayDate = computed(() => {
   const { start_date, end_date, durationDays } = props.itinerary
-
   if (start_date && end_date) {
     const d1 = new Date(start_date)
     const d2 = new Date(end_date)
-
-    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
-      return `${durationDays || 1} 天`
-    }
-
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return `${durationDays || 1} 天`
+    // 簡化日期顯示邏輯
     const pad = (n) => n.toString().padStart(2, '0')
-
-    const y1 = d1.getFullYear()
-    const m1 = pad(d1.getMonth() + 1)
-    const day1 = pad(d1.getDate())
-
-    const y2 = d2.getFullYear()
-    const m2 = pad(d2.getMonth() + 1)
-    const day2 = pad(d2.getDate())
-
-    if (y1 === y2 && m1 === m2 && day1 === day2) {
-      return `${y1}/${m1}/${day1}`
-    }
-
-    if (y1 === y2) {
-      return `${y1}/${m1}/${day1} - ${m2}/${day2}`
-    }
-
-    return `${y1}/${m1}/${day1} - ${y2}/${m2}/${day2}`
+    const startStr = `${d1.getFullYear()}/${pad(d1.getMonth() + 1)}/${pad(d1.getDate())}`
+    const endStr = `${pad(d2.getMonth() + 1)}/${pad(d2.getDate())}`
+    if (d1.getTime() === d2.getTime()) return startStr
+    return `${startStr} - ${endStr}`
   }
-
   return `${durationDays || 1} 天`
+})
+
+// --- 按讚邏輯 ---
+const loadLikesInfo = async () => {
+  if (!props.itinerary.id || !currentUserUid.value) return
+  try {
+    const info = await getLikesInfo(props.itinerary.id, currentUserUid.value, 'itinerary')
+    isLiked.value = info.isLiked
+    likesCount.value = info.likesCount
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+const handleLike = async () => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+  try {
+    const result = await toggleLike(props.itinerary.id, currentUserUid.value, 'itinerary')
+    isLiked.value = result.liked
+    likesCount.value = result.likesCount
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  currentUserUid.value = user ? user.uid : null
+  if (currentUserUid.value) await loadLikesInfo()
+  else isLiked.value = false
+})
+
+onMounted(async () => {
+  const user = auth.currentUser
+  if (user) {
+    currentUserUid.value = user.uid
+    await loadLikesInfo()
+  }
 })
 </script>
 
@@ -101,11 +138,19 @@ const displayDate = computed(() => {
     @click="emit('open-detail', props.itinerary, false)"
   >
     <div class="relative w-full aspect-[4/3] overflow-hidden bg-secondary-100">
+      <div
+        v-if="props.itinerary.category"
+        class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+      >
+        {{ props.itinerary.category }}
+      </div>
+
       <img
         v-if="props.itinerary.coverImage"
         :src="props.itinerary.coverImage"
         :alt="props.itinerary.title"
         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        :style="{ objectPosition: `center ${props.itinerary.banner_position_y || 50}%` }"
       />
       <div
         v-else
@@ -133,10 +178,14 @@ const displayDate = computed(() => {
       </div>
 
       <h3
-        class="text-lg font-black text-secondary-900 line-clamp-2 mb-3 group-hover:text-primary-600 transition"
+        class="text-lg font-black text-secondary-900 line-clamp-2 mb-2 group-hover:text-primary-600 transition"
       >
         {{ props.itinerary.title || '無標題' }}
       </h3>
+
+      <p class="text-secondary-500 text-sm line-clamp-2 mb-3 h-10">
+        {{ previewContent }}
+      </p>
 
       <div class="flex items-center space-x-4 text-sm text-secondary-600 mb-auto pb-4">
         <div class="flex items-center space-x-1 shrink-0">
@@ -153,16 +202,14 @@ const displayDate = computed(() => {
         <div class="flex items-center space-x-3 text-xs text-secondary-500">
           <button
             class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
-            :class="userStore.isFavorite(itemData) ? 'text-accent-600' : 'hover:text-accent-600'"
-            @click.stop="userStore.toggleFavorite(itemData)"
+            :class="isLiked ? 'text-accent-600' : 'hover:text-accent-600'"
+            @click.stop="handleLike"
           >
             <HeartIcon
               class="w-4 h-4 transition-transform active:scale-125"
-              :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+              :class="{ 'fill-current': isLiked }"
             />
-            <span class="font-bold">{{
-              (props.itinerary.likes || 0) + (userStore.isFavorite(itemData) ? 1 : 0)
-            }}</span>
+            <span class="font-bold">{{ likesCount }}</span>
           </button>
 
           <button

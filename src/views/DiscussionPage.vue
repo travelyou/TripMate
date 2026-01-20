@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, watch, nextTick, computed } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
 import { useRoute, useRouter } from 'vue-router'
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -22,16 +22,83 @@ const { drafts } = storeToRefs(myItineraryStore)
 
 const currentUserUid = ref(null)
 
+// --- 篩選狀態 ---
+const filterOptions = ref([
+  '全部',
+  '國內旅遊',
+  '亞洲旅遊',
+  '歐美紐澳',
+  '攝影愛好',
+  '交通建議',
+  '美食分享',
+  '住宿推薦',
+  '行程請益',
+  '其他',
+])
+const activeFilter = ref('全部')
+
+// --- ★ 分頁狀態 ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null) // 綁定到底部的 DOM 元素
+let observer = null // IntersectionObserver 實例
+
+// ★ 修改：載入文章 (支援分頁)
+const loadDiscussionsData = async (isLoadMore = false) => {
+  if (discussionsStore.loading) return // 防止重複觸發
+
+  try {
+    // 如果不是載入更多 (代表是切換分類或初始化)，重置狀態
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+      // 注意：這裡不手動清空 discussionsStore.discussions，交給 Store 的覆蓋邏輯處理
+      // 這樣可以避免畫面瞬間空白閃爍
+    }
+
+    const params = {
+      page: currentPage.value,
+      limit: 10,
+    }
+
+    if (activeFilter.value !== '全部') {
+      params.category = activeFilter.value
+    }
+
+    // 呼叫 Store，傳入是否為 loadMore
+    const data = await discussionsStore.loadDiscussions(params, isLoadMore)
+
+    // 判斷是否還有下一頁
+    if (data && data.posts) {
+      if (data.posts.length < 10) {
+        hasMore.value = false // 回傳少於 10 筆，代表沒資料了
+      } else {
+        // 準備下一頁
+        if (isLoadMore) {
+          currentPage.value++
+        } else {
+          // 如果是第一頁載入完，且數量足夠，下一頁就是 2
+          currentPage.value = 2
+        }
+      }
+    }
+  } catch (error) {
+    console.error('載入貼文失敗：', error)
+  }
+}
+
+// 監聽分類切換 -> 重新載入 (重置為第一頁)
+watch(activeFilter, () => {
+  loadDiscussionsData(false)
+})
+
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
 
-  if (
-    previousUid !== currentUserUid.value &&
-    currentUserUid.value &&
-    discussionsStore.discussions.length > 0
-  ) {
-    await discussionsStore.loadDiscussions()
+  if (previousUid !== currentUserUid.value && currentUserUid.value) {
+    // 登入狀態改變時，重新載入第一頁
+    loadDiscussionsData(false)
   }
 })
 
@@ -40,13 +107,34 @@ onMounted(async () => {
   if (firebaseUser && !currentUserUid.value) {
     currentUserUid.value = firebaseUser.uid
   }
-  try {
-    await discussionsStore.loadDiscussions()
-    // 檢查是否有草稿需要打開
-    tryOpenDraft()
-  } catch (error) {
-    console.error('載入貼文失敗：', error)
+
+  // 1. 初始載入第一頁
+  await loadDiscussionsData(false)
+
+  // 2. ★ 設定 IntersectionObserver (無限捲動偵測)
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      // 如果看到底部元素 && 還有更多資料 && 目前沒有在載入中
+      if (entry.isIntersecting && hasMore.value && !discussionsStore.loading) {
+        console.log('👀 看到底部了，載入更多...')
+        loadDiscussionsData(true) // 載入更多
+      }
+    },
+    {
+      rootMargin: '100px', // 提早 100px 觸發，體驗更流暢
+    },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
   }
+  // 檢查是否有草稿需要打開
+  tryOpenDraft()
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
 })
 
 // 監聽路由變化
@@ -61,7 +149,9 @@ watch(() => route.query.openDraft, (newDraftId) => {
 // 發文成功後的回調
 const handlePostSuccess = async () => {
   isPostingModalOpen.value = false
-  await discussionsStore.loadDiscussions()
+  postToEdit.value = null
+  // 發文成功後，重新整理列表 (回到第一頁)
+  loadDiscussionsData(false)
 }
 
 // --- 模態框狀態管理 ---
@@ -69,10 +159,10 @@ const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
 const selectedDraft = ref(null) // 用於存儲要打開的草稿
-
 const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
+const postToEdit = ref(null)
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
@@ -84,6 +174,18 @@ const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
+}
+
+const handleEditPost = (post) => {
+  postToEdit.value = post
+  closeDiscussionDetailModal()
+  isPostingModalOpen.value = true
+}
+
+const handlePostModalClose = () => {
+  isPostingModalOpen.value = false
+  postToEdit.value = null
+  selectedDraft.value = null
 }
 
 const openShareModal = (postId) => {
@@ -103,20 +205,6 @@ const handleCardLike = (updatedPostInfo) => {
     post.likes = updatedPostInfo.likes
   }
 }
-
-// --- 篩選/搜尋狀態 ---
-const filterOptions = ref([
-  '全部',
-  '國內旅遊',
-  '國外旅遊',
-  '攝影交流',
-  '美食分享',
-  '住宿推薦',
-  '交通機票',
-  '其他',
-])
-const activeFilter = ref('全部')
-
 // 開啟草稿編輯
 const openDraft = (draft) => {
   if (draft.type === 'discussion' && draft.data) {
@@ -140,15 +228,6 @@ const tryOpenDraft = () => {
     }
   }
 }
-
-const filteredDiscussions = computed(() => {
-  // 如果選的是「全部」，就回傳所有文章
-  if (activeFilter.value === '全部') {
-    return discussionsStore.discussions
-  }
-  // 否則只回傳 category 等於目前篩選標籤的文章
-  return discussionsStore.discussions.filter((post) => post.category === activeFilter.value)
-})
 </script>
 
 <template>
@@ -174,14 +253,15 @@ const filteredDiscussions = computed(() => {
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
         <div class="flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-400 font-bold self-center mr-2">分類：</span>
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
+              'px-3 py-1 rounded-full font-bold transition border-2',
               activeFilter === filter
-                ? 'bg-primary text-secondary-50'
-                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
             @click="activeFilter = filter"
           >
@@ -191,18 +271,33 @@ const filteredDiscussions = computed(() => {
       </div>
 
       <div class="space-y-6">
-        <DiscussionCard
-          v-for="post in filteredDiscussions"
-          :key="post.id"
-          :post="post"
-          @click="openDiscussionDetailModal(post, false)"
-          @comment="openDiscussionDetailModal(post, true)"
-          @share="openShareModal(post.id)"
-          @like="handleCardLike"
-        />
+        <template v-if="discussionsStore.discussions.length > 0">
+          <DiscussionCard
+            v-for="post in discussionsStore.discussions"
+            :key="post.id"
+            :post="post"
+            @click="openDiscussionDetailModal(post, false)"
+            @comment="openDiscussionDetailModal(post, true)"
+            @share="openShareModal(post.id)"
+            @like="handleCardLike"
+          />
+        </template>
 
-        <div v-if="filteredDiscussions.length === 0" class="text-center text-gray-500 py-10">
-          目前這個分類還沒有文章喔，來發一篇吧！
+        <div v-else-if="!discussionsStore.isLoading" class="text-center py-20 text-gray-500">
+          目前沒有這個分類的討論文章，來發一篇吧！
+        </div>
+
+        <div ref="loadMoreTrigger" class="py-4 text-center">
+          <div
+            v-if="discussionsStore.isLoading"
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
+          ></div>
+          <div
+            v-else-if="!hasMore && discussionsStore.discussions.length > 0"
+            class="text-gray-400 text-sm"
+          >
+            已經到底囉，沒有更多貼文了 🏝️
+          </div>
         </div>
       </div>
     </div>
@@ -210,8 +305,9 @@ const filteredDiscussions = computed(() => {
 
   <DiscussionPostModal
     v-if="isPostingModalOpen"
+    :post-to-edit="postToEdit"
+    @close="handlePostModalClose"
     :draft-data="selectedDraft"
-    @close="isPostingModalOpen = false; selectedDraft = null"
     @success="handlePostSuccess"
   />
 
@@ -220,6 +316,7 @@ const filteredDiscussions = computed(() => {
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
+    @edit="handleEditPost"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

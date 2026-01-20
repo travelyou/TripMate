@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Plus as PlusIcon, Users as UsersIcon } from 'lucide-vue-next'
@@ -21,26 +21,90 @@ const selectedDraft = ref(null) // 用於存儲要打開的草稿
 const shouldScrollToComments = ref(false)
 const travelers = ref([])
 const isLoading = ref(false)
-const filterOptions = ref(['全部', '招募中', '已額滿'])
-const activeFilter = ref('全部')
 
-const loadTravelers = async () => {
-  isLoading.value = true
+// --- 篩選狀態 ---
+const filterOptions = ref(['全部', '招募中', '已額滿'])
+const activeFilter = ref('全部') // 對應後端的 status
+
+const categoryOptions = ref([
+  '全部',
+  '國內旅遊',
+  '日韓旅遊',
+  '亞洲其他',
+  '歐美紐澳',
+  '海島度假',
+  '攝影',
+  '自駕共乘',
+  '其他',
+])
+const activeCategory = ref('全部') // 對應後端的 category
+
+// --- 分頁狀態 ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null)
+let observer = null
+
+// 載入旅伴資料 (支援分頁與篩選)
+const loadTravelers = async (isLoadMore = false) => {
+  if (isLoading.value) return
+
   try {
-    const filters = {}
-    if (activeFilter.value !== '全部') {
-      filters.status = activeFilter.value
+    isLoading.value = true
+
+    // 如果不是載入更多 (代表是切換篩選或重新整理)，重置頁碼
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+      // travelers.value = [] // 選擇性：是否要先清空防止閃爍，這裡選擇不清空，直接覆蓋
     }
-    const response = await getTravelers(filters)
+
+    const params = {
+      page: currentPage.value,
+      limit: 20, // ★ 修改：每次載入 20 則
+    }
+
+    // 加入篩選參數
+    if (activeFilter.value !== '全部') {
+      params.status = activeFilter.value
+    }
+    if (activeCategory.value !== '全部') {
+      params.category = activeCategory.value
+    }
+
+    const response = await getTravelers(params)
+
     if (response.success) {
-      travelers.value = response.data
+      const newData = response.data || []
+
+      // 判斷是否還有下一頁
+      if (newData.length < 20) {
+        hasMore.value = false
+      }
+
+      if (isLoadMore) {
+        // 附加模式
+        travelers.value.push(...newData)
+        currentPage.value++
+      } else {
+        // 覆蓋模式
+        travelers.value = newData
+        if (hasMore.value) {
+          currentPage.value = 2 // 準備下一頁
+        }
+      }
     }
   } catch (error) {
-    console.error(error)
+    console.error('載入旅伴失敗:', error)
   } finally {
     isLoading.value = false
   }
 }
+
+// 監聽篩選變更 -> 重新載入 (重置為第一頁)
+watch([activeFilter, activeCategory], () => {
+  loadTravelers(false)
+})
 
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler
@@ -54,20 +118,33 @@ const closeTravelerDetail = () => {
   shouldScrollToComments.value = false
 }
 
+// 切換狀態
 const handleFilterChange = (filter) => {
   activeFilter.value = filter
-  loadTravelers()
 }
 
+// 切換分類
+const handleCategoryChange = (cat) => {
+  activeCategory.value = cat
+}
+
+// 資料更新回調
 const handleTravelerUpdated = () => {
-  loadTravelers()
+  // 更新單筆資料或重新載入，這裡簡單處理重新載入
+  loadTravelers(false)
 }
 
-// 處理發文成功
+// 發文成功回調
 const handlePostSuccess = () => {
   isPostingModalOpen.value = false
   selectedDraft.value = null
-  loadTravelers()
+  loadTravelers(false)
+}
+
+// 關閉發文 Modal 並重置草稿狀態
+const handlePostModalClose = () => {
+  isPostingModalOpen.value = false
+  selectedDraft.value = null
 }
 
 // 開啟草稿編輯
@@ -95,9 +172,31 @@ const tryOpenDraft = () => {
 }
 
 onMounted(() => {
-  loadTravelers()
+  loadTravelers(false)
+
+  // 設定 IntersectionObserver (無限捲動)
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMore.value && !isLoading.value) {
+        loadTravelers(true)
+      }
+    },
+    {
+      rootMargin: '200px', // 提早觸發載入
+    },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
+
   // 檢查是否有草稿需要打開
   tryOpenDraft()
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
 })
 
 // 監聽路由變化
@@ -120,7 +219,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
             找旅伴
           </h1>
           <button
-            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition flex items-center"
+            class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition flex items-center shadow-md"
             @click="isPostingModalOpen = true"
           >
             <PlusIcon class="w-5 h-5 mr-1" />
@@ -132,31 +231,43 @@ watch(() => route.query.openDraft, (newDraftId) => {
       <div
         class="p-4 bg-white mb-6 space-y-4 border-4 border-primary shadow-primary-tall rounded-xl"
       >
-        <div class="flex flex-wrap gap-2 text-sm">
+        <div class="flex flex-wrap gap-2 text-sm border-b border-gray-100 pb-4 mb-2">
+          <span class="text-gray-400 font-bold self-center mr-2">狀態：</span>
           <button
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
+              'px-3 py-1 rounded-full font-bold transition border-2',
               activeFilter === filter
-                ? 'bg-primary text-secondary-50'
-                : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200',
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
             @click="handleFilterChange(filter)"
           >
             {{ filter }}
           </button>
         </div>
-      </div>
 
-      <div v-if="isLoading" class="text-center py-20">
-        <div
-          class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
-        ></div>
+        <div class="flex flex-wrap gap-2 text-sm">
+          <span class="text-gray-400 font-bold self-center mr-2">分類：</span>
+          <button
+            v-for="cat in categoryOptions"
+            :key="cat"
+            :class="[
+              'px-3 py-1 rounded-full font-bold transition border-2',
+              activeCategory === cat
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+            ]"
+            @click="handleCategoryChange(cat)"
+          >
+            {{ cat }}
+          </button>
+        </div>
       </div>
 
       <div
-        v-else-if="travelers.length > 0"
+        v-if="travelers.length > 0"
         class="grid grid-cols-1 gap-6 sm:grid-cols-2 auto-rows-fr items-stretch"
       >
         <div v-for="traveler in travelers" :key="traveler.id" class="h-full">
@@ -168,16 +279,26 @@ watch(() => route.query.openDraft, (newDraftId) => {
         </div>
       </div>
 
-      <div v-else class="text-center py-20">
+      <div v-else-if="!isLoading" class="text-center py-20">
         <UsersIcon class="w-16 h-16 mx-auto text-gray-300 mb-4" />
         <p class="text-gray-500 text-lg mb-2">目前沒有符合條件的旅伴招募</p>
         <button
-          class="bg-green-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-md mt-4"
+          class="bg-green-50 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-md mt-4"
           @click="isPostingModalOpen = true"
         >
           <PlusIcon class="w-5 h-5 inline mr-2" />
           發起招募
         </button>
+      </div>
+
+      <div ref="loadMoreTrigger" class="py-8 text-center w-full">
+        <div
+          v-if="isLoading"
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
+        ></div>
+        <div v-else-if="!hasMore && travelers.length > 0" class="text-gray-400 text-sm">
+          已經到底囉，沒有更多招募了 🏝️
+        </div>
       </div>
     </div>
   </div>
@@ -185,7 +306,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
   <TravelerPostModal
     v-if="isPostingModalOpen"
     :draft-data="selectedDraft"
-    @close="isPostingModalOpen = false; selectedDraft = null"
+    @close="handlePostModalClose"
     @success="handlePostSuccess"
   />
 

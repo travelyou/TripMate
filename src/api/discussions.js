@@ -1,14 +1,18 @@
 import { API_BASE_URL } from './config'
 
 // 獲取所有貼文
-export async function fetchPosts(page = 1, limit = 10, category = null) {
+export async function fetchPosts(params = {}) {
+  const { page = 1, limit: finalLimit = 10, category: finalCategory = null } = params
+
   console.log('[API] fetchPosts 開始')
-  console.log('[API] 參數:', { page, limit, category })
+  console.log('[API] 參數:', { page, limit: finalLimit, category: finalCategory })
 
   try {
-    let url = `${API_BASE_URL}/discussions?page=${page}&limit=${limit}`
-    if (category && category !== '全部') {
-      url += `&category=${encodeURIComponent(category)}`
+    let url = `${API_BASE_URL}/discussions?page=${page}&limit=${finalLimit}`
+
+    // 檢查 category 是否有效
+    if (finalCategory && finalCategory !== '全部') {
+      url += `&category=${encodeURIComponent(finalCategory)}`
     }
 
     console.log('[API] 請求 URL:', url)
@@ -48,7 +52,7 @@ export async function fetchPosts(page = 1, limit = 10, category = null) {
   }
 }
 
-// 獲取單個貼文詳情
+// ... (其他函式 fetchPostById, createPost, updatePost, deletePost 保持不變)
 export async function fetchPostById(id) {
   console.log('[API] fetchPostById 開始，ID:', id)
 
@@ -72,7 +76,6 @@ export async function fetchPostById(id) {
   }
 }
 
-// 創建新貼文
 export async function createPost(postData) {
   console.log('[API] ========== createPost 開始 ==========')
   console.log('[API Step 1] 接收的資料:', {
@@ -135,7 +138,6 @@ export async function createPost(postData) {
   }
 }
 
-// 更新貼文
 export async function updatePost(id, postData) {
   console.log('[API] updatePost 開始，ID:', id)
 
@@ -166,7 +168,6 @@ export async function updatePost(id, postData) {
   }
 }
 
-// 刪除貼文
 export async function deletePost(id) {
   console.log('[API] deletePost 開始，ID:', id)
 

@@ -1,20 +1,40 @@
-/* eslint-env node */
 /* global require, module */
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
+let bannerPositionYAvailable = null
+const checkBannerPositionYAvailable = async () => {
+  if (bannerPositionYAvailable !== null) return bannerPositionYAvailable
+  try {
+    const result = await pool.query(
+      `SELECT 1
+       FROM information_schema.columns
+       WHERE table_schema = 'travelers'
+         AND table_name = 'travelers'
+         AND column_name = 'banner_position_y'`,
+    )
+    bannerPositionYAvailable = result.rowCount > 0
+  } catch (error) {
+    console.error('[Backend Travelers] 檢查 banner_position_y 欄位失敗:', error)
+    bannerPositionYAvailable = false
+  }
+  return bannerPositionYAvailable
+}
+
 router.get('/', async (req, res) => {
   try {
     console.log('收到獲取旅伴列表請求')
-    const { status, location, limit = 20, offset = 0 } = req.query
+    const { status, location, category, limit = 20, offset = 0 } = req.query
 
+    // ★ 修改：加上別名 t
     let query = `
       SELECT
         t.id,
         t.title,
         t.content,
         t.location,
+        t.category,
         t.status,
         t.tags,
         t.start_date,
@@ -24,15 +44,14 @@ router.get('/', async (req, res) => {
         t.banner_image,
         t.author_uid,
         t.author_name,
-        COALESCE(u.avatar, t.author_avatar) as author_avatar,
-        COALESCE(u.spirit_animal, t.spirit_animal) as spirit_animal,
+        t.author_avatar,
+        t.spirit_animal,
         t.likes_count,
         t.saves_count,
         t.views_count,
         t.created_at,
         t.updated_at
       FROM travelers.travelers t
-      LEFT JOIN users u ON t.author_uid = u.uid
       WHERE t.deleted_at IS NULL
     `
 
@@ -48,6 +67,12 @@ router.get('/', async (req, res) => {
     if (location) {
       query += ` AND t.location = $${paramIndex}`
       params.push(location)
+      paramIndex++
+    }
+
+    if (category) {
+      query += ` AND t.category = $${paramIndex}`
+      params.push(category)
       paramIndex++
     }
 
@@ -107,6 +132,7 @@ router.get('/', async (req, res) => {
         title: row.title,
         content: row.content,
         location: row.location,
+        category: row.category,
         status: row.status,
         tags: row.tags,
         date: dateStr,
@@ -131,19 +157,10 @@ router.get('/', async (req, res) => {
     })
   } catch (error) {
     console.error('獲取旅伴列表錯誤：', error)
-    console.error('錯誤代碼:', error.code)
-    console.error('錯誤位置:', error.position)
-    console.error('錯誤詳情:', error.detail)
-    console.error('錯誤提示:', error.hint)
-
     res.status(500).json({
       success: false,
       message: '獲取旅伴列表失敗',
       error: error.message,
-      code: error.code,
-      position: error.position,
-      detail: error.detail,
-      hint: error.hint,
     })
   }
 })
@@ -203,12 +220,16 @@ router.get('/:id', async (req, res) => {
 
     console.log('獲取旅伴詳情，ID:', idNum)
 
+    const hasBannerPos = await checkBannerPositionYAvailable()
+    const bannerPosSelect = hasBannerPos ? 't.banner_position_y AS "banner_position_y",' : ''
+
     const travelerQuery = `
       SELECT
         t.id,
         t.title,
         t.content,
         t.location,
+        t.category,
         t.status,
         t.tags,
         CASE
@@ -221,14 +242,14 @@ router.get('/:id', async (req, res) => {
         END AS "created_at",
         t.current_people::text || '/' || t.max_people::text AS "people",
         t.banner_image AS "image",
+        ${bannerPosSelect}
         t.author_uid,
         t.author_name AS "author",
-        COALESCE(u.avatar, t.author_avatar) AS "avatar",
-        COALESCE(u.spirit_animal, t.spirit_animal) AS "spiritAnimal",
+        t.author_avatar AS "avatar",
+        t.spirit_animal AS "spiritAnimal",
         t.likes_count AS "likes",
         t.views_count
       FROM travelers.travelers t
-      LEFT JOIN users u ON t.author_uid = u.uid
       WHERE t.id = $1 AND t.deleted_at IS NULL
     `
 
@@ -285,6 +306,7 @@ router.get('/:id', async (req, res) => {
 
     const fullData = {
       ...traveler,
+      banner_position_y: hasBannerPos ? traveler.banner_position_y : 50,
       itinerary: {
         days: itineraryResult.rows.map((day) => ({
           day: day.day_number,
@@ -327,22 +349,14 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     console.log('[Backend Travelers POST] ========== 開始 ==========')
-    const bodySize = JSON.stringify(req.body).length
-    const bodySizeMB = (bodySize / 1024 / 1024).toFixed(2)
-    console.log('[Backend Travelers POST] Body 大小:', bodySizeMB, 'MB')
-    console.log('[Backend Travelers POST] 收到請求 Body (摘要):', {
-      title: req.body.title,
-      contentLength: req.body.content?.length || 0,
-      itineraryDays: req.body.itinerary?.days?.length || 0,
-      packingListCount: req.body.packingList?.length || 0,
-      tagsCount: req.body.tags?.length || 0,
-    })
 
     const {
       title,
       content,
       banner_image,
+      banner_position_y,
       location,
+      category,
       start_date,
       end_date,
       max_people,
@@ -355,46 +369,21 @@ router.post('/', async (req, res) => {
       packingList,
     } = req.body
 
-    if (!title || !content || !location || !start_date || !end_date || !author_uid) {
+    if (!title || !content || !location || !start_date || !end_date || !author_uid || !category) {
       console.log('[Backend Travelers POST] 缺少必填欄位')
       return res.status(400).json({
         success: false,
         message: '缺少必填欄位',
-        required: ['title', 'content', 'location', 'start_date', 'end_date', 'author_uid'],
-        received: {
-          hasTitle: !!title,
-          hasContent: !!content,
-          hasLocation: !!location,
-          hasStartDate: !!start_date,
-          hasEndDate: !!end_date,
-          hasAuthorUid: !!author_uid,
-        },
       })
     }
-
-    console.log('[Backend Travelers POST] 必填欄位驗證通過')
 
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
-      console.log('[Backend Travelers POST] 開始資料庫事務')
-
-      console.log('[Backend Travelers POST] 準備插入主表')
-      console.log('[Backend Travelers POST] 插入資料:', {
-        title: title?.substring(0, 50),
-        contentLength: content?.length,
-        location,
-        start_date,
-        end_date,
-        max_people,
-        author_uid,
-        tagsCount: Array.isArray(tags) ? tags.length : 0,
-      })
 
       const maxPeopleNum = Number(max_people) || 2
-      if (!Number.isInteger(maxPeopleNum) || maxPeopleNum < 1 || maxPeopleNum > 100) {
-        throw new Error('max_people 必須是 1-100 之間的整數')
-      }
+      const bannerPosYNum = Number(banner_position_y) || 50
+      const hasBannerPos = await checkBannerPositionYAvailable()
 
       let finalSpiritAnimal = spirit_animal || null
       if (!finalSpiritAnimal && author_uid) {
@@ -405,41 +394,57 @@ router.post('/', async (req, res) => {
           if (userQuery.rows.length > 0 && userQuery.rows[0].spirit_animal) {
             finalSpiritAnimal = userQuery.rows[0].spirit_animal
           }
-        } catch (userQueryError) {
+        } catch {
           // Silent fail
         }
       }
 
+      const insertColumns = [
+        'title',
+        'content',
+        'banner_image',
+        ...(hasBannerPos ? ['banner_position_y'] : []),
+        'location',
+        'category',
+        'start_date',
+        'end_date',
+        'max_people',
+        'author_uid',
+        'author_name',
+        'author_avatar',
+        'spirit_animal',
+        'tags',
+      ]
+
+      const insertValues = [
+        title,
+        content,
+        banner_image || null,
+        ...(hasBannerPos ? [bannerPosYNum] : []),
+        location,
+        category,
+        start_date,
+        end_date,
+        maxPeopleNum,
+        author_uid,
+        author_name || null,
+        author_avatar || null,
+        finalSpiritAnimal,
+        Array.isArray(tags) ? tags : [],
+      ]
+
+      const placeholders = insertColumns.map((_, idx) => `$${idx + 1}`).join(', ')
       const travelerResult = await client.query(
-        `INSERT INTO travelers.travelers (
-          title, content, banner_image, location, start_date, end_date,
-          max_people, author_uid, author_name, author_avatar, spirit_animal, tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        RETURNING id`,
-        [
-          title,
-          content,
-          banner_image || null,
-          location,
-          start_date,
-          end_date,
-          maxPeopleNum,
-          author_uid,
-          author_name || null,
-          author_avatar || null,
-          finalSpiritAnimal,
-          Array.isArray(tags) ? tags : [],
-        ],
+        `INSERT INTO travelers.travelers (${insertColumns.join(', ')})
+         VALUES (${placeholders})
+         RETURNING id`,
+        insertValues,
       )
 
       const travelerId = travelerResult.rows[0].id
       console.log('[Backend Travelers POST] 主表插入成功，ID:', travelerId)
 
       if (itinerary && itinerary.days && Array.isArray(itinerary.days)) {
-        if (itinerary.days.length > 365) {
-          throw new Error('行程天數不能超過 365 天')
-        }
-        console.log('[Backend Travelers POST] 插入行程規劃，天數:', itinerary.days.length)
         for (let i = 0; i < itinerary.days.length; i++) {
           const day = itinerary.days[i]
           const dayNumber = Number(day.day || day.day_number)
@@ -476,43 +481,23 @@ router.post('/', async (req, res) => {
             throw new Error(`插入行程第 ${i + 1} 天失敗: ${insertError.message}`)
           }
         }
-        console.log('[Backend Travelers POST] 行程規劃插入完成')
       }
 
       if (packingList && Array.isArray(packingList)) {
-        console.log('[Backend Travelers POST] 插入打包清單，項目數:', packingList.length)
         for (let i = 0; i < packingList.length; i++) {
           const pack = packingList[i]
           const category =
             pack.category && pack.category.trim() !== '' ? pack.category.trim() : null
           const items = Array.isArray(pack.items) ? JSON.stringify(pack.items) : '[]'
 
-          console.log(`[Backend Travelers POST] 打包清單第 ${i + 1} 項:`, {
-            category,
-            itemsCount: Array.isArray(pack.items) ? pack.items.length : 0,
-          })
-
-          try {
-            await client.query(
-              `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,
-              [travelerId, category, items],
-            )
-          } catch (insertError) {
-            console.error(`[Backend Travelers POST] 插入打包清單第 ${i + 1} 項失敗:`, {
-              category,
-              error: insertError.message,
-              code: insertError.code,
-              detail: insertError.detail,
-            })
-            throw new Error(`插入打包清單第 ${i + 1} 項失敗: ${insertError.message}`)
-          }
+          await client.query(
+            `INSERT INTO travelers.traveler_packing_lists (traveler_id, category, items) VALUES ($1, $2, $3)`,
+            [travelerId, category, items],
+          )
         }
-        console.log('[Backend Travelers POST] 打包清單插入完成')
       }
 
       await client.query('COMMIT')
-      console.log('[Backend Travelers POST] 事務提交成功')
-      console.log('[Backend Travelers POST] ========== 完成 ==========')
       res.status(201).json({ success: true, message: '旅伴貼文建立成功', data: { id: travelerId } })
     } catch (error) {
       await client.query('ROLLBACK')
@@ -522,20 +507,11 @@ router.post('/', async (req, res) => {
       client.release()
     }
   } catch (error) {
-    console.error('[Backend Travelers POST] ========== 失敗 ==========')
-    console.error('[Backend Travelers POST] 錯誤類型:', error.name)
-    console.error('[Backend Travelers POST] 錯誤訊息:', error.message)
-    console.error('[Backend Travelers POST] 錯誤代碼:', error.code)
-    console.error('[Backend Travelers POST] 錯誤詳情:', error.detail)
-    console.error('[Backend Travelers POST] 錯誤堆疊:', error.stack)
-    console.error('[Backend Travelers POST] 請求 Body:', JSON.stringify(req.body, null, 2))
-
+    console.error('[Backend Travelers POST] 錯誤:', error)
     res.status(500).json({
       success: false,
       message: '建立旅伴貼文失敗',
       error: error.message,
-      code: error.code,
-      detail: error.detail,
     })
   }
 })
@@ -543,11 +519,14 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
+
     const {
       title,
       content,
       banner_image,
+      banner_position_y,
       location,
+      category,
       start_date,
       end_date,
       current_people,
@@ -562,6 +541,7 @@ router.put('/:id', async (req, res) => {
     try {
       await client.query('BEGIN')
 
+      const hasBannerPos = await checkBannerPositionYAvailable()
       const updateFields = []
       const updateValues = []
       let paramIndex = 1
@@ -576,7 +556,11 @@ router.put('/:id', async (req, res) => {
       addField('title', title)
       addField('content', content)
       addField('banner_image', banner_image)
+      if (hasBannerPos) {
+        addField('banner_position_y', banner_position_y)
+      }
       addField('location', location)
+      addField('category', category)
       addField('start_date', start_date)
       addField('end_date', end_date)
       addField('current_people', current_people)

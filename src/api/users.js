@@ -46,11 +46,12 @@ export async function createOrUpdateUser(userData) {
       } catch {
         errorData = {
           error: '未知錯誤',
-          message: `HTTP ${response.status}: ${response.statusText}`
+          message: `HTTP ${response.status}: ${response.statusText}`,
         }
       }
 
-      const errorMessage = errorData.message || errorData.error || errorData.details || '創建/更新用戶失敗'
+      const errorMessage =
+        errorData.message || errorData.error || errorData.details || '創建/更新用戶失敗'
       const error = new Error(errorMessage)
       error.response = { data: errorData, status: response.status }
       error.code = errorData.code
@@ -71,18 +72,32 @@ export async function createOrUpdateUser(userData) {
 }
 
 export async function getUserProfile(uid) {
-  const response = await fetch(`${API_BASE_URL}/users/${uid}`)
-  if (!response.ok) {
-    if (response.status === 404) {
-      return null
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/${uid}`)
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // 如果找不到用戶，回傳一個安全的預設物件，而不是 null，防止頁面崩潰
+        console.warn(`User ${uid} not found, returning default structure.`)
+        return normalizeUserData({ uid })
+      }
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.details || '獲取用戶資料失敗')
     }
-    const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-    throw new Error(errorData.error || errorData.message || errorData.details || '獲取用戶資料失敗')
+    const jsonResponse = await response.json()
+
+    // 根據後端回傳結構，資料可能在 jsonResponse.data 或 jsonResponse 本身
+    const rawData = jsonResponse.data || jsonResponse
+
+    return normalizeUserData(rawData)
+  } catch (error) {
+    console.error('獲取用戶資料錯誤：', error)
+    // 發生錯誤時，至少回傳一個基本結構，避免全頁白屏
+    return normalizeUserData({ uid, displayName: '載入失敗' })
   }
-  const data = await response.json()
-  return data
 }
 
+// 更新用戶資料 (PUT)
 export async function updateUserProfile(uid, userData) {
   const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
     method: 'PUT',
