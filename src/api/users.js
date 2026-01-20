@@ -156,7 +156,7 @@ export async function getAllUsers({ limit = 100, role } = {}) {
   return results
 }
 
-// 修复用户：为已存在的Firebase用户创建Neon记录
+// 修復用戶：為已存在的Firebase用戶創建Neon記錄
 export async function fixUser(uid, userData) {
   try {
     const response = await fetch(`${API_BASE_URL}/users/${uid}/fix`, {

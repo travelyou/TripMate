@@ -60,7 +60,7 @@ onMounted(() => {
 const initMap = async () => {
   isLoading.value = true
 
-  // 再次检查 API Key
+  // 再次檢查 API Key
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!apiKey) {
     console.error('[Google Maps] initMap: API Key 未設定')

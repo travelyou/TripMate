@@ -55,7 +55,7 @@ const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
-const unreadMessageCount = ref(0) // 未读消息总数
+const unreadMessageCount = ref(0) // 未讀訊息總數
 
 /*
 // 背景圖片陣列
@@ -114,7 +114,7 @@ const handleOpenChat = (event) => {
   }
 }
 
-// 计算未读消息总数
+// 計算未讀訊息總數
 const calculateUnreadCount = () => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) {
@@ -125,7 +125,7 @@ const calculateUnreadCount = () => {
   try {
     let totalUnread = 0
 
-    // 检查好友请求
+    // 檢查好友請求
     const friendRequestsKey = `friend_requests_${currentUid}`
     const friendRequestsData = localStorage.getItem(friendRequestsKey)
     if (friendRequestsData) {
@@ -135,11 +135,11 @@ const calculateUnreadCount = () => {
           totalUnread += requests.received.length
         }
       } catch (e) {
-        console.warn('解析好友请求失败:', e)
+        console.warn('解析好友請求失敗:', e)
       }
     }
 
-    // 检查聊天室和未读消息
+    // 檢查聊天室和未讀訊息
     const chatRoomsKey = `tripmate-private-chats-${currentUid}`
     const chatRoomsData = localStorage.getItem(chatRoomsKey)
     if (chatRoomsData) {
@@ -150,10 +150,10 @@ const calculateUnreadCount = () => {
             if (room.unreadCount) {
               totalUnread += room.unreadCount
             } else if (room.messages && Array.isArray(room.messages)) {
-              // 如果没有unreadCount，检查最后一条消息是否是自己发送的
+              // 如果沒有unreadCount，檢查最後一條訊息是否是自己發送的
               const lastMessage = room.messages[room.messages.length - 1]
               if (lastMessage && lastMessage.type !== 'user') {
-                // 检查是否有未读标记
+                // 檢查是否有未讀標記
                 const unreadKey = `unread_${currentUid}_${room.uid}`
                 const unreadData = localStorage.getItem(unreadKey)
                 if (unreadData) {
@@ -175,11 +175,11 @@ const calculateUnreadCount = () => {
           })
         }
       } catch (e) {
-        console.warn('解析聊天室数据失败:', e)
+        console.warn('解析聊天室資料失敗:', e)
       }
     }
 
-    // 检查新建的聊天室（通过检查是否有新消息但未打开过）
+    // 檢查新建的聊天室（透過檢查是否有新訊息但未打開過）
     const newChatRoomsKey = `new_chat_rooms_${currentUid}`
     const newChatRoomsData = localStorage.getItem(newChatRoomsKey)
     if (newChatRoomsData) {
@@ -189,24 +189,24 @@ const calculateUnreadCount = () => {
           totalUnread += newRooms.length
         }
       } catch (e) {
-        console.warn('解析新建聊天室数据失败:', e)
+        console.warn('解析新建聊天室資料失敗:', e)
       }
     }
 
-    // 限制最多显示9
+    // 限制最多顯示9
     unreadMessageCount.value = Math.min(totalUnread, 9)
   } catch (error) {
-    console.error('计算未读消息失败:', error)
+    console.error('計算未讀訊息失敗:', error)
     unreadMessageCount.value = 0
   }
 }
 
-// 监听消息变化
+// 監聽訊息變化
 const handleMessageUpdate = () => {
   calculateUnreadCount()
 }
 
-// 监听新建聊天室
+// 監聽新建聊天室
 const handleNewChatRoom = () => {
   calculateUnreadCount()
 }
@@ -216,9 +216,9 @@ onMounted(() => {
   window.addEventListener('open-chat', handleOpenChat)
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
-  // 初始计算未读消息
+  // 初始計算未讀訊息
   calculateUnreadCount()
-  // 定期检查未读消息（每5秒）
+  // 定期檢查未讀訊息（每5秒）
   const interval = setInterval(calculateUnreadCount, 5000)
   // 存储interval以便清理
   window._unreadMessageInterval = interval
@@ -233,13 +233,13 @@ onUnmounted(() => {
   }
 })
 
-// 监听聊天窗口打开/关闭，更新未读计数
+// 監聽聊天視窗打開/關閉，更新未讀計數
 watch(() => isPrivateChatOpen.value, (isOpen) => {
   if (isOpen) {
-    // 打开聊天窗口时，延迟一下再重新计算（给时间加载数据）
+    // 打開聊天視窗時，延遲一下再重新計算（給時間載入資料）
     setTimeout(calculateUnreadCount, 500)
   } else {
-    // 关闭时也重新计算
+    // 關閉時也重新計算
     calculateUnreadCount()
   }
 })

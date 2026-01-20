@@ -449,7 +449,7 @@ const handleFinalSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = '正在提交...'
+      submitStatus.value = '正在提交中...'
 
     const res = await createItinerary(payload)
 

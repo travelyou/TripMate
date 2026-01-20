@@ -524,7 +524,7 @@ export const usePersonalityStore = defineStore('personalityTest', {
       const uid =
         userStore.firebaseUser?.uid || userStore.currentUser?.uid || userStore.currentUser?.id
       if (!uid) {
-        console.error('無法保存測驗結果：用戶未登入')
+        console.error('無法儲存測驗結果：用戶未登入')
         return false
       }
 
@@ -542,7 +542,7 @@ export const usePersonalityStore = defineStore('personalityTest', {
         })
         return true
       } catch (error) {
-        console.error('保存測驗結果到資料庫失敗:', error)
+        console.error('儲存測驗結果到資料庫失敗:', error)
         return false
       }
     },

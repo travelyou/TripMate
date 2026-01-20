@@ -117,7 +117,7 @@ const handleLogin = async () => {
       console.error('獲取 Firestore 用戶資料失敗：', error)
     }
 
-    // 自动修复：检查并同步Neon数据库
+    // 自動修復：檢查並同步Neon資料庫
     try {
       const userRole = userData.role || 'user'
       const vendorId =
@@ -125,7 +125,7 @@ const handleLogin = async () => {
           ? null
           : userData.vendorId || userData.vendor_id || null
 
-      // 先检查Neon中是否存在用户
+      // 先檢查Neon中是否存在用戶
       let neonUserExists = false
       try {
         const neonUser = await getUserProfile(userCredential.user.uid)
@@ -134,7 +134,7 @@ const handleLogin = async () => {
         console.log('檢查 Neon 用戶時出錯（可能不存在）：', checkError)
       }
 
-      // 如果Neon中不存在，尝试创建/更新
+      // 如果Neon中不存在，嘗試創建/更新
       if (!neonUserExists) {
         console.log('檢測到 Neon 資料庫中沒有用戶資料，正在自動修復...')
         try {
@@ -152,10 +152,10 @@ const handleLogin = async () => {
           console.log('✅ 自動修復成功：Neon 資料庫已同步')
         } catch (syncError) {
           console.error('⚠️ 自動修復失敗（但不影響登入）：', syncError)
-          // 不阻止登录，但记录错误
+          // 不阻止登入，但記錄錯誤
         }
       } else {
-        // 如果存在，尝试更新（确保数据是最新的）
+        // 如果存在，嘗試更新（確保資料是最新的）
         try {
           await createOrUpdateUser({
             uid: userCredential.user.uid,
@@ -307,13 +307,13 @@ const handleRegister = async () => {
       return
     }
 
-    // 先尝试创建Neon用户（通过API检查是否可以连接）
+    // 先嘗試創建Neon用戶（透過API檢查是否可以連接）
     let neonUserCreated = false
     let userCredential = null
     let userData = null
     
     try {
-      // 先创建Firebase用户
+      // 先創建Firebase用戶
       userCredential = await createUserWithEmailAndPassword(
         auth,
         registerForm.value.email,
@@ -330,10 +330,10 @@ const handleRegister = async () => {
         createdAt: new Date(),
       }
       
-      // 创建Firestore用户数据
+      // 創建Firestore用戶資料
       await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
-      // 尝试同步到Neon数据库
+      // 嘗試同步到Neon資料庫
       const finalRole = registerForm.value.role || 'user'
       const vendorId = finalRole === 'vendor' ? null : null
 
@@ -354,20 +354,20 @@ const handleRegister = async () => {
       } catch (syncError) {
         console.error('同步到 Neon 資料庫失敗，開始回滾：', syncError)
         
-        // 回滚：删除Firebase用户和Firestore数据
+        // 回滾：刪除Firebase用戶和Firestore資料
         try {
-          // 删除Firestore数据
+          // 刪除Firestore資料
           await deleteDoc(doc(db, 'users', userCredential.user.uid))
         } catch (firestoreError) {
           console.error('刪除 Firestore 資料失敗：', firestoreError)
         }
         
         try {
-          // 删除Firebase用户
+          // 刪除Firebase用戶
           await deleteUser(userCredential.user)
         } catch (deleteError) {
           console.error('刪除 Firebase 用戶失敗：', deleteError)
-          // 如果删除失败，记录错误但继续抛出原始错误
+          // 如果刪除失敗，記錄錯誤但繼續拋出原始錯誤
         }
         
         const errorMessage =
@@ -377,7 +377,7 @@ const handleRegister = async () => {
           syncError.message ||
           '未知錯誤'
         
-        // 检查是否是数据库连接问题
+        // 檢查是否是資料庫連接問題
         if (
           syncError.message?.includes('Failed to fetch') ||
           syncError.message?.includes('NetworkError') ||
@@ -389,15 +389,15 @@ const handleRegister = async () => {
         throw new Error('資料同步到資料庫失敗：' + errorMessage)
       }
     } catch (error) {
-      // 如果Neon同步失败且Firebase用户已创建，确保已回滚
+      // 如果Neon同步失敗且Firebase用戶已創建，確保已回滾
       if (userCredential && !neonUserCreated) {
-        // 已经在上面尝试回滚了，这里只是记录
+        // 已經在上面嘗試回滾了，這裡只是記錄
         console.error('註冊流程失敗，已嘗試回滾 Firebase 用戶')
       }
       throw error
     }
 
-    // 只有在Neon同步成功后才继续
+    // 只有在Neon同步成功後才繼續
     if (userCredential && userData && neonUserCreated) {
       applyUserProfileToStore({
         uid: userCredential.user.uid,

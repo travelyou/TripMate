@@ -45,14 +45,14 @@ const openPostModal = () => {
 
 const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
-  // 重新抓取資料以更新列表
+  // 重新載入資料以更新列表
   await vendorStore.fetchVendorItineraries(vendorId.value)
   alert('行程發布成功！')
 }
 
 const handlePostSuccess = async () => {
   showPostModal.value = false
-  // 重新抓取資料 (雖然現在是 Mock，但這是正確的邏輯)
+  // 重新載入資料 (雖然現在是 Mock，但這是正確的邏輯)
   await vendorStore.fetchVendorPosts(vendorId.value)
   alert('貼文發布成功！且已同步至前台討論區')
 }

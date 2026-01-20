@@ -152,7 +152,7 @@ const handleTravelerUpdated = () => {
 }
 
 const handleCardEdit = (traveler) => {
-  // 将traveler数据转换为draftData格式
+  // 將traveler資料轉換為draftData格式
   selectedDraft.value = {
     type: 'traveler',
     data: {
@@ -173,7 +173,7 @@ const handleCardEdit = (traveler) => {
 }
 
 const handleCardDelete = (traveler) => {
-  // 删除已经在卡片组件中处理，这里只需要刷新列表
+  // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
   loadTravelers(false)
 }
 

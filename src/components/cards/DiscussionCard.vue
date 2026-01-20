@@ -160,7 +160,7 @@ const handleDelete = async (e) => {
   try {
     await deletePost(props.post.id)
     emit('delete', props.post)
-    // 刷新页面或更新列表
+    // 重新整理頁面或更新列表
     window.location.reload()
   } catch (error) {
     console.error('刪除失敗:', error)
@@ -189,7 +189,7 @@ const handleReport = (e) => {
   // 这里可以添加实际的检举API调用
 }
 
-// 点击外部关闭菜单
+// 點擊外部關閉選單
 const handleClickOutside = (event) => {
   if (showMenu.value && !event.target.closest('.post-menu-container')) {
     closeMenu()

@@ -171,7 +171,7 @@ const handleDelete = async (e) => {
   }
   
   try {
-    // 使用axios直接调用删除API
+    // 使用axios直接呼叫刪除API
     const axios = (await import('axios')).default
     const { API_BASE_URL } = await import('@/api/config')
     await axios.delete(`${API_BASE_URL}/itineraries/${props.itinerary.id}`)

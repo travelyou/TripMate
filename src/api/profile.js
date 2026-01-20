@@ -265,7 +265,7 @@ export async function incrementChatInteraction(uid, friendUid) {
   }
 }
 
-// 保存聊天消息
+// 保存聊天訊息
 export async function saveChatMessage(uid, friendUid, content) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-messages/${friendUid}`, {
@@ -278,7 +278,7 @@ export async function saveChatMessage(uid, friendUid, content) {
     if (!response.ok) {
       // 如果是 404，可能是路由未註冊或表不存在，返回一個模擬的成功響應
       if (response.status === 404) {
-        console.warn('保存聊天消息：路由可能未註冊，消息不會持久化')
+        console.warn('保存聊天訊息：路由可能未註冊，訊息不會持久化')
         return {
           success: true,
           message: {
@@ -291,13 +291,13 @@ export async function saveChatMessage(uid, friendUid, content) {
         }
       }
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.message || '保存聊天消息失敗')
+      throw new Error(errorData.error || errorData.message || '保存聊天訊息失敗')
     }
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('保存聊天消息錯誤：', error)
-    // 即使保存失敗，也返回一個模擬響應，讓前端可以繼續顯示消息
+    console.error('保存聊天訊息錯誤：', error)
+    // 即使保存失敗，也返回一個模擬響應，讓前端可以繼續顯示訊息
     return {
       success: true,
       message: {

@@ -73,7 +73,7 @@ const closeShareModal = () => {
 const itineraryToEdit = ref(null)
 
 const handlePostSuccess = async () => {
-  // 發布成功後，重新抓取列表資料
+  // 發布成功後，重新載入列表資料
   await itinerariesStore.fetchItineraries()
   isPostModalOpen.value = false
   itineraryToEdit.value = null
@@ -85,7 +85,7 @@ const handleCardEdit = (itinerary) => {
 }
 
 const handleCardDelete = (itinerary) => {
-  // 删除已经在卡片组件中处理，这里只需要刷新列表
+  // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
   itinerariesStore.fetchItineraries()
 }
 
