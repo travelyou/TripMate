@@ -2235,8 +2235,8 @@ const jumpToStep = (targetStep) => {
                   >
                 </div>
                 <div class="font-bold text-primary-600">{{ postData.max_people }}</div>
-              </div>
-            </div>
+        </div>
+      </div>
 
             <div class="flex flex-wrap gap-2 mb-6">
               <span
