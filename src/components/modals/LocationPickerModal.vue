@@ -136,13 +136,36 @@ const initMap = async () => {
     // 如果 Map ID 太短或格式不正確，將視為無效並回退到舊版 API
     // 參考：https://developers.google.com/maps/documentation/javascript/get-map-id
     const rawMapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
-    // 驗證 Map ID 格式：有效的 Map ID 應該至少 10 個字符，且不應該是純數字
-    let mapId = rawMapId && rawMapId.length >= 10 && rawMapId.trim() !== '' ? rawMapId.trim() : null
+
+    // 詳細日誌，幫助調試
+    console.log('[Google Maps] 原始 Map ID 值:', rawMapId ? (rawMapId.length > 20 ? rawMapId.substring(0, 20) + '...' : rawMapId) : '未定義')
+    console.log('[Google Maps] Map ID 長度:', rawMapId?.length || 0)
+
+    // 清理和驗證 Map ID
+    // 如果 Map ID 包含其他環境變數的內容（格式錯誤），嘗試提取正確的部分
+    let cleanedMapId = rawMapId ? rawMapId.trim() : null
+
+    // 檢查是否包含 API Key（表示格式錯誤，兩個環境變數連在一起了）
+    if (cleanedMapId && cleanedMapId.includes('VITE_GOOGLE_MAPS_API_KEY')) {
+      console.warn('[Google Maps] 檢測到 Map ID 格式錯誤：可能包含其他環境變數')
+      // 嘗試提取 Map ID 部分（在 VITE_GOOGLE_MAPS_API_KEY 之前的部分）
+      const mapIdMatch = cleanedMapId.match(/^([^V]+)/)
+      if (mapIdMatch && mapIdMatch[1]) {
+        cleanedMapId = mapIdMatch[1].trim()
+        console.warn('[Google Maps] 已嘗試修復 Map ID:', cleanedMapId.substring(0, 20) + '...')
+      } else {
+        cleanedMapId = null
+      }
+    }
+
+    // 驗證 Map ID 格式：有效的 Map ID 應該至少 10 個字符
+    let mapId = cleanedMapId && cleanedMapId.length >= 10 && cleanedMapId !== '' ? cleanedMapId : null
 
     if (!mapId) {
       if (rawMapId) {
-        console.warn('[Google Maps] Map ID 格式無效:', rawMapId)
+        console.warn('[Google Maps] Map ID 格式無效或太短:', rawMapId.substring(0, 50))
         console.warn('[Google Maps] 有效的 Map ID 應該是至少 10 個字符的字符串')
+        console.warn('[Google Maps] 請檢查環境變數 VITE_GOOGLE_MAPS_MAP_ID 的設定格式')
       } else {
         console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID')
       }
@@ -150,7 +173,8 @@ const initMap = async () => {
       console.warn('[Google Maps] 如需使用 AdvancedMarkerElement，請在 Google Cloud Console 創建有效的 Map ID')
       console.warn('[Google Maps] 參考：https://developers.google.com/maps/documentation/javascript/get-map-id')
     } else {
-      console.log('[Google Maps] 使用 Map ID:', mapId.substring(0, 10) + '...')
+      console.log('[Google Maps] 使用 Map ID:', mapId.substring(0, 15) + '...')
+      console.log('[Google Maps] Map ID 完整長度:', mapId.length)
     }
 
     // 構建地圖配置
@@ -244,11 +268,20 @@ const initMap = async () => {
       const errorMsg = event.message || event.error?.message || event.error?.toString() || ''
       const errorUrl = event.filename || event.source?.location?.href || ''
 
+      // 詳細日誌
+      if (errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) {
+        console.error('[Google Maps] 檢測到可能的 ApiProjectMapError')
+        console.error('[Google Maps] 錯誤訊息:', errorMsg)
+        console.error('[Google Maps] 錯誤 URL:', errorUrl)
+        console.error('[Google Maps] 當前 Map ID:', mapId ? mapId.substring(0, 15) + '...' : '無')
+      }
+
       // 檢查是否是 ApiProjectMapError
       if ((errorMsg.includes('ApiProjectMapError') || errorUrl.includes('api-project-map-error')) && mapId && !errorHandled) {
         errorHandled = true
         console.warn('[Google Maps] 從 window 錯誤事件檢測到 ApiProjectMapError')
-        console.warn('[Google Maps] 錯誤訊息:', errorMsg)
+        console.warn('[Google Maps] Map ID 可能與 API Key 不匹配，或 Map ID 無效')
+        console.warn('[Google Maps] 將自動回退到不使用 Map ID 的配置')
         event.preventDefault() // 阻止錯誤繼續傳播
         handleApiProjectMapError()
       }
