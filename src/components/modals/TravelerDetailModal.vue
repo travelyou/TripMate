@@ -288,8 +288,10 @@ onMounted(async () => {
         @click="scrollToTop"
       >
         <FileTextIcon class="w-5 h-5 fill-current" />
-        <span class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb">
-          內文
+        <span
+          class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
+        >
+          內文　
         </span>
       </button>
 
@@ -348,7 +350,8 @@ onMounted(async () => {
                     <span
                       class="font-bold text-secondary-900 cursor-pointer hover:text-primary-600 transition"
                       @click="handleAuthorClick"
-                    >{{ localTravelerData.author }}</span>
+                      >{{ localTravelerData.author }}</span
+                    >
                     <span
                       v-if="localTravelerData.spiritAnimal && localTravelerData.spiritAnimal.trim()"
                       class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
