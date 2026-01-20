@@ -75,7 +75,7 @@
                   id="email"
                   v-model="loginForm.email"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     loginErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -89,7 +89,7 @@
             </div>
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
-                <label for="password" class="text-sm sm:text-base">
+                <label for="password" class="text-sm sm:text-base text-gray-900">
                   密碼
                   <span class="text-xs text-gray-500 font-normal block sm:inline"
                     >(6位以上英、數字，必須包含大小寫)</span
@@ -99,7 +99,7 @@
                   id="password"
                   v-model="loginForm.password"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     loginErrors.password ? 'border-red-500' : 'border-black',
                   ]"
                   type="password"
@@ -144,7 +144,7 @@
                       class="mr-2 w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 mt-0.5 flex-shrink-0"
                     />
                     <div class="flex flex-col">
-                      <span class="text-sm sm:text-base">一般用戶</span>
+                      <span class="text-sm sm:text-base text-gray-900">一般用戶</span>
                       <span class="text-xs text-gray-500 mt-0.5"
                         >可瀏覽、找旅伴、發布找旅伴行程</span
                       >
@@ -158,7 +158,7 @@
                       class="mr-2 w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 mt-0.5 flex-shrink-0"
                     />
                     <div class="flex flex-col">
-                      <span class="text-sm sm:text-base">廠商</span>
+                      <span class="text-sm sm:text-base text-gray-900">廠商</span>
                       <span class="text-xs text-gray-500 mt-0.5"
                         >額外擁有廠商資料、發布精選行程</span
                       >
@@ -174,7 +174,7 @@
                   id="realName"
                   v-model="registerForm.realName"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     registerErrors.realName ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -193,7 +193,7 @@
                   id="nickname"
                   v-model="registerForm.nickname"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     registerErrors.nickname ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -215,7 +215,7 @@
                   id="email"
                   v-model="registerForm.email"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     registerErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -239,7 +239,7 @@
                   id="password"
                   v-model="registerForm.password"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     registerErrors.password ? 'border-red-500' : 'border-black',
                   ]"
                   type="password"
@@ -258,7 +258,7 @@
                   id="confirmPassword"
                   v-model="registerForm.confirmPassword"
                   :class="[
-                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900',
                     registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
                   ]"
                   type="password"

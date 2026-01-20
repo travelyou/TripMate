@@ -1498,7 +1498,7 @@ const jumpToStep = (targetStep) => {
               type="text"
               placeholder="例如：徵求一位女生分攤札幌住宿費"
               :class="[
-                'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                 fieldErrors.title ? 'border-red-500' : 'border-gray-200 focus:border-green-500',
               ]"
               maxlength="35"
@@ -1720,7 +1720,7 @@ const jumpToStep = (targetStep) => {
                 type="text"
                 placeholder="例如：日本"
                 :class="[
-                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                   fieldErrors.location
                     ? 'border-red-500'
                     : 'border-gray-200 focus:border-green-500',
@@ -1740,7 +1740,7 @@ const jumpToStep = (targetStep) => {
                 min="1"
                 max="999"
                 :class="[
-                  'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                  'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                   fieldErrors.max_people
                     ? 'border-red-500'
                     : 'border-gray-200 focus:border-green-500',
@@ -1856,7 +1856,7 @@ const jumpToStep = (targetStep) => {
                                     placeholder="活動名稱"
                                     :class="[
                                       'w-full font-bold text-lg focus:outline-none placeholder-gray-300 border-b border-transparent focus:border-green-500 transition-colors pb-1',
-                                      activity.title && activity.title.trim().length > 50 ? 'text-red-500' : 'text-gray-800',
+                                      activity.title && activity.title.trim().length > 50 ? 'text-red-500' : 'text-gray-900',
                                     ]"
                                     maxlength="50"
                                     @keydown.enter.prevent="() => activityDescRefs[actIndex]?.focus()"
@@ -1914,8 +1914,8 @@ const jumpToStep = (targetStep) => {
                                   placeholder="添加備註..."
                                   rows="2"
                                   :class="[
-                                    'w-full text-sm text-gray-600 bg-gray-50 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-100 placeholder-gray-400',
-                                    activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : '',
+                                    'w-full text-sm bg-gray-50 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-100 placeholder-gray-400',
+                                    activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : 'text-gray-900',
                                   ]"
                                   maxlength="500"
                                   @keydown.enter.prevent="() => {
@@ -2007,10 +2007,10 @@ const jumpToStep = (targetStep) => {
                       v-model="category.category"
                       placeholder="分類名稱"
                       :class="[
-                        'bg-transparent font-bold text-gray-800 focus:outline-none w-full',
+                        'bg-transparent font-bold focus:outline-none w-full',
                         category.category && category.category.trim().length > 10
                           ? 'text-red-500'
-                          : '',
+                          : 'text-gray-900',
                       ]"
                       maxlength="10"
                       @keydown.enter.prevent="() => {
@@ -2054,7 +2054,7 @@ const jumpToStep = (targetStep) => {
                     placeholder="物品名稱"
                       :class="[
                         'flex-1 text-sm focus:outline-none',
-                        item.name && item.name.trim().length > 10 ? 'text-red-500' : '',
+                        item.name && item.name.trim().length > 10 ? 'text-red-500' : 'text-gray-900',
                       ]"
                       maxlength="10"
                       @keydown.enter.prevent="() => {
@@ -2097,7 +2097,7 @@ const jumpToStep = (targetStep) => {
                 type="text"
                 placeholder="輸入標籤..."
                 :class="[
-                  'w-full pl-10 pr-16 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none',
+                  'w-full pl-10 pr-16 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none text-gray-900',
                   tagSearch && tagSearch.trim().length > 10
                     ? 'border-red-500 focus:border-red-500'
                     : 'border-gray-200 focus:border-green-500',
