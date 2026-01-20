@@ -12,13 +12,21 @@ function normalizeUserData(data) {
     // 名稱容錯 (優先使用 displayName，沒有則找 display_name，再沒有就顯示 User)
     displayName: data.displayName || data.display_name || 'User',
 
+    // 暱稱/顯示名稱（給個人頁與頭像使用）
+    nickname: data.nickname || data.displayName || data.display_name || '',
+
     // 頭像容錯
     photoURL: data.photoURL || data.photo_url || '',
+    avatar: data.avatar || data.photoURL || data.photo_url || '',
 
     // 其他文字欄位
     bio: data.bio || '',
     location: data.location || '',
     email: data.email || '',
+    spirit_animal: data.spirit_animal || data.spiritAnimal || '',
+    role: data.role || 'user',
+    vendor_id: data.vendor_id || data.vendorId || null,
+    tags: Array.isArray(data.tags) ? data.tags : [],
 
     stats: data.stats || {
       followers: 0,
