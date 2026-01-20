@@ -225,6 +225,10 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params
     const idNum = Number(id)
 
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).json({ error: '討論 ID 格式錯誤', details: 'id 必須是正整數' })
+    }
+
     // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
     // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar
     const discussionQuery = `
