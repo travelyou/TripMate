@@ -78,7 +78,6 @@
 | 成員 D | [GitHub](#) |  |
 | 成員 E | [GitHub](#) |  |
 
-https://github.com/yuntailee
 
 ---
 
