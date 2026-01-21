@@ -11,6 +11,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  loading: {
+    type: Boolean,
+    default: false
+  },
   stats: {
     type: Object,
     required: false,
@@ -60,7 +64,12 @@ const shouldMarquee = computed(() => {
         <div class="flex items-start gap-4">
           <div class="flex flex-col items-center shrink-0 -mt-2">
             <div class="relative group">
+              <div
+                v-if="loading"
+                class="w-20 h-20 rounded-full border-4 border-white/60 bg-white/30 animate-pulse"
+              ></div>
               <img
+                v-else
                 class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-primary-50"
                 :src="user.avatar"
                 alt="Avatar"
@@ -73,14 +82,26 @@ const shouldMarquee = computed(() => {
                 @change="handleFileChange"
               />
               <button
-                v-if="isCurrentUser"
+                v-if="isCurrentUser && !loading"
                 class="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full border border-white hover:bg-primary-700 transition shadow-lg cursor-pointer"
                 @click="$refs.fileInputMobile.click()"
               >
                 <Camera class="w-3 h-3 text-white" />
               </button>
             </div>
-            <div v-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-2 w-20 sm:w-24" style="gap: 0;">
+            <div
+              v-if="loading"
+              class="tags-container flex flex-wrap items-center justify-center mt-2 w-20 sm:w-24"
+              style="gap: 0;"
+            >
+              <span class="px-1.5 py-0.5 bg-white/20 rounded text-[9px] border border-white/20 flex items-center">
+                <span class="w-6 h-2 bg-white/40 rounded animate-pulse"></span>
+              </span>
+              <span class="px-1.5 py-0.5 bg-white/10 rounded text-[9px] border border-white/20 flex items-center ml-1">
+                <span class="w-5 h-2 bg-white/30 rounded animate-pulse"></span>
+              </span>
+            </div>
+            <div v-else-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-2 w-20 sm:w-24" style="gap: 0;">
               <span
                 v-for="tag in user.tags"
                 :key="tag"
@@ -96,14 +117,18 @@ const shouldMarquee = computed(() => {
             <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0">
-                  <h1 class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1">{{ user.name || user.nickname || '用戶' }}</h1>
+                  <h1 class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1">
+                    <span v-if="loading" class="inline-block h-4 w-24 bg-white/30 rounded animate-pulse"></span>
+                    <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
+                  </h1>
                 </div>
                 <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <span
                     class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
                     :title="locationFull"
                   >
-                    <span v-if="!shouldMarquee" class="inline-block truncate">@{{ locationFull }}</span>
+                    <span v-if="loading" class="inline-block h-2 w-16 bg-white/30 rounded animate-pulse"></span>
+                    <span v-else-if="!shouldMarquee" class="inline-block truncate">@{{ locationFull }}</span>
                     <span v-else class="location-marquee-container inline-block whitespace-nowrap">
                       <span class="location-marquee-text">@{{ locationFull }}</span>
                     </span>
@@ -113,28 +138,28 @@ const shouldMarquee = computed(() => {
            </div>
 
              <div class="flex gap-2 sm:gap-4 self-start" :class="{ 'mb-12 sm:mb-14': !isCurrentUser }">
-               <button class="text-center group" @click="$emit('open-friends')">
+                <button class="text-center group" :disabled="loading" @click="$emit('open-friends')">
                  <div class="text-[9px] sm:text-[10px] text-primary-100 group-hover:text-white transition">好友</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition">{{ stats.friends }}</div>
+                 <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.friends }}</span></div>
                </button>
                <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
                <div class="text-center">
                  <div class="text-[9px] sm:text-[10px] text-primary-100">主揪</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight">{{ stats.hosted }}</div>
+                 <div class="text-sm sm:text-base font-bold text-white leading-tight\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.hosted }}</span></div>
                </div>
                <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
                <div class="text-center">
                  <div class="text-[9px] sm:text-[10px] text-primary-100">貼文</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight">{{ stats.posts }}</div>
+                 <div class="text-sm sm:text-base font-bold text-white leading-tight\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.posts }}</span></div>
                </div>
                <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
                <div class="text-center">
                  <div class="text-[9px] sm:text-[10px] text-primary-100">好評</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight">{{ stats.reviews }}</div>
+                 <div class="text-sm sm:text-base font-bold text-white leading-tight\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.reviews }}</span></div>
                </div>
              </div>
              <!-- Owner/Visitor Buttons -->
-             <div v-if="isCurrentUser" class="flex items-center gap-1.5 sm:gap-2 self-end mt-1">
+             <div v-if="isCurrentUser && !loading" class="flex items-center gap-1.5 sm:gap-2 self-end mt-1">
                <button
                  class="p-1 sm:p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
                  title="編輯自我介紹"
@@ -151,7 +176,7 @@ const shouldMarquee = computed(() => {
                </button>
              </div>
              <!-- Mobile Visitor Buttons -->
-             <div v-else class="flex gap-2 self-end mt-1">
+             <div v-else-if="!loading" class="flex gap-2 self-end mt-1">
                <button
                 :class="[
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg transition',
@@ -179,8 +204,10 @@ const shouldMarquee = computed(() => {
         <div class="text-xs sm:text-sm">
            <div class="flex items-start gap-1.5 sm:gap-2 mb-2 relative">
              <p class="text-primary-100 font-light leading-relaxed line-clamp-2 flex-1 break-words">
-            {{ user.bio || '這傢伙很懶，什麼都沒留下...' }}
-          </p>
+              <span v-if="loading" class="block h-3 w-56 bg-white/30 rounded animate-pulse mb-2"></span>
+              <span v-if="loading" class="block h-3 w-40 bg-white/20 rounded animate-pulse"></span>
+              <span v-else>{{ user.bio || '這傢伙很懶，什麼都沒留下...' }}</span>
+           </p>
           </div>
         </div>
       </div>
@@ -188,7 +215,12 @@ const shouldMarquee = computed(() => {
       <div class="hidden md:flex items-start gap-6">
         <div class="flex flex-col items-center shrink-0 -mt-2">
           <div class="relative group">
+            <div
+              v-if="loading"
+              class="w-32 h-32 rounded-full border-4 border-white/60 bg-white/30 animate-pulse"
+            ></div>
             <img
+              v-else
               class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-primary-50"
               :src="user.avatar"
               alt="Avatar"
@@ -201,7 +233,7 @@ const shouldMarquee = computed(() => {
               @change="handleFileChange"
             />
             <button
-              v-if="isCurrentUser"
+              v-if="isCurrentUser && !loading"
               class="absolute bottom-2 right-2 p-2 bg-primary-600 rounded-full border-2 border-white hover:bg-primary-700 transition shadow-lg group-hover:scale-110 cursor-pointer"
               @click="$refs.fileInputDesktop.click()"
             >
@@ -209,7 +241,19 @@ const shouldMarquee = computed(() => {
             </button>
           </div>
 
-          <div v-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36" style="gap: 0;">
+          <div
+            v-if="loading"
+            class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36"
+            style="gap: 0;"
+          >
+            <span class="px-2 py-0.5 bg-white/20 rounded text-[10px] border border-white/20 flex items-center">
+              <span class="w-8 h-2 bg-white/40 rounded animate-pulse"></span>
+            </span>
+            <span class="px-2 py-0.5 bg-white/10 rounded text-[10px] border border-white/20 flex items-center ml-2">
+              <span class="w-6 h-2 bg-white/30 rounded animate-pulse"></span>
+            </span>
+          </div>
+          <div v-else-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36" style="gap: 0;">
             <span
               v-for="tag in user.tags"
               :key="tag"
@@ -223,12 +267,16 @@ const shouldMarquee = computed(() => {
 
         <div class="flex-1 text-left min-w-0">
           <div class="flex items-center justify-start gap-2 lg:gap-3 mb-2 flex-wrap">
-            <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0">{{ user.name || user.nickname || '用戶' }}</h1>
+            <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0">
+              <span v-if="loading" class="inline-block h-6 w-48 bg-white/30 rounded animate-pulse"></span>
+              <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
+            </h1>
             <span
               class="px-2 md:px-3 lg:px-4 py-0.5 md:py-1 lg:py-1.5 bg-white/10 rounded text-[10px] md:text-xs lg:text-sm font-medium text-white border border-white/20 flex items-center shrink-0 overflow-hidden relative max-w-[150px] md:max-w-[180px] lg:max-w-[200px]"
               :title="locationFull"
             >
-              <span v-if="!shouldMarquee" class="inline-block truncate">@{{ locationFull }}</span>
+              <span v-if="loading" class="inline-block h-3 w-20 bg-white/30 rounded animate-pulse"></span>
+              <span v-else-if="!shouldMarquee" class="inline-block truncate">@{{ locationFull }}</span>
               <span v-else class="location-marquee-container inline-block whitespace-nowrap">
                 <span class="location-marquee-text">@{{ locationFull }}</span>
               </span>
@@ -236,7 +284,9 @@ const shouldMarquee = computed(() => {
           </div>
           <div class="flex items-start gap-1.5 md:gap-2 mb-3 md:mb-4 max-w-xl relative min-w-0">
             <p class="text-primary-100 text-sm md:text-base lg:text-lg font-light leading-relaxed flex-1 min-w-0 break-words">
-            {{ user.bio || '這傢伙很懶，什麼都沒留下...' }}
+            <span v-if="loading" class="block h-4 w-72 bg-white/30 rounded animate-pulse mb-2"></span>
+            <span v-if="loading" class="block h-4 w-56 bg-white/20 rounded animate-pulse"></span>
+            <span v-else>{{ user.bio || '這傢伙很懶，什麼都沒留下...' }}</span>
           </p>
           </div>
         </div>
@@ -245,24 +295,24 @@ const shouldMarquee = computed(() => {
           <div
             class="flex gap-4 lg:gap-8 bg-white/10 rounded-2xl p-4 lg:p-6 border border-white/20"
           >
-            <button class="text-center group hover:scale-105 transition" @click="$emit('open-friends')">
+            <button class="text-center group hover:scale-105 transition" :disabled="loading" @click="$emit('open-friends')">
               <div class="text-xs lg:text-sm text-primary-100 mb-1 group-hover:text-white transition">好友</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition">{{ stats.friends }}</div>
+              <div class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.friends }}</span></div>
             </button>
             <div class="text-center">
               <div class="text-xs lg:text-sm text-primary-100 mb-1">主揪</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none">{{ stats.hosted }}</div>
+              <div class="text-2xl lg:text-3xl font-bold text-white leading-none\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.hosted }}</span></div>
             </div>
             <div class="text-center">
                <div class="text-xs lg:text-sm text-primary-100 mb-1">貼文</div>
-               <div class="text-2xl lg:text-3xl font-bold text-white leading-none">{{ stats.posts }}</div>
+               <div class="text-2xl lg:text-3xl font-bold text-white leading-none\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.posts }}</span></div>
             </div>
             <div class="text-center">
                <div class="text-xs lg:text-sm text-primary-100 mb-1">好評</div>
-               <div class="text-2xl lg:text-3xl font-bold text-white leading-none">{{ stats.reviews }}</div>
+               <div class="text-2xl lg:text-3xl font-bold text-white leading-none\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.reviews }}</span></div>
             </div>
           </div>
-          <div v-if="isCurrentUser" class="flex items-center gap-2">
+          <div v-if="isCurrentUser && !loading" class="flex items-center gap-2">
             <button
               class="p-1.5 md:p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
               title="編輯自我介紹"
@@ -280,7 +330,7 @@ const shouldMarquee = computed(() => {
           </div>
 
           <!-- Visitor Buttons -->
-          <div v-else class="flex gap-2">
+          <div v-else-if="!loading" class="flex gap-2">
             <button
               :class="[
                 'flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base font-bold shadow-lg transition',

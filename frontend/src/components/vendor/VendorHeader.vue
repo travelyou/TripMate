@@ -24,7 +24,7 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
 
 <template>
   <div
-    class="bg-white rounded-3xl overflow-hidden p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start border-2 border-gray-100 shadow-sm mb-8"
+    class="bg-white rounded-2xl overflow-hidden p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start border-2 border-primary-100 shadow-primary-sm mb-8"
   >
     <!-- 廠商頭像 -->
     <div class="relative shrink-0">
@@ -35,7 +35,7 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
       <!-- 認證徽章 -->
       <div
         v-if="vendor.isVerified"
-        class="absolute bottom-0 right-0 bg-blue-500 p-1 rounded-full border-2 border-white"
+        class="absolute bottom-0 right-0 bg-primary-600 p-1 rounded-full border-2 border-white"
       >
         <AwardIcon class="w-4 h-4 text-white" />
       </div>
@@ -53,12 +53,12 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
 
           <!-- 評分 (可點擊) -->
           <button
-            class="flex items-center gap-1.5 bg-yellow-50 px-3 py-1.5 rounded-full hover:bg-yellow-100 transition group"
+            class="flex items-center gap-1.5 bg-primary-50 px-3 py-1.5 rounded-full hover:bg-primary-100 transition group"
             @click="emit('open-review-modal')"
           >
-            <StarIcon class="w-5 h-5 text-yellow-500 fill-yellow-500" />
+            <StarIcon class="w-5 h-5 text-primary-500 fill-primary-500" />
             <span class="font-bold text-gray-800">{{ vendor.rating }}</span>
-            <span class="text-xs text-gray-500 group-hover:text-amber-700"
+            <span class="text-xs text-gray-500 group-hover:text-primary-700"
               >({{ vendor.reviewCount }}則評價)</span
             >
           </button>
@@ -69,7 +69,7 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
           <!-- Owner Mode -->
           <template v-if="isOwner">
             <button
-              class="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-full font-bold hover:bg-gray-200 transition"
+              class="flex items-center gap-1.5 px-4 py-2 bg-secondary-50 text-secondary-700 rounded-full font-bold hover:bg-secondary-100 transition border-2 border-secondary-100"
               @click="$emit('manage')"
             >
               <LayoutDashboard class="w-4 h-4" />
@@ -87,7 +87,7 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
           <!-- Visitor Mode -->
           <template v-else>
             <button
-              class="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-primary-600 rounded-full font-bold hover:bg-gray-200 transition"
+              class="flex items-center gap-1.5 px-4 py-2 bg-primary-50 text-primary-700 rounded-full font-bold hover:bg-primary-100 transition border-2 border-primary-100"
               @click="$emit('follow')"
             >
               <UserPlus class="w-4 h-4" />
@@ -105,13 +105,10 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
       </div>
 
       <!-- 第二排：簡介 -->
-      <div class="bg-gray-50 rounded-xl p-4 text-gray-600 text-sm leading-relaxed">
+      <div class="bg-secondary-50 rounded-xl p-4 text-secondary-600 text-sm leading-relaxed border-2 border-secondary-100">
         {{ vendor.description }}
       </div>
     </div>
   </div>
 </template>
 
-<style scoped>
-/* No specific custom styles needed, using Tailwind */
-</style>

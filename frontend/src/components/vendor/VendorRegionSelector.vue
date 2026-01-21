@@ -72,7 +72,7 @@ const getRegionImage = (region) => {
   <div class="mb-10 relative group/container">
     <!-- Left Button -->
     <button
-      class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-30 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-amber-50 text-amber-800 transition-all duration-300 opacity-0 group-hover/container:opacity-100 group-hover/container:translate-x-2 hidden md:flex border border-gray-100"
+      class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-30 bg-white/95 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-primary-50 text-primary-800 transition-all duration-300 opacity-0 group-hover/container:opacity-100 group-hover/container:translate-x-2 hidden md:flex border border-primary-100"
       @click="scroll('left')"
     >
       <ChevronLeftIcon class="w-6 h-6" />
@@ -80,7 +80,7 @@ const getRegionImage = (region) => {
 
     <!-- Right Button -->
     <button
-      class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-30 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-amber-50 text-amber-800 transition-all duration-300 opacity-0 group-hover/container:opacity-100 group-hover/container:-translate-x-2 hidden md:flex border border-gray-100"
+      class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-30 bg-white/95 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-primary-50 text-primary-800 transition-all duration-300 opacity-0 group-hover/container:opacity-100 group-hover/container:-translate-x-2 hidden md:flex border border-primary-100"
       @click="scroll('right')"
     >
       <ChevronRightIcon class="w-6 h-6" />
@@ -96,7 +96,7 @@ const getRegionImage = (region) => {
     >
       <!-- "All" Card -->
       <button
-        class="relative min-w-[200px] h-[300px] rounded-xl overflow-hidden shrink-0 snap-start group transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl border-0"
+        class="relative min-w-[200px] h-[300px] rounded-2xl overflow-hidden shrink-0 snap-start group transition-all duration-300 transform hover:-translate-y-2 hover:shadow-lg border-2 border-primary-100 shadow-primary-sm"
         @click="selectRegion('全部')"
       >
         <div class="absolute inset-0 bg-gray-900 group-hover:scale-110 transition-transform duration-700"></div>
@@ -110,7 +110,7 @@ const getRegionImage = (region) => {
         <!-- Active Frame -->
         <div
             v-if="activeRegion === '全部'"
-            class="absolute inset-0 border-4 border-amber-500 z-20"
+            class="absolute inset-0 border-4 border-primary-500 z-20"
         ></div>
       </button>
 
@@ -118,7 +118,7 @@ const getRegionImage = (region) => {
       <button
         v-for="region in regions"
         :key="region"
-        class="relative min-w-[200px] h-[300px] rounded-2xl overflow-hidden shrink-0 snap-start group transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl border-0 bg-gray-100"
+        class="relative min-w-[200px] h-[300px] rounded-2xl overflow-hidden shrink-0 snap-start group transition-all duration-300 transform hover:-translate-y-2 hover:shadow-lg border-2 border-primary-100 bg-white/80 shadow-primary-sm"
         @click="selectRegion(region)"
       >
         <!-- Background Image -->
@@ -133,13 +133,13 @@ const getRegionImage = (region) => {
         <!-- Content -->
         <div class="absolute inset-0 flex flex-col items-center justify-end p-8 z-10 select-none">
           <h3 class="text-2xl font-bold text-white tracking-wider mb-1 drop-shadow-md">{{ region }}</h3>
-          <div class="w-8 h-1 bg-amber-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="w-8 h-1 bg-primary-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
 
         <!-- Active Frame -->
         <div
             v-if="activeRegion === region"
-            class="absolute inset-0 border-4 border-amber-500 z-20"
+            class="absolute inset-0 border-4 border-primary-500 z-20"
         ></div>
       </button>
     </div>

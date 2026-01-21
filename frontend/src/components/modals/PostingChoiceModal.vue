@@ -286,48 +286,48 @@ const filteredTags = computed(() => {
     @click.self="$emit('close')"
   >
     <div
-      class="w-full max-w-md bg-[#fffef7] relative animate-pop-in flex flex-col max-h-[90vh] border-4 border-amber-700 shadow-[4px_4px_0px_0px_rgba(139,111,71,0.2)]"
+      class="w-full max-w-md bg-white relative animate-pop-in flex flex-col max-h-[90vh] border-2 border-primary shadow-primary-sm"
     >
       <div v-if="currentStep === 'menu'" class="p-6">
         <h3 class="text-xl font-bold text-gray-800 mb-6 text-shadow">你想發布什麼？</h3>
 
         <div class="space-y-4">
           <button
-            class="w-full flex items-center p-4 bg-orange-300 hover:bg-orange-400 transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="w-full flex items-center p-4 bg-white hover:bg-primary-50 transition-transform active:translate-y-1 border-2 border-primary shadow-primary-sm"
             @click="startPosting()"
           >
-            <MessageSquareIcon class="w-6 h-6 text-orange-700 mr-4" />
+            <MessageSquareIcon class="w-6 h-6 text-primary-600 mr-4" />
             <div class="text-left">
-              <p class="font-bold text-black">發起討論</p>
+              <p class="font-bold text-secondary-900">發起討論</p>
               <p class="text-xs text-gray-700">分享經驗或尋求建議</p>
             </div>
           </button>
 
           <button
-            class="w-full flex items-center p-4 bg-green-300 hover:bg-green-400 transition-transform active:translate-y-1 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="w-full flex items-center p-4 bg-white hover:bg-primary-50 transition-transform active:translate-y-1 border-2 border-primary shadow-primary-sm"
             @click="startPosting('找旅伴')"
           >
-            <UsersIcon class="w-6 h-6 text-green-700 mr-4" />
+            <UsersIcon class="w-6 h-6 text-primary-600 mr-4" />
             <div class="text-left">
-              <p class="font-bold text-black">尋找旅伴</p>
+              <p class="font-bold text-secondary-900">尋找旅伴</p>
               <p class="text-xs text-gray-700">找到志同道合的夥伴</p>
             </div>
           </button>
 
           <button
-            class="w-full flex items-center p-4 bg-indigo-300 hover:bg-green-400 pixel-button border-4 border-black transition-transform active:translate-y-1"
+            class="w-full flex items-center p-4 bg-white hover:bg-primary-50 pixel-button border-2 border-primary-700 transition-transform active:translate-y-1"
             @click="openItineraryDirectly"
           >
-            <BriefcaseIcon class="w-6 h-6 text-green-700 mr-4" />
+            <BriefcaseIcon class="w-6 h-6 text-primary-600 mr-4" />
             <div class="text-left">
-              <p class="font-bold text-black">規劃行程</p>
+              <p class="font-bold text-secondary-900">規劃行程</p>
               <p class="text-xs text-gray-700">這周末想做什麼?</p>
             </div>
           </button>
         </div>
 
         <button
-          class="mt-6 w-full py-2 text-sm text-gray-600 bg-gray-200 font-bold border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+          class="mt-6 w-full py-2 text-sm text-gray-600 bg-gray-200 font-bold border-2 border-primary shadow-primary-sm"
           @click="$emit('close')"
         >
           取消
@@ -344,7 +344,7 @@ const filteredTags = computed(() => {
           </div>
           <select
             v-model="postData.board"
-            class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500"
+            class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-primary-500"
             :class="errors.board ? 'border-red-500' : 'border-gray-400'"
             @change="clearError('board')"
           >
@@ -360,7 +360,7 @@ const filteredTags = computed(() => {
         <div class="p-4 flex-1 overflow-y-auto">
           <div class="flex items-center gap-3 mb-4">
             <div
-              class="w-10 h-10 rounded-full bg-gray-300 border-2 border-black flex items-center justify-center overflow-hidden"
+              class="w-10 h-10 rounded-full bg-gray-300 border-2 border-secondary-200 flex items-center justify-center overflow-hidden"
             >
               <UsersIcon class="w-6 h-6 text-gray-600" />
             </div>
@@ -400,14 +400,14 @@ const filteredTags = computed(() => {
           <div v-if="postData.board === '找旅伴' || attachedItinerary" class="mb-4">
             <div
               v-if="attachedItinerary"
-              class="w-full p-3 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-center justify-between"
+              class="w-full p-3 bg-primary-50 border-2 border-primary-200 rounded-lg flex items-center justify-between"
             >
-              <div class="text-sm font-bold text-blue-800">已加入行程規劃</div>
+              <div class="text-sm font-bold text-primary-800">已加入行程規劃</div>
             </div>
 
             <button
               v-else
-              class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
+              class="w-full py-2 border-2 border-dashed border-gray-400 text-gray-500 font-bold rounded-lg hover:bg-gray-50 hover:border-primary-400 hover:text-primary-600 transition-colors flex items-center justify-center gap-2"
               @click="showItineraryModal = true"
             >
               <MapPin class="w-4 h-4" />
@@ -441,7 +441,7 @@ const filteredTags = computed(() => {
             <div class="flex gap-4 text-gray-500">
               <button
                 type="button"
-                class="hover:text-orange-500 transition-colors"
+                class="hover:text-primary-600 transition-colors"
                 @click="triggerFileSelect"
               >
                 <ImageIcon class="w-6 h-6" />
@@ -454,13 +454,13 @@ const filteredTags = computed(() => {
                 class="hidden"
                 @change="handleImageSelect"
               />
-              <button class="hover:text-orange-500 transition-colors">
+              <button class="hover:text-primary-600 transition-colors">
                 <FileVideo class="w-6 h-6" />
               </button>
-              <button class="hover:text-orange-500 transition-colors">
+              <button class="hover:text-primary-600 transition-colors">
                 <Smile class="w-6 h-6" />
               </button>
-              <button class="hover:text-orange-500 transition-colors">
+              <button class="hover:text-primary-600 transition-colors">
                 <BarChart2 class="w-6 h-6" />
               </button>
             </div>
@@ -468,13 +468,13 @@ const filteredTags = computed(() => {
 
           <div class="flex gap-3">
             <button
-              class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-4 border-gray-300"
+              class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-2 border-secondary-200"
               @click="handleSaveDraft"
             >
               存入草稿
             </button>
             <button
-              class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-orange-500 hover:bg-orange-600 border-4 border-black"
+              class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-primary-600 hover:bg-primary-700 border-2 border-primary-700"
               @click="nextStep"
             >
               下一步
@@ -497,7 +497,7 @@ const filteredTags = computed(() => {
               v-model="tagSearch"
               type="text"
               placeholder="根據文章內容搜尋相關話題..."
-              class="w-full pl-10 pr-4 py-3 bg-orange-50 border-2 border-orange-200 rounded-xl focus:outline-none focus:border-orange-500 font-bold text-gray-700"
+              class="w-full pl-10 pr-4 py-3 bg-primary-50 border-2 border-primary-200 rounded-xl focus:outline-none focus:border-primary-500 font-bold text-gray-700"
             />
             <Hash class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
           </div>
@@ -508,7 +508,7 @@ const filteredTags = computed(() => {
               <span
                 v-for="(tag, index) in postData.tags"
                 :key="index"
-                class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-bold border border-orange-300 flex items-center gap-1"
+                class="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-bold border border-primary-200 flex items-center gap-1"
               >
                 #{{ tag }}
                 <button class="hover:text-red-500" @click="removeTag(index)">
@@ -522,10 +522,10 @@ const filteredTags = computed(() => {
             <h4 class="text-sm font-bold text-gray-500 mb-3">推薦話題 / 搜尋結果</h4>
             <button
               v-if="tagSearch"
-              class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 mb-2 text-orange-600"
+              class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 mb-2 text-primary-600"
               @click="addTag(tagSearch)"
             >
-              <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+              <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
                 <span class="font-bold text-lg">+</span>
               </div>
               <div>
@@ -541,7 +541,7 @@ const filteredTags = computed(() => {
                 @click="addTag(tag)"
               >
                 <div
-                  class="w-10 h-10 rounded-full bg-gray-200 border-2 border-black flex items-center justify-center font-bold text-gray-600"
+                  class="w-10 h-10 rounded-full bg-gray-200 border-2 border-secondary-200 flex items-center justify-center font-bold text-gray-600"
                 >
                   #
                 </div>
@@ -556,7 +556,7 @@ const filteredTags = computed(() => {
 
         <div class="p-4 border-t-2 border-gray-200 flex justify-end bg-gray-50 gap-3">
           <button
-            class="w-full py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="w-full py-2 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 border-2 border-primary shadow-primary-sm"
             @click="nextStep"
           >
             預覽文章
@@ -582,7 +582,7 @@ const filteredTags = computed(() => {
                   <p class="text-xs text-gray-500">剛剛</p>
                 </div>
               </div>
-              <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">{{
+              <span class="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded font-bold">{{
                 postData.board || '未分類'
               }}</span>
             </div>
@@ -606,7 +606,7 @@ const filteredTags = computed(() => {
             </div>
 
             <div class="flex flex-wrap gap-2">
-              <span v-for="tag in postData.tags" :key="tag" class="text-blue-500 text-sm font-bold">
+              <span v-for="tag in postData.tags" :key="tag" class="text-primary-600 text-sm font-bold">
                 #{{ tag }}
               </span>
             </div>
@@ -615,13 +615,13 @@ const filteredTags = computed(() => {
 
         <div class="p-4 border-t-2 border-gray-200 bg-white flex gap-3">
           <button
-            class="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-200 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-200 border-2 border-primary shadow-primary-sm"
             @click="prevStep"
           >
             返回修改
           </button>
           <button
-            class="flex-1 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 border-4 border-amber-700 shadow-[3px_3px_0px_0px_rgba(139,111,71,0.3)]"
+            class="flex-1 py-2 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 border-2 border-primary shadow-primary-sm"
             @click="handleFinalSubmit"
           >
             確認發布

@@ -73,7 +73,7 @@ const copyLink = () => {
 <template>
   <div class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4">
     <div
-      class="bg-white rounded-xl w-full max-w-md flex flex-col border-4 border-amber-700 shadow-[10px_10px_0px_0px_rgba(139,111,71,0.5)] p-6"
+      class="bg-white rounded-xl w-full max-w-md flex flex-col border-2 border-primary shadow-primary-sm p-6"
     >
       <header class="flex justify-between items-center pb-4 border-b border-gray-200 mb-4">
         <h3 class="text-xl font-bold text-gray-800">分享至社群平台</h3>
@@ -89,7 +89,7 @@ const copyLink = () => {
           :href="platform.link"
           target="_blank"
           @click="platform.name !== 'Line' && platform.name !== 'Facebook' && emit('close')"
-          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]"
+          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 border-2 border-secondary-200 shadow-primary-sm"
           :class="platform.color"
         >
           <img :src="platform.iconPath" :alt="platform.name" class="w-8 h-8 object-contain" />
@@ -99,7 +99,7 @@ const copyLink = () => {
 
         <button
           @click="copyLink"
-          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 bg-gray-600 border-4 border-gray-800 shadow-[4px_4px_0px_0px_rgba(31,41,55,1)]"
+          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 bg-gray-600 border-2 border-secondary-200 shadow-primary-sm"
         >
           <LinkIcon class="w-8 h-8 text-white" />
           <span class="text-white font-bold text-sm mt-2">複製連結</span>

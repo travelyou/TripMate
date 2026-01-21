@@ -1,9 +1,10 @@
 <script setup>
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
-import { useTravelersStore } from '@/stores/travelers'
+import { useTravelersStore } from '@/stores/travelers' // 引入 Store
 import { useUserStore } from '@/stores/user'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -11,12 +12,13 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Users as UsersIcon,
+  Loader2 as Loader2Icon, // [新增] 引入 Loading Icon
 } from 'lucide-vue-next'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 const discussionsStore = useDiscussionsStore()
-const travelersStore = useTravelersStore()
+const travelersStore = useTravelersStore() // 使用 Store
 useUserStore()
 const router = useRouter()
 
@@ -59,7 +61,12 @@ onAuthStateChanged(auth, async (user) => {
 
 onMounted(async () => {
   try {
-    await discussionsStore.loadDiscussions()
+    // [修改] 這裡只做初始載入 (isLoadMore = false)
+    await Promise.all([
+      discussionsStore.loadDiscussions(),
+      travelersStore.loadRecommendations(false),
+    ])
+
     if (currentUserUid.value) {
       scheduleLikesSync(discussionsStore.discussions, currentUserUid.value)
     }
@@ -74,9 +81,14 @@ onBeforeUnmount(() => {
 
 const scrollContainer = ref(null)
 
+// --- 討論區 Modal 狀態 ---
 const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
+
+// --- 旅伴 Modal 狀態 ---
+const isTravelerModalOpen = ref(false)
+const selectedTraveler = ref(null)
 
 const scroll = (direction) => {
   if (scrollContainer.value) {
@@ -88,6 +100,20 @@ const scroll = (direction) => {
   }
 }
 
+// [新增] 監聽水平捲動事件
+const handleScroll = (e) => {
+  const { scrollLeft, scrollWidth, clientWidth } = e.target
+  // 當捲動到距離右邊剩 50px 時，且不是正在載入中，且還有更多資料
+  if (
+    scrollWidth - scrollLeft - clientWidth < 50 &&
+    !travelersStore.loading &&
+    travelersStore.hasMore
+  ) {
+    travelersStore.loadRecommendations(true) // true 代表載入更多
+  }
+}
+
+// 開啟討論區詳情
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
   shouldScrollToComments.value = focusComment
@@ -98,6 +124,17 @@ const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
   shouldScrollToComments.value = false
+}
+
+// 開啟旅伴詳情
+const openTravelerDetailModal = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerModalOpen.value = true
+}
+
+const closeTravelerDetailModal = () => {
+  isTravelerModalOpen.value = false
+  selectedTraveler.value = null
 }
 
 const isShareModalOpen = ref(false)
@@ -115,20 +152,22 @@ const closeShareModal = () => {
 
 const getTagColor = (tagText) => {
   const colors = [
-    'bg-red-500 border-red-400',
-    'bg-orange-500 border-orange-400',
-    'bg-amber-500 border-amber-400',
-    'bg-green-500 border-green-400',
-    'bg-emerald-500 border-emerald-400',
-    'bg-teal-500 border-teal-400',
-    'bg-cyan-500 border-cyan-400',
-    'bg-sky-500 border-sky-400',
-    'bg-blue-500 border-blue-400',
-    'bg-indigo-500 border-indigo-400',
-    'bg-violet-500 border-violet-400',
-    'bg-fuchsia-500 border-fuchsia-400',
-    'bg-pink-500 border-pink-400',
-    'bg-rose-500 border-rose-400',
+    'bg-[#c75a5a]',
+    'bg-[#c77a4a]',
+    'bg-[#c7943f]',
+    'bg-[#b9a348]',
+    'bg-[#8aa651]',
+    'bg-[#5f9a63]',
+    'bg-[#4f9b85]',
+    'bg-[#4f9a9f]',
+    'bg-[#4f93b2]',
+    'bg-[#4e85b8]',
+    'bg-[#5573b4]',
+    'bg-[#6a66b0]',
+    'bg-[#7d60a6]',
+    'bg-[#9a5d9a]',
+    'bg-[#a85a84]',
+    'bg-[#b0586a]',
   ]
 
   if (!tagText) return colors[0]
@@ -140,6 +179,12 @@ const getTagColor = (tagText) => {
 
   const index = Math.abs(hash) % colors.length
   return colors[index]
+}
+
+const getFirstTag = (item) => {
+  if (item.tag) return item.tag
+  if (item.tags && item.tags.length > 0) return item.tags[0]
+  return '旅遊'
 }
 </script>
 
@@ -172,12 +217,13 @@ const getTagColor = (tagText) => {
         <div
           ref="scrollContainer"
           class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
+          @scroll="handleScroll"
         >
           <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
             class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
-            @click="openDiscussionDetailModal(item, false)"
+            @click="openTravelerDetailModal(item)"
           >
             <img
               :src="item.image"
@@ -191,15 +237,15 @@ const getTagColor = (tagText) => {
               <div class="flex justify-between items-start">
                 <span
                   :class="[
-                    getTagColor(item.tag),
-                    'text-white border-2 border-white/50 px-2 py-0.5 text-[10px] font-bold rounded -rotate-2 shadow-sm',
+                    getTagColor(getFirstTag(item)),
+                    'text-white px-3 py-1.5 text-[10px] font-bold rounded -rotate-2 shadow-sm border border-white',
                   ]"
                 >
-                  {{ item.tag }}
+                  {{ getFirstTag(item) }}
                 </span>
 
                 <div
-                  class="flex items-center bg-red-500 text-white border-2 border-white px-2 py-0.5 text-[10px] font-bold rounded rotate-2 shadow-sm"
+                  class="flex items-center bg-primary-600 text-white px-3 py-1.5 text-[10px] font-bold rounded rotate-2 shadow-sm border border-white"
                 >
                   <UsersIcon class="w-3 h-3 mr-1" />
                   {{ item.people }}
@@ -220,6 +266,21 @@ const getTagColor = (tagText) => {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div
+            v-if="travelersStore.loading && travelersStore.hasMore"
+            class="flex-shrink-0 w-[10%] min-w-24 h-48 rounded-2xl flex items-center justify-center snap-start"
+          >
+            <Loader2Icon class="w-8 h-8 text-primary animate-spin" />
+          </div>
+
+          <div
+            v-if="!travelersStore.hasMore && travelersStore.recommendations.length > 0"
+            class="flex-shrink-0 w-8 h-48 flex items-center justify-center text-gray-300 writing-vertical-lr text-xs font-bold tracking-widest"
+            style="writing-mode: vertical-rl"
+          >
+            THE END
           </div>
         </div>
       </div>
@@ -274,5 +335,12 @@ const getTagColor = (tagText) => {
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
   />
+
+  <TravelerDetailModal
+    v-if="isTravelerModalOpen"
+    :traveler="selectedTraveler"
+    @close="closeTravelerDetailModal"
+  />
+
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

@@ -367,15 +367,15 @@ watch(
     >
       <div
         v-if="isLimitReached"
-        class="absolute inset-0 bg-[#fffef7] rounded-3xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-4 border-gray-800 z-0"
+        class="absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-2 border-secondary-200 z-0"
       >
-        <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-          <SparklesIcon class="w-10 h-10 text-yellow-500" />
+        <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+          <SparklesIcon class="w-10 h-10 text-primary-600" />
         </div>
         <h3 class="text-xl font-bold text-gray-800 mb-2">今日配對次數已用完</h3>
         <p class="text-gray-500 mb-6 text-sm">明天再來看看有沒有新的旅伴吧！</p>
         <button
-          class="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-700 transition"
+          class="px-8 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md"
           @click="$emit('close')"
         >
           關閉視窗
@@ -385,7 +385,7 @@ watch(
       <div
         v-else-if="currentCard"
         ref="cardElement"
-        class="relative w-full h-full bg-[#fffef7] rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-800 flex flex-col z-10 select-none touch-none"
+        class="relative w-full h-full bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-primary flex flex-col z-10 select-none touch-none"
         :style="cardStyle"
         @mousedown="onTouchStart"
         @mousemove="onTouchMove"
@@ -407,7 +407,7 @@ watch(
 
           <div class="absolute top-4 left-4">
             <span
-              class="inline-flex items-center px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 text-white text-xs font-bold shadow-sm"
+              class="inline-flex items-center px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-white text-primary-700 text-xs font-bold shadow-sm"
             >
               {{ currentCard.spiritAnimal }}
             </span>
@@ -419,7 +419,7 @@ watch(
               <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
             </h2>
             <div class="flex items-center text-sm font-bold opacity-90">
-              <MapPinIcon class="w-4 h-4 mr-1 text-red-400 fill-red-400" />
+              <MapPinIcon class="w-4 h-4 mr-1 text-primary-200 fill-primary-200" />
               {{ currentCard.location }}
             </div>
           </div>
@@ -438,7 +438,7 @@ watch(
           </div>
         </div>
 
-        <div class="flex-1 flex flex-col p-5 bg-[#fffef7]">
+        <div class="flex-1 flex flex-col p-5 bg-white">
           <div class="mb-4 pointer-events-none">
             <p class="text-xs font-bold text-gray-400 mb-2 flex items-center">
               <SparklesIcon class="w-3 h-3 mr-1" /> 也想去的地方 (城市/國家)
@@ -447,7 +447,7 @@ watch(
               <span
                 v-for="place in currentCard.wishlist"
                 :key="place"
-                class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold border border-orange-200"
+                class="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-bold border border-primary-100"
               >
                 {{ place }}
               </span>
@@ -465,7 +465,7 @@ watch(
               <XIcon class="w-8 h-8 pointer-events-none" />
             </button>
             <button
-              class="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-blue-100 hover:text-blue-500 transition cursor-pointer"
+              class="w-10 h-10 rounded-full bg-secondary-100 text-secondary-500 border border-secondary-200 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition cursor-pointer"
               @click.stop="openDetail"
             >
               <InfoIcon class="w-5 h-5" />
@@ -479,7 +479,7 @@ watch(
         <Transition name="slide-up">
           <div
             v-if="isDetailOpen"
-            class="absolute inset-0 bg-[#fffef7] z-50 overflow-y-auto detail-scrollbar flex flex-col"
+            class="absolute inset-0 bg-white z-50 overflow-y-auto detail-scrollbar flex flex-col"
             @mousedown.stop
             @touchstart.stop
           >
@@ -490,21 +490,21 @@ watch(
                 class="w-full h-full object-cover"
               />
               <div
-                class="absolute inset-0 bg-gradient-to-t from-[#fffef7] via-transparent to-transparent"
+                class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"
               ></div>
 
               <button
-                class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/30 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/50 transition z-50"
+                class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white text-primary-700 border-2 border-primary backdrop-blur-md flex items-center justify-center hover:bg-primary-50 transition z-50 shadow-primary-sm"
                 @click="closeDetail"
               >
                 <ChevronDownIcon class="w-6 h-6" />
               </button>
 
               <div class="absolute bottom-0 left-0 p-6 w-full">
-                <h2 class="text-3xl font-black text-gray-900 mb-1">
+                <h2 class="text-3xl font-black text-secondary-900 mb-1">
                   {{ currentCard.name }}, {{ currentCard.age }}
                 </h2>
-                <div class="flex items-center text-gray-600 font-bold text-sm">
+                <div class="flex items-center text-secondary-600 font-bold text-sm">
                   <MapPinIcon class="w-4 h-4 mr-1" /> {{ currentCard.location }}
                 </div>
               </div>
@@ -518,13 +518,13 @@ watch(
 
               <section v-if="currentCard.wishlist && currentCard.wishlist.length">
                 <h3 class="section-title flex items-center">
-                  <SparklesIcon class="w-4 h-4 mr-1 text-orange-500" /> 也想去的地方
+                  <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 也想去的地方
                 </h3>
                 <div class="flex flex-wrap gap-2">
                   <span
                     v-for="place in currentCard.wishlist"
                     :key="place"
-                    class="px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-sm font-bold border-2 border-orange-200 shadow-sm"
+                    class="px-4 py-2 bg-primary-50 text-primary-700 rounded-full text-sm font-bold border-2 border-primary-100 shadow-sm"
                   >
                     {{ place }}
                   </span>
@@ -539,7 +539,7 @@ watch(
                   <span
                     v-for="act in currentCard.activities"
                     :key="act"
-                    class="px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg text-sm font-bold"
+                    class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
                   >
                     {{ act }}
                   </span>
@@ -572,7 +572,7 @@ watch(
                 <div class="space-y-4">
                   <div v-for="trip in currentCard.pastTrips" :key="trip.id" class="flex gap-4">
                     <div class="flex flex-col items-center">
-                      <div class="w-3 h-3 rounded-full bg-orange-400 ring-4 ring-orange-100"></div>
+                      <div class="w-3 h-3 rounded-full bg-primary-400 ring-4 ring-primary-100"></div>
                       <div class="w-0.5 h-full bg-gray-200 my-1"></div>
                     </div>
                     <div class="pb-2">
@@ -588,7 +588,7 @@ watch(
             </div>
 
             <div
-              class="sticky bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-[#fffef7] via-[#fffef7] to-transparent flex justify-center gap-12 border-t border-gray-100/50 backdrop-blur-sm z-40"
+              class="sticky bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-white via-white to-transparent flex justify-center gap-12 border-t border-secondary-100/60 backdrop-blur-sm z-40"
             >
               <button
                 class="action-btn-nope scale-110 shadow-md"
@@ -597,7 +597,7 @@ watch(
                 <XIcon class="w-8 h-8 pointer-events-none" />
               </button>
               <button
-                class="action-btn-like scale-110 shadow-lg shadow-orange-200"
+                class="action-btn-like scale-110 shadow-primary-sm"
                 @click="handleButtonClick('right')"
               >
                 <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
@@ -608,23 +608,41 @@ watch(
       </div>
       <div
         v-else
-        class="absolute inset-0 bg-[#fffef7] rounded-3xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-4 border-gray-800 z-0"
+        class="absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-2 border-secondary-200 z-0"
       >
-        <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-          <SparklesIcon class="w-10 h-10 text-blue-500" />
+        <div v-if="isLoading" class="w-full h-full flex flex-col">
+          <div class="h-[60%] w-full bg-secondary-100 rounded-2xl animate-pulse mb-6"></div>
+          <div class="flex items-center justify-between mb-4 animate-pulse">
+            <div class="h-6 w-20 bg-secondary-100 rounded-full"></div>
+            <div class="h-6 w-16 bg-secondary-100 rounded-full"></div>
+          </div>
+          <div class="space-y-3 animate-pulse">
+            <div class="h-4 bg-secondary-100 rounded w-2/3"></div>
+            <div class="h-3 bg-secondary-100 rounded w-1/2"></div>
+            <div class="h-3 bg-secondary-100 rounded w-5/6"></div>
+          </div>
+          <div class="mt-auto pt-6 flex justify-center gap-10 animate-pulse">
+            <div class="w-14 h-14 bg-secondary-100 rounded-full"></div>
+            <div class="w-14 h-14 bg-secondary-100 rounded-full"></div>
+          </div>
         </div>
-        <h3 class="text-xl font-bold text-gray-800 mb-2">
+        <div v-else class="w-full max-w-sm flex flex-col items-center text-center space-y-4">
+          <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+          <SparklesIcon class="w-10 h-10 text-primary-600" />
+                  </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">
           {{ isLoading ? '正在載入旅伴...' : '目前沒有可抽的旅伴' }}
         </h3>
-        <p class="text-gray-500 mb-6 text-sm">
+          <p class="text-gray-500 mb-6 text-sm">
           {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
         </p>
-        <button
-          class="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-700 transition"
+          <button
+          class="px-8 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md"
           @click="$emit('close')"
         >
           關閉視窗
         </button>
+        </div>
       </div>
     </div>
   </div>
@@ -639,14 +657,14 @@ watch(
 }
 
 .action-btn-nope {
-  @apply w-14 h-14 rounded-full bg-white border-2 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 cursor-pointer;
+  @apply w-14 h-14 rounded-full bg-white border-2 border-secondary-200 text-secondary-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 cursor-pointer;
 }
 .action-btn-like {
-  @apply w-16 h-16 rounded-full bg-gradient-to-tr from-rose-400 to-orange-400 text-white shadow-lg shadow-orange-200 hover:shadow-orange-300 hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer;
+  @apply w-16 h-16 rounded-full bg-primary-600 text-white shadow-primary-sm hover:bg-primary-700 hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer;
 }
 
 .section-title {
-  @apply text-sm font-bold text-gray-400 uppercase tracking-wider mb-3;
+  @apply text-sm font-bold text-secondary-400 uppercase tracking-wider mb-3;
 }
 
 .slide-up-enter-active,

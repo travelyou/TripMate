@@ -39,6 +39,7 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
+import { showConfirm, showAlert, showSuccess, showError } from '@/utils/alert'
 
 const props = defineProps({
   draftData: {
@@ -337,7 +338,7 @@ const handleEditorImageSelect = async (event) => {
       editor.value.chain().focus().setImage({ src: imageUrl }).run()
     }
   } catch (error) {
-    alert('圖片插入失敗：' + error.message)
+    await showAlert('圖片插入失敗：' + error.message)
   }
 
   event.target.value = ''
@@ -360,6 +361,7 @@ watch(
 
 onBeforeUnmount(() => {
   editor.value?.destroy()
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
 const categories = [
@@ -509,12 +511,12 @@ const handleImageSelect = async (event) => {
   const validFiles = []
   for (const file of filesToAdd) {
     if (!file.type.startsWith('image/')) {
-      alert(`${file.name} 不是有效的圖片`)
+      await showAlert(`${file.name} 不是有效的圖片`)
       continue
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
+      await showAlert(`${file.name} 檔案太大，請選擇小於 10MB 的圖片`)
       continue
     }
 
@@ -552,16 +554,12 @@ const handleImageSelect = async (event) => {
       reader.readAsDataURL(compressedFile)
 
       submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}...`
-      const imageUrl = await uploadImage(
-        compressedFile,
-        'discussions',
-        (progress) => {
-          const baseProgress = (i / validFiles.length) * 100
-          const currentFileProgress = (progress / 100) * (100 / validFiles.length)
-          uploadProgress.value = Math.round(baseProgress + currentFileProgress)
-          submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
-        }
-      )
+      const imageUrl = await uploadImage(compressedFile, 'discussions', (progress) => {
+        const baseProgress = (i / validFiles.length) * 100
+        const currentFileProgress = (progress / 100) * (100 / validFiles.length)
+        uploadProgress.value = Math.round(baseProgress + currentFileProgress)
+        submitStatus.value = `正在上傳圖片 ${i + 1}/${validFiles.length}... ${progress}%`
+      })
 
       imageFiles.value.push(compressedFile)
       uploadedImageUrls.value.push(imageUrl)
@@ -573,7 +571,7 @@ const handleImageSelect = async (event) => {
     submitStatus.value = ''
   } catch (error) {
     console.error('[圖片上傳] 上傳失敗：', error)
-    alert('圖片上傳失敗：' + error.message)
+    await showAlert('圖片上傳失敗：' + error.message)
     imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
   } finally {
     isUploading.value = false
@@ -647,7 +645,7 @@ watch(
   },
 )
 
-const handleSaveDraft = () => {
+const handleSaveDraft = async () => {
   if (!postData.value.title.trim()) {
     formError.value = '請至少輸入標題才能儲存草稿'
     return
@@ -664,13 +662,14 @@ const handleSaveDraft = () => {
       JSON.stringify({
         ...postData.value,
         imagePreviews: imagePreviews.value,
+        uploadedImageUrls: uploadedImageUrls.value,
       }),
     ),
   }
 
   myItineraryStore.addDraft(draftData)
   console.log('[草稿儲存] 草稿儲存成功，ID:', draftData.id)
-  alert('已儲存至「個人檔案」草稿夾！')
+  await showSuccess('已儲存至「個人檔案」草稿夾！')
   emit('close')
 }
 
@@ -689,9 +688,9 @@ const hasContent = computed(() => {
   )
 })
 
-const handleClose = () => {
+const handleClose = async () => {
   if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
-    const shouldClose = confirm('貼文正在提交中，確定要關閉嗎？')
+    const shouldClose = await showConfirm('貼文正在提交中，確定要關閉嗎？')
     if (shouldClose) {
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
@@ -701,19 +700,21 @@ const handleClose = () => {
   }
 
   if (hasContent.value) {
-    const shouldSave = confirm(
+    const shouldSave = await showConfirm(
       '您有未完成的內容，是否要儲存到草稿夾？\n\n點擊「確定」儲存草稿並關閉\n點擊「取消」僅關閉不儲存',
     )
     if (shouldSave) {
       if (postData.value.title.trim()) {
-        handleSaveDraft()
+        await handleSaveDraft()
+        return
       } else {
-        alert('請至少輸入標題才能儲存草稿')
-        const stillClose = confirm('是否仍要關閉？')
+        await showAlert('請至少輸入標題才能儲存草稿')
+        const stillClose = await showConfirm('是否仍要關閉？')
         if (stillClose) emit('close')
+        return
       }
     } else {
-      const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
+      const confirmClose = await showConfirm('確定要關閉嗎？未儲存的內容將會遺失。')
       if (confirmClose) emit('close')
     }
   } else {
@@ -750,15 +751,16 @@ const executeSubmit = async () => {
       content: postData.value.content,
       tags: postData.value.tags,
       banner: bannerUrl,
-      banner_position_y: imagePreviews.value.length > 0 ? Math.round(bannerPositionY.value) : undefined,
+      banner_position_y:
+        imagePreviews.value.length > 0 ? Math.round(bannerPositionY.value) : undefined,
       image_urls: imageUrls,
       author_uid: auth.currentUser.uid,
     }
 
     submitProgress.value = 70
     submitStatus.value = props.postToEdit ? '正在更新貼文中...' : '正在提交貼文中...'
-    
-    const response = props.postToEdit 
+
+    const response = props.postToEdit
       ? await updatePost(props.postToEdit.id, payload)
       : await createPost(payload)
 
@@ -775,7 +777,7 @@ const executeSubmit = async () => {
           icon: '/favicon.ico',
         })
       } else {
-        alert(props.postToEdit ? '更新成功！' : '發文成功！')
+        await showSuccess(props.postToEdit ? '更新成功！' : '發文成功！')
       }
       window.location.reload()
     }
@@ -797,7 +799,7 @@ const executeSubmit = async () => {
         icon: '/favicon.ico',
       })
     } else {
-      alert(errorMessage)
+      await showError(errorMessage)
     }
   }
 }
@@ -829,6 +831,9 @@ watch(
 
       if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
         imagePreviews.value = draft.imagePreviews
+      }
+      if (draft.uploadedImageUrls && Array.isArray(draft.uploadedImageUrls)) {
+        uploadedImageUrls.value = draft.uploadedImageUrls
       }
 
       if (editor.value && draft.content) {
@@ -877,61 +882,16 @@ watch(
   { immediate: true },
 )
 
-onMounted(() => {
-  if (props.postToEdit) {
-    const post = props.postToEdit
-    postData.value.category = post.category || ''
-    postData.value.title = post.title || ''
-    postData.value.content = post.content || ''
-    postData.value.tags = post.tags || []
-
-    if (post.banner) {
-      imagePreviews.value = [post.banner]
-      uploadedImageUrls.value = [post.banner]
-    }
-    if (post.image_urls && post.image_urls.length > 0) {
-      imagePreviews.value = [post.banner, ...post.image_urls].filter(Boolean)
-      uploadedImageUrls.value = [post.banner, ...post.image_urls].filter(Boolean)
-    }
-
-    if (editor.value && post.content) {
-      nextTick(() => {
-        try {
-          editor.value.commands.setContent(post.content, false)
-        } catch (error) {
-          console.error('[發文編輯器] 載入編輯內容失敗:', error)
-        }
-      })
-    }
-  } else if (props.draftData && props.draftData.data) {
-    const draft = props.draftData.data
-    postData.value.category = draft.category || ''
-    postData.value.title = draft.title || ''
-    postData.value.content = draft.content || ''
-    postData.value.tags = draft.tags || []
-
-    if (draft.imagePreviews && Array.isArray(draft.imagePreviews)) {
-      imagePreviews.value = draft.imagePreviews
-    }
-
-    if (editor.value && draft.content) {
-      nextTick(() => {
-        try {
-          editor.value.commands.setContent(draft.content, false)
-        } catch (error) {
-          console.error('[發文編輯器] 載入草稿內容失敗:', error)
-        }
-      })
-    }
+const handleBeforeUnload = (e) => {
+  if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
+    e.preventDefault()
+    e.returnValue = '貼文正在提交中，確定要離開嗎？'
+    return e.returnValue
   }
+}
 
-  window.addEventListener('beforeunload', (e) => {
-    if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
-      e.preventDefault()
-      e.returnValue = '貼文正在提交中，確定要離開嗎？'
-      return e.returnValue
-    }
-  })
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
 
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
@@ -975,7 +935,7 @@ onMounted(() => {
             :class="[
               'py-3 border-b-2 transition cursor-default whitespace-nowrap capitalize',
               currentStep === step
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-400',
             ]"
           >
@@ -997,7 +957,7 @@ onMounted(() => {
             </label>
             <select
               v-model="postData.category"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition bg-white"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:outline-none transition bg-white"
               :class="{ 'border-red-500': errors.category }"
             >
               <option value="" disabled selected>請選擇看板</option>
@@ -1030,7 +990,7 @@ onMounted(() => {
                 'w-full p-3 border-2 rounded-xl focus:outline-none transition',
                 errors.title
                   ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-200 focus:border-green-500',
+                  : 'border-gray-200 focus:border-primary-500',
               ]"
               maxlength="35"
             />
@@ -1083,7 +1043,7 @@ onMounted(() => {
             </p>
             <button
               :disabled="isUploading || imagePreviews.length >= 1"
-              class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-primary-50 hover:border-primary-500 hover:text-primary-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               :class="{ 'border-red-500 text-red-500 bg-red-50': errors.banner }"
               @click="triggerFileSelect"
             >
@@ -1112,7 +1072,7 @@ onMounted(() => {
                 :class="{
                   'text-gray-400':
                     editor.storage.characterCount.characters() < CHARACTER_LIMIT * 0.9,
-                  'text-orange-500 font-bold':
+                  'text-primary-600 font-bold':
                     editor.storage.characterCount.characters() >= CHARACTER_LIMIT * 0.9 &&
                     editor.storage.characterCount.characters() < CHARACTER_LIMIT,
                   'text-red-500 font-bold':
@@ -1125,7 +1085,9 @@ onMounted(() => {
             <div
               class="border-2 rounded-xl overflow-x-hidden transition flex flex-col bg-white"
               :class="
-                errors.content ? 'border-red-500' : 'border-gray-200 focus-within:border-green-500'
+                errors.content
+                  ? 'border-red-500'
+                  : 'border-gray-200 focus-within:border-primary-500'
               "
             >
               <div
@@ -1285,7 +1247,7 @@ onMounted(() => {
                 'w-full pl-10 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none',
                 tagSearch && tagSearch.trim().length > 30
                   ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-200 focus:border-green-500',
+                  : 'border-gray-200 focus:border-primary-500',
               ]"
               maxlength="30"
               @keyup.enter="addTag(tagSearch)"
@@ -1316,7 +1278,7 @@ onMounted(() => {
               <span
                 v-for="(tag, index) in postData.tags"
                 :key="index"
-                class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm font-bold border border-blue-100 flex items-center gap-1"
+                class="bg-primary-50 text-primary-600 px-3 py-1 rounded-full text-sm font-bold border border-primary-100 flex items-center gap-1"
                 >#{{ tag
                 }}<button class="hover:text-red-500 transition" @click="removeTag(index)">
                   <XIcon class="w-3 h-3" /></button
@@ -1325,15 +1287,15 @@ onMounted(() => {
           </div>
           <button
             v-if="tagSearch"
-            class="w-full text-left p-3 hover:bg-blue-50 rounded-xl flex items-center gap-3 transition group"
+            class="w-full text-left p-3 hover:bg-primary-50 rounded-xl flex items-center gap-3 transition group"
             @click="addTag(tagSearch)"
           >
             <div
-              class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-200 transition"
+              class="w-10 h-10 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center group-hover:bg-primary-200 transition"
             >
               <span class="font-bold text-lg">+</span>
             </div>
-            <p class="font-bold text-blue-600">新增「{{ tagSearch }}」</p>
+            <p class="font-bold text-primary-600">新增「{{ tagSearch }}」</p>
           </button>
           <div>
             <h4 class="text-sm font-bold text-gray-700 mb-3">推薦標籤</h4>
@@ -1367,7 +1329,7 @@ onMounted(() => {
                   }}</span>
                   <div class="text-xs text-secondary-400">
                     剛剛 • {{ userStore.currentUser?.spiritAnimal || '🦁 樂天派' }}
-                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.category }} </span>
+                    <span class="text-primary-600 font-bold ml-1"> @ {{ postData.category }} </span>
                   </div>
                 </div>
               </div>
@@ -1443,7 +1405,7 @@ onMounted(() => {
             </button>
             <button
               :disabled="isSubmitting"
-              class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleFinalSubmit"
             >
               <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
@@ -1454,7 +1416,7 @@ onMounted(() => {
           <button
             v-else
             :disabled="isUploading || isSubmitting"
-            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             @click="nextStep"
           >
             下一步

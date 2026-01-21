@@ -122,10 +122,10 @@ onMounted(() => {
             v-for="filter in filterOptions"
             :key="filter"
             :class="[
-              'px-3 py-1 rounded-full font-bold transition border-2 border-secondary-800 shadow-primary-solid',
+              'px-3 py-1 rounded-full font-bold transition border-2 ',
               activeFilter === filter
-                ? 'bg-primary text-secondary-50'
-                : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200',
+                ? 'bg-primary text-secondary-50 border-primary'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
             @click="activeFilter = filter"
           >
@@ -134,7 +134,44 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="itinerariesStore.loading" class="text-center py-10 text-gray-500">載入中...</div>
+      <div
+        v-if="itinerariesStore.loading"
+        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+      >
+        <div
+          v-for="n in 6"
+          :key="`itinerary-skeleton-${n}`"
+          class="bg-white border border-secondary-200 shadow-md rounded-2xl overflow-hidden animate-pulse flex flex-col h-full"
+        >
+          <div class="relative w-full aspect-[4/3] bg-secondary-100">
+            <div class="absolute top-0 left-0 h-6 w-20 bg-white/70 rounded-br-xl"></div>
+            <div class="absolute bottom-2 left-2 h-8 w-28 bg-primary-600/30 rounded-full"></div>
+          </div>
+
+          <div class="p-4 flex flex-col flex-1 space-y-3">
+            <div class="h-3 w-24 bg-primary-100 rounded"></div>
+            <div class="h-5 w-4/5 bg-gray-200 rounded"></div>
+            <div class="h-4 w-full bg-gray-200 rounded"></div>
+            <div class="h-4 w-5/6 bg-gray-200 rounded"></div>
+
+            <div class="flex items-center space-x-3 text-sm pt-2">
+              <div class="h-4 w-24 bg-gray-200 rounded"></div>
+              <div class="h-4 w-32 bg-gray-200 rounded"></div>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-secondary-100 pt-3 mt-auto">
+              <div class="flex items-center space-x-3">
+                <div class="h-6 w-14 bg-gray-200 rounded"></div>
+                <div class="h-6 w-14 bg-gray-200 rounded"></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="h-6 w-6 bg-gray-200 rounded-full"></div>
+                <div class="h-6 w-6 bg-gray-200 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div v-else-if="itinerariesStore.error" class="text-center py-10 text-red-500">
         {{ itinerariesStore.error }}
       </div>
