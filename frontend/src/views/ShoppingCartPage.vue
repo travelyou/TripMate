@@ -184,14 +184,34 @@ function goToFeatured() {
           <li
             v-for="tour in tourGroups"
             :key="tour.id"
-            class="p-5 border border-secondary-100 rounded-2xl bg-white hover:shadow-lg shadow-sm lg:min-w-[450px]"
+            :class="[
+              'relative p-5 border border-secondary-100 rounded-2xl hover:shadow-lg shadow-sm lg:min-w-[450px] transition-colors',
+              selectedTourId === tour.id ? 'bg-primary-50 ring-2 ring-primary-300' : 'bg-white',
+            ]"
           >
+            <span
+              v-if="selectedTourId === tour.id"
+              class="absolute -top-1 -left-1 text-sm font-bold bg-primary-600 text-white px-4 py-1 rounded-lg shadow-sm"
+            >
+              已選擇
+            </span>
             <div class="flex flex-col justify-between gap-10 sm:flex-row">
               <!-- radio -->
 
               <!-- radio/圖/資料 -->
               <div class="flex flex-col gap-5 sm:flex-row">
-                <input v-model="selectedTourId" type="radio" name="tour" :value="tour.id" />
+                <input
+                  v-model="selectedTourId"
+                  type="radio"
+                  name="tour"
+                  :id="`tour-${tour.id}`"
+                  :value="tour.id"
+                  class="sr-only peer"
+                />
+                <label
+                  :for="`tour-${tour.id}`"
+                  class="flex flex-col gap-5 sm:flex-row cursor-pointer flex-1"
+                >
                 <img
                   v-if="tour.image"
                   :src="tour.image"
@@ -209,6 +229,7 @@ function goToFeatured() {
                     <p class="text-sm text-gray-500">{{ tour.duration }}</p>
                   </div>
                 </div>
+              </label>
               </div>
 
               <!-- 價錢/人數增減/刪除 -->
@@ -216,18 +237,18 @@ function goToFeatured() {
                 <p class="text-right">NT.{{ tour.price }}</p>
                 <div class="flex gap-1 text-sm">
                   <button
-                    class="h-5 w-5 leading-4 border border-secondary-200 rounded-md cursor-pointer text-secondary-700 hover:bg-secondary-50"
+                    class="bg-white h-5 w-5 leading-4 border border-secondary-300 rounded-md cursor-pointer text-secondary-700 hover:bg-secondary-50"
                     @click="decreasePersons(tour)"
                   >
                     -
                   </button>
                   <p
-                    class="h-5 w-5 leading-[18px] text-center border border-secondary-200 rounded-md text-secondary-700"
+                    class="bg-white h-5 w-5 leading-[18px] text-center border border-secondary-200 rounded-md text-secondary-700"
                   >
                     {{ tour.persons }}
                   </p>
                   <button
-                    class="h-5 w-5 leading-4 border border-secondary-200 rounded-md cursor-pointer text-secondary-700 hover:bg-secondary-50"
+                    class="bg-white h-5 w-5 leading-4 border border-secondary-200 rounded-md cursor-pointer text-secondary-700 hover:bg-secondary-50"
                     @click="increasePersons(tour)"
                   >
                     +
