@@ -50,6 +50,26 @@ const saveRating = () => {
 const clearRating = (id) => {
   emit('clear', id)
 }
+
+const statusLabels = {
+  PENDING: '待付款',
+  PAID: '已付款',
+  CANCELLED: '已取消',
+  REFUNDED: '已退款',
+  FAILED: '付款失敗',
+}
+
+const statusClasses = {
+  PENDING: 'bg-amber-100 text-amber-700 border border-amber-200',
+  PAID: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+  CANCELLED: 'bg-rose-100 text-rose-700 border border-rose-200',
+  REFUNDED: 'bg-slate-100 text-slate-700 border border-slate-200',
+  FAILED: 'bg-rose-100 text-rose-700 border border-rose-200',
+}
+
+const getStatusLabel = (status) => statusLabels[status] || status || '未知'
+const getStatusClass = (status) =>
+  statusClasses[status] || 'bg-secondary-100 text-secondary-600 border border-secondary-200'
 </script>
 
 <template>
@@ -61,8 +81,8 @@ const clearRating = (id) => {
         <CalendarIcon class="w-6 h-6 text-primary-600" />
       </div>
       <div>
-        <h3 class="text-xl font-bold text-secondary-800">精選行程</h3>
-        <p class="text-sm text-secondary-500">查看你的訂單與參加狀態</p>
+        <h3 class="text-xl font-bold text-secondary-800">訂單管理</h3>
+        <p class="text-sm text-secondary-500">查看你的訂單與付款狀態</p>
       </div>
     </div>
 
@@ -97,18 +117,14 @@ const clearRating = (id) => {
             <div class="text-xs text-secondary-400 mb-2">狀態</div>
             <div
               class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
-              :class="
-                item.status === 'joined'
-                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                  : 'bg-secondary-100 text-secondary-600 border border-secondary-200'
-              "
+              :class="getStatusClass(item.status)"
             >
-              {{ item.status === 'joined' ? '已參加' : '未參加' }}
+              {{ getStatusLabel(item.status) }}
             </div>
           </div>
         </div>
 
-        <div v-if="item.status === 'joined'" class="mt-4 pt-3 border-t border-secondary-100">
+        <div v-if="item.reviewable" class="mt-4 pt-3 border-t border-secondary-100">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="text-sm text-secondary-600 space-y-2">
               <div class="text-secondary-500 flex items-center gap-1">
@@ -154,7 +170,7 @@ const clearRating = (id) => {
         v-if="itineraries.length === 0"
         class="text-center py-10 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg"
       >
-        目前沒有精選行程
+        目前沒有訂單
       </div>
     </div>
 
