@@ -24,7 +24,14 @@ import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
-import { getTravelerById, incrementView, getApplications, acceptApplication, rejectApplication, submitApplication } from '@/api/travelers'
+import {
+  getTravelerById,
+  incrementView,
+  getApplications,
+  acceptApplication,
+  rejectApplication,
+  submitApplication,
+} from '@/api/travelers'
 import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
@@ -242,9 +249,8 @@ const loadApplications = async () => {
       if (response.success) {
         const allApplications = response.data || []
         // 找到當前用戶的報名
-        myApplication.value = allApplications.find(
-          app => app.author_uid === currentUserUid.value
-        ) || null
+        myApplication.value =
+          allApplications.find((app) => app.author_uid === currentUserUid.value) || null
       }
     }
   } catch (error) {
@@ -288,7 +294,12 @@ const handleRejectApplication = async (application) => {
 }
 
 const handleSubmitApplication = async () => {
-  if (!applicationMessage.value.trim() || applicationMessage.value.length > 200 || isSubmittingApplication.value) return
+  if (
+    !applicationMessage.value.trim() ||
+    applicationMessage.value.length > 200 ||
+    isSubmittingApplication.value
+  )
+    return
 
   isSubmittingApplication.value = true
   applicationError.value = ''
@@ -430,22 +441,20 @@ onMounted(async () => {
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <button
-        class="absolute right-full top-24 z-0 bg-primary-50 text-primary-700 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:bg-primary-100 transition-all duration-300 flex items-center gap-2 group border-y-2 border-l-2 border-primary-50"
+        class="absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
         <FileTextIcon class="w-5 h-5 fill-current" />
         <span
-
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
-
         >
-          內文　
+          內文&emsp;
         </span>
       </button>
 
       <button
-        class="absolute right-full top-40 z-0 bg-primary-600 text-white py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:bg-primary-500 transition-all duration-300 flex items-center gap-2 group border-y-2 border-l-2 border-primary-700/20"
+        class="absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
         title="跳轉至留言區"
         @click="jumpToComments"
       >
@@ -458,14 +467,14 @@ onMounted(async () => {
 
       <button
         v-if="localTravelerData.status === '招募中' && !isExpired"
-        class="absolute right-full top-56 z-0 bg-blue-500 text-white py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-blue-600 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-blue-600/20"
+        class="absolute right-full top-56 z-0 bg-tag-wine text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-wine min-w-24 translate-x-1 hover:translate-x-0"
         title="跳轉至報名區"
         @click="jumpToApplications"
       >
         <UserPlusIcon class="w-5 h-5 fill-current" />
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
-          >報名</span
+          >報名&emsp;</span
         >
       </button>
 
@@ -651,9 +660,7 @@ onMounted(async () => {
                 @click="handleViewApplications"
                 title="查看報名清單"
               >
-                <UserPlusIcon
-                  class="w-5 h-5 transition-transform group-active:scale-125"
-                />
+                <UserPlusIcon class="w-5 h-5 transition-transform group-active:scale-125" />
               </button>
               <button
                 v-else-if="localTravelerData.status === '招募中' && !isExpired"
@@ -662,7 +669,7 @@ onMounted(async () => {
                   'flex items-center space-x-1 transition group',
                   hasApplied
                     ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-secondary-400 hover:text-blue-600'
+                    : 'text-secondary-400 hover:text-blue-600',
                 ]"
                 @click="handleApply"
                 :title="hasApplied ? '已報名' : '報名'"
@@ -670,7 +677,7 @@ onMounted(async () => {
                 <UserPlusIcon
                   :class="[
                     'w-5 h-5 transition-transform',
-                    hasApplied ? '' : 'group-active:scale-125'
+                    hasApplied ? '' : 'group-active:scale-125',
                   ]"
                 />
               </button>
@@ -681,11 +688,17 @@ onMounted(async () => {
                   'ml-auto px-6 py-2 rounded-full font-bold transition shadow-md relative z-30',
                   hasApplied
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                    : 'bg-primary-600 text-white hover:bg-primary-700',
                 ]"
                 @click="handleApply"
               >
-                {{ hasApplied ? (myApplication?.status === 'pending' ? '已報名（待審核）' : '已接受報名') : '私訊報名' }}
+                {{
+                  hasApplied
+                    ? myApplication?.status === 'pending'
+                      ? '已報名（待審核）'
+                      : '已接受報名'
+                    : '私訊報名'
+                }}
               </button>
               <div v-else class="ml-auto text-secondary-400 font-bold">
                 {{ localTravelerData.status }}
@@ -822,7 +835,9 @@ onMounted(async () => {
             <div v-if="activeTab === 'applications' && isAuthor">
               <!-- 作者視角：顯示所有報名清單 -->
               <div>
-                <div v-if="isLoadingApplications" class="text-center py-10 text-gray-500">載入中...</div>
+                <div v-if="isLoadingApplications" class="text-center py-10 text-gray-500">
+                  載入中...
+                </div>
                 <div v-else-if="applications.length === 0" class="text-center py-10 text-gray-500">
                   目前還沒有報名
                 </div>
@@ -835,7 +850,10 @@ onMounted(async () => {
                     <div class="flex items-start justify-between mb-3">
                       <div class="flex items-center space-x-3">
                         <img
-                          :src="app.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.author_uid}`"
+                          :src="
+                            app.author_avatar ||
+                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.author_uid}`
+                          "
                           class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                         />
                         <div>
@@ -843,10 +861,7 @@ onMounted(async () => {
                           <p class="text-xs text-gray-400">{{ formatTime(app.created_at) }}</p>
                         </div>
                       </div>
-                      <div
-                        v-if="app.status === 'pending'"
-                        class="flex items-center space-x-2"
-                      >
+                      <div v-if="app.status === 'pending'" class="flex items-center space-x-2">
                         <button
                           :disabled="processingIds.has(app.id)"
                           class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50"
@@ -951,7 +966,10 @@ onMounted(async () => {
         v-if="activeTab === 'comments'"
         class="p-4 border-t-2 border-secondary-200 bg-white rounded-xl"
       >
-        <div v-if="isExpired" class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+        <div
+          v-if="isExpired"
+          class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-gray-200"
+        >
           <p class="text-gray-600 font-bold mb-1">此招募已結束</p>
           <p class="text-gray-500 text-sm">日期已過期，無法再留言</p>
         </div>

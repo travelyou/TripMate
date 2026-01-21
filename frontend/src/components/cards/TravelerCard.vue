@@ -220,7 +220,10 @@ onUnmounted(() => {
       </div>
 
       <!-- 三点菜单按钮 -->
-      <div class="absolute top-2 right-2 post-menu-container z-30" :style="{ top: traveler.status ? '3.5rem' : '0.5rem' }">
+      <div
+        class="absolute top-2 right-2 post-menu-container z-30"
+        :style="{ top: traveler.status ? '3.5rem' : '0.5rem' }"
+      >
         <button
           class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
           @click="toggleMenu"
@@ -267,27 +270,27 @@ onUnmounted(() => {
         </div>
       </div>
 
-    <!-- Toast 通知 -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition-all duration-300 ease-out"
-        enter-from-class="opacity-0 translate-y-4"
-        enter-to-class="opacity-100 translate-y-0"
-        leave-active-class="transition-all duration-300 ease-in"
-        leave-from-class="opacity-100 translate-y-0"
-        leave-to-class="opacity-0 translate-y-4"
-      >
-        <div
-          v-if="showToast"
-          :class="[
-            'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
-            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
-          ]"
+      <!-- Toast 通知 -->
+      <Teleport to="body">
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out"
+          enter-from-class="opacity-0 translate-y-4"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition-all duration-300 ease-in"
+          leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 translate-y-4"
         >
-          <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>
-        </div>
-      </Transition>
-    </Teleport>
+          <div
+            v-if="showToast"
+            :class="[
+              'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
+              toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white',
+            ]"
+          >
+            <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>
+          </div>
+        </Transition>
+      </Teleport>
 
       <div class="flex flex-col gap-3 h-full">
         <div
@@ -347,81 +350,83 @@ onUnmounted(() => {
                 </span>
               </div>
 
-              <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
-                <span class="flex items-center max-w-[10rem] truncate">
-                  <MapPinIcon class="w-4 h-4 mr-1 text-white/80" />
-                  {{ traveler.location }}
-                </span>
-                <span class="flex items-center">
-                  <CalendarIcon class="w-4 h-4 mr-1 text-white/70" />
-                  {{ traveler.date }}
-                </span>
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
+                  <span class="flex items-center max-w-[10rem] truncate">
+                    <MapPinIcon class="w-4 h-4 mr-1 text-white/80" />
+                    {{ traveler.location }}
+                  </span>
+                  <span class="flex items-center">
+                    <CalendarIcon class="w-4 h-4 mr-1 text-white/70" />
+                    {{ traveler.date }}
+                  </span>
+                </div>
 
-                <button
-                  class="flex items-center group transition"
-                  :class="
-                    userStore.isFavorite(itemData)
-                      ? 'text-red-300'
-                      : 'text-white/70 hover:text-red-300'
-                  "
-                  @click.stop="userStore.toggleFavorite(itemData)"
-                >
-                  <HeartIcon
-                    class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
-                    :class="{ 'fill-current': userStore.isFavorite(itemData) }"
-                  />
-                </button>
+                <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
+                  <button
+                    class="flex items-center group transition"
+                    :class="
+                      userStore.isFavorite(itemData)
+                        ? 'text-red-300'
+                        : 'text-white/70 hover:text-red-300'
+                    "
+                    @click.stop="userStore.toggleFavorite(itemData)"
+                  >
+                    <HeartIcon
+                      class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
+                      :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+                    />
+                  </button>
 
-                <button
-                  class="flex items-center space-x-1 transition group"
-                  :class="
-                    userStore.isCollected(itemData)
-                      ? 'text-emerald-300'
-                      : 'text-white/70 hover:text-emerald-300'
-                  "
-                  @click.stop="
-                    userStore.isCollected(itemData)
-                      ? userStore.removeFromCollection(itemData)
-                      : userStore.openCollectionModal(itemData)
-                  "
-                >
-                  <BookmarkIcon
-                    class="w-4 h-4 transition-transform group-active:scale-125"
-                    :class="{ 'fill-current': userStore.isCollected(itemData) }"
-                  />
-                  <span>{{
-                    (traveler.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
-                  }}</span>
-                </button>
+                  <button
+                    class="flex items-center space-x-1 transition group"
+                    :class="
+                      userStore.isCollected(itemData)
+                        ? 'text-emerald-300'
+                        : 'text-white/70 hover:text-emerald-300'
+                    "
+                    @click.stop="
+                      userStore.isCollected(itemData)
+                        ? userStore.removeFromCollection(itemData)
+                        : userStore.openCollectionModal(itemData)
+                    "
+                  >
+                    <BookmarkIcon
+                      class="w-4 h-4 transition-transform group-active:scale-125"
+                      :class="{ 'fill-current': userStore.isCollected(itemData) }"
+                    />
+                    <span>{{
+                      (traveler.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
+                    }}</span>
+                  </button>
 
-                <button
-                  v-if="isAuthor"
-                  class="flex items-center space-x-1 transition group text-white/70 hover:text-blue-300"
-                  @click.stop="handleViewApplications"
-                  title="查看報名清單"
-                >
-                  <UserPlusIcon
-                    class="w-4 h-4 transition-transform group-active:scale-125"
-                  />
-                </button>
-                <button
-                  v-else
-                  class="flex items-center space-x-1 transition group text-white/70 hover:text-blue-300"
-                  @click.stop="handleApply"
-                  title="報名"
-                >
-                  <UserPlusIcon
-                    class="w-4 h-4 transition-transform group-active:scale-125"
-                  />
-                </button>
+                  <button
+                    v-if="isAuthor"
+                    class="flex items-center space-x-1 transition group text-white/70 hover:text-blue-300"
+                    @click.stop="handleViewApplications"
+                    title="查看報名清單"
+                  >
+                    <UserPlusIcon class="w-4 h-4 transition-transform group-active:scale-125" />
+                  </button>
+                  <button
+                    v-else
+                    class="flex items-center space-x-1 transition group text-white/70 hover:text-blue-300"
+                    @click.stop="handleApply"
+                    title="報名"
+                  >
+                    <UserPlusIcon class="w-4 h-4 transition-transform group-active:scale-125" />
+                  </button>
 
-                <span class="flex items-center text-white/90 ml-auto md:ml-0">
-                  <MessageCircleIcon class="w-4 h-4 mr-1" />
-                  {{ traveler.comments || 0 }}
-                </span>
+                  <span class="flex items-center text-white/90 ml-auto md:ml-0">
+                    <MessageCircleIcon class="w-4 h-4 mr-1" />
+                    {{ traveler.comments || 0 }}
+                  </span>
+                </div>
               </div>
 
-              <div class="flex justify-between items-end pt-2 border-t border-white/20 relative z-20">
+              <div
+                class="flex justify-between items-end pt-2 border-t border-white/20 relative z-20"
+              >
                 <div class="flex items-center font-bold text-white">
                   <UsersIcon class="w-5 h-5 mr-1 text-white/85" />
                   招募人數：

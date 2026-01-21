@@ -152,22 +152,22 @@ const closeShareModal = () => {
 
 const getTagColor = (tagText) => {
   const colors = [
-    'bg-[#c75a5a]',
-    'bg-[#c77a4a]',
-    'bg-[#c7943f]',
-    'bg-[#b9a348]',
-    'bg-[#8aa651]',
-    'bg-[#5f9a63]',
-    'bg-[#4f9b85]',
-    'bg-[#4f9a9f]',
-    'bg-[#4f93b2]',
-    'bg-[#4e85b8]',
-    'bg-[#5573b4]',
-    'bg-[#6a66b0]',
-    'bg-[#7d60a6]',
-    'bg-[#9a5d9a]',
-    'bg-[#a85a84]',
-    'bg-[#b0586a]',
+    'bg-tag-red',
+    'bg-tag-orange',
+    'bg-tag-amber',
+    'bg-tag-olive',
+    'bg-tag-lime',
+    'bg-tag-green',
+    'bg-tag-teal',
+    'bg-tag-cyan',
+    'bg-tag-sky',
+    'bg-tag-blue',
+    'bg-tag-indigo',
+    'bg-tag-slate',
+    'bg-tag-purple',
+    'bg-tag-magenta',
+    'bg-tag-rose',
+    'bg-tag-wine',
   ]
 
   if (!tagText) return colors[0]
