@@ -291,6 +291,14 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
+      // 正確處理頭貼：只有在 avatar 為 null、undefined 或空字串時才使用默認值
+      let avatarValue = profileData.avatar
+      if (!avatarValue || avatarValue.trim() === '') {
+        // 如果當前用戶已有頭貼，保留它；否則使用默認頭貼
+        avatarValue = currentUser.value.avatar || 
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
+      }
+
       currentUser.value = {
         ...currentUser.value,
         id: profileData.uid,
@@ -299,12 +307,10 @@ export const useUserStore = defineStore('user', () => {
         name: profileData.realName || profileData.nickname || '用戶',
         nickname: profileData.nickname || profileData.email?.split('@')[0] || '用戶',
         email: profileData.email,
-        avatar:
-          profileData.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`,
-        bio: profileData.bio || currentUser.value.bio,
+        avatar: avatarValue,
+        bio: profileData.bio !== undefined ? profileData.bio : currentUser.value.bio,
         location: profileData.location || '台灣',
-        spiritAnimal: profileData.spiritAnimal || currentUser.value.spiritAnimal,
+        spiritAnimal: profileData.spiritAnimal !== undefined ? profileData.spiritAnimal : currentUser.value.spiritAnimal,
         vendorId: profileData.vendorId || null,
         tags: profileData.tags !== undefined ? (Array.isArray(profileData.tags) ? profileData.tags : []) : (currentUser.value.tags || []),
       }
@@ -325,7 +331,8 @@ export const useUserStore = defineStore('user', () => {
           uid: uid,
           email: firebaseUser.value?.email || neonUserData.email || '',
           nickname: neonUserData.nickname || '',
-          avatar: neonUserData.avatar || '',
+          // 只有在有值時才傳遞 avatar，避免空字串覆蓋現有頭貼
+          avatar: neonUserData.avatar && neonUserData.avatar.trim() !== '' ? neonUserData.avatar : undefined,
           bio: neonUserData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || '',
           role: neonUserData.role || 'user',
