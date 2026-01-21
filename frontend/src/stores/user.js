@@ -293,9 +293,10 @@ export const useUserStore = defineStore('user', () => {
     if (profileData) {
       // 正確處理頭貼：只有在 avatar 為 null、undefined 或空字串時才使用默認值
       let avatarValue = profileData.avatar
-      if (!avatarValue || avatarValue.trim() === '') {
+      // 確保 avatarValue 是有效的字符串且不為空
+      if (!avatarValue || (typeof avatarValue === 'string' && avatarValue.trim() === '')) {
         // 如果當前用戶已有頭貼，保留它；否則使用默認頭貼
-        avatarValue = currentUser.value.avatar || 
+        avatarValue = currentUser.value.avatar ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
       }
 
@@ -358,6 +359,10 @@ export const useUserStore = defineStore('user', () => {
           uid: uid,
           email: firebaseUser.value?.email || '',
           ...userData,
+          // 確保 avatar 處理一致：如果是空字串則傳遞 undefined，讓 setUserProfile 處理
+          avatar: userData.avatar && typeof userData.avatar === 'string' && userData.avatar.trim() !== ''
+            ? userData.avatar
+            : undefined,
           role: userData.role || 'user',
           vendorId: userData.vendorId || null,
         })
