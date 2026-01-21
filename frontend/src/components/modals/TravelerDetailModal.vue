@@ -440,8 +440,35 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div class="lg:hidden flex items-center justify-end gap-2 mr-4">
+        <button
+          class="bg-tag-amber text-white px-3 py-2 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold"
+          title="回到內文"
+          @click="scrollToTop"
+        >
+          <FileTextIcon class="w-4 h-4" />
+          內文
+        </button>
+        <button
+          class="bg-tag-blue text-white px-3 py-2 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold"
+          title="跳轉至留言區"
+          @click="jumpToComments"
+        >
+          <MessageCircleIcon class="w-4 h-4" />
+          留言區
+        </button>
+        <button
+          v-if="localTravelerData.status === '招募中' && !isExpired"
+          class="bg-tag-wine text-white px-3 py-2 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold"
+          title="跳轉至報名區"
+          @click="jumpToApplications"
+        >
+          <UserPlusIcon class="w-4 h-4" />
+          報名
+        </button>
+      </div>
       <button
-        class="absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
@@ -454,7 +481,7 @@ onMounted(async () => {
       </button>
 
       <button
-        class="absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="跳轉至留言區"
         @click="jumpToComments"
       >
@@ -467,7 +494,7 @@ onMounted(async () => {
 
       <button
         v-if="localTravelerData.status === '招募中' && !isExpired"
-        class="absolute right-full top-56 z-0 bg-tag-wine text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-wine min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-36 lg:top-56 z-20 lg:z-0 bg-tag-wine text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-wine min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="跳轉至報名區"
         @click="jumpToApplications"
       >
