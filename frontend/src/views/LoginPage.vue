@@ -36,6 +36,7 @@ const loginErrors = ref({
   password: '',
   general: '',
 })
+const isLoggingIn = ref(false)
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -62,6 +63,8 @@ const applyUserProfileToStore = (profileData) => {
 }
 
 const handleLogin = async () => {
+  if (isLoggingIn.value) return
+  isLoggingIn.value = true
   loginForm.value.email = (loginForm.value.email || '')
     .toString()
     .trim()
@@ -221,6 +224,8 @@ const handleLogin = async () => {
     } else {
       loginErrors.value.general = '登入失敗：' + error.message
     }
+  } finally {
+    isLoggingIn.value = false
   }
 }
 
@@ -588,9 +593,10 @@ const registerErrors = ref({
             </div>
             <button
               type="submit"
-              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
+              :disabled="isLoggingIn"
+              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              登入
+              {{ isLoggingIn ? '登入中...' : '登入' }}
             </button>
             <a
               href="#"
