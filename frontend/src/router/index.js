@@ -230,6 +230,32 @@ router.beforeEach(async (to, from, next) => {
     })
   }
 
+  // ========================================
+  // 🎯 Vendor 登入後自動導向 Dashboard
+  // ========================================
+  if (userStore.isLoggedIn && userStore.isVendor) {
+    // 情況 1: Vendor 訪問首頁 → 導向 Dashboard
+    if (to.name === 'home') {
+      const vendorId = userStore.currentUser.vendorId || userStore.currentUser.id
+      console.log('🔄 [Router] Vendor 訪問首頁，導向 Dashboard:', vendorId)
+      next({ name: 'VendorDashboard' })
+      return
+    }
+
+    // 情況 2: Vendor 訪問自己的 VendorProfile → 導向 Dashboard
+    if (to.name === 'VendorProfile') {
+      const vendorId = userStore.currentUser.vendorId || userStore.currentUser.id
+      const targetId = to.params.id
+
+      // 如果訪問自己的廠商頁面，導向 Dashboard
+      if (targetId === vendorId) {
+        console.log('🔄 [Router] Vendor 訪問自己的頁面，導向 Dashboard')
+        next({ name: 'VendorDashboard' })
+        return
+      }
+    }
+  }
+
   if (to.name === 'login' && userStore.isLoggedIn) {
     next('/')
     return
