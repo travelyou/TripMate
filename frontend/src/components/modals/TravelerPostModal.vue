@@ -38,6 +38,7 @@ import { auth } from '@/firebase/config'
 import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
+import { showAlert, showConfirm, showError, showSuccess } from '@/utils/alert'
 // --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { Extension } from '@tiptap/core'
@@ -88,7 +89,6 @@ const categories = [
   '自駕共乘',
   '其他',
 ]
-
 
 const bannerPositionY = ref(50)
 const isDraggingBanner = ref(false)
@@ -317,7 +317,7 @@ const handleEditorImageSelect = async (event) => {
     )
     if (imageUrl && editor.value) editor.value.chain().focus().setImage({ src: imageUrl }).run()
   } catch (error) {
-    alert('圖片插入失敗：' + error.message)
+    await showAlert('圖片插入失敗：' + error.message)
   }
   event.target.value = ''
 }
@@ -408,15 +408,13 @@ const validateBasic = () => {
   return ''
 }
 
-
-
 watch(
   () => postData.value.title,
   () => {
     if (fieldErrors.value.title) {
       fieldErrors.value.title = ''
     }
-  }
+  },
 )
 
 watch(
@@ -425,7 +423,7 @@ watch(
     if (fieldErrors.value.content) {
       fieldErrors.value.content = ''
     }
-  }
+  },
 )
 
 watch(
@@ -434,7 +432,7 @@ watch(
     if (fieldErrors.value.max_people) {
       fieldErrors.value.max_people = ''
     }
-  }
+  },
 )
 
 watch(
@@ -460,7 +458,7 @@ watch(
         }
       }
     }
-  }
+  },
 )
 
 watch(
@@ -477,7 +475,7 @@ watch(
         }
       }
     }
-  }
+  },
 )
 
 watch(
@@ -488,7 +486,7 @@ watch(
         fieldErrors.value.location = ''
       }
     }
-  }
+  },
 )
 
 const triggerBannerSelect = () => bannerFileInput.value?.click()
@@ -497,7 +495,7 @@ const handleBannerSelect = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
   if (file.size > 10 * 1024 * 1024) {
-    alert('圖片大小不能超過 10MB')
+    await showAlert('圖片大小不能超過 10MB')
     return
   }
   try {
@@ -520,7 +518,7 @@ const handleBannerSelect = async (event) => {
 
     isUploading.value = false
   } catch (error) {
-    alert('圖片處理失敗：' + error.message)
+    await showAlert('圖片處理失敗：' + error.message)
     isUploading.value = false
   }
 }
@@ -590,7 +588,7 @@ const addActivity = () => {
     icon: 'map-pin',
     isOpen: true, // 自動開啟時間選擇器
     prevTime: defaultTime, // 修正：預設開啟時也需要初始化 prevTime，否則第一次選擇會報錯
-    location: null // 新增地點欄位
+    location: null, // 新增地點欄位
   })
 }
 
@@ -610,7 +608,7 @@ const handleLocationSelect = (location) => {
     editingActivity.value.location = location
     // 如果標題是空的，自動填入地點名稱
     if (!editingActivity.value.title) {
-        editingActivity.value.title = location.name
+      editingActivity.value.title = location.name
     }
   }
 }
@@ -644,7 +642,6 @@ const insertTransportActivity = async () => {
 
   const durationText = result ? result.text : '未知時間'
 
-
   // 建立新活動
   const newActivity = {
     id: Date.now(),
@@ -654,7 +651,7 @@ const insertTransportActivity = async () => {
     icon: 'car', // 可以根據模式換 icon
     isOpen: true,
     prevTime: prevTime,
-    location: null // 交通行程本身通常不需要地點，或是可以設為目的地
+    location: null, // 交通行程本身通常不需要地點，或是可以設為目的地
   }
 
   // 插入到兩個活動之間
@@ -667,7 +664,9 @@ const getDirections = async (origin, destination, mode) => {
   // 檢查 API Key
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!apiKey) {
-    console.error('[Google Maps] getDirections: API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY')
+    console.error(
+      '[Google Maps] getDirections: API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY',
+    )
     return null
   }
 
@@ -693,7 +692,7 @@ const getDirections = async (origin, destination, mode) => {
     // 載入 routes library
     let routesLib = null
     let mapsLib = null
-    
+
     try {
       routesLib = await importLibrary('routes')
     } catch (routesError) {
@@ -722,7 +721,7 @@ const getDirections = async (origin, destination, mode) => {
     if (!window.google.maps) {
       window.google.maps = {}
     }
-    
+
     // 從 routesLib 或 mapsLib 取得 TravelMode 常數
     if (routesLib.TravelMode) {
       window.google.maps.TravelMode = routesLib.TravelMode
@@ -757,7 +756,14 @@ const getDirections = async (origin, destination, mode) => {
 
     return new Promise((resolve) => {
       service.route(request, (result, status) => {
-        if (status === 'OK' && result && result.routes && result.routes[0] && result.routes[0].legs && result.routes[0].legs[0]) {
+        if (
+          status === 'OK' &&
+          result &&
+          result.routes &&
+          result.routes[0] &&
+          result.routes[0].legs &&
+          result.routes[0].legs[0]
+        ) {
           const leg = result.routes[0].legs[0]
           resolve(leg.duration) // { text: "10 mins", value: 600 }
         } else {
@@ -845,7 +851,7 @@ const handleDragStart = () => {
   // 拖曳開始前，先備份當前的「時間順序」
   // 我們的目標是：拖曳只改變「內容」，而「時間點」應該要留在原地 (Slot 概念)
   if (currentDay.value.activities) {
-    savedTimes.value = currentDay.value.activities.map(a => a.time)
+    savedTimes.value = currentDay.value.activities.map((a) => a.time)
   }
 }
 
@@ -885,9 +891,9 @@ const handleTimeSelect = (val, activity) => {
   }
 
   if (!activity.prevTime) {
-      // 如果沒有記錄（極端情況），假設已經完成
-      activity.isOpen = false
-      return
+    // 如果沒有記錄（極端情況），假設已經完成
+    activity.isOpen = false
+    return
   }
 
   // 無論如何，先把新選擇的值存入，確保不會丟失
@@ -903,7 +909,7 @@ const handleTimeSelect = (val, activity) => {
     console.log('[TimePicker] Selected minute, updating time:', newTimeStr)
     // 使用 nextTick 確保數值已更新後再關閉，避免被還原
     nextTick(() => {
-        activity.isOpen = false
+      activity.isOpen = false
     })
   } else {
     // 小時不同，更新 prevTime，等待下一次（選分鐘）
@@ -1138,13 +1144,13 @@ watch(currentStep, (newStep, oldStep) => {
   // 當離開「打包清單」頁面時，自動清理空白項目
   if (oldStep === 'packing') {
     // 移除未填寫的分類與物品
-    postData.value.packingList = postData.value.packingList.filter(cat => {
-        // 先過濾掉分類下空白的物品
-        if (cat.items) {
-            cat.items = cat.items.filter(item => item.name && item.name.trim())
-        }
-        // 保留規則：分類有名稱 OR 分類下還有物品
-        return (cat.category && cat.category.trim()) || (cat.items && cat.items.length > 0)
+    postData.value.packingList = postData.value.packingList.filter((cat) => {
+      // 先過濾掉分類下空白的物品
+      if (cat.items) {
+        cat.items = cat.items.filter((item) => item.name && item.name.trim())
+      }
+      // 保留規則：分類有名稱 OR 分類下還有物品
+      return (cat.category && cat.category.trim()) || (cat.items && cat.items.length > 0)
     })
   }
 })
@@ -1185,11 +1191,14 @@ const handleSaveDraft = () => {
   console.log('[DraftDebug] Preparing to save draft:', draftData)
 
   try {
-      console.log('[DraftDebug] Calling store.addDraft...')
-      myItineraryStore.addDraft(draftData)
-      console.log('[DraftDebug] store.addDraft success. Current drafts count:', myItineraryStore.drafts.length)
+    console.log('[DraftDebug] Calling store.addDraft...')
+    myItineraryStore.addDraft(draftData)
+    console.log(
+      '[DraftDebug] store.addDraft success. Current drafts count:',
+      myItineraryStore.drafts.length,
+    )
   } catch (err) {
-      console.error('[DraftDebug] Store addDraft failed:', err)
+    console.error('[DraftDebug] Store addDraft failed:', err)
   }
 
   // 移除 alert 改為直接關閉，避免阻塞導致兩次點擊問題
@@ -1213,9 +1222,9 @@ const hasContent = computed(() => {
   )
 })
 
-const handleClose = () => {
+const handleClose = async () => {
   if (isSubmitting.value || sessionStorage.getItem('is_submitting_traveler_post')) {
-    const shouldClose = confirm('貼文正在提交中，確定要關閉嗎？')
+    const shouldClose = await showConfirm('貼文正在提交中，確定要關閉嗎？')
     if (shouldClose) {
       sessionStorage.removeItem('is_submitting_traveler_post')
       sessionStorage.removeItem('submit_start_time')
@@ -1225,19 +1234,21 @@ const handleClose = () => {
   }
 
   if (hasContent.value) {
-    const shouldSave = confirm('您有未完成的內容，是否要儲存到草稿夾？\n\n點擊「確定」儲存草稿並關閉\n點擊「取消」僅關閉不儲存')
+    const shouldSave = await showConfirm(
+      '您有未完成的內容，是否要儲存到草稿夾？\n\n點擊「確定」儲存草稿並關閉\n點擊「取消」僅關閉不儲存',
+    )
     if (shouldSave) {
       if (postData.value.title.trim()) {
         handleSaveDraft()
       } else {
-        alert('請至少輸入標題才能儲存草稿')
-        const stillClose = confirm('是否仍要關閉？')
+        await showAlert('請至少輸入標題才能儲存草稿')
+        const stillClose = await showConfirm('是否仍要關閉？')
         if (stillClose) {
           emit('close')
         }
       }
     } else {
-      const confirmClose = confirm('確定要關閉嗎？未儲存的內容將會遺失。')
+      const confirmClose = await showConfirm('確定要關閉嗎？未儲存的內容將會遺失。')
       if (confirmClose) {
         emit('close')
       }
@@ -1261,22 +1272,18 @@ const executeSubmit = async () => {
         uploadProgress.value = 0
         submitProgress.value = 10
         submitStatus.value = '正在上傳圖片...'
-        bannerImageUrl = await uploadImage(
-          bannerFile.value,
-          'travelers',
-          (progress) => {
-            uploadProgress.value = progress
-            submitProgress.value = 10 + Math.floor((progress / 100) * 50)
-            submitStatus.value = `正在上傳圖片... ${progress}%`
-          },
-        )
+        bannerImageUrl = await uploadImage(bannerFile.value, 'travelers', (progress) => {
+          uploadProgress.value = progress
+          submitProgress.value = 10 + Math.floor((progress / 100) * 50)
+          submitStatus.value = `正在上傳圖片... ${progress}%`
+        })
         uploadProgress.value = 100
         submitProgress.value = 60
         submitStatus.value = '圖片上傳完成'
       } catch (error) {
         isUploading.value = false
         uploadProgress.value = 0
-        const shouldContinue = confirm(
+        const shouldContinue = await showConfirm(
           'Banner 圖片上傳失敗：' + error.message + '\n\n是否要繼續發布（使用預設圖片）？',
         )
         if (!shouldContinue) {
@@ -1302,8 +1309,7 @@ const executeSubmit = async () => {
       author_uid: auth.currentUser.uid,
       author_name: userStore.userProfile?.name || userStore.userProfile?.nickname || '匿名',
       author_avatar:
-        userStore.userProfile?.avatar ||
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
+        userStore.userProfile?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
       spirit_animal: userStore.userProfile?.spiritAnimal || null,
       status: postData.value.status || '招募中',
     }
@@ -1371,7 +1377,7 @@ const executeSubmit = async () => {
           icon: '/favicon.ico',
         })
       } else {
-        alert('旅伴招募發布成功！')
+        await showSuccess('旅伴招募發布成功！')
       }
       emit('success')
       emit('close')
@@ -1386,7 +1392,7 @@ const executeSubmit = async () => {
           icon: '/favicon.ico',
         })
       } else {
-        alert(errorMessage)
+        await showError(errorMessage)
       }
 
       isSubmitting.value = false
@@ -1411,7 +1417,7 @@ const executeSubmit = async () => {
         icon: '/favicon.ico',
       })
     } else {
-      alert(fullErrorMessage)
+      await showError(fullErrorMessage)
     }
 
     isSubmitting.value = false
@@ -1451,7 +1457,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-    window.removeEventListener('keydown', handleGlobalEnter)
+  window.removeEventListener('keydown', handleGlobalEnter)
 })
 // 跳轉到指定步驟
 const jumpToStep = (targetStep) => {
@@ -1489,10 +1495,14 @@ const jumpToStep = (targetStep) => {
     <div
       :class="[
         'modal-content-container bg-white w-full flex flex-col shadow-2xl rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300',
-        currentStep === 'preview' ? 'max-w-5xl h-[95vh] sm:h-[90vh]' : 'max-w-4xl h-[95vh] sm:h-[90vh]',
+        currentStep === 'preview'
+          ? 'max-w-5xl h-[95vh] sm:h-[90vh]'
+          : 'max-w-4xl h-[95vh] sm:h-[90vh]',
       ]"
     >
-      <div class="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100 bg-white z-10">
+      <div
+        class="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100 bg-white z-10"
+      >
         <div class="flex items-center gap-2 sm:gap-3">
           <button
             v-if="currentStep !== 'basic' && currentStep !== 'preview'"
@@ -1511,7 +1521,9 @@ const jumpToStep = (targetStep) => {
       </div>
 
       <div v-if="currentStep !== 'preview'" class="px-3 sm:px-6 border-b border-gray-100">
-        <div class="flex items-center space-x-4 sm:space-x-8 text-xs sm:text-sm font-bold overflow-x-auto">
+        <div
+          class="flex items-center space-x-4 sm:space-x-8 text-xs sm:text-sm font-bold overflow-x-auto"
+        >
           <button
             v-for="step in ['basic', 'itinerary', 'packing', 'tags', 'preview']"
             :key="step"
@@ -1519,7 +1531,7 @@ const jumpToStep = (targetStep) => {
             :class="[
               'py-3 border-b-2 transition cursor-pointer whitespace-nowrap capitalize focus:outline-none',
               currentStep === step
-                ? 'border-green-500 text-green-600'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-gray-400 hover:text-gray-600',
             ]"
             @click="jumpToStep(step)"
@@ -1552,7 +1564,7 @@ const jumpToStep = (targetStep) => {
             >
             <select
               v-model="postData.category"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition bg-white"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:outline-none transition bg-white"
               :class="{ 'border-red-500': fieldErrors.category }"
             >
               <option value="" disabled selected>請選擇分類</option>
@@ -1585,7 +1597,7 @@ const jumpToStep = (targetStep) => {
               placeholder="例如：徵求一位女生分攤札幌住宿費"
               :class="[
                 'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
-                fieldErrors.title ? 'border-red-500' : 'border-gray-200 focus:border-green-500',
+                fieldErrors.title ? 'border-red-500' : 'border-gray-200 focus:border-primary-500',
               ]"
               maxlength="35"
               @keydown.enter.prevent="() => locationInput.focus()"
@@ -1627,7 +1639,7 @@ const jumpToStep = (targetStep) => {
             <button
               v-else
               :disabled="isUploading"
-              class="w-full py-8 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-green-500 hover:text-green-600 transition flex flex-col items-center justify-center gap-2 disabled:opacity-50"
+              class="w-full py-8 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-primary-500 hover:text-primary-600 transition flex flex-col items-center justify-center gap-2 disabled:opacity-50"
               :class="{ 'border-red-500': fieldErrors.banner }"
               @click="triggerBannerSelect"
             >
@@ -1663,7 +1675,7 @@ const jumpToStep = (targetStep) => {
               :class="
                 fieldErrors.content
                   ? 'border-red-500'
-                  : 'border-gray-200 focus-within:border-green-500'
+                  : 'border-gray-200 focus-within:border-primary-500'
               "
             >
               <div
@@ -1790,7 +1802,10 @@ const jumpToStep = (targetStep) => {
                   @change="handleEditorImageSelect"
                 />
               </div>
-              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white rounded-b-xl" />
+              <editor-content
+                :editor="editor"
+                class="min-h-[300px] cursor-text bg-white rounded-b-xl"
+              />
             </div>
             <p v-if="fieldErrors.content" class="mt-1 text-sm text-red-500">
               {{ fieldErrors.content }}
@@ -1809,7 +1824,7 @@ const jumpToStep = (targetStep) => {
                   'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                   fieldErrors.location
                     ? 'border-red-500'
-                    : 'border-gray-200 focus:border-green-500',
+                    : 'border-gray-200 focus:border-primary-500',
                 ]"
                 @keydown.enter.prevent="() => maxPeopleInput.focus()"
               />
@@ -1829,7 +1844,7 @@ const jumpToStep = (targetStep) => {
                   'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                   fieldErrors.max_people
                     ? 'border-red-500'
-                    : 'border-gray-200 focus:border-green-500',
+                    : 'border-gray-200 focus:border-primary-500',
                 ]"
               />
             </div>
@@ -1839,11 +1854,14 @@ const jumpToStep = (targetStep) => {
             <a-range-picker
               v-model:value="dateRange"
               :disabled-date="disabledDate"
-              class="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-green-500 focus:border-green-500 transition shadow-none"
-              :class="{'border-red-500': fieldErrors.start_date || fieldErrors.end_date}"
+              class="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-primary-500 focus:border-primary-500 transition shadow-none"
+              :class="{ 'border-red-500': fieldErrors.start_date || fieldErrors.end_date }"
               :placeholder="['開始日期', '結束日期']"
             />
-            <p v-if="fieldErrors.start_date || fieldErrors.end_date" class="mt-1 text-sm text-red-500">
+            <p
+              v-if="fieldErrors.start_date || fieldErrors.end_date"
+              class="mt-1 text-sm text-red-500"
+            >
               {{ fieldErrors.start_date || fieldErrors.end_date }}
             </p>
           </div>
@@ -1853,10 +1871,11 @@ const jumpToStep = (targetStep) => {
           <div class="flex items-center justify-between">
             <h3 class="text-base sm:text-lg font-bold text-gray-800">行程安排</h3>
             <button
-              class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-green-50 text-green-600 rounded-lg font-bold hover:bg-green-100 flex items-center gap-1.5 sm:gap-2"
+              class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary-50 text-primary-600 rounded-lg font-bold hover:bg-primary-100 flex items-center gap-1.5 sm:gap-2"
               @click="addDay"
             >
-              <PlusIcon class="w-3 h-3 sm:w-4 sm:h-4" /> <span class="hidden sm:inline">新增天數</span><span class="sm:hidden">新增</span>
+              <PlusIcon class="w-3 h-3 sm:w-4 sm:h-4" />
+              <span class="hidden sm:inline">新增天數</span><span class="sm:hidden">新增</span>
             </button>
           </div>
           <div ref="dayListContainer" class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar">
@@ -1866,7 +1885,7 @@ const jumpToStep = (targetStep) => {
               :class="[
                 'px-4 py-2 rounded-lg font-bold border transition whitespace-nowrap',
                 activeDayIndex === index
-                  ? 'bg-green-600 text-white border-green-600 shadow-md'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
                   : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
               ]"
               @click="activeDayIndex = index"
@@ -1876,13 +1895,17 @@ const jumpToStep = (targetStep) => {
           </div>
           <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div class="flex items-center justify-between mb-4">
-              <span class="font-bold text-gray-700">{{ currentDay.date ? `日期：${currentDay.date}` : `Day ${currentDay.day} 日期` }}</span>
+              <span class="font-bold text-gray-700">{{
+                currentDay.date ? `日期：${currentDay.date}` : `Day ${currentDay.day} 日期`
+              }}</span>
               <!-- 移除修改日期按鈕 -->
             </div>
             <!-- 調整左側內距以容納時間軸 (pl-32) -->
             <div class="relative pl-20 sm:pl-32 space-y-4 sm:space-y-6">
               <!-- 時間軸直獻 (裝飾用) - 調整位置至 7.5rem -->
-              <div class="absolute left-[4.5rem] sm:left-[7.5rem] top-2 bottom-4 w-0.5 bg-gray-200"></div>
+              <div
+                class="absolute left-[4.5rem] sm:left-[7.5rem] top-2 bottom-4 w-0.5 bg-gray-200"
+              ></div>
 
               <Draggable
                 v-model="currentDay.activities"
@@ -1895,57 +1918,76 @@ const jumpToStep = (targetStep) => {
                 @end="handleDragEnd"
               >
                 <template #item="{ element: activity, index: actIndex }">
-
                   <div class="activity-wrapper">
                     <div class="relative flex items-start gap-4 group">
-                    <!-- 左側：獨立時間軸 (絕對定位負值，移至卡片左側空白處) -->
-                    <div class="absolute -left-[4.5rem] sm:-left-[7rem] mt-0 text-right w-20 sm:w-24 flex flex-col items-end z-10">
-                      <!-- 使用 Ant Design TimePicker 取代原生 input，支援 24h 與驗證邏輯 -->
-                      <a-time-picker
-                        v-model:value="activity.time"
-                        v-model:open="activity.isOpen"
-                        value-format="HH:mm"
-                        format="HH:mm"
-                        :minute-step="1"
-                        placeholder="時間"
-                        :show-now="false"
-                        :allow-clear="false"
-                        :disabled-hours="() => getDisabledHours(actIndex)"
-                        :disabled-minutes="(selectedHour) => getDisabledMinutes(selectedHour, actIndex)"
-                        class="w-20 sm:w-24 shadow-sm font-bold text-xs sm:text-sm"
-                        :bordered="true"
-                        @open-change="(open) => handleTimeOpenChange(open, activity)"
-                        @select="(val) => handleTimeSelect(val, activity)"
-                      />
-                      <!-- 連接線與圓點 -->
-                      <div class="absolute top-[1.1rem] -right-[1.2rem] sm:-right-[1.6rem] w-3 sm:w-4 h-0.5 bg-gray-300"></div>
-                      <div class="absolute top-[0.9rem] -right-[1.4rem] sm:-right-[1.85rem] w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-green-500 border-2 border-white ring-1 ring-gray-200"></div>
-                    </div>
+                      <!-- 左側：獨立時間軸 (絕對定位負值，移至卡片左側空白處) -->
+                      <div
+                        class="absolute -left-[4.5rem] sm:-left-[7rem] mt-0 text-right w-20 sm:w-24 flex flex-col items-end z-10"
+                      >
+                        <!-- 使用 Ant Design TimePicker 取代原生 input，支援 24h 與驗證邏輯 -->
+                        <a-time-picker
+                          v-model:value="activity.time"
+                          v-model:open="activity.isOpen"
+                          value-format="HH:mm"
+                          format="HH:mm"
+                          :minute-step="1"
+                          placeholder="時間"
+                          :show-now="false"
+                          :allow-clear="false"
+                          :disabled-hours="() => getDisabledHours(actIndex)"
+                          :disabled-minutes="
+                            (selectedHour) => getDisabledMinutes(selectedHour, actIndex)
+                          "
+                          class="w-20 sm:w-24 shadow-sm font-bold text-xs sm:text-sm"
+                          :bordered="true"
+                          @open-change="(open) => handleTimeOpenChange(open, activity)"
+                          @select="(val) => handleTimeSelect(val, activity)"
+                        />
+                        <!-- 連接線與圓點 -->
+                        <div
+                          class="absolute top-[1.1rem] -right-[1.2rem] sm:-right-[1.6rem] w-3 sm:w-4 h-0.5 bg-gray-300"
+                        ></div>
+                        <div
+                          class="absolute top-[0.9rem] -right-[1.4rem] sm:-right-[1.85rem] w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-primary-600 border-2 border-white ring-1 ring-gray-200"
+                        ></div>
+                      </div>
 
-                    <!-- 右側：行程卡片 -->
-                    <div class="flex-1 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                      <div class="flex gap-2 sm:gap-3">
-                         <!-- 拖曳手把 (移到卡片內) -->
-                         <div class="cursor-move drag-handle mt-1 text-gray-300 hover:text-gray-600">
+                      <!-- 右側：行程卡片 -->
+                      <div
+                        class="flex-1 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div class="flex gap-2 sm:gap-3">
+                          <!-- 拖曳手把 (移到卡片內) -->
+                          <div
+                            class="cursor-move drag-handle mt-1 text-gray-300 hover:text-gray-600"
+                          >
                             <GripVerticalIcon class="w-5 h-5" />
-                         </div>
+                          </div>
 
-                         <!-- 內容區域 -->
-                         <div class="flex-1 space-y-2">
-                           <div class="flex justify-between items-start gap-3">
+                          <!-- 內容區域 -->
+                          <div class="flex-1 space-y-2">
+                            <div class="flex justify-between items-start gap-3">
                               <!-- 標題輸入 -->
                               <div class="flex-1">
                                 <div class="relative">
                                   <input
-                                    :ref="(el) => { if (el) activityTitleRefs[actIndex] = el }"
+                                    :ref="
+                                      (el) => {
+                                        if (el) activityTitleRefs[actIndex] = el
+                                      }
+                                    "
                                     v-model="activity.title"
                                     placeholder="活動名稱"
                                     :class="[
-                                      'w-full font-bold text-lg focus:outline-none placeholder-gray-300 border-b border-transparent focus:border-green-500 transition-colors pb-1',
-                                      activity.title && activity.title.trim().length > 50 ? 'text-red-500' : 'text-gray-900',
+                                      'w-full font-bold text-lg focus:outline-none placeholder-gray-300 border-b border-transparent focus:border-primary-500 transition-colors pb-1',
+                                      activity.title && activity.title.trim().length > 50
+                                        ? 'text-red-500'
+                                        : 'text-gray-900',
                                     ]"
                                     maxlength="50"
-                                    @keydown.enter.prevent="() => activityDescRefs[actIndex]?.focus()"
+                                    @keydown.enter.prevent="
+                                      () => activityDescRefs[actIndex]?.focus()
+                                    "
                                   />
                                   <span
                                     :class="[
@@ -1958,58 +2000,76 @@ const jumpToStep = (targetStep) => {
                                     {{ (activity.title || '').length }}/50
                                   </span>
                                 </div>
-                                <p v-if="activity.title && activity.title.trim().length > 50" class="text-xs text-red-500 mt-1">
+                                <p
+                                  v-if="activity.title && activity.title.trim().length > 50"
+                                  class="text-xs text-red-500 mt-1"
+                                >
                                   名稱過長
                                 </p>
                               </div>
 
-                                <!-- 地點選擇按鈕 -->
-                                <button
-                                  class="mt-1 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition"
-                                  title="選擇地點"
-                                  @click="openLocationPicker(activity)"
-                                >
-                                  <MapPinIcon class="w-4 h-4" :class="{ 'text-primary-600 fill-primary-100': activity.location }" />
-                                </button>
+                              <!-- 地點選擇按鈕 -->
+                              <button
+                                class="mt-1 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition"
+                                title="選擇地點"
+                                @click="openLocationPicker(activity)"
+                              >
+                                <MapPinIcon
+                                  class="w-4 h-4"
+                                  :class="{
+                                    'text-primary-600 fill-primary-100': activity.location,
+                                  }"
+                                />
+                              </button>
 
-                               <!-- 刪除按鈕 -->
-                               <button
-                                  class="text-gray-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                                  title="刪除"
-                                  @click="removeActivity(actIndex)"
+                              <!-- 刪除按鈕 -->
+                              <button
+                                class="text-gray-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                title="刪除"
+                                @click="removeActivity(actIndex)"
+                              >
+                                <TrashIcon class="w-4 h-4" />
+                              </button>
+                            </div>
 
-                                >
-                                  <TrashIcon class="w-4 h-4" />
-                                </button>
-                           </div>
-
-                           <div class="flex items-start gap-2">
-                                <!-- 地點顯示 (如果有) -->
-                                <div v-if="activity.location" class="text-xs text-primary-600 font-bold bg-primary-50 px-2 py-0.5 rounded flex items-center gap-1 mb-1">
-                                    <MapPinIcon class="w-3 h-3" />
-                                    {{ activity.location.name }}
-                                </div>
-                           </div>
+                            <div class="flex items-start gap-2">
+                              <!-- 地點顯示 (如果有) -->
+                              <div
+                                v-if="activity.location"
+                                class="text-xs text-primary-600 font-bold bg-primary-50 px-2 py-0.5 rounded flex items-center gap-1 mb-1"
+                              >
+                                <MapPinIcon class="w-3 h-3" />
+                                {{ activity.location.name }}
+                              </div>
+                            </div>
 
                             <!-- 描述輸入 -->
                             <div>
                               <div class="relative">
                                 <textarea
-                                  :ref="(el) => { if (el) activityDescRefs[actIndex] = el }"
+                                  :ref="
+                                    (el) => {
+                                      if (el) activityDescRefs[actIndex] = el
+                                    }
+                                  "
                                   v-model="activity.desc"
                                   placeholder="添加備註..."
                                   rows="2"
                                   :class="[
-                                    'w-full text-sm bg-gray-50 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-100 placeholder-gray-400',
-                                    activity.desc && activity.desc.trim().length > 500 ? 'text-red-500' : 'text-gray-900',
+                                    'w-full text-sm bg-gray-50 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-100 placeholder-gray-400',
+                                    activity.desc && activity.desc.trim().length > 500
+                                      ? 'text-red-500'
+                                      : 'text-gray-900',
                                   ]"
                                   maxlength="500"
-                                  @keydown.enter.prevent="() => {
+                                  @keydown.enter.prevent="
+                                    () => {
                                       // Focus next activity title if exists
                                       if (activityTitleRefs[actIndex + 1]) {
-                                          activityTitleRefs[actIndex + 1].focus()
+                                        activityTitleRefs[actIndex + 1].focus()
                                       }
-                                  }"
+                                    }
+                                  "
                                 ></textarea>
                                 <span
                                   :class="[
@@ -2023,16 +2083,18 @@ const jumpToStep = (targetStep) => {
                                 </span>
                               </div>
                             </div>
-                         </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <!-- 交通按鈕：如果這一個和下一個都有地點，顯示按鈕 -->
-                   <div
-                      v-if="actIndex < currentDay.activities.length - 1 &&
-                            activity.location &&
-                            currentDay.activities[actIndex + 1].location"
+                    <!-- 交通按鈕：如果這一個和下一個都有地點，顯示按鈕 -->
+                    <div
+                      v-if="
+                        actIndex < currentDay.activities.length - 1 &&
+                        activity.location &&
+                        currentDay.activities[actIndex + 1].location
+                      "
                       class="flex justify-center -my-3 relative z-20"
                     >
                       <button
@@ -2043,26 +2105,13 @@ const jumpToStep = (targetStep) => {
                         新增交通
                       </button>
                     </div>
-
                   </div>
                 </template>
               </Draggable>
             </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
             <button
-              class="w-full mt-4 py-3 border border-dashed border-gray-300 text-gray-500 rounded-xl hover:bg-white hover:border-green-400 hover:text-green-600"
+              class="w-full mt-4 py-3 border border-dashed border-gray-300 text-gray-500 rounded-xl hover:bg-white hover:border-primary-400 hover:text-primary-600"
               @click="addActivity"
             >
               + 新增活動
@@ -2074,7 +2123,7 @@ const jumpToStep = (targetStep) => {
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-bold text-gray-800">打包清單</h3>
             <button
-              class="px-4 py-2 bg-green-50 text-green-600 rounded-lg font-bold hover:bg-green-100"
+              class="px-4 py-2 bg-primary-50 text-primary-600 rounded-lg font-bold hover:bg-primary-100"
               @click="addPackingCategory"
             >
               新增分類
@@ -2099,16 +2148,18 @@ const jumpToStep = (targetStep) => {
                           : 'text-gray-900',
                       ]"
                       maxlength="10"
-                      @keydown.enter.prevent="() => {
-                           // Focus first item input of this category if exists, or add one?
-                           // Request: Enter -> jump to item
-                           if (itemRefs[catIndex] && itemRefs[catIndex][0]) {
-                               itemRefs[catIndex][0].focus()
-                           } else {
-                               addPackingItem(catIndex)
-                           }
-                      }"
-                />
+                      @keydown.enter.prevent="
+                        () => {
+                          // Focus first item input of this category if exists, or add one?
+                          // Request: Enter -> jump to item
+                          if (itemRefs[catIndex] && itemRefs[catIndex][0]) {
+                            itemRefs[catIndex][0].focus()
+                          } else {
+                            addPackingItem(catIndex)
+                          }
+                        }
+                      "
+                    />
                   </div>
                   <p
                     v-if="category.category && category.category.trim().length > 10"
@@ -2131,28 +2182,34 @@ const jumpToStep = (targetStep) => {
                   class="bg-white p-2 rounded border border-gray-100"
                 >
                   <div class="flex items-center gap-2">
-                  <input
-                    :ref="(el) => {
-                        if (!itemRefs[catIndex]) itemRefs[catIndex] = []
-                        if (el) itemRefs[catIndex][itemIndex] = el
-                    }"
-                    v-model="item.name"
-                    placeholder="物品名稱"
+                    <input
+                      :ref="
+                        (el) => {
+                          if (!itemRefs[catIndex]) itemRefs[catIndex] = []
+                          if (el) itemRefs[catIndex][itemIndex] = el
+                        }
+                      "
+                      v-model="item.name"
+                      placeholder="物品名稱"
                       :class="[
                         'flex-1 text-sm focus:outline-none',
-                        item.name && item.name.trim().length > 10 ? 'text-red-500' : 'text-gray-900',
+                        item.name && item.name.trim().length > 10
+                          ? 'text-red-500'
+                          : 'text-gray-900',
                       ]"
                       maxlength="10"
-                      @keydown.enter.prevent="() => {
+                      @keydown.enter.prevent="
+                        () => {
                           addPackingItem(catIndex)
-                      }"
-                  />
-                  <button
-                    class="text-gray-300 hover:text-red-500"
-                    @click="removePackingItem(catIndex, itemIndex)"
-                  >
-                    <XIcon class="w-3 h-3" />
-                  </button>
+                        }
+                      "
+                    />
+                    <button
+                      class="text-gray-300 hover:text-red-500"
+                      @click="removePackingItem(catIndex, itemIndex)"
+                    >
+                      <XIcon class="w-3 h-3" />
+                    </button>
                   </div>
                   <p
                     v-if="item.name && item.name.trim().length > 10"
@@ -2162,7 +2219,7 @@ const jumpToStep = (targetStep) => {
                   </p>
                 </div>
                 <button
-                  class="text-xs text-green-600 font-bold mt-2"
+                  class="text-xs text-primary-600 font-bold mt-2"
                   @click="addPackingItem(catIndex)"
                 >
                   + 新增物品
@@ -2186,7 +2243,7 @@ const jumpToStep = (targetStep) => {
                   'w-full pl-10 pr-16 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none text-gray-900',
                   tagSearch && tagSearch.trim().length > 10
                     ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-200 focus:border-green-500',
+                    : 'border-gray-200 focus:border-primary-500',
                 ]"
                 maxlength="10"
                 @keyup.enter="addTag(tagSearch)"
@@ -2206,7 +2263,7 @@ const jumpToStep = (targetStep) => {
               </div>
             </div>
             <button
-              class="px-4 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              class="px-4 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               :disabled="!tagSearch.trim()"
               @click="addTag(tagSearch)"
             >
@@ -2226,7 +2283,7 @@ const jumpToStep = (targetStep) => {
             <span
               v-for="(tag, i) in postData.tags"
               :key="i"
-              class="px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1 bg-green-50 text-green-700 border-green-100"
+              class="px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1 bg-primary-50 text-primary-700 border-primary-100"
               >#{{ tag }} <button @click="removeTag(i)"><XIcon class="w-3 h-3" /></button
             ></span>
           </div>
@@ -2274,14 +2331,17 @@ const jumpToStep = (targetStep) => {
                       userStore.userProfile?.name || userStore.userProfile?.nickname || '你'
                     }}</span>
                     <span
-                      v-if="userStore.userProfile?.spiritAnimal && userStore.userProfile.spiritAnimal.trim()"
+                      v-if="
+                        userStore.userProfile?.spiritAnimal &&
+                        userStore.userProfile.spiritAnimal.trim()
+                      "
                       class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
                       >{{ userStore.userProfile.spiritAnimal }}</span
                     >
                   </div>
                   <div class="text-sm text-secondary-500">
                     發布於 剛剛 •
-                    <span class="text-blue-600 font-bold ml-1"> @ {{ postData.category }} </span>
+                    <span class="text-primary-600 font-bold ml-1"> @ {{ postData.category }} </span>
                   </div>
                 </div>
               </div>
@@ -2321,8 +2381,8 @@ const jumpToStep = (targetStep) => {
                   >
                 </div>
                 <div class="font-bold text-primary-600">{{ postData.max_people }}</div>
-        </div>
-      </div>
+              </div>
+            </div>
 
             <div class="flex flex-wrap gap-2 mb-6">
               <span
@@ -2444,57 +2504,66 @@ const jumpToStep = (targetStep) => {
         </div>
       </div>
 
-    <!-- 地點選擇彈窗 -->
-    <LocationPickerModal
-      :is-open="isLocationPickerOpen"
-      :initial-location="editingActivity?.location"
-      @close="isLocationPickerOpen = false"
-      @select="handleLocationSelect"
-    />
+      <!-- 地點選擇彈窗 -->
+      <LocationPickerModal
+        :is-open="isLocationPickerOpen"
+        :initial-location="editingActivity?.location"
+        @close="isLocationPickerOpen = false"
+        @select="handleLocationSelect"
+      />
 
-    <!-- 交通方式選擇彈窗 -->
-    <div v-if="isTransportModalOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 animate-fade-in">
-       <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+      <!-- 交通方式選擇彈窗 -->
+      <div
+        v-if="isTransportModalOpen"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+      >
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
           <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
             <CarIcon class="w-5 h-5 text-primary-600" />
             選擇交通方式
           </h3>
           <div class="grid grid-cols-2 gap-3 mb-6">
-              <button
-                v-for="mode in [
-                  { id: 'DRIVING', label: '開車', icon: CarIcon },
-                  { id: 'TRANSIT', label: '大眾運輸', icon: TrainIcon },
-                  { id: 'WALKING', label: '步行', icon: WalkIcon },
-                  { id: 'BICYCLING', label: '騎車', icon: BikeIcon }
-                ]"
-                :key="mode.id"
-                class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition"
-                :class="transportMode === mode.id ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-100 hover:border-gray-300 text-gray-600'"
-                @click="transportMode = mode.id"
-              >
-                  <component :is="mode.icon" class="w-6 h-6" />
-                  <span class="font-bold text-sm">{{ mode.label }}</span>
-              </button>
+            <button
+              v-for="mode in [
+                { id: 'DRIVING', label: '開車', icon: CarIcon },
+                { id: 'TRANSIT', label: '大眾運輸', icon: TrainIcon },
+                { id: 'WALKING', label: '步行', icon: WalkIcon },
+                { id: 'BICYCLING', label: '騎車', icon: BikeIcon },
+              ]"
+              :key="mode.id"
+              class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition"
+              :class="
+                transportMode === mode.id
+                  ? 'border-primary-500 bg-primary-50 text-primary-700'
+                  : 'border-gray-100 hover:border-gray-300 text-gray-600'
+              "
+              @click="transportMode = mode.id"
+            >
+              <component :is="mode.icon" class="w-6 h-6" />
+              <span class="font-bold text-sm">{{ mode.label }}</span>
+            </button>
           </div>
           <div class="flex items-center gap-3">
-              <button
-                class="flex-1 py-2 rounded-xl text-gray-500 font-bold hover:bg-gray-100 transition"
-                @click="isTransportModalOpen = false"
-              >
-                取消
-              </button>
-              <button
-                class="flex-1 py-2 rounded-xl bg-primary-600 text-white font-bold hover:bg-primary-700 transition shadow-lg shadow-primary-200"
-                @click="insertTransportActivity"
-              >
-                確定新增
-              </button>
+            <button
+              class="flex-1 py-2 rounded-xl text-gray-500 font-bold hover:bg-gray-100 transition"
+              @click="isTransportModalOpen = false"
+            >
+              取消
+            </button>
+            <button
+              class="flex-1 py-2 rounded-xl bg-primary-600 text-white font-bold hover:bg-primary-700 transition shadow-lg shadow-primary-200"
+              @click="insertTransportActivity"
+            >
+              確定新增
+            </button>
           </div>
-       </div>
-    </div>
+        </div>
+      </div>
 
       <div class="p-3 sm:p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-        <p v-if="formError" class="text-red-500 font-bold text-xs sm:text-sm text-center">{{ formError }}</p>
+        <p v-if="formError" class="text-red-500 font-bold text-xs sm:text-sm text-center">
+          {{ formError }}
+        </p>
 
         <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
           <div

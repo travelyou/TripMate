@@ -275,7 +275,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
     <div class="w-full">
       <div class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall">
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-black text-secondary-50 flex items-center">
+          <h1 class="text-2xl font-black text-white flex items-center">
             <UsersIcon class="w-6 h-6 mr-3 text-white" />
             找旅伴
           </h1>
@@ -300,7 +300,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
             :class="[
               'px-3 py-1 rounded-full font-bold transition border-2',
               activeFilter === filter
-                ? 'bg-green-600 text-white border-green-600'
+                ? 'bg-primary text-white border-primary'
                 : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
             ]"
             @click="handleFilterChange(filter)"
@@ -328,7 +328,45 @@ watch(() => route.query.openDraft, (newDraftId) => {
       </div>
 
       <div
-        v-if="travelers.length > 0"
+        v-if="isLoading && travelers.length === 0"
+        class="grid grid-cols-1 gap-6 sm:grid-cols-2 auto-rows-fr items-stretch"
+      >
+        <div
+          v-for="n in 4"
+          :key="`traveler-skeleton-${n}`"
+          class="h-full bg-white border border-secondary-200 shadow rounded-xl overflow-hidden"
+        >
+          <div class="relative h-full animate-pulse">
+            <div class="absolute top-0 left-0 h-6 w-20 bg-secondary-100 rounded-br-xl"></div>
+            <div class="absolute top-0 right-0 h-6 w-16 bg-secondary-100 rounded-bl-xl"></div>
+            <div
+              class="relative w-full overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem] bg-secondary-100"
+            ></div>
+            <div
+              class="absolute inset-x-0 bottom-0 h-[45%] px-4 pb-4 pt-10 bg-gradient-to-t from-black/60 via-black/30 to-transparent"
+            >
+              <div class="flex items-center space-x-3 mb-2">
+                <div class="w-8 h-8 rounded-full bg-white/30"></div>
+                <div class="h-3 w-24 bg-white/30 rounded"></div>
+              </div>
+              <div class="h-5 w-3/4 bg-white/30 rounded mb-2"></div>
+              <div class="h-3 w-full bg-white/20 rounded mb-2"></div>
+              <div class="flex flex-wrap gap-2 mb-3">
+                <div class="h-4 w-12 bg-white/20 rounded-full"></div>
+                <div class="h-4 w-16 bg-white/20 rounded-full"></div>
+                <div class="h-4 w-10 bg-white/20 rounded-full"></div>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="h-4 w-28 bg-white/25 rounded"></div>
+                <div class="h-8 w-20 bg-white/30 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else-if="travelers.length > 0"
         class="grid grid-cols-1 gap-6 sm:grid-cols-2 auto-rows-fr items-stretch"
       >
         <div v-for="traveler in travelers" :key="traveler.id" class="h-full">
@@ -348,7 +386,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
         <UsersIcon class="w-16 h-16 mx-auto text-gray-300 mb-4" />
         <p class="text-gray-500 text-lg mb-2">目前沒有符合條件的旅伴招募</p>
         <button
-          class="bg-green-50 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-md mt-4"
+          class="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-primary-700 transition shadow-md mt-4"
           @click="isPostingModalOpen = true"
         >
           <PlusIcon class="w-5 h-5 inline mr-2" />
@@ -357,10 +395,11 @@ watch(() => route.query.openDraft, (newDraftId) => {
       </div>
 
       <div ref="loadMoreTrigger" class="py-8 text-center w-full">
-        <div
-          v-if="isLoading"
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
-        ></div>
+        <div v-if="isLoading" class="flex justify-center">
+          <div
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+          ></div>
+        </div>
         <div v-else-if="!hasMore && travelers.length > 0" class="text-gray-400 text-sm">
           已經到底囉，沒有更多招募了 🏝️
         </div>

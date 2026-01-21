@@ -430,18 +430,22 @@ onMounted(async () => {
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <button
-        class="absolute right-full top-24 z-0 bg-red-50 text-red-700 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-red-100 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-red-200"
+        class="absolute right-full top-24 z-0 bg-primary-50 text-primary-700 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:bg-primary-100 transition-all duration-300 flex items-center gap-2 group border-y-2 border-l-2 border-primary-50"
         title="回到內文"
         @click="scrollToTop"
       >
         <FileTextIcon class="w-5 h-5 fill-current" />
-        <span class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb">
-          內文
+        <span
+
+          class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
+
+        >
+          內文　
         </span>
       </button>
 
       <button
-        class="absolute right-full top-40 z-0 bg-amber-400 text-amber-900 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:bg-amber-300 transition-all duration-300 flex items-center gap-2 group translate-x-[2px] hover:-translate-x-1 border-y-2 border-l-2 border-amber-500/20"
+        class="absolute right-full top-40 z-0 bg-primary-600 text-white py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:bg-primary-500 transition-all duration-300 flex items-center gap-2 group border-y-2 border-l-2 border-primary-700/20"
         title="跳轉至留言區"
         @click="jumpToComments"
       >
@@ -508,7 +512,8 @@ onMounted(async () => {
                     <span
                       class="font-bold text-secondary-900 cursor-pointer hover:text-primary-600 transition"
                       @click="handleAuthorClick"
-                    >{{ localTravelerData.author }}</span>
+                      >{{ localTravelerData.author }}</span
+                    >
                     <span
                       v-if="localTravelerData.spiritAnimal && localTravelerData.spiritAnimal.trim()"
                       class="text-xs sm:text-sm font-semibold text-primary-700 bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -942,7 +947,10 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="activeTab === 'comments'" class="p-4 border-t-2 border-secondary-200 bg-white">
+      <div
+        v-if="activeTab === 'comments'"
+        class="p-4 border-t-2 border-secondary-200 bg-white rounded-xl"
+      >
         <div v-if="isExpired" class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
           <p class="text-gray-600 font-bold mb-1">此招募已結束</p>
           <p class="text-gray-500 text-sm">日期已過期，無法再留言</p>

@@ -169,7 +169,10 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       console.log('[Store] loadDiscussions 收到資料，貼文數量:', data.posts?.length || 0)
       if (data.posts && data.posts.length > 0) {
         const firstPost = data.posts[0]
-        console.log('[Store] 第一個貼文（轉換前）的 author_avatar:', firstPost.author_avatar || 'NULL/UNDEFINED')
+        console.log(
+          '[Store] 第一個貼文（轉換前）的 author_avatar:',
+          firstPost.author_avatar || 'NULL/UNDEFINED',
+        )
         console.log('[Store] 第一個貼文（轉換前）的 author_uid:', firstPost.author_uid)
       }
 

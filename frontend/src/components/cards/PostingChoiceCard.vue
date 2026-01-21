@@ -65,12 +65,12 @@ const getBlankItinerary = () => ({
 
       <div class="p-6 space-y-4">
         <button
-          class="w-full p-4 border-2 border-transparent bg-blue-50 hover:bg-white hover:border-blue-200 rounded-xl transition-all group text-left shadow-sm hover:shadow-md"
+          class="w-full p-4 border-2 border-transparent bg-primary-50 hover:bg-white hover:border-primary-200 rounded-xl transition-all group text-left shadow-sm hover:shadow-md"
           @click="openDiscussionModal"
         >
           <div class="flex items-center gap-4">
             <div
-              class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform"
+              class="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center shadow-primary-sm group-hover:scale-105 transition-transform"
             >
               <MessageSquareIcon class="w-6 h-6 text-white" />
             </div>
@@ -82,12 +82,12 @@ const getBlankItinerary = () => ({
         </button>
 
         <button
-          class="w-full p-4 border-2 border-transparent bg-green-50 hover:bg-white hover:border-green-200 rounded-xl transition-all group text-left shadow-sm hover:shadow-md"
+          class="w-full p-4 border-2 border-transparent bg-primary-50 hover:bg-white hover:border-primary-200 rounded-xl transition-all group text-left shadow-sm hover:shadow-md"
           @click="openTravelerModal"
         >
           <div class="flex items-center gap-4">
             <div
-              class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-200 group-hover:scale-105 transition-transform"
+              class="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center shadow-primary-sm group-hover:scale-105 transition-transform"
             >
               <UsersIcon class="w-6 h-6 text-white" />
             </div>
@@ -99,12 +99,12 @@ const getBlankItinerary = () => ({
         </button>
 
         <button
-          class="w-full p-4 border-2 border-transparent bg-purple-50 hover:bg-white hover:border-purple-200 rounded-xl transition-all group text-left shadow-sm hover:shadow-md"
+          class="w-full p-4 border-2 border-transparent bg-primary-50 hover:bg-white hover:border-primary-200 rounded-xl transition-all group text-left shadow-sm hover:shadow-md"
           @click="openItineraryModal"
         >
           <div class="flex items-center gap-4">
             <div
-              class="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center shadow-lg shadow-purple-200 group-hover:scale-105 transition-transform"
+              class="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center shadow-primary-sm group-hover:scale-105 transition-transform"
             >
               <MapPinIcon class="w-6 h-6 text-white" />
             </div>

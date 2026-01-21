@@ -56,11 +56,11 @@ const sortedPosts = computed(() => {
   <div class="mb-8">
     <div class="mb-6 flex justify-between items-center">
       <h2
-        class="inline-flex items-center text-xl font-bold text-amber-900 bg-orange-100 px-5 py-2 rounded-xl border-4 border-orange-200 shadow-[4px_4px_0px_0px_rgba(251,146,60,0.5)]"
+        class="inline-flex items-center text-xl font-bold text-primary-800 bg-primary-50 px-5 py-2 rounded-xl border-2 border-primary-200 shadow-primary-sm"
       >
         <FileTextIcon class="w-5 h-5 mr-2" />
         廠商貼文
-        <span v-if="activeRegion !== '全部'" class="ml-2 text-sm bg-orange-500 text-white px-2 py-1 rounded-lg shadow-sm">
+        <span v-if="activeRegion !== '全部'" class="ml-2 text-sm bg-primary-600 text-white px-2 py-1 rounded-lg shadow-sm">
           {{ activeRegion }}
         </span>
       </h2>
@@ -69,7 +69,7 @@ const sortedPosts = computed(() => {
       <div class="relative group">
         <select
           v-model="sortOption"
-          class="appearance-none bg-white border border-gray-200 text-gray-700 py-2 pl-4 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-bold shadow-sm cursor-pointer"
+          class="appearance-none bg-white border border-gray-200 text-gray-700 py-2 pl-4 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-bold shadow-sm cursor-pointer"
         >
           <option value="default">預設排序</option>
           <option value="likes">按讚最多</option>
@@ -91,7 +91,7 @@ const sortedPosts = computed(() => {
       <div
         v-for="post in sortedPosts"
         :key="post.id"
-        class="pixel-card p-5 bg-[#fffef7] hover:shadow-lg transition-shadow cursor-pointer"
+        class="p-5 bg-white rounded-2xl border-2 border-primary-100 shadow-primary-sm hover:shadow-lg transition-shadow cursor-pointer"
       >
         <h3 class="text-lg font-bold text-gray-900 mb-2">
           {{ post.title }}
@@ -101,7 +101,7 @@ const sortedPosts = computed(() => {
           {{ post.content }}
         </p>
 
-        <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100">
+        <div class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-primary-100">
           <img
             :src="post.image"
             class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -112,7 +112,7 @@ const sortedPosts = computed(() => {
           <span
             v-for="tag in post.tags"
             :key="tag"
-            class="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1 rounded-full cursor-pointer hover:bg-amber-200 transition"
+            class="text-xs font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full cursor-pointer hover:bg-primary-200 transition"
           >
             #{{ tag }}
           </span>
@@ -123,11 +123,11 @@ const sortedPosts = computed(() => {
             <HeartIcon class="w-4 h-4" /> <span>{{ post.likes }}</span>
           </button>
 
-          <button class="flex items-center space-x-1 hover:text-orange-600 transition mr-6">
+          <button class="flex items-center space-x-1 hover:text-primary-600 transition mr-6">
             <BookmarkIcon class="w-4 h-4" /> <span>{{ post.collects || 0 }}</span>
           </button>
 
-          <button class="flex items-center space-x-1 hover:text-indigo-600 transition mr-6">
+          <button class="flex items-center space-x-1 hover:text-primary-600 transition mr-6">
             <MessageCircleIcon class="w-4 h-4" /> <span>{{ post.comments }}</span>
           </button>
 
@@ -137,12 +137,3 @@ const sortedPosts = computed(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-</style>

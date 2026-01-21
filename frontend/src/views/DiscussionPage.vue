@@ -281,7 +281,27 @@ const tryOpenDraft = () => {
       </div>
 
       <div class="space-y-6">
-        <template v-if="discussionsStore.discussions.length > 0">
+        <template v-if="discussionsStore.loading && discussionsStore.discussions.length === 0">
+          <div
+            v-for="n in 3"
+            :key="`skeleton-${n}`"
+            class="p-5 bg-white ring-2 ring-secondary-200 shadow-md rounded-2xl animate-pulse"
+          >
+            <div class="flex items-center space-x-3 mb-4">
+              <div class="w-10 h-10 rounded-full bg-gray-200"></div>
+              <div class="space-y-2">
+                <div class="h-4 w-32 bg-gray-200 rounded"></div>
+                <div class="h-3 w-20 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="h-5 w-2/3 bg-gray-200 rounded mb-3"></div>
+            <div class="h-4 w-full bg-gray-200 rounded mb-2"></div>
+            <div class="h-4 w-5/6 bg-gray-200 rounded mb-4"></div>
+            <div class="w-full h-64 rounded-xl bg-gray-200"></div>
+          </div>
+        </template>
+
+        <template v-else-if="discussionsStore.discussions.length > 0">
           <DiscussionCard
             v-for="post in discussionsStore.discussions"
             :key="post.id"
@@ -295,13 +315,13 @@ const tryOpenDraft = () => {
           />
         </template>
 
-        <div v-else-if="!discussionsStore.isLoading" class="text-center py-20 text-gray-500">
+        <div v-else-if="!discussionsStore.loading" class="text-center py-20 text-gray-500">
           目前沒有這個分類的討論文章，來發一篇吧！
         </div>
 
         <div ref="loadMoreTrigger" class="py-4 text-center">
           <div
-            v-if="discussionsStore.isLoading"
+            v-if="discussionsStore.loading"
             class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
           ></div>
           <div

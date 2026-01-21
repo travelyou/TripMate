@@ -142,11 +142,11 @@ const handleEdit = (e) => {
 const handleDelete = async (e) => {
   e.stopPropagation()
   closeMenu()
-  
+
   if (!confirm('確定要刪除此招募嗎？')) {
     return
   }
-  
+
   try {
     await deleteTraveler(props.traveler.id)
     emit('delete', props.traveler)
@@ -207,7 +207,7 @@ onUnmounted(() => {
     >
       <div
         v-if="traveler.category"
-        class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl rounded-tl-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+        class="absolute top-0 left-0 px-3.5 py-1.5 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl rounded-tl-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
       >
         {{ traveler.category }}
       </div>
@@ -227,7 +227,7 @@ onUnmounted(() => {
         >
           <MoreVertical class="w-5 h-5" />
         </button>
-        
+
         <!-- 菜单下拉 -->
         <div
           v-if="showMenu"
@@ -301,7 +301,7 @@ onUnmounted(() => {
           />
 
           <div
-            class="absolute inset-x-0 bottom-0 h-[45%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end z-20"
+            class="absolute inset-x-0 bottom-0 h-[75%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end z-20"
           >
             <div>
               <div class="flex items-center space-x-3 mb-2">
@@ -315,7 +315,8 @@ onUnmounted(() => {
                     <span
                       class="font-bold text-sm text-white cursor-pointer hover:text-primary-300 transition"
                       @click.stop="handleAvatarClick"
-                    >{{ traveler.author }}</span>
+                      >{{ traveler.author }}</span
+                    >
                     <span
                       v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
                       class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full whitespace-nowrap"

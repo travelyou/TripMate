@@ -61,10 +61,10 @@ const handlePageChange = (page) => {
 </script>
 
 <template>
-  <div class="p-4 md:px-0 md:pt-8 lg:pt-8 max-w-7xl mx-auto">
+  <div class="p-4 md:px-8 md:pt-8 lg:pt-8 mt-6 md:mt-8 max-w-7xl mx-auto">
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center h-64">
-      <div class="text-amber-600 font-bold text-xl animate-pulse">資料載入中...</div>
+      <div class="text-primary-600 font-bold text-xl animate-pulse">資料載入中...</div>
     </div>
 
     <!-- Content -->
@@ -79,7 +79,7 @@ const handlePageChange = (page) => {
       <!-- 廠商 Banner (本季主打) -->
       <div
         v-if="currentVendor.bannerImage"
-        class="mb-8 rounded-3xl overflow-hidden shadow-lg border-2 border-amber-100 h-40 md:h-64 relative pixel-card"
+        class="mb-8 rounded-2xl overflow-hidden shadow-primary-sm border-2 border-primary-100 h-40 md:h-64 relative bg-white"
       >
         <img :src="currentVendor.bannerImage" class="w-full h-full object-cover" />
         <div
@@ -110,7 +110,7 @@ const handlePageChange = (page) => {
     </div>
 
     <!-- Error/Empty State -->
-    <div v-else class="text-center py-12 text-gray-500">找不到廠商資料</div>
+    <div v-else class="text-center py-12 text-secondary-500">找不到廠商資料</div>
 
     <!-- Review Modal -->
     <VendorReviewModal
@@ -124,13 +124,6 @@ const handlePageChange = (page) => {
 </template>
 
 <style scoped>
-.pixel-card {
-  border: 3px solid #8b6f47;
-  box-shadow:
-    4px 4px 0px 0px rgba(139, 111, 71, 0.2),
-    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.3);
-}
-
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }

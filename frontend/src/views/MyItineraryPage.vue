@@ -14,7 +14,8 @@ const route = useRoute()
 const router = useRouter()
 
 // 使用 storeToRefs 拿資料，這樣資料變動時畫面才會跟著變
-const { myItineraries, drafts, featuredItineraries, partnerItineraries } = storeToRefs(myItineraryStore)
+const { myItineraries, drafts, featuredItineraries, partnerItineraries } =
+  storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
@@ -51,13 +52,18 @@ const openAddItineraryModal = () => {
 // 開啟草稿
 const openDraft = (draft) => {
   // 判斷草稿類型，如果是行程草稿就打開編輯
-  if ((draft.type === 'my_itinerary' || draft.type === 'itinerary') && (draft.data || draft.rawItinerary)) {
+  if (
+    (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
+    (draft.data || draft.rawItinerary)
+  ) {
     // 兼容兩種草稿結構
     const dataToLoad = draft.data || draft.rawItinerary
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
     isDetailModalOpen.value = true
   } else {
-    alert(`這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`)
+    alert(
+      `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
+    )
   }
 }
 
@@ -69,7 +75,7 @@ const handleSaveDraft = (draftItinerary) => {
     typeLabel: '我的行程',
     title: draftItinerary.title || '(未命名行程)',
     content: `日期: ${draftItinerary.startDate || '?'} ~ ${draftItinerary.endDate || '?'}`,
-    rawItinerary: draftItinerary // 把整包資料存起來
+    rawItinerary: draftItinerary, // 把整包資料存起來
   })
 
   isDetailModalOpen.value = false
@@ -124,13 +130,16 @@ onMounted(() => {
   tryOpenDraft()
 })
 
-watch(() => route.query.openDraft, (newDraftId) => {
-  if (newDraftId) {
-    nextTick(() => {
-      tryOpenDraft()
-    })
-  }
-})
+watch(
+  () => route.query.openDraft,
+  (newDraftId) => {
+    if (newDraftId) {
+      nextTick(() => {
+        tryOpenDraft()
+      })
+    }
+  },
+)
 </script>
 
 <template>
@@ -144,16 +153,16 @@ watch(() => route.query.openDraft, (newDraftId) => {
       </div>
 
       <!-- 標籤頁籤容器 -->
-      <div class="bg-white rounded-xl border-4 border-primary shadow-primary-tall p-2">
-        <div class="grid grid-cols-3 gap-2">
+      <div class="p-4 space-y-4">
+        <div class="grid grid-cols-3 gap-4">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             class="w-full px-4 py-3 rounded-lg font-semibold transition"
             :class="
               activeTab === tab.id
-                ? 'bg-primary text-white border-2 border-primary'
-                : 'bg-white text-secondary-600'
+                ? 'bg-primary text-white'
+                : 'bg-white text-secondary-800 hover:bg-gray-300'
             "
             @click="activeTab = tab.id"
           >
@@ -161,24 +170,26 @@ watch(() => route.query.openDraft, (newDraftId) => {
           </button>
         </div>
 
-        <!-- 根據 activeTab 切換顯示內容 -->
-      <MyItineraryTab
-        v-if="activeTab === 'my'"
-        :itineraries="myItineraries"
-        @open="openItineraryDetail"
-        @add="openAddItineraryModal"
-      />
-      <FeaturedItineraryTab
-        v-if="activeTab === 'featured'"
-        :itineraries="featuredItineraries"
-        @rate="handleFeaturedRate"
-        @clear="handleFeaturedClear"
-      />
-      <FindPartnerTab
-        v-if="activeTab === 'partner'"
-        :itineraries="partnerItineraries"
-        @update="handlePartnerUpdate"
-      />
+        <div>
+          <!-- 根據 activeTab 切換顯示內容 -->
+          <MyItineraryTab
+            v-if="activeTab === 'my'"
+            :itineraries="myItineraries"
+            @open="openItineraryDetail"
+            @add="openAddItineraryModal"
+          />
+          <FeaturedItineraryTab
+            v-if="activeTab === 'featured'"
+            :itineraries="featuredItineraries"
+            @rate="handleFeaturedRate"
+            @clear="handleFeaturedClear"
+          />
+          <FindPartnerTab
+            v-if="activeTab === 'partner'"
+            :itineraries="partnerItineraries"
+            @update="handlePartnerUpdate"
+          />
+        </div>
       </div>
     </div>
 

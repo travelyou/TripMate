@@ -57,30 +57,6 @@ const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 const unreadMessageCount = ref(0) // 未讀訊息總數
 
-/*
-// 背景圖片陣列
-const backgroundImages = [
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=60&w=1280&auto=format&fit=crop', // 山脈
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=60&w=1280&auto=format&fit=crop', // 海灘
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=60&w=1280&auto=format&fit=crop', // 森林
-  'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=60&w=1280&auto=format&fit=crop', // 城市
-  'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=60&w=1280&auto=format&fit=crop', // 星空
-  'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=60&w=1280&auto=format&fit=crop', // 雪山
-  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=60&w=1280&auto=format&fit=crop', // 公路
-  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=60&w=1280&auto=format&fit=crop', // 湖泊
-  'https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=60&w=1280&auto=format&fit=crop', // 粉色天空
-  'https://images.unsplash.com/photo-1474487548417-781a5a858726?q=60&w=1280&auto=format&fit=crop', // 火車
-  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=60&w=1280&auto=format&fit=crop', // 露營
-  'https://images.unsplash.com/photo-1483347752454-e668de6d9e1d?q=60&w=1280&auto=format&fit=crop', // 極光
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=60&w=1280&auto=format&fit=crop', // 小屋
-  'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=60&w=1280&auto=format&fit=crop', // 熱氣球
-]
-
-
-// 隨機選圖
-const currentBgImage = ref(backgroundImages[Math.floor(Math.random() * backgroundImages.length)])
-*/
-
 const handleOpenPosting = () => {
   isPostingModalOpen.value = true
   isMobileActionMenuOpen.value = false
@@ -349,52 +325,60 @@ const handleSubmitPost = async (postData) => {
       hideLayout ? 'bg-secondary-50' : 'bg-secondary-50 bg-cover bg-center md:bg-fixed bg-no-repeat'
     "
   >
-    <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
+    <div class="transition-[filter] duration-300">
+      <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div
-      v-if="!hideLayout"
-      class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 min-h-screen items-start gap-2"
-      :class="gridClass"
-    >
       <div
-        v-if="!isSearchPage && !hideSidebar"
-        class="contents lg:block shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
+        v-if="!hideLayout"
+        class="max-w-[1500px] mx-auto grid grid-cols-1 pt-16 min-h-screen items-start gap-2"
+        :class="gridClass"
       >
-        <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
+        <div
+          v-if="!isSearchPage && !hideSidebar"
+          class="contents lg:block shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
+        >
+          <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
+        </div>
+
+        <main
+          class="min-w-0 transition-all duration-300"
+          :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 ']"
+        >
+          <RouterView />
+        </main>
+
+        <div
+          v-if="showRightAd"
+          class="hidden lg:block shrink-0 mr-2"
+          :class="{ 'mt-6': !isSearchPage }"
+        >
+          <RightSidebarAd />
+        </div>
       </div>
 
-      <main
-        class="min-w-0 transition-all duration-300"
-        :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 ']"
+      <div
+        v-else
+        class="w-screen h-screen overflow-y-auto overscroll-contain"
+        style="-webkit-overflow-scrolling: touch"
       >
         <RouterView />
-      </main>
+      </div>
 
-      <div
-        v-if="showRightAd"
-        class="hidden lg:block shrink-0 mr-2"
-        :class="{ 'mt-6': !isSearchPage }"
-      >
-        <RightSidebarAd />
+      <div v-if="!hideLayout" class="hidden lg:block">
+        <AppFABs
+          @open-posting="handleOpenPosting"
+          @quick-action="handleQuickAction"
+          @toggle-private-chat="handleTogglePrivateChat"
+          @toggle-ai-chat="handleToggleAiChat"
+        />
       </div>
     </div>
 
     <div
-      v-else
-      class="w-screen h-screen overflow-y-auto overscroll-contain"
-      style="-webkit-overflow-scrolling: touch"
-    >
-      <RouterView />
-    </div>
-
-    <div v-if="!hideLayout" class="hidden lg:block">
-      <AppFABs
-        @open-posting="handleOpenPosting"
-        @quick-action="handleQuickAction"
-        @toggle-private-chat="handleTogglePrivateChat"
-        @toggle-ai-chat="handleToggleAiChat"
-      />
-    </div>
+      v-if="isMobileActionMenuOpen"
+      class="fixed inset-0 z-[50] bg-black/40 backdrop-blur-sm lg:hidden"
+      @click="isMobileActionMenuOpen = false"
+    ></div>
 
     <Transition
       enter-active-class="transition-all duration-300 ease"
@@ -408,11 +392,7 @@ const handleSubmitPost = async (postData) => {
         v-if="isMobileActionMenuOpen"
         class="fixed inset-0 z-[60] flex items-end justify-center lg:hidden"
       >
-        <div
-          class="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          @click="isMobileActionMenuOpen = false"
-        ></div>
-        <div class="relative w-full bg-secondary-50 rounded-t-3xl p-6 pb-24 shadow-2xl">
+        <div class="relative w-full bg-white rounded-t-3xl p-6 pb-24 shadow-2xl border-t border-secondary-100">
           <div class="flex justify-between items-center mb-6 border-b-2 border-secondary-100 pb-2">
             <h3 class="text-xl font-bold text-primary-700">快速功能</h3>
             <button
@@ -425,23 +405,23 @@ const handleSubmitPost = async (postData) => {
           <div class="grid grid-cols-4 gap-4">
             <button class="flex flex-col items-center gap-2 group" @click="handleOpenPosting">
               <div
-                class="w-14 h-14 bg-red-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
               >
                 <PlusIcon class="w-8 h-8 text-white" />
               </div>
-              <span class="text-xs font-bold text-gray-700">發布</span>
+              <span class="text-lg font-bold text-gray-700">發布</span>
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleQuickAction">
               <div
-                class="w-14 h-14 bg-yellow-400 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
               >
-                <SparklesIcon class="w-8 h-8 text-primary-700" />
+                <SparklesIcon class="w-8 h-8 text-white" />
               </div>
-              <span class="text-xs font-bold text-gray-700">抽卡</span>
+              <span class="text-sm font-bold text-gray-700">抽卡</span>
             </button>
             <button class="flex flex-col items-center gap-2 group relative" @click="handleTogglePrivateChat">
               <div
-                class="w-14 h-14 bg-green-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
               >
                 <MessageCircleIcon class="w-8 h-8 text-white" />
                 <span
@@ -451,15 +431,15 @@ const handleSubmitPost = async (postData) => {
                   {{ unreadMessageCount > 9 ? '9+' : unreadMessageCount }}
                 </span>
               </div>
-              <span class="text-xs font-bold text-gray-700">聊天</span>
+              <span class="text-sm font-bold text-gray-700">聊天</span>
             </button>
             <button class="flex flex-col items-center gap-2 group" @click="handleToggleAiChat">
               <div
-                class="w-14 h-14 bg-indigo-500 rounded-2xl border-4 border-gray-800 shadow-md flex items-center justify-center group-active:translate-y-1 group-active:shadow-none transition"
+                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
               >
                 <BotIcon class="w-8 h-8 text-white" />
               </div>
-              <span class="text-xs font-bold text-gray-700">AI</span>
+              <span class="text-sm font-bold text-gray-700">AI</span>
             </button>
           </div>
         </div>
@@ -473,10 +453,10 @@ const handleSubmitPost = async (postData) => {
       @select-find-traveler="handleSelectFindTraveler"
       @submit-post="handleSubmitPost"
     />
-    <PrivateChatWindow 
-      v-if="isPrivateChatOpen" 
+    <PrivateChatWindow
+      v-if="isPrivateChatOpen"
       :open-chat-with-user="openChatWithUser"
-      @close="isPrivateChatOpen = false; openChatWithUser = null" 
+      @close="isPrivateChatOpen = false; openChatWithUser = null"
     />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />

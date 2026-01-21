@@ -280,7 +280,7 @@ const openOrCreateChatRoom = async (user) => {
 
     activeChatRoom.value = {
       type: 'chat',
-      uid: user.uid,
+      uid: targetUid,
       name: newRoom.name,
       avatar: newRoom.avatar,
       messages: []
@@ -303,7 +303,7 @@ const openOrCreateChatRoom = async (user) => {
   }))
 
   scrollToBottom()
-  
+
   // 觸發訊息更新事件（清除未讀計數）
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
@@ -552,10 +552,10 @@ watch(chatRoomsList, () => {
 
 <template>
   <div
-    class="fixed bottom-4 md:bottom-8 right-[80px] md:right-[96px] w-80 md:w-80 max-w-80 h-[480px] md:h-[480px] max-h-[480px] border-4 border-primary-600 shadow-primary-strong z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
+    class="fixed bottom-4 md:bottom-8 right-[80px] md:right-[96px] w-80 md:w-80 max-w-80 h-[480px] md:h-[480px] max-h-[480px] border-4 border-primary shadow-xl z-50 flex flex-col rounded-2xl overflow-hidden bg-white/90 backdrop-blur animate-slide-up"
   >
     <div
-      class="bg-primary text-secondary-50 p-4 flex items-center justify-between border-b-4 border-primary-700"
+      class="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500 text-white p-4 flex items-center justify-between border-b border-primary-800/40"
     >
       <div class="flex items-center space-x-3">
         <button
@@ -598,7 +598,7 @@ watch(chatRoomsList, () => {
       <!-- 訊息列表 -->
       <div
         ref="messagesContainer"
-        class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 custom-scrollbar"
+        class="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white via-slate-50 to-slate-100 custom-scrollbar"
       >
         <div
           v-if="messages.length === 0"
@@ -609,12 +609,12 @@ watch(chatRoomsList, () => {
         <div
           v-for="msg in messages"
           :key="msg.id"
-          class="flex items-start space-x-2"
+          class="flex items-end gap-2"
           :class="{ 'justify-end': msg.type === 'user' }"
         >
           <div
             v-if="msg.type !== 'user'"
-            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-primary-700 overflow-hidden"
+            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-white/80 shadow-sm overflow-hidden"
           >
             <img
               v-if="activeChatRoom && activeChatRoom.avatar && !avatarErrors[`msg-${activeChatRoom.uid}`]"
@@ -633,8 +633,8 @@ watch(chatRoomsList, () => {
             class="p-3 shadow-sm max-w-[80%] text-sm font-medium"
             :class="[
               msg.type === 'user'
-                ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm border-2 border-primary-700'
-                : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border-2 border-secondary-100',
+                ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm border border-primary-700/60 shadow-lg shadow-primary-900/10'
+                : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border border-secondary-100 shadow-sm',
             ]"
           >
             {{ msg.content }}
@@ -642,7 +642,7 @@ watch(chatRoomsList, () => {
 
           <div
             v-if="msg.type === 'user'"
-            class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0 border-2 border-gray-400 overflow-hidden"
+            class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 border-2 border-white/80 shadow-sm overflow-hidden"
           >
             <img
               v-if="userStore.currentUser && userStore.currentUser.avatar && !avatarErrors['current-user']"
@@ -667,19 +667,19 @@ watch(chatRoomsList, () => {
       </div>
 
       <!-- 輸入框 -->
-      <div class="p-4 border-t-2 border-gray-200 bg-white">
+      <div class="p-4 border-t border-secondary-200 bg-white/90">
         <form class="flex items-center space-x-2" @submit.prevent="sendMessage">
           <input
             v-model="messageInput"
             type="text"
             :disabled="!chatInteractionCount.canSend"
             placeholder="輸入訊息..."
-            class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            class="flex-1 px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <button
             type="submit"
             :disabled="!chatInteractionCount.canSend"
-            class="p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border-2 border-primary-700 shadow-sm active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="p-2.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border border-primary-700/70 shadow-md active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <SendIcon class="w-5 h-5" />
           </button>
@@ -693,13 +693,13 @@ watch(chatRoomsList, () => {
     <!-- 聊天室列表和好友列表 -->
     <template v-else>
       <!-- 標籤頁切換 -->
-      <div class="flex border-b-2 border-primary-700 bg-primary-100">
+      <div class="flex border-b border-primary-200 bg-primary-50/70">
         <button
           class="flex-1 px-4 py-3 font-bold text-sm transition"
           :class="
             activeTab === 'chatrooms'
-              ? 'bg-primary-600 text-white border-b-4 border-primary-800'
-              : 'text-primary-700 hover:bg-primary-200'
+              ? 'bg-white text-primary-700 border-b-2 border-primary-600'
+              : 'text-primary-700 hover:bg-primary-100'
           "
           @click="activeTab = 'chatrooms'"
         >
@@ -709,8 +709,8 @@ watch(chatRoomsList, () => {
           class="flex-1 px-4 py-3 font-bold text-sm transition"
           :class="
             activeTab === 'friends'
-              ? 'bg-primary-600 text-white border-b-4 border-primary-800'
-              : 'text-primary-700 hover:bg-primary-200'
+              ? 'bg-white text-primary-700 border-b-2 border-primary-600'
+              : 'text-primary-700 hover:bg-primary-100'
           "
           @click="activeTab = 'friends'"
         >
@@ -719,7 +719,7 @@ watch(chatRoomsList, () => {
       </div>
 
       <!-- 聊天室列表 -->
-      <div v-if="activeTab === 'chatrooms'" class="flex-1 overflow-y-auto bg-gray-50 custom-scrollbar">
+      <div v-if="activeTab === 'chatrooms'" class="flex-1 overflow-y-auto bg-slate-50 custom-scrollbar">
         <div class="p-4 space-y-2">
           <div
             v-if="chatRooms.length === 0"
@@ -730,7 +730,7 @@ watch(chatRoomsList, () => {
           <div
             v-for="room in chatRooms"
             :key="room.id"
-            class="flex items-center gap-3 p-3 hover:bg-white rounded-xl transition cursor-pointer border-2"
+            class="flex items-center gap-3 p-3 rounded-2xl transition cursor-pointer border bg-white shadow-sm"
             :class="room.type === 'friend-request-received'
               ? 'border-yellow-400 bg-yellow-50 hover:border-yellow-500'
               : 'border-transparent hover:border-primary-200'"
@@ -772,7 +772,7 @@ watch(chatRoomsList, () => {
       </div>
 
       <!-- 好友列表 -->
-      <div v-if="activeTab === 'friends'" class="flex-1 overflow-y-auto bg-gray-50 custom-scrollbar">
+      <div v-if="activeTab === 'friends'" class="flex-1 overflow-y-auto bg-slate-50 custom-scrollbar">
         <div class="p-4 space-y-2">
           <div
             v-if="friends.length === 0"
@@ -783,7 +783,7 @@ watch(chatRoomsList, () => {
           <div
             v-for="friend in friends"
             :key="friend.id || friend.uid"
-            class="flex items-center justify-between p-3 hover:bg-white rounded-xl transition cursor-pointer border-2 border-transparent hover:border-primary-200 group"
+            class="flex items-center justify-between p-3 bg-white rounded-2xl transition cursor-pointer border border-transparent hover:border-primary-200 shadow-sm group"
             @click="handleFriendClick(friend)"
           >
             <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -810,7 +810,7 @@ watch(chatRoomsList, () => {
               </div>
             </div>
             <button
-              class="p-2 text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-full transition ml-2 flex-shrink-0"
+              class="p-2 text-white bg-primary-600 hover:bg-primary-700 rounded-full transition ml-2 flex-shrink-0 shadow-sm"
               title="聊聊"
               @click.stop="handleFriendClick(friend)"
             >

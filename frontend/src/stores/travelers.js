@@ -1,238 +1,73 @@
-// src/stores/travelers.js
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-
-// --- 輔助數據：旅遊人格 (與 discussions.js 保持一致) ---
-const travelPersonalities = [
-  { emoji: '🦁', label: '樂天派' },
-  { emoji: '🦉', label: '觀察家' },
-  { emoji: '🦅', label: '冒險王' },
-  { emoji: '🐺', label: '獨行者' },
-  { emoji: '🐧', label: '慢活者' },
-  { emoji: '🦊', label: '藝術家' },
-  { emoji: '🐼', label: '美食家' },
-  { emoji: '🦋', label: '追夢人' },
-  { emoji: '🐢', label: '佛系派' },
-  { emoji: '🐬', label: '交際花' },
-]
-
-// --- 旅伴請求模板 ---
-const travelerRequests = [
-  {
-    title: '徵求一位女生分攤札幌住宿費 (已訂房)',
-    location: '日本',
-    tag: '省錢',
-    status: '招募中',
-    people: '1/3',
-    content:
-      '我們已經訂好了札幌市區的豪華公寓，但還差一位女生分攤住宿費，日期為 12/20-12/24，住宿品質很好，歡迎預算有限但愛乾淨的女生加入。',
-  },
-  {
-    title: '歐洲自助 40 天，求好相處旅伴一起規劃',
-    location: '歐洲',
-    tag: '自助',
-    status: '招募中',
-    people: '2/4',
-    content:
-      '預計明年五月出發，從葡萄牙里斯本開始，一路玩到義大利羅馬，行程鬆散不趕，希望找到可以一起分攤交通和規劃行程的夥伴。喜歡歷史、建築、和美食的優先。',
-  },
-  {
-    title: '騎機車環島！缺一位攝影師幫忙紀錄',
-    location: '台灣',
-    tag: '攝影',
-    status: '已額滿',
-    people: '2/2',
-    content:
-      '已出發！路線是台三線，尋找一位熟悉攝影並具備基本騎車技能的夥伴，主要任務是幫忙在各個風景點抓拍，紀錄下最美的風景和人情味。費用全包，只求技術！',
-  },
-  {
-    title: '曼谷爆食團！目標吃遍所有米其林路邊攤',
-    location: '泰國',
-    tag: '美食',
-    status: '招募中',
-    people: '3/5',
-    content:
-      '目標鎖定曼谷最受歡迎的米其林街頭小吃和夜市，包含 Jay Fai 和各種在地人氣店。我們需要胃容量夠大，且不怕排隊、敢於嘗試各種口味的吃貨加入！',
-  },
-  {
-    title: '京都穿和服互拍，不想一直自拍求隊友',
-    location: '日本',
-    tag: '攝影',
-    status: '招募中',
-    people: '1/2',
-    content:
-      '十二月初在京都賞楓，想找一位熱愛拍照的女生，可以互相搭配和服，一起在清水寺和嵐山等地點互拍美照。行程非常彈性，主要以拍照為主，歡迎有經驗的模特或攝影師。',
-  },
-  {
-    title: '冰島自駕缺司機！一起分攤租車油錢',
-    location: '冰島',
-    tag: '自駕',
-    status: '已出發',
-    people: '3/3',
-    content:
-      '我們已經有三個人，還缺一位有雪地駕駛經驗的司機。時間是三月追極光，主要跑南岸環線。油錢、租車費、住宿費大家平均分攤，快來加入這趟冰雪奇緣之旅！',
-  },
-  {
-    title: '紐約時代廣場跨年，徵人一起包尿布排隊',
-    location: '美國',
-    tag: '跨年',
-    status: '招募中',
-    people: '1/5',
-    content:
-      '如果你也夢想在時代廣場迎接新年，現在就是加入的機會！我們需要四位不怕冷、有耐心、且願意一起體驗極限跨年排隊的夥伴。請自備成人紙尿褲和所有保暖裝備。',
-  },
-  {
-    title: '首爾滑雪團，想找人一起請教練 (分攤教練費)',
-    location: '韓國',
-    tag: '滑雪',
-    status: '招募中',
-    people: '2/3',
-    content:
-      '我們是滑雪新手，想找一位一起分攤私人教練費的夥伴，預計在龍平滑雪場待三天兩夜。如果你也是新手，或者願意一起學習，快來私訊我！',
-  },
-  {
-    title: '越南峴港放空，只想躺在沙灘不想跑行程',
-    location: '越南',
-    tag: '度假',
-    status: '已額滿',
-    people: '1/1',
-    content:
-      '這是一趟完全佛系的峴港之旅，不需要任何行程，只需要在沙灘、泳池、或咖啡廳放空。如果你也是討厭跑景點的極簡主義者，歡迎加入，我們目標就是躺平！',
-  },
-  {
-    title: '西藏轉山，徵求體力好有高山經驗的夥伴',
-    location: '中國',
-    tag: '健行',
-    status: '招募中',
-    people: '4/6',
-    content:
-      '預計在九月前往西藏，進行為期兩週的朝聖之旅，包含拉薩及岡仁波齊轉山。要求有高海拔健行經驗，身體素質好，並且能遵守團隊紀律。',
-  },
-]
-
-// 輔助數據：可用標籤
-const availableTags = [
-  '省錢',
-  '攝影',
-  '美食',
-  '自助',
-  '自駕',
-  '跨年',
-  '滑雪',
-  '度假',
-  '健行',
-  '文化',
-  '極光',
-  '沙灘',
-  '登山',
-  '新手友善',
-  '限女生',
-  '情侶適用',
-  '親子遊',
-]
-
-// 輔助函式：從標籤庫中隨機選取 1-3 個標籤
-const getRandomTags = (count) => {
-  const maxCount = Math.min(3, count)
-  const minCount = 1
-  const actualCount = Math.floor(Math.random() * (maxCount - minCount + 1)) + minCount
-
-  const shuffled = availableTags.sort(() => 0.5 - Math.random())
-  return shuffled.slice(0, actualCount)
-}
-
-// 輔助函式：生成旅伴留言數據 (簡化版)
-const generateTravelerComments = (postId, title) => {
-  // 每個旅伴貼文產生 3 則留言 + 1 則回覆
-  const commentsData = [
-    {
-      author: '小陳',
-      content: `對您的${title.substring(0, 5)}招募很有興趣，請問具體出發日期確定了嗎？`,
-      time: '1小時前',
-      likes: 2,
-      isLiked: false,
-      replies: [],
-    },
-    {
-      author: '背包客A',
-      content: `請問你們的預算是多少？我主要想找能分攤住宿的旅伴。`,
-      time: '2小時前',
-      likes: 5,
-      isLiked: false,
-      replies: [],
-    },
-    {
-      author: '史努比',
-      content: `我剛好有相關經驗！這週末可以約時間線上討論嗎？`,
-      time: '3小時前',
-      likes: 1,
-      isLiked: false,
-      replies: [
-        {
-          author: '作者',
-          content: `@史努比 好的，請私訊我 Line ID，我們詳談。`,
-          time: '5分鐘前',
-          likes: 0,
-          isLiked: false,
-        },
-      ],
-    },
-  ]
-
-  const totalCount =
-    commentsData.length + commentsData.reduce((sum, c) => sum + c.replies.length, 0)
-
-  return {
-    commentsData: commentsData.map((c, index) => ({
-      ...c,
-      id: postId * 1000 + index,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.author}`,
-    })),
-    commentsCount: totalCount,
-  }
-}
+import { getTravelers } from '@/api/travelers'
 
 export const useTravelersStore = defineStore('travelers', () => {
-  // --- 旅伴推薦數據 ---
-  const recommendations = ref(
-    Array.from({ length: 10 }, (_, i) => {
-      const request = travelerRequests[i]
-      const comments = generateTravelerComments(i + 1, request.title)
-      const persona = travelPersonalities[i % travelPersonalities.length] // 獲取旅遊人格
+  // --- 狀態 ---
+  const recommendations = ref([])
+  const loading = ref(false)
+  const hasMore = ref(true) // [新增] 是否還有更多資料
+  const error = ref(null)
 
-      return {
-        id: i + 1,
-        title: request.title,
-        content: request.content,
-        location: request.location,
-        status: request.status,
-        people: request.people,
-        image: `https://picsum.photos/400/300?random=${i + 1}`,
-        tag: request.tag,
-        author: [
-          'Jovi',
-          '阿光',
-          '小雨',
-          '史努比',
-          'Backpacker',
-          'Foodie',
-          'TravelerA',
-          'CatLover',
-          'MountainMan',
-          '獨行俠',
-        ][i],
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`,
-        spiritAnimal: `${persona.emoji} ${persona.label}`,
+  // --- Actions ---
+  // isLoadMore: true 代表是要載入下一頁，false 代表是初始載入或重整
+  const loadRecommendations = async (isLoadMore = false) => {
+    // 如果正在載入中，或是要載入更多但已經沒資料了，就擋掉
+    if (loading.value) return
+    if (isLoadMore && !hasMore.value) return
 
-        date: `2026/0${(i % 12) + 1}/15`,
-        tags: getRandomTags(availableTags.length),
-        comments: comments.commentsCount,
-        commentsData: comments.commentsData,
+    loading.value = true
+    error.value = null
+
+    try {
+      // 如果不是載入更多 (是重整)，先重置狀態
+      if (!isLoadMore) {
+        hasMore.value = true
+        // 這裡可以選擇是否清空，不清空體驗較好，但在 API 回來前舊資料會留著
+        // recommendations.value = []
       }
-    }),
-  )
+
+      // 計算目前的 offset：如果是載入更多，就跳過目前已有的數量
+      const offset = isLoadMore ? recommendations.value.length : 0
+      const limit = 10
+
+      // 呼叫 API
+      const response = await getTravelers({
+        limit,
+        offset,
+      })
+
+      if (response && response.success) {
+        const newData = response.data || []
+
+        // 判斷是否還有下一頁 (如果回傳數量小於 limit，代表沒了)
+        if (newData.length < limit) {
+          hasMore.value = false
+        }
+
+        if (isLoadMore) {
+          // [附加模式] 接在舊資料後面
+          recommendations.value.push(...newData)
+        } else {
+          // [覆蓋模式]
+          recommendations.value = newData
+        }
+      } else {
+        // API 失敗或沒資料
+        if (!isLoadMore) recommendations.value = []
+      }
+    } catch (err) {
+      console.error('載入旅伴推薦失敗：', err)
+      error.value = err
+    } finally {
+      loading.value = false
+    }
+  }
 
   return {
     recommendations,
+    loading,
+    hasMore,
+    loadRecommendations,
   }
 })

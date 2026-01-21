@@ -38,27 +38,27 @@ const close = () => {
     <!-- Modal Content -->
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col relative animate-scale-up overflow-hidden">
       <!-- Header -->
-      <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-amber-50">
+      <div class="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
         <div>
           <h2 class="text-2xl font-black text-gray-800">廠商評價</h2>
           <div class="flex items-center gap-2 mt-1">
-            <div class="flex items-center bg-yellow-400 text-white px-2 py-0.5 rounded-lg text-sm font-bold shadow-sm">
+            <div class="flex items-center bg-primary-600 text-white px-2 py-0.5 rounded-lg text-sm font-bold shadow-sm">
               <StarIcon class="w-4 h-4 fill-white mr-1" />
               {{ averageRating }}
             </div>
-            <span class="text-gray-500 text-sm">共 {{ totalReviews }} 則真實評價</span>
+            <span class="text-secondary-500 text-sm">共 {{ totalReviews }} 則真實評價</span>
           </div>
         </div>
         <button
           class="p-2 hover:bg-black/5 rounded-full transition-colors"
           @click="close"
         >
-          <XIcon class="w-6 h-6 text-gray-500" />
+          <XIcon class="w-6 h-6 text-secondary-500" />
         </button>
       </div>
 
       <!-- Scrollable List -->
-      <div class="p-6 overflow-y-auto custom-scrollbar bg-[#FAFAFA]">
+      <div class="p-6 overflow-y-auto custom-scrollbar bg-secondary-50">
         <div v-if="reviews.length === 0" class="text-center py-12 text-gray-400">
           暫無評價
         </div>
@@ -67,7 +67,7 @@ const close = () => {
           <div
             v-for="review in reviews"
             :key="review.id"
-            class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+            class="bg-white p-5 rounded-2xl border border-secondary-100 shadow-sm hover:shadow-md transition-shadow"
           >
             <div class="flex justify-between items-start mb-3">
               <div class="flex items-center gap-3">
@@ -82,16 +82,16 @@ const close = () => {
                   v-for="i in 5"
                   :key="i"
                   class="w-4 h-4"
-                  :class="i <= review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200 fill-gray-200'"
+                  :class="i <= review.rating ? 'text-primary-500 fill-primary-500' : 'text-secondary-200 fill-secondary-200'"
                 />
               </div>
             </div>
 
-            <p class="text-gray-600 leading-relaxed mb-4">
+            <p class="text-secondary-600 leading-relaxed mb-4">
               {{ review.content }}
             </p>
 
-            <div v-if="review.tripTitle" class="bg-gray-50 px-3 py-2 rounded-lg text-xs text-gray-500 inline-block">
+            <div v-if="review.tripTitle" class="bg-secondary-50 px-3 py-2 rounded-lg text-xs text-secondary-500 inline-block">
               參加行程：{{ review.tripTitle }}
             </div>
           </div>
@@ -99,9 +99,9 @@ const close = () => {
       </div>
 
       <!-- Footer -->
-      <div class="p-4 border-t border-gray-100 bg-white flex justify-end">
+      <div class="p-4 border-t border-secondary-100 bg-white flex justify-end">
         <button
-          class="px-6 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+          class="px-6 py-2.5 bg-gray-100 text-secondary-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
           @click="close"
         >
           關閉

@@ -815,6 +815,7 @@ onMounted(() => {
       :is-current-user="isCurrentUser"
       :stats="stats"
       :friend-request-status="friendRequestStatus"
+      :loading="loading"
       @edit-profile="isEditingProfile = true"
       @edit-bio="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
@@ -823,74 +824,102 @@ onMounted(() => {
       @add-friend="handleAddFriend"
     />
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
-        <ProfileSidebar
-          :user="user"
-          :wishlist="displayWishlist"
-          :personality-result="personalityResult"
-          :is-current-user="isCurrentUser"
-          @open-personality-result="openPersonalityResult"
-          @edit-wishlist="isEditingProfile = true"
-        />
-      </div>
-
-      <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
-        <div
-          class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1 md:p-1.5 lg:p-2 flex space-x-1 overflow-x-auto"
-        >
-          <button
-            v-for="tab in tabs"
-            :key="tab.k"
-            :class="[
-              'flex-1 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1 sm:gap-2 shrink-0',
-              activeTab === tab.k
-                ? 'bg-primary-50 text-primary-600 shadow-sm'
-                : 'text-secondary-500 hover:bg-secondary-50 hover:text-secondary-700',
-            ]"
-            @click="activeTab = tab.k"
-          >
-            <span class="md:hidden whitespace-nowrap">{{ tab.s }}</span>
-            <span class="hidden md:inline whitespace-nowrap">{{ tab.l }}</span>
-          </button>
+    <div v-if="loading" class="space-y-8 animate-pulse">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
+          <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-6 space-y-4">
+            <div class="h-5 w-28 bg-secondary-100 rounded"></div>
+            <div class="h-4 w-40 bg-secondary-100 rounded"></div>
+            <div class="h-32 w-full bg-secondary-100 rounded-xl"></div>
+          </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 min-h-[400px] p-6">
-          <TabVisitedPlaces
-            v-if="activeTab === 'visited_places'"
-            :visited-places="isCurrentUser ? userStore.visitedPlaces : (user.visitedPlaces || { domestic: [], international: [] })"
-            :is-current-user="isCurrentUser"
-            @add-place="handleAddPlace"
-            @remove-place="handleRemovePlace"
-          />
-
-          <TabHostedTrips
-            v-if="activeTab === 'hosted_trips'"
-            :trips="activeTabsData.hostedTrips"
-            @open-detail="openDetail($event, false)"
-          />
-
-          <TabPosts
-            v-if="activeTab === 'posts'"
-            :posts="activeTabsData.posts"
-            @open-detail="openDetail($event, false)"
-            @open-comment="openDetail($event, true)"
-          />
-
-          <TabReviews
-            v-if="activeTab === 'reviews'"
-            :reviews="activeTabsData.reviews"
-            :user="user"
-            @open-post="openDetail({ id: $event, title: 'Mock Post', content: 'Loading...' })"
-          />
-
-          <TabDrafts
-            v-if="activeTab === 'drafts'"
-            @select-draft="handleSelectDraft"
-          />
+        <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
+          <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-2 flex gap-2">
+            <div class="h-10 w-20 bg-secondary-100 rounded-xl"></div>
+            <div class="h-10 w-20 bg-secondary-100 rounded-xl"></div>
+            <div class="h-10 w-20 bg-secondary-100 rounded-xl"></div>
+            <div class="h-10 w-20 bg-secondary-100 rounded-xl"></div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 min-h-[400px] p-6 space-y-4">
+            <div class="h-5 w-36 bg-secondary-100 rounded"></div>
+            <div class="h-24 w-full bg-secondary-100 rounded-xl"></div>
+            <div class="h-24 w-full bg-secondary-100 rounded-xl"></div>
+          </div>
         </div>
       </div>
     </div>
+
+    <template v-else>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-start-3 lg:row-start-1 space-y-4 md:space-y-6">
+          <ProfileSidebar
+            :user="user"
+            :wishlist="displayWishlist"
+            :personality-result="personalityResult"
+            :is-current-user="isCurrentUser"
+            @open-personality-result="openPersonalityResult"
+            @edit-wishlist="isEditingProfile = true"
+          />
+        </div>
+
+        <div class="lg:col-span-2 lg:row-start-1 space-y-4 md:space-y-6">
+          <div
+            class="bg-white rounded-2xl shadow-sm border border-secondary-100 p-1 md:p-1.5 lg:p-2 flex space-x-1 overflow-x-auto"
+          >
+            <button
+              v-for="tab in tabs"
+              :key="tab.k"
+              :class="[
+                'flex-1 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1 sm:gap-2 shrink-0',
+                activeTab === tab.k
+                  ? 'bg-primary-50 text-primary-600 shadow-sm'
+                  : 'text-secondary-500 hover:bg-secondary-50 hover:text-secondary-700',
+              ]"
+              @click="activeTab = tab.k"
+            >
+              <span class="md:hidden whitespace-nowrap">{{ tab.s }}</span>
+              <span class="hidden md:inline whitespace-nowrap">{{ tab.l }}</span>
+            </button>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-secondary-100 min-h-[400px] p-6">
+            <TabVisitedPlaces
+              v-if="activeTab === 'visited_places'"
+              :visited-places="isCurrentUser ? userStore.visitedPlaces : (user.visitedPlaces || { domestic: [], international: [] })"
+              :is-current-user="isCurrentUser"
+              @add-place="handleAddPlace"
+              @remove-place="handleRemovePlace"
+            />
+
+            <TabHostedTrips
+              v-if="activeTab === 'hosted_trips'"
+              :trips="activeTabsData.hostedTrips"
+              @open-detail="openDetail($event, false)"
+            />
+
+            <TabPosts
+              v-if="activeTab === 'posts'"
+              :posts="activeTabsData.posts"
+              @open-detail="openDetail($event, false)"
+              @open-comment="openDetail($event, true)"
+            />
+
+            <TabReviews
+              v-if="activeTab === 'reviews'"
+              :reviews="activeTabsData.reviews"
+              :user="user"
+              @open-post="openDetail({ id: $event, title: 'Mock Post', content: 'Loading...' })"
+            />
+
+            <TabDrafts
+              v-if="activeTab === 'drafts'"
+              @select-draft="handleSelectDraft"
+            />
+          </div>
+        </div>
+      </div>
+    </template>
 
     <EditProfileModal
       v-if="isCurrentUser"

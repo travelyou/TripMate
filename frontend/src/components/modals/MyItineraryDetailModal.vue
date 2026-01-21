@@ -90,7 +90,7 @@ const handleDelete = () => {
       <div class="p-4 border-b border-gray-200 flex justify-between items-start bg-white">
         <div class="flex-1">
           <div class="flex items-center space-x-2 mb-2">
-            <MapIcon class="w-6 h-6 text-indigo-600" />
+            <MapIcon class="w-6 h-6 text-primary-600" />
             <input
               v-model="localItinerary.title"
               class="text-2xl font-bold text-gray-800 bg-transparent focus:outline-none w-full placeholder-gray-300"
@@ -128,7 +128,7 @@ const handleDelete = () => {
               :class="[
                 'px-4 py-2 rounded-lg font-bold transition whitespace-nowrap text-sm',
                 activeDayIndex === index
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'bg-primary-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
               ]"
               @click="activeDayIndex = index"
@@ -136,7 +136,7 @@ const handleDelete = () => {
               {{ getDayLabel(index) }}
             </button>
             <button
-              class="px-3 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
+              class="px-3 py-2 text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition"
               @click="addDay"
             >
               <PlusIcon class="w-4 h-4" />
@@ -157,7 +157,7 @@ const handleDelete = () => {
                     <input
                       v-model="activity.time"
                       type="time"
-                      class="text-xl font-bold text-indigo-600 bg-transparent focus:outline-none w-full"
+                      class="text-xl font-bold text-primary-600 bg-transparent focus:outline-none w-full"
                     />
                     <div class="mt-2 flex items-center text-gray-400">
                       <component :is="getIconComponent(activity.icon)" class="w-4 h-4 mr-1" />
@@ -188,7 +188,7 @@ const handleDelete = () => {
             </div>
             <div v-else class="text-center text-gray-400 py-10">尚無活動</div>
             <button
-              class="w-full py-3 border border-dashed border-indigo-200 text-indigo-500 rounded-xl hover:bg-indigo-50 transition font-bold"
+              class="w-full py-3 border border-dashed border-primary-200 text-primary-500 rounded-xl hover:bg-primary-50 transition font-bold"
               @click="addActivity"
             >
               + 新增活動
@@ -199,10 +199,10 @@ const handleDelete = () => {
         <div class="w-1/3 flex flex-col bg-white">
           <div class="p-4 border-b border-gray-100 flex justify-between items-center">
             <h3 class="font-bold text-gray-700 flex items-center">
-              <CheckSquareIcon class="w-5 h-5 mr-2 text-indigo-500" /> 物品清單
+              <CheckSquareIcon class="w-5 h-5 mr-2 text-primary-500" /> 物品清單
             </h3>
             <button
-              class="text-indigo-600 bg-indigo-50 p-1 rounded hover:bg-indigo-100 transition"
+              class="text-primary-600 bg-primary-50 p-1 rounded hover:bg-primary-100 transition"
               @click="addCategory"
             >
               <PlusIcon class="w-4 h-4" />
@@ -230,7 +230,7 @@ const handleDelete = () => {
                   :key="item.id"
                   class="flex items-center group"
                 >
-                  <input v-model="item.checked" type="checkbox" class="accent-indigo-600 mr-2" />
+                  <input v-model="item.checked" type="checkbox" class="accent-primary-600 mr-2" />
                   <input
                     v-model="item.name"
                     class="flex-1 bg-transparent text-sm focus:outline-none text-gray-600"
@@ -242,7 +242,7 @@ const handleDelete = () => {
                     <XIcon class="w-3 h-3" />
                   </button>
                 </div>
-                <button class="text-xs text-indigo-500 font-bold mt-2" @click="addItem(catIndex)">
+                <button class="text-xs text-primary-500 font-bold mt-2" @click="addItem(catIndex)">
                   + 新增物品
                 </button>
               </div>
@@ -265,7 +265,7 @@ const handleDelete = () => {
           刪除
         </button>
         <button
-          class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md flex items-center"
+          class="px-6 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 shadow-md flex items-center"
           @click="handleSave"
         >
           <SaveIcon class="w-4 h-4 mr-2" /> 儲存
