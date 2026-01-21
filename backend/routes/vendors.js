@@ -69,9 +69,22 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/posts', async (req, res) => {
   try {
     const { id } = req.params
-    console.log('📋 [Vendors] 取得廠商貼文，廠商 ID:', id)
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const offset = (page - 1) * limit
 
-    // 使用 JOIN 查詢真實統計數據
+    console.log(`📋 [Vendors] 取得廠商貼文 - ID: ${id}, 頁數: ${page}, 每頁: ${limit}`)
+
+    // 1. 查詢總數
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM discussion.discussion
+      WHERE author_uid = $1
+    `
+    const countResult = await pool.query(countQuery, [id])
+    const total = parseInt(countResult.rows[0].total)
+
+    // 2. 查詢資料（含分頁）
     const query = `
       SELECT
         d.id,
@@ -93,11 +106,12 @@ router.get('/:id/posts', async (req, res) => {
       GROUP BY d.id, d.author_uid, d.title, d.content, d.image_urls,
                d.tags, d.created_at, d.updated_at
       ORDER BY d.created_at DESC
+      LIMIT $2 OFFSET $3
     `
 
-    const result = await pool.query(query, [id])
+    const result = await pool.query(query, [id, limit, offset])
 
-    console.log('✅ [Vendors] 找到', result.rows.length, '筆貼文')
+    console.log(`✅ [Vendors] 找到 ${result.rows.length} 筆貼文（共 ${total} 筆）`)
 
     const formattedPosts = result.rows.map((post) => {
       // 處理 image_urls: 如果是陣列取第一張，如果是字串直接用
@@ -123,7 +137,17 @@ router.get('/:id/posts', async (req, res) => {
       }
     })
 
-    res.json(formattedPosts)
+    // 3. 回傳分頁資訊
+    res.json({
+      data: formattedPosts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    })
   } catch (error) {
     console.error('❌ [Vendors] 取得廠商貼文錯誤:', error)
     res.status(500).json({
