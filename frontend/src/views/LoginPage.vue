@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { auth, db } from '@/firebase/config'
 import { useUserStore } from '@/stores/user'
 import {
@@ -13,6 +13,7 @@ import { useRouter } from 'vue-router'
 import { createOrUpdateUser, getUserProfile } from '@/api/users'
 import tripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 import loginPageImage from '@/assets/pic/loginPage-removebg.png'
+import { showAlert } from '@/utils/alert'
 
 const activeTab = ref('login')
 
@@ -472,7 +473,7 @@ const handleForgotPassword = async () => {
       .replace(/\uFF20/g, '@')
       .replace(/[\uFF0E\u3002\uFF61]/g, '.')
     await sendPasswordResetEmail(auth, loginForm.value.email)
-    alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
+    showAlert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
     console.error('發送失敗：', error.message)
     loginErrors.value.email = '發送失敗：' + error.message

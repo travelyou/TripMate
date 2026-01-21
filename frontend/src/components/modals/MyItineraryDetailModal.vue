@@ -12,6 +12,7 @@ import {
   Map as MapIcon,
   FileText as FileTextIcon,
 } from 'lucide-vue-next'
+import { showConfirm } from '@/utils/alert'
 
 const props = defineProps({ itinerary: { type: Object, required: true } })
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
@@ -74,8 +75,9 @@ const addActivity = () => {
 }
 const handleSave = () => emit('save', localItinerary.value)
 const handleSaveDraft = () => emit('save-draft', localItinerary.value)
-const handleDelete = () => {
-  if (confirm('確定要刪除？')) emit('delete', localItinerary.value.id)
+const handleDelete = async () => {
+  const confirmed = await showConfirm('確定要刪除？')
+  if (confirmed) emit('delete', localItinerary.value.id)
 }
 </script>
 

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { checkoutStore } from '@/stores/checkout'
 import MainButton from './MainButton.vue'
+import { showAlert } from '@/utils/alert'
 
 const router = useRouter()
 const route = useRoute()
@@ -164,10 +165,11 @@ function validateCreditForm() {
 // 付款流程
 // =====================
 const confirmPayment = async () => {
-  if (!orderId.value) return alert('找不到訂單編號 orderId')
-  if (!paymentMethod.value) return alert('請選擇付款方式')
-  if (paymentMethod.value === 'mobile' && !mobileProvider.value) return alert('請選擇行動支付方式')
-  if (!providerKey.value) return alert('付款方式設定錯誤（providerKey 空值）')
+  if (!orderId.value) return showAlert('找不到訂單編號 orderId')
+  if (!paymentMethod.value) return showAlert('請選擇付款方式')
+  if (paymentMethod.value === 'mobile' && !mobileProvider.value)
+    return showAlert('請選擇行動支付方式')
+  if (!providerKey.value) return showAlert('付款方式設定錯誤（providerKey 空值）')
 
   if (paymentMethod.value === 'credit') {
     const ok = validateCreditForm()
@@ -191,7 +193,7 @@ const confirmPayment = async () => {
     router.push(`/checkout/step5?orderId=${orderId.value}`)
   } catch (err) {
     console.error(err)
-    alert(err?.message || '付款失敗')
+    showAlert(err?.message || '付款失敗')
   }
 }
 
