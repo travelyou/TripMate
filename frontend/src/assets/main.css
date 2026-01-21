@@ -1,0 +1,95 @@
+@import './base.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 隱藏滾動條的工具類別 */
+.no-scrollbar::-webkit-scrollbar,
+.custom-scroll::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar,
+.custom-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 用於細窄軌道的通用細滾動條 */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 用於「愛心/收藏」的響應式自定義滾動條 */
+.custom-scroll::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .custom-scroll::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+  .custom-scroll::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 10px;
+    margin: 0 10px;
+  }
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+  }
+  .custom-scroll::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}
+
+/* 用於 SwipeMatchModal 的詳情滾動條 */
+.detail-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.detail-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 3px;
+}
+
+/* 行程彈窗專用的滾動條（原為組件內的限定樣式 ::-webkit-scrollbar） */
+.itinerary-detail ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.itinerary-detail ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.itinerary-detail ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.itinerary-detail ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
