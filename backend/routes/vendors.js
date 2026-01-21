@@ -164,16 +164,196 @@ router.get('/:id/posts', async (req, res) => {
  * 對應 Table: itinerary.itineraries (使用 author_uid 關聯)
  */
 router.get('/:id/itineraries', async (req, res) => {
-  const { id } = req.params
-  if (!isUUID(id)) return res.json({ success: true, data: [] })
-
   try {
-    const query = `SELECT * FROM itineraries WHERE author_uid = $1 ORDER BY created_at DESC`
-    const result = await pool.query(query, [id])
-    res.json({ success: true, data: result.rows })
-  } catch (err) {
-    console.error('查詢廠商行程失敗:', err)
-    res.json({ success: true, data: [] })
+    const { id } = req.params
+    const { region } = req.query
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 12
+    const offset = (page - 1) * limit
+
+    console.log(
+      `📋 [Vendors] 取得廠商行程 - ID: ${id}, 頁數: ${page}, 地區: ${region || '全部'}`,
+    )
+
+    // 1. 查詢總數
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM itinerary.itineraries
+      WHERE author_uid = $1
+    `
+    const countParams = [id]
+
+    if (region && region !== '全部') {
+      countQuery += ` AND location = $2`
+      countParams.push(region)
+    }
+
+    const countResult = await pool.query(countQuery, countParams)
+    const total = parseInt(countResult.rows[0].total)
+
+    // 2. 查詢資料（含分頁）
+    let query = `
+      SELECT
+        id,
+        author_uid,
+        title,
+        banner_image,
+        price,
+        start_date,
+        end_date,
+        location,
+        tags,
+        views_count,
+        likes_count,
+        comments_count,
+        created_at,
+        updated_at
+      FROM itinerary.itineraries
+      WHERE author_uid = $1
+    `
+
+    const params = [id]
+    let paramIndex = 2
+
+    if (region && region !== '全部') {
+      query += ` AND location = $${paramIndex}`
+      params.push(region)
+      paramIndex++
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${
+      paramIndex + 1
+    }`
+    params.push(limit, offset)
+
+    const result = await pool.query(query, params)
+
+    console.log(`✅ [Vendors] 找到 ${result.rows.length} 筆行程（共 ${total} 筆）`)
+
+    const formattedItineraries = result.rows.map((itinerary) => {
+      // 計算天數
+      const start = new Date(itinerary.start_date)
+      const end = new Date(itinerary.end_date)
+      const diffTime = Math.abs(end - start)
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+      return {
+        id: itinerary.id,
+        vendorId: itinerary.author_uid,
+        title: itinerary.title,
+        image: itinerary.banner_image || 'https://placehold.co/600x400?text=No+Image',
+        days: diffDays,
+        nights: Math.max(0, diffDays - 1),
+        price: parseFloat(itinerary.price) || 0,
+        location: itinerary.location,
+        likes: parseInt(itinerary.likes_count) || 0,
+        views: parseInt(itinerary.views_count) || 0,
+        comments: parseInt(itinerary.comments_count) || 0,
+        tags: itinerary.tags || [],
+        createdAt: itinerary.created_at,
+        updatedAt: itinerary.updated_at,
+      }
+    })
+
+    // 3. 回傳分頁資訊
+    res.json({
+      data: formattedItineraries,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    })
+  } catch (error) {
+    console.error('❌ [Vendors] 取得廠商行程錯誤:', error)
+    res.status(500).json({
+      success: false,
+      message: '取得廠商行程失敗',
+      error: error.message,
+    })
+  }
+})
+
+/**
+ * PUT /api/vendors/:id
+ * 更新廠商資料 (後台使用)
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const {
+      name,
+      slogan,
+      avatar,
+      bannerImage,
+      isBannerVisible,
+      regionTags,
+      description,
+    } = req.body
+
+    console.log('📝 [Vendors] 更新廠商資料，ID:', id)
+
+    const updateFields = []
+    const updateValues = []
+    let paramIndex = 1
+
+    const addField = (col, val) => {
+      if (val !== undefined) {
+        updateFields.push(`${col} = $${paramIndex++}`)
+        updateValues.push(val)
+      }
+    }
+
+    addField('name', name)
+    addField('slogan', slogan)
+    addField('avatar', avatar)
+    addField('banner_image', bannerImage)
+    addField('is_banner_visible', isBannerVisible)
+    addField('region_tags', regionTags)
+    addField('description', description)
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '沒有提供任何要更新的欄位',
+      })
+    }
+
+    updateFields.push(`updated_at = NOW()`)
+    updateValues.push(id)
+
+    const updateQuery = `
+      UPDATE public.vendors
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `
+
+    const result = await pool.query(updateQuery, updateValues)
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '找不到此廠商',
+      })
+    }
+
+    console.log('✅ [Vendors] 廠商資料更新成功')
+
+    res.json({
+      success: true,
+      message: '廠商資料更新成功',
+      data: result.rows[0],
+    })
+  } catch (error) {
+    console.error('❌ [Vendors] 更新廠商資料錯誤:', error)
+    res.status(500).json({
+      success: false,
+      message: '更新廠商資料失敗',
+      error: error.message,
+    })
   }
 })
 
