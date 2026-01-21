@@ -317,7 +317,7 @@ const handleRegister = async () => {
     let neonUserCreated = false
     let userCredential = null
     let userData = null
-    
+
     try {
       // 先創建Firebase用戶
       userCredential = await createUserWithEmailAndPassword(
@@ -335,7 +335,7 @@ const handleRegister = async () => {
         spiritAnimal: '',
         createdAt: new Date(),
       }
-      
+
       // 創建Firestore用戶資料
       await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
@@ -359,7 +359,7 @@ const handleRegister = async () => {
         userStore.markAsRecentlyRegistered(userCredential.user.uid)
       } catch (syncError) {
         console.error('同步到 Neon 資料庫失敗，開始回滾：', syncError)
-        
+
         // 回滾：刪除Firebase用戶和Firestore資料
         try {
           // 刪除Firestore資料
@@ -367,7 +367,7 @@ const handleRegister = async () => {
         } catch (firestoreError) {
           console.error('刪除 Firestore 資料失敗：', firestoreError)
         }
-        
+
         try {
           // 刪除Firebase用戶
           await deleteUser(userCredential.user)
@@ -375,14 +375,14 @@ const handleRegister = async () => {
           console.error('刪除 Firebase 用戶失敗：', deleteError)
           // 如果刪除失敗，記錄錯誤但繼續拋出原始錯誤
         }
-        
+
         const errorMessage =
           syncError.response?.data?.error ||
           syncError.response?.data?.details ||
           syncError.response?.data?.message ||
           syncError.message ||
           '未知錯誤'
-        
+
         // 檢查是否是資料庫連接問題
         if (
           syncError.message?.includes('Failed to fetch') ||
@@ -391,7 +391,7 @@ const handleRegister = async () => {
         ) {
           throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
         }
-        
+
         throw new Error('資料同步到資料庫失敗：' + errorMessage)
       }
     } catch (error) {
@@ -431,7 +431,7 @@ const handleRegister = async () => {
     registerForm.value.confirmPassword = ''
   } catch (error) {
     console.error('註冊失敗：', error.code, error.message)
-    
+
     // 如果是我们抛出的自定义错误，显示给用户
     if (error.message && !error.code) {
       registerErrors.value.general = error.message
