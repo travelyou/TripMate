@@ -94,12 +94,7 @@ const shouldMarquee = computed(() => {
               class="tags-container flex flex-wrap items-center justify-center mt-2 w-20 sm:w-24"
               style="gap: 0;"
             >
-              <span class="px-1.5 py-0.5 bg-white/20 rounded text-[9px] border border-white/20 flex items-center">
-                <span class="w-6 h-2 bg-white/40 rounded animate-pulse"></span>
-              </span>
-              <span class="px-1.5 py-0.5 bg-white/10 rounded text-[9px] border border-white/20 flex items-center ml-1">
-                <span class="w-5 h-2 bg-white/30 rounded animate-pulse"></span>
-              </span>
+              <span class="px-2 py-1 bg-white/20 rounded text-[9px] border border-white/20 flex items-center"></span>
             </div>
             <div v-else-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-2 w-20 sm:w-24" style="gap: 0;">
               <span
@@ -246,12 +241,7 @@ const shouldMarquee = computed(() => {
             class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36"
             style="gap: 0;"
           >
-            <span class="px-2 py-0.5 bg-white/20 rounded text-[10px] border border-white/20 flex items-center">
-              <span class="w-8 h-2 bg-white/40 rounded animate-pulse"></span>
-            </span>
-            <span class="px-2 py-0.5 bg-white/10 rounded text-[10px] border border-white/20 flex items-center ml-2">
-              <span class="w-6 h-2 bg-white/30 rounded animate-pulse"></span>
-            </span>
+            <span class="px-12 py-3 bg-white/20 rounded-xl text-[10px] flex items-center"></span>
           </div>
           <div v-else-if="user.tags && user.tags.length > 0" class="tags-container flex flex-wrap items-center justify-center mt-3 w-32 lg:w-36" style="gap: 0;">
             <span

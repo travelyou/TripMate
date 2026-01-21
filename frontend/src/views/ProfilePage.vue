@@ -109,7 +109,7 @@ const userPosts = ref([])
 
 const activeTabsData = computed(() => {
   const targetUidValue = targetUid.value
-  
+
   return {
     hostedTrips: hostedTravelers.value
       // 再次確保只顯示該用戶自己創建的貼文
@@ -360,9 +360,9 @@ const handleChatWithUser = () => {
 const openDetail = (item, focusComment = false) => {
   // 判断是 traveler 还是 discussion post
   // 如果 item 来自 TabHostedTrips（有 author_uid 且在 hostedTrips 列表中），则打开 TravelerDetailModal
-  const isTraveler = item.type === 'traveler' || 
+  const isTraveler = item.type === 'traveler' ||
     (item.author_uid && activeTabsData.value.hostedTrips.some(t => t.id === item.id))
-  
+
   if (isTraveler) {
     selectedTraveler.value = item
     shouldScrollToComments.value = focusComment
@@ -601,17 +601,17 @@ const closePersonalityResult = () => {
 const loading = ref(false)
 const loadHostedTravelers = async (uid) => {
   if (!uid) return
-  
+
   try {
     const response = await getTravelers({
       author_uid: uid,
       limit: 100,
       offset: 0
     })
-    
+
     if (response.success && response.data) {
       // 確保只顯示該用戶自己創建的貼文（雙重驗證）
-      hostedTravelers.value = response.data.filter(traveler => 
+      hostedTravelers.value = response.data.filter(traveler =>
         traveler.author_uid === uid || traveler.authorUid === uid
       )
     } else {
@@ -625,7 +625,7 @@ const loadHostedTravelers = async (uid) => {
 
 const loadUserPosts = async (uid) => {
   if (!uid) return
-  
+
   try {
     const { fetchPosts } = await import('@/api/discussions')
     const data = await fetchPosts({
@@ -633,13 +633,13 @@ const loadUserPosts = async (uid) => {
       page: 1,
       limit: 100
     })
-    
+
     if (data && data.posts) {
       // 確保只顯示該用戶自己發布的貼文（雙重驗證）
-      const filteredPosts = data.posts.filter(post => 
+      const filteredPosts = data.posts.filter(post =>
         post.author_uid === uid
       )
-      
+
       // 使用 discussionsStore 的 transformPost 方法轉換資料
       const transformedPosts = filteredPosts.map(post => {
         const formatTime = (timestamp) => {
@@ -655,7 +655,7 @@ const loadUserPosts = async (uid) => {
           if (diffMins > 0) return `${diffMins}分鐘前`
           return '剛剛'
         }
-        
+
         return {
           id: post.id,
           author: post.author_name || post.author_uid || '匿名用戶',
@@ -708,10 +708,10 @@ const loadProfileData = async () => {
   try {
     const { getProfile } = await import('@/api/profile')
     const profileData = await getProfile(uidToLoad)
-    
+
     // 載入主揪的旅行（找旅伴貼文）
     await loadHostedTravelers(uidToLoad)
-    
+
     // 載入用戶的貼文
     await loadUserPosts(uidToLoad)
 
