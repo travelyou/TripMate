@@ -44,6 +44,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/my-order',
+      name: 'my_order',
+      component: () => import('@/views/MyOrderPage.vue'),
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
+    },
+    {
       path: '/favorites',
       name: 'favorites',
       component: () => import('@/views/FavoritesPage.vue'),
