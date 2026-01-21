@@ -220,6 +220,25 @@ const getFirstTag = (item) => {
           @scroll="handleScroll"
         >
           <div
+            v-if="travelersStore.loading && !travelersStore.recommendations.length"
+            v-for="n in 3"
+            :key="`traveler-skeleton-${n}`"
+            class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall relative overflow-hidden bg-gray-100 animate-pulse snap-start"
+          >
+            <div class="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200"></div>
+            <div class="relative z-10 h-full flex flex-col justify-between">
+              <div class="flex justify-between items-start">
+                <div class="h-6 w-16 bg-gray-200 rounded"></div>
+                <div class="h-6 w-12 bg-gray-200 rounded"></div>
+              </div>
+              <div class="mt-auto">
+                <div class="h-4 w-3/4 bg-gray-200 rounded mb-2"></div>
+                <div class="h-3 w-2/3 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+
+          <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
             class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
