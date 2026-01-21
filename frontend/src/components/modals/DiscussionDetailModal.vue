@@ -52,8 +52,8 @@ const handleAuthorClick = () => {
 const normalizedComments = computed(() => {
   if (localComments.value.length > 0) return localComments.value
   // 嘗試從多個可能的欄位獲取留言
-  return localPostData.value.comments || 
-         localPostData.value.commentsData || 
+  return localPostData.value.comments ||
+         localPostData.value.commentsData ||
          []
 })
 
@@ -105,10 +105,10 @@ const loadLikesInfo = async () => {
 // 載入完整的貼文詳情和留言
 const loadFullPostDetails = async () => {
   if (!props.post?.id) return
-  
+
   try {
     const postData = await fetchPostById(props.post.id)
-    
+
     // 更新本地資料
     localPostData.value = {
       ...localPostData.value,
@@ -117,7 +117,7 @@ const loadFullPostDetails = async () => {
       comments: postData.commentsData || postData.comments || [],
       commentsData: postData.commentsData || postData.comments || [],
     }
-    
+
     // 格式化留言資料
     if (localPostData.value.commentsData && Array.isArray(localPostData.value.commentsData)) {
       localComments.value = localPostData.value.commentsData.map(comment => {
@@ -134,7 +134,7 @@ const loadFullPostDetails = async () => {
           if (diffMins > 0) return `${diffMins}分鐘前`
           return '剛剛'
         }
-        
+
         return {
           id: comment.id,
           author: comment.author_nickname || comment.author_name || comment.author_uid || '匿名用戶',
@@ -149,7 +149,7 @@ const loadFullPostDetails = async () => {
     } else {
       localComments.value = []
     }
-    
+
     // 更新按讚數
     if (postData.likes_count !== undefined) {
       likesCount.value = postData.likes_count
@@ -191,7 +191,7 @@ const submitComment = async () => {
 
     // 重新載入完整的貼文詳情以獲取最新留言
     await loadFullPostDetails()
-    
+
     newComment.value = ''
     await nextTick()
     commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -219,7 +219,7 @@ onMounted(async () => {
   // 初始化本地資料
   localComments.value = props.post.comments || props.post.commentsData || []
   likesCount.value = props.post.likes || props.post.likes_count || 0
-  
+
   // 如果 props.post 中沒有完整的留言資料，主動載入
   if (!props.post.commentsData && props.post.id) {
     await loadFullPostDetails()
@@ -239,7 +239,7 @@ onMounted(async () => {
         if (diffMins > 0) return `${diffMins}分鐘前`
         return '剛剛'
       }
-      
+
       return {
         id: comment.id,
         author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
@@ -272,7 +272,7 @@ onMounted(async () => {
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <button
-        class="absolute right-full top-24 z-0 bg-primary-50 text-primary-700 py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:bg-primary-100 transition-all duration-300 flex items-center gap-2 group border-y-2 border-l-2 border-primary-50"
+        class="absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
@@ -280,12 +280,12 @@ onMounted(async () => {
         <span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
         >
-          內文
+          內文&emsp;
         </span>
       </button>
 
       <button
-        class="absolute right-full top-40 z-0 bg-primary-600 text-white py-3 pl-4 pr-3 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:bg-primary-500 transition-all duration-300 flex items-center gap-2 group border-y-2 border-l-2 border-primary-700/20"
+        class="absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
         title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >
