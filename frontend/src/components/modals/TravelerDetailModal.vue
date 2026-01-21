@@ -120,6 +120,7 @@ const processedContent = computed(() => {
 })
 
 const scrollToTop = () => {
+  activeTab.value = 'itinerary'
   contentContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -440,9 +441,12 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
-      <div class="lg:hidden flex items-center justify-end gap-2 mr-4">
+      <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
         <button
-          class="bg-tag-amber text-white px-3 py-2 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold"
+          :class="[
+            'bg-tag-amber text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeTab === 'itinerary' ? '-translate-y-1' : '',
+          ]"
           title="回到內文"
           @click="scrollToTop"
         >
@@ -450,7 +454,10 @@ onMounted(async () => {
           內文
         </button>
         <button
-          class="bg-tag-blue text-white px-3 py-2 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold"
+          :class="[
+            'bg-tag-blue text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeTab === 'comments' ? '-translate-y-1' : '',
+          ]"
           title="跳轉至留言區"
           @click="jumpToComments"
         >
@@ -459,7 +466,10 @@ onMounted(async () => {
         </button>
         <button
           v-if="localTravelerData.status === '招募中' && !isExpired"
-          class="bg-tag-wine text-white px-3 py-2 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold"
+          :class="[
+            'bg-tag-wine text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeTab === 'applications' ? '-translate-y-1' : '',
+          ]"
           title="跳轉至報名區"
           @click="jumpToApplications"
         >
