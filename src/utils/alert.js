@@ -1,52 +1,63 @@
 import Swal from 'sweetalert2'
 
-const baseOptions = {
-  confirmButtonText: '確定',
-  confirmButtonColor: '#07344c',
-}
+// 將純文字的換行轉成 SweetAlert2 可顯示的 <br />
+const toHtml = (text) => (text ?? '').toString().replace(/\n/g, '<br />')
+
+// 全站共用樣式（圓角 / 陰影 / 按鈕樣式）
+const swal = Swal.mixin({
+  // 讓 customClass 的按鈕樣式生效（不被預設樣式覆蓋）
+  buttonsStyling: false,
+
+  // 你可以在這裡統一整個彈窗的圓角、陰影、間距
+  customClass: {
+    popup: 'rounded-2xl shadow-2xl',
+    actions: 'flex gap-3 justify-end',
+    title: 'text-gray-800',
+    htmlContainer: 'text-gray-600 text-sm leading-relaxed',
+    confirmButton: 'px-4 py-2 rounded-lg text-white bg-[#07344c] hover:opacity-90',
+    cancelButton: 'px-4 py-2 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200',
+  },
+})
 
 export const showAlert = (text, options = {}) => {
-  return Swal.fire({
-    text,
+  return swal.fire({
+    html: toHtml(text),
     icon: 'info',
-    ...baseOptions,
+    iconColor: '#2563eb', // info 藍
+    confirmButtonText: '確定',
     ...options,
-    didOpen: () => {
-      console.log('swal opened')
-    },
   })
 }
 
 export const showSuccess = (text, options = {}) => {
-  return Swal.fire({
-    text,
+  return swal.fire({
+    html: toHtml(text),
     icon: 'success',
-    ...baseOptions,
+    iconColor: '#16a34a', // success 綠
+    confirmButtonText: '確定',
     ...options,
   })
 }
 
 export const showError = (text, options = {}) => {
-  return Swal.fire({
-    text,
+  return swal.fire({
+    html: toHtml(text),
     icon: 'error',
-    ...baseOptions,
+    iconColor: '#dc2626', // error 紅
+    confirmButtonText: '確定',
     ...options,
   })
 }
 
 export const showConfirm = async (text, options = {}) => {
-  const html = text?.replace(/\n/g, '<br />')
-  const result = await Swal.fire({
-    text,
+  const result = await swal.fire({
+    html: toHtml(text),
     icon: 'warning',
+    iconColor: '#f59e0b', // warning 黃
     showCancelButton: true,
     confirmButtonText: '確定',
     cancelButtonText: '取消',
-    confirmButtonColor: '#07344c',
-    cancelButtonColor: '#94a3b8',
     reverseButtons: true,
-    html,
     ...options,
   })
   return result.isConfirmed
