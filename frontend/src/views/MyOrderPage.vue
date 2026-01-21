@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Map as MapIcon } from 'lucide-vue-next'
 import FeaturedItineraryTab from '@/components/itinerary-tabs/FeaturedItineraryTab.vue'
 import { fetchOrders } from '@/api/orders'
@@ -7,6 +8,7 @@ import { fetchOrders } from '@/api/orders'
 const orders = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const router = useRouter()
 
 const handleFeaturedRate = ({ id, rating, comment }) => {
   orders.value = orders.value.map((item) =>
@@ -20,12 +22,10 @@ const handleFeaturedClear = (id) => {
   )
 }
 
-const formatDate = (value) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('zh-TW')
+const handlePayOrder = (id) => {
+  router.push({ name: 'CheckoutStep4', query: { orderId: id } })
 }
+
 
 const mapOrderToCard = (order) => ({
   id: order.id,
@@ -33,12 +33,23 @@ const mapOrderToCard = (order) => ({
   startDate: order.itinerary?.startDate || '',
   endDate: order.itinerary?.endDate || '',
   orderNumber: order.orderNo || '',
-  orderDate: formatDate(order.createdAt),
+  orderDate: order.createdAt || '',
   status: order.status || '',
-  reviewable: order.status === 'PAID',
+  paymentMethod: order.paymentMethod || '',
+  paymentMeta: order.paymentMeta || null,
+  travelStatus: getTravelStatus(order.itinerary?.endDate),
+  reviewable: getTravelStatus(order.itinerary?.endDate) === '已結束' && order.status === 'PAID',
   rating: order.rating || null,
   comment: order.comment || '',
 })
+
+const getTravelStatus = (endDate) => {
+  if (!endDate) return '未出行'
+  const end = new Date(endDate)
+  if (Number.isNaN(end.getTime())) return '未出行'
+  const now = new Date()
+  return end >= now ? '未出行' : '已結束'
+}
 
 const loadOrders = async () => {
   try {
@@ -71,7 +82,30 @@ onMounted(() => {
       </div>
 
       <div class="p-4 space-y-4">
-        <div v-if="isLoading" class="text-center text-secondary-500">載入中...</div>
+        <div v-if="isLoading" class="space-y-4">
+          <div
+            v-for="n in 3"
+            :key="`order-skeleton-${n}`"
+            class="bg-white border-2 border-secondary-200 rounded-lg p-4 animate-pulse"
+          >
+            <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+              <div class="flex-1">
+                <div class="h-5 w-56 bg-secondary-200 rounded mb-3"></div>
+                <div class="h-4 w-64 bg-secondary-100 rounded mb-3"></div>
+                <div class="space-y-2">
+                  <div class="h-4 w-48 bg-secondary-100 rounded"></div>
+                  <div class="h-4 w-60 bg-secondary-100 rounded"></div>
+                  <div class="h-4 w-40 bg-secondary-100 rounded"></div>
+                </div>
+              </div>
+              <div class="flex flex-col items-start sm:items-end gap-3 sm:min-w-[120px]">
+                <div class="h-4 w-20 bg-secondary-100 rounded"></div>
+                <div class="h-7 w-16 bg-secondary-200 rounded"></div>
+                <div class="h-8 w-24 bg-secondary-100 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div v-else-if="errorMessage" class="text-center text-rose-600">
           {{ errorMessage }}
         </div>
@@ -80,6 +114,7 @@ onMounted(() => {
           :itineraries="orders"
           @rate="handleFeaturedRate"
           @clear="handleFeaturedClear"
+          @pay="handlePayOrder"
         />
       </div>
     </div>

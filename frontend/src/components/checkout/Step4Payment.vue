@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { checkoutStore } from '@/stores/checkout'
 import MainButton from './MainButton.vue'
@@ -11,9 +11,35 @@ const orderLoading = ref(false)
 const orderError = ref('')
 const payableAmount = ref(0)
 
-const orderId = computed(() => route.query.orderId || checkoutStore.lastOrder?.id)
+const orderId = computed(() => route.query.orderId || checkoutStore.lastOrderId)
 
-onMounted(async () => {
+const orderSummaryTitle = computed(
+  () => checkoutStore.orderDetail?.itinerary?.title || checkoutStore.selectedTour?.title || '',
+)
+const formatDateOnly = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('zh-TW')
+}
+
+const orderSummaryDate = computed(() => {
+  if (checkoutStore.orderDetail?.itinerary) {
+    const { startDate, endDate } = checkoutStore.orderDetail.itinerary
+    if (startDate && endDate) return `${formatDateOnly(startDate)} - ${formatDateOnly(endDate)}`
+    return formatDateOnly(startDate || endDate)
+  }
+  return checkoutStore.selectedTour?.date || ''
+})
+
+const orderSummaryPersons = computed(() => {
+  if (checkoutStore.orderDetail?.order?.persons) {
+    return checkoutStore.orderDetail.order.persons
+  }
+  return checkoutStore.selectedTour?.persons || ''
+})
+
+const loadOrderDetail = async () => {
   if (!orderId.value) return
 
   orderLoading.value = true
@@ -27,6 +53,11 @@ onMounted(async () => {
   } finally {
     orderLoading.value = false
   }
+}
+
+onMounted(loadOrderDetail)
+watch(orderId, () => {
+  loadOrderDetail()
 })
 
 // =====================
@@ -183,6 +214,12 @@ const confirmPayment = async () => {
     if (shouldRedirect.value) {
       if (!paymentUrl) throw new Error('缺少 paymentUrl')
       window.location.href = paymentUrl
+      return
+    }
+
+    // bank 付款：不自動完成付款，維持未付款狀態
+    if (providerKey.value === 'bank') {
+      router.push(`/checkout/step5?orderId=${orderId.value}`)
       return
     }
 
@@ -390,17 +427,17 @@ const confirmPayment = async () => {
         <div class="space-y-4">
           <div class="mb-12 text-md">
             <p class="text-gray-500">行程名稱</p>
-            <p>{{ checkoutStore.selectedTour?.title }}</p>
+            <p>{{ orderSummaryTitle }}</p>
           </div>
 
           <div class="flex flex-col gap-2 justify-between text-sm">
             <span class="text-gray-500">行程日期</span>
-            <span>{{ checkoutStore.selectedTour?.date }}</span>
+            <span>{{ orderSummaryDate }}</span>
           </div>
 
           <div class="flex justify-between text-sm">
             <span class="text-gray-500">人數</span>
-            <span>{{ checkoutStore.selectedTour?.persons }} 人</span>
+            <span>{{ orderSummaryPersons }} 人</span>
           </div>
 
           <hr />

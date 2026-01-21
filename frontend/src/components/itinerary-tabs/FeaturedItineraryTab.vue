@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { ref } from 'vue'
+import { reportBankTransfer } from '@/api/payments'
 import { Calendar as CalendarIcon, Star as StarIcon } from 'lucide-vue-next'
 
 defineProps({
@@ -9,13 +10,20 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['rate', 'clear'])
+const emit = defineEmits(['rate', 'clear', 'pay'])
 
 const isRatingOpen = ref(false)
 const ratingTarget = ref(null)
 const ratingDraft = ref(0)
 const commentDraft = ref('')
 const ratingWarning = ref('')
+const isBankInfoOpen = ref(false)
+const isReportOpen = ref(false)
+const reportTargetId = ref(null)
+const reportAccountLast5 = ref('')
+const reportWarning = ref('')
+const reportedTransfers = ref({})
+const isReportSubmitting = ref(false)
 
 const openRatingModal = (item) => {
   ratingTarget.value = item
@@ -51,25 +59,116 @@ const clearRating = (id) => {
   emit('clear', id)
 }
 
+const goToPay = (id) => {
+  emit('pay', id)
+}
+
+const openReportModal = (id) => {
+  reportTargetId.value = id
+  reportAccountLast5.value = ''
+  reportWarning.value = ''
+  isReportOpen.value = true
+}
+
+const closeReportModal = () => {
+  isReportOpen.value = false
+  reportTargetId.value = null
+  reportAccountLast5.value = ''
+  reportWarning.value = ''
+}
+
+const submitReport = async () => {
+  const value = String(reportAccountLast5.value || '').trim()
+  if (!/^\d{5}$/.test(value)) {
+    reportWarning.value = '請輸入帳號末 5 碼'
+    return
+  }
+  if (!reportTargetId.value) return
+  try {
+    isReportSubmitting.value = true
+    reportWarning.value = ''
+    await reportBankTransfer({ orderId: reportTargetId.value, last5: value })
+    reportedTransfers.value = {
+      ...reportedTransfers.value,
+      [reportTargetId.value]: value,
+    }
+    closeReportModal()
+  } catch (error) {
+    reportWarning.value = error?.message || '回報失敗，請稍後再試'
+  } finally {
+    isReportSubmitting.value = false
+  }
+}
+
+const openBankInfo = () => {
+  isBankInfoOpen.value = true
+}
+
+const closeBankInfo = () => {
+  isBankInfoOpen.value = false
+}
+
 const statusLabels = {
   PENDING: '待付款',
   PAID: '已付款',
   CANCELLED: '已取消',
   REFUNDED: '已退款',
   FAILED: '付款失敗',
+  REVIEW: '待審核',
 }
 
 const statusClasses = {
-  PENDING: 'bg-amber-100 text-amber-700 border border-amber-200',
-  PAID: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  CANCELLED: 'bg-rose-100 text-rose-700 border border-rose-200',
-  REFUNDED: 'bg-slate-100 text-slate-700 border border-slate-200',
-  FAILED: 'bg-rose-100 text-rose-700 border border-rose-200',
+  PENDING: 'bg-gold-100 text-gold-700 border border-gold-200',
+  PAID: 'bg-primary-100 text-primary-700 border border-primary-200',
+  CANCELLED: 'bg-accent-100 text-accent-700 border border-accent-200',
+  REFUNDED: 'bg-secondary-100 text-secondary-700 border border-secondary-200',
+  FAILED: 'bg-accent-100 text-accent-700 border border-accent-200',
+  REVIEW: 'bg-gold-100 text-gold-700 border border-gold-200',
 }
 
 const getStatusLabel = (status) => statusLabels[status] || status || '未知'
 const getStatusClass = (status) =>
   statusClasses[status] || 'bg-secondary-100 text-secondary-600 border border-secondary-200'
+const getDisplayStatus = (item) =>
+  reportedTransfers.value[item.id] || item.paymentMeta?.last5 ? 'REVIEW' : item.status
+
+const paymentLabels = {
+  linepay: 'LINE Pay',
+  bank: '銀行轉帳',
+  credit: '信用卡',
+  applepay: 'Apple Pay',
+  googlepay: 'Google Pay',
+}
+
+const getPaymentLabel = (value) => paymentLabels[String(value || '').toLowerCase()] || value || '—'
+const isBankPayment = (value) => String(value || '').toLowerCase() === 'bank'
+
+const formatTaiwanDate = (value, { showSeconds = false } = {}) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei',
+    hour12: true,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: showSeconds ? '2-digit' : undefined,
+  })
+  const parts = formatter.formatToParts(date)
+  const pick = (type) => parts.find((part) => part.type === type)?.value || ''
+  const year = pick('year')
+  const month = pick('month')
+  const day = pick('day')
+  const hour = pick('hour')
+  const minute = pick('minute')
+  const second = pick('second')
+  const dayPeriod = pick('dayPeriod')
+  const time = showSeconds ? `${hour}:${minute}:${second}` : `${hour}:${minute}`
+  return `${year}/${month}/${day} ${dayPeriod} ${time}`
+}
 </script>
 
 <template>
@@ -103,25 +202,71 @@ const getStatusClass = (status) =>
               >
                 日期
               </span>
-              {{ item.startDate || '未定' }} - {{ item.endDate || '未定' }}
+              {{ formatTaiwanDate(item.startDate) || '未定' }} -
+              {{ formatTaiwanDate(item.endDate) || '未定' }}
             </div>
 
             <div class="text-sm text-secondary-600 space-y-1">
               <div class="font-semibold text-secondary-700">訂單詳細資訊</div>
               <div>訂單編號: {{ item.orderNumber || '—' }}</div>
-              <div>訂單日期: {{ item.orderDate || '—' }}</div>
+              <div>
+                訂單日期: {{ formatTaiwanDate(item.orderDate, { showSeconds: true }) || '—' }}
+              </div>
+              <div>付款方式: {{ getPaymentLabel(item.paymentMethod) }}</div>
+              <div>出行狀態: {{ item.travelStatus || '—' }}</div>
             </div>
           </div>
 
-          <div class="text-left sm:text-right sm:min-w-[120px]">
+          <div
+            class="text-left sm:text-right sm:min-w-[120px] flex flex-col items-start sm:items-end self-stretch"
+          >
             <div class="text-xs text-secondary-400 mb-2">狀態</div>
             <div
               class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
-              :class="getStatusClass(item.status)"
+              :class="getStatusClass(getDisplayStatus(item))"
             >
-              {{ getStatusLabel(item.status) }}
+              {{ getStatusLabel(getDisplayStatus(item)) }}
             </div>
+            <button
+              v-if="item.status === 'PENDING' && !isBankPayment(item.paymentMethod)"
+              type="button"
+              class="mt-auto inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-primary text-primary font-semibold hover:bg-primary-50 transition"
+              @click="goToPay(item.id)"
+            >
+              前往付款
+            </button>
+            <button
+              v-else-if="item.status === 'PENDING' && isBankPayment(item.paymentMethod)"
+              type="button"
+              class="mt-auto inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-primary text-primary font-semibold hover:bg-primary-50 transition"
+              @click="openBankInfo"
+            >
+              查看轉帳資訊
+            </button>
+            <button
+              v-if="
+                item.status === 'PENDING' &&
+                isBankPayment(item.paymentMethod) &&
+                !reportedTransfers[item.id]
+              "
+              type="button"
+              class="mt-2 inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-accent-500 text-accent-600 font-semibold hover:bg-accent-50 transition"
+              @click="openReportModal(item.id)"
+            >
+              回報已付款
+            </button>
           </div>
+        </div>
+
+        <div
+          v-if="
+            (item.status === 'PENDING' || getDisplayStatus(item) === 'REVIEW') &&
+            isBankPayment(item.paymentMethod) &&
+            (reportedTransfers[item.id] || item.paymentMeta?.last5)
+          "
+          class="mt-4 text-sm text-secondary-600 text-right"
+        >
+          匯款帳號末5碼：{{ reportedTransfers[item.id] || item.paymentMeta?.last5 }}
         </div>
 
         <div v-if="item.reviewable" class="mt-4 pt-3 border-t border-secondary-100">
@@ -133,7 +278,7 @@ const getStatusClass = (status) =>
                     v-for="star in 5"
                     :key="star"
                     class="w-4 h-4 fill-current"
-                    :class="star <= item.rating ? 'text-amber-400' : 'text-secondary-300'"
+                    :class="star <= item.rating ? 'text-gold-400' : 'text-secondary-300'"
                   />
                 </template>
               </div>
@@ -168,14 +313,14 @@ const getStatusClass = (status) =>
 
       <div
         v-if="itineraries.length === 0"
-        class="text-center py-10 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg"
+        class="text-center py-10 text-secondary-400 border-2 border-dashed border-secondary-200 rounded-lg"
       >
         目前沒有訂單
       </div>
     </div>
 
     <div v-if="isRatingOpen" class="fixed inset-0 z-50 flex items-center justify-center">
-      <div class="absolute inset-0 bg-black/40" @click="closeRatingModal" />
+      <div class="absolute inset-0 bg-secondary-900/40" @click="closeRatingModal" />
       <div
         class="relative bg-white w-full max-w-md mx-4 rounded-xl border-2 border-primary shadow-primary-tall p-6"
       >
@@ -194,7 +339,7 @@ const getStatusClass = (status) =>
             >
               <StarIcon
                 class="w-7 h-7 fill-current"
-                :class="star <= ratingDraft ? 'text-amber-400' : 'text-secondary-300'"
+                :class="star <= ratingDraft ? 'text-gold-400' : 'text-secondary-300'"
               />
             </button>
           </div>
@@ -229,8 +374,81 @@ const getStatusClass = (status) =>
             儲存評價
           </button>
         </div>
-        <div v-if="ratingWarning" class="mt-3 text-sm text-rose-600">
+        <div v-if="ratingWarning" class="mt-3 text-sm text-accent-600">
           {{ ratingWarning }}
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isBankInfoOpen" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-secondary-900/40" @click="closeBankInfo" />
+      <div
+        class="relative bg-white w-full max-w-md mx-4 rounded-xl border-2 border-primary shadow-primary-tall p-6"
+      >
+        <div class="text-lg font-bold text-secondary-800 mb-4">轉帳資訊</div>
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between">
+            <span class="text-secondary-500">銀行代碼</span>
+            <span>004</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-secondary-500">銀行名稱</span>
+            <span>台灣銀行</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-secondary-500">戶名</span>
+            <span>旅伴探索股份有限公司</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-secondary-500">帳號</span>
+            <span>123-456-789012</span>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-secondary-200 text-secondary-600 hover:bg-secondary-50 transition"
+            @click="closeBankInfo"
+          >
+            關閉
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isReportOpen" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-secondary-900/40" @click="closeReportModal" />
+      <div
+        class="relative bg-white w-full max-w-md mx-4 rounded-xl border-2 border-primary shadow-primary-tall p-6"
+      >
+        <div class="text-lg font-bold text-secondary-800 mb-4">回報已付款</div>
+        <div class="space-y-3 text-sm">
+          <div class="text-secondary-600">請輸入匯款帳號末 5 碼</div>
+          <input
+            v-model="reportAccountLast5"
+            maxlength="5"
+            inputmode="numeric"
+            class="w-full border border-secondary-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+            placeholder="00000"
+          />
+          <div v-if="reportWarning" class="text-accent-600 text-sm">{{ reportWarning }}</div>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-secondary-200 text-secondary-600 hover:bg-secondary-50 transition"
+            @click="closeReportModal"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-primary bg-primary text-white hover:bg-primary-700 transition disabled:opacity-60"
+            @click="submitReport"
+            :disabled="isReportSubmitting"
+          >
+            {{ isReportSubmitting ? '送出中...' : '送出回報' }}
+          </button>
         </div>
       </div>
     </div>

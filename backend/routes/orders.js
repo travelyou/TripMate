@@ -293,9 +293,24 @@ router.get('/', async (req, res) => {
         i.start_date,
         i.end_date,
         i.location,
-        i.banner_image
+        i.banner_image,
+        p.provider AS payment_provider,
+        p.method AS payment_method,
+        p.payer_meta AS payment_meta
       FROM commerce.orders o
       JOIN itinerary.itineraries i ON i.id = o.itinerary_id
+      LEFT JOIN LATERAL (
+        SELECT provider, method, status, created_at, payer_meta
+        FROM commerce.payments
+        WHERE order_id = o.id
+        ORDER BY
+          CASE status
+            WHEN 'PAID' THEN 1
+            ELSE 2
+          END,
+          created_at DESC
+        LIMIT 1
+      ) p ON true
       ${whereSql}
       ORDER BY o.created_at DESC
       LIMIT $${limitIndex}`,
@@ -319,6 +334,8 @@ router.get('/', async (req, res) => {
         location: row.location,
         bannerImage: row.banner_image,
       },
+      paymentMethod: row.payment_method || row.payment_provider || null,
+      paymentMeta: row.payment_meta || null,
     }))
 
     return res.json({ ok: true, orders })
