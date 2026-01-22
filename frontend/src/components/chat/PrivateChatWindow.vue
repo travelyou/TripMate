@@ -37,6 +37,8 @@ const fileInputRef = ref(null)
 const isUploadingFile = ref(false)
 const uploadProgress = ref(0)
 const showFriendRequestsList = ref(false)
+const friendRequestsListContainer = ref(null)
+const friendRequestsPopupPosition = ref({ top: 'auto', bottom: 'auto', left: 'auto', right: 'auto', transform: '' })
 const showImagePreview = ref(false)
 const previewImageUrl = ref('')
 const previewImageName = ref('')
@@ -907,14 +909,88 @@ const handleClickOutside = (event) => {
   }
 }
 
+// 計算好友請求列表彈窗位置
+const calculateFriendRequestsPopupPosition = () => {
+  if (!friendRequestsListContainer.value) return
+
+  nextTick(() => {
+    const container = friendRequestsListContainer.value
+    const rect = container.getBoundingClientRect()
+    const popupWidth = 384 // w-96 = 384px
+    const popupHeight = 384 // max-h-96 = 384px
+    const margin = 8 // mt-2 = 8px
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+
+    let top = 'auto'
+    let bottom = 'auto'
+    let left = 'auto'
+    let right = 'auto'
+    let transform = ''
+
+    // 檢查下方空間是否足夠
+    const spaceBelow = viewportHeight - rect.bottom - margin
+    const spaceAbove = rect.top - margin
+
+    // 如果下方空間不足，向上顯示
+    if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+      bottom = `${rect.height + margin}px`
+      top = 'auto'
+    } else {
+      top = `${rect.height + margin}px`
+      bottom = 'auto'
+    }
+
+    // 檢查右側空間是否足夠
+    const spaceRight = viewportWidth - rect.right
+    const spaceLeft = rect.left
+
+    // 計算可用的最大寬度
+    const maxAvailableWidth = Math.max(spaceLeft, spaceRight) - margin * 2
+    const finalWidth = Math.min(popupWidth, maxAvailableWidth, viewportWidth - margin * 2)
+
+    // 如果右側空間不足，調整水平位置
+    if (spaceRight < popupWidth && spaceLeft > spaceRight) {
+      right = 'auto'
+      left = '0'
+    } else {
+      right = '0'
+      left = 'auto'
+    }
+
+    friendRequestsPopupPosition.value = {
+      top,
+      bottom,
+      left,
+      right,
+      transform,
+      maxWidth: `${finalWidth}px`,
+      width: `${finalWidth}px`
+    }
+  })
+}
+
 // 切換好友請求列表顯示
 const toggleFriendRequestsList = () => {
   showFriendRequestsList.value = !showFriendRequestsList.value
   if (showFriendRequestsList.value) {
     // 重新載入好友請求列表
     loadFriends()
+    // 在下一個 tick 計算彈窗位置，確保 DOM 已更新
+    nextTick(() => {
+      calculateFriendRequestsPopupPosition()
+    })
   }
 }
+
+// 監聽彈窗顯示狀態，動態調整位置
+watch(showFriendRequestsList, (isVisible) => {
+  if (isVisible) {
+    nextTick(() => {
+      calculateFriendRequestsPopupPosition()
+    })
+  }
+})
 
 // 處理接受好友請求
 const handleAcceptFriendRequest = async (request) => {
@@ -957,14 +1033,31 @@ const handleRejectFriendRequest = async (request) => {
   }
 }
 
+// 處理窗口大小變化和滾動事件
+const handleResize = () => {
+  if (showFriendRequestsList.value) {
+    calculateFriendRequestsPopupPosition()
+  }
+}
+
+const handleScroll = () => {
+  if (showFriendRequestsList.value) {
+    calculateFriendRequestsPopupPosition()
+  }
+}
+
 onMounted(() => {
   loadFriends()
   loadChatRoomsFromStorage()
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('resize', handleResize)
+  window.addEventListener('scroll', handleScroll, true)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('resize', handleResize)
+  window.removeEventListener('scroll', handleScroll, true)
   // 清除輪詢定時器
   stopMessagePolling()
 })
@@ -1016,7 +1109,7 @@ onUnmounted(() => {
       </div>
       <div class="flex items-center gap-2">
         <!-- 好友請求列表按鈕 -->
-        <div class="relative friend-requests-list-container">
+        <div ref="friendRequestsListContainer" class="relative friend-requests-list-container">
           <button
             class="p-1 hover:bg-primary-600 rounded-full transition relative"
             title="好友邀請"
@@ -1035,7 +1128,17 @@ onUnmounted(() => {
           <!-- 好友請求列表彈窗 -->
           <div
             v-if="showFriendRequestsList"
-            class="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
+            class="absolute bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
+            :style="{
+              top: friendRequestsPopupPosition.top,
+              bottom: friendRequestsPopupPosition.bottom,
+              left: friendRequestsPopupPosition.left,
+              right: friendRequestsPopupPosition.right,
+              transform: friendRequestsPopupPosition.transform,
+              width: friendRequestsPopupPosition.width || '320px',
+              maxWidth: friendRequestsPopupPosition.maxWidth || '384px',
+              minWidth: '280px'
+            }"
           >
             <div class="p-3 sm:p-4 border-b border-gray-200 bg-primary-50 flex-shrink-0">
               <h3 class="font-bold text-primary-700 text-sm sm:text-base">好友邀請</h3>
