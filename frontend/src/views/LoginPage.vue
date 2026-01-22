@@ -179,30 +179,49 @@ const handleLogin = async () => {
     try {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData) {
+        // 優先使用 Neon 資料庫中的頭貼，如果沒有則使用 Firestore 的，最後才使用默認值
+        const avatar = neonUserData.avatar && neonUserData.avatar.trim() !== ''
+          ? neonUserData.avatar
+          : (userData.avatar && userData.avatar.trim() !== ''
+            ? userData.avatar
+            : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`)
+        
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           nickname: neonUserData.nickname || userData.nickname || '',
-          avatar: neonUserData.avatar || userData.avatar || '',
+          avatar: avatar,
           bio: neonUserData.bio || userData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || userData.spiritAnimal || '',
           role: neonUserData.role || 'user',
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
+        // 如果 Neon 中沒有資料，使用 Firestore 的資料
+        const avatar = userData.avatar && userData.avatar.trim() !== ''
+          ? userData.avatar
+          : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+        
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...userData,
+          avatar: avatar,
           role: userData.role || 'user',
         })
       }
     } catch (loadError) {
       console.error('從 Neon 載入用戶資料失敗，使用 Firestore 資料：', loadError)
+      // 如果載入失敗，使用 Firestore 的資料
+      const avatar = userData.avatar && userData.avatar.trim() !== ''
+        ? userData.avatar
+        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+      
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         ...userData,
+        avatar: avatar,
         role: userData.role || 'user',
       })
     }

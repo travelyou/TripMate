@@ -262,6 +262,17 @@ export const useUserStore = defineStore('user', () => {
     } else {
       currentUser.value = { ...currentUser.value, ...newData }
     }
+    
+    // 如果更新了頭貼，保存到 localStorage
+    if (newData.avatar !== undefined && currentUser.value.uid) {
+      try {
+        if (newData.avatar && typeof newData.avatar === 'string' && newData.avatar.trim() !== '') {
+          localStorage.setItem(`user_avatar_${currentUser.value.uid}`, newData.avatar)
+        }
+      } catch (e) {
+        console.warn('保存頭貼到 localStorage 失敗:', e)
+      }
+    }
   }
 
   const addVisitedPlace = (place, type = 'domestic') => {
@@ -291,13 +302,38 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
-      // 正確處理頭貼：只有在 avatar 為 null、undefined 或空字串時才使用默認值
+      // 正確處理頭貼：優先使用傳入的 avatar，如果沒有則從 localStorage 恢復，最後才使用默認值
       let avatarValue = profileData.avatar
-      // 確保 avatarValue 是有效的字符串且不為空
-      if (!avatarValue || (typeof avatarValue === 'string' && avatarValue.trim() === '')) {
-        // 如果當前用戶已有頭貼，保留它；否則使用默認頭貼
-        avatarValue = currentUser.value.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
+      
+      // 如果傳入的 avatar 有效，使用它
+      if (avatarValue && typeof avatarValue === 'string' && avatarValue.trim() !== '') {
+        // 保存到 localStorage 作為備份
+        if (profileData.uid) {
+          try {
+            localStorage.setItem(`user_avatar_${profileData.uid}`, avatarValue)
+          } catch (e) {
+            console.warn('保存頭貼到 localStorage 失敗:', e)
+          }
+        }
+      } else {
+        // 如果沒有傳入有效的 avatar，嘗試從 localStorage 恢復
+        if (profileData.uid) {
+          try {
+            const savedAvatar = localStorage.getItem(`user_avatar_${profileData.uid}`)
+            if (savedAvatar && savedAvatar.trim() !== '') {
+              avatarValue = savedAvatar
+            } else {
+              // 如果都沒有，使用默認頭貼
+              avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
+            }
+          } catch (e) {
+            console.warn('從 localStorage 載入頭貼失敗:', e)
+            avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
+          }
+        } else {
+          avatarValue = currentUser.value.avatar || 
+            (profileData.uid ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}` : '')
+        }
       }
 
       currentUser.value = {
@@ -332,8 +368,10 @@ export const useUserStore = defineStore('user', () => {
           uid: uid,
           email: firebaseUser.value?.email || neonUserData.email || '',
           nickname: neonUserData.nickname || '',
-          // 只有在有值時才傳遞 avatar，避免空字串覆蓋現有頭貼
-          avatar: neonUserData.avatar && neonUserData.avatar.trim() !== '' ? neonUserData.avatar : undefined,
+          // 確保傳遞有效的 avatar，如果資料庫中有就使用，沒有就傳遞 undefined 讓 setUserProfile 處理
+          avatar: neonUserData.avatar && typeof neonUserData.avatar === 'string' && neonUserData.avatar.trim() !== '' 
+            ? neonUserData.avatar 
+            : undefined,
           bio: neonUserData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || '',
           role: neonUserData.role || 'user',
@@ -366,6 +404,22 @@ export const useUserStore = defineStore('user', () => {
           role: userData.role || 'user',
           vendorId: userData.vendorId || null,
         })
+      } else {
+        // 如果 Firestore 中沒有用戶資料，嘗試從 localStorage 恢復頭貼
+        try {
+          const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
+          if (savedAvatar && savedAvatar.trim() !== '') {
+            setUserProfile({
+              uid: uid,
+              email: firebaseUser.value?.email || '',
+              nickname: firebaseUser.value?.email?.split('@')[0] || '用戶',
+              avatar: savedAvatar,
+              role: 'user',
+            })
+          }
+        } catch (e) {
+          console.warn('從 localStorage 恢復頭貼失敗:', e)
+        }
       }
     } catch (error) {
       console.error('載入用戶資料失敗：', error)
