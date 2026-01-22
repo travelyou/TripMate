@@ -267,12 +267,13 @@ onMounted(async () => {
 
 <template>
   <div
-    class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
+    class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-2 sm:p-4"
     @click.self="emit('close')"
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <!-- 桌面版左側書籤 -->
       <button
-        class="absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden md:flex absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
@@ -285,7 +286,7 @@ onMounted(async () => {
       </button>
 
       <button
-        class="absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden md:flex absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
         title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >
@@ -296,6 +297,24 @@ onMounted(async () => {
           留言區
         </span>
       </button>
+
+      <!-- 行動版浮動按鈕 -->
+      <div class="md:hidden fixed bottom-20 right-4 z-50 flex flex-col gap-2">
+        <button
+          class="bg-tag-amber text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 border-2 border-tag-amber"
+          title="回到內文"
+          @click="scrollToTop"
+        >
+          <FileTextIcon class="w-5 h-5 fill-current" />
+        </button>
+        <button
+          class="bg-tag-blue text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 border-2 border-tag-blue"
+          title="跳轉至留言區"
+          @click="scrollToCommentsSection"
+        >
+          <MessageCircleIcon class="w-5 h-5 fill-current" />
+        </button>
+      </div>
 
       <div
         class="bg-white w-full h-full flex flex-col rounded-xl border-2 border-primary overflow-hidden relative z-10"

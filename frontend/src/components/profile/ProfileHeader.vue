@@ -61,7 +61,7 @@ const shouldMarquee = computed(() => {
 
     <div class="relative z-10">
       <div class="md:hidden flex flex-col gap-4">
-        <div class="flex items-start gap-4">
+        <div class="flex items-start gap-3 sm:gap-4">
           <div class="flex flex-col items-center shrink-0 -mt-2">
             <div class="relative group">
               <div
@@ -108,10 +108,11 @@ const shouldMarquee = computed(() => {
             </div>
           </div>
 
-          <div class="flex-1 min-w-0 flex flex-col justify-center h-20">
+          <div class="flex-1 min-w-0 flex flex-col justify-between">
+            <div class="flex-1 min-w-0">
             <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0 flex-wrap">
                   <h1 class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1">
                     <span v-if="loading" class="inline-block h-4 w-24 bg-white/30 rounded animate-pulse"></span>
                     <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
@@ -128,33 +129,48 @@ const shouldMarquee = computed(() => {
                       <span class="location-marquee-text">@{{ locationFull }}</span>
                     </span>
                   </span>
+                  </div>
                 </div>
               </div>
            </div>
 
-             <div class="flex gap-2 sm:gap-4 self-start" :class="{ 'mb-12 sm:mb-14': !isCurrentUser }">
-                <button class="text-center group" :disabled="loading" @click="$emit('open-friends')">
+            <div class="flex items-center justify-between gap-2 mt-2">
+              <div class="flex gap-2 sm:gap-3 flex-shrink-0">
+                <button class="text-center group shrink-0" :disabled="loading" @click="$emit('open-friends')">
                  <div class="text-[9px] sm:text-[10px] text-primary-100 group-hover:text-white transition">好友</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.friends }}</span></div>
+                  <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition">
+                    <span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span>
+                    <span v-else>{{ stats.friends }}</span>
+                  </div>
                </button>
                <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
-               <div class="text-center">
+                <div class="text-center shrink-0">
                  <div class="text-[9px] sm:text-[10px] text-primary-100">主揪</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.hosted }}</span></div>
+                  <div class="text-sm sm:text-base font-bold text-white leading-tight">
+                    <span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span>
+                    <span v-else>{{ stats.hosted }}</span>
+                  </div>
                </div>
                <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
-               <div class="text-center">
+                <div class="text-center shrink-0">
                  <div class="text-[9px] sm:text-[10px] text-primary-100">貼文</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.posts }}</span></div>
+                  <div class="text-sm sm:text-base font-bold text-white leading-tight">
+                    <span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span>
+                    <span v-else>{{ stats.posts }}</span>
+                  </div>
                </div>
                <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
-               <div class="text-center">
+                <div class="text-center shrink-0">
                  <div class="text-[9px] sm:text-[10px] text-primary-100">好評</div>
-                 <div class="text-sm sm:text-base font-bold text-white leading-tight\"><span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.reviews }}</span></div>
+                  <div class="text-sm sm:text-base font-bold text-white leading-tight">
+                    <span v-if="loading" class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"></span>
+                    <span v-else>{{ stats.reviews }}</span>
+                  </div>
                </div>
              </div>
+
              <!-- Owner/Visitor Buttons -->
-             <div v-if="isCurrentUser && !loading" class="flex items-center gap-1.5 sm:gap-2 self-end mt-1">
+              <div v-if="isCurrentUser && !loading" class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                <button
                  class="p-1 sm:p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
                  title="編輯自我介紹"
@@ -171,10 +187,10 @@ const shouldMarquee = computed(() => {
                </button>
              </div>
              <!-- Mobile Visitor Buttons -->
-             <div v-else-if="!loading" class="flex gap-2 self-end mt-1">
+              <div v-else-if="!loading" class="flex gap-1.5 sm:gap-2 shrink-0">
                <button
                 :class="[
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg transition',
+                    'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
                   friendRequestStatus === 'accepted'
                     ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
                     : friendRequestStatus === 'sent'
@@ -183,22 +199,26 @@ const shouldMarquee = computed(() => {
                 ]"
                  @click="$emit('add-friend')"
                >
-              <UserPlus class="w-4 h-4" />
+                  <UserPlus class="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span class="hidden sm:inline">
               {{ friendRequestStatus === 'accepted' ? '解除好友' : friendRequestStatus === 'sent' ? '已發送邀請' : '加好友' }}
+                  </span>
                </button>
                <button
-                 class="flex items-center gap-1.5 px-3 py-1.5 bg-secondary-400 text-white rounded-full text-xs font-bold shadow-lg hover:bg-secondary-500 transition"
+                  class="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-secondary-400 text-white rounded-full text-[10px] sm:text-xs font-bold shadow-lg hover:bg-secondary-500 transition whitespace-nowrap"
                  @click="$emit('chat')"
                >
-                 <MessageCircle class="w-4 h-4" /> 聊聊
+                  <MessageCircle class="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span class="hidden sm:inline">聊聊</span>
                </button>
+              </div>
              </div>
           </div>
         </div>
 
         <div class="text-xs sm:text-sm">
            <div class="flex items-start gap-1.5 sm:gap-2 mb-2 relative">
-             <p class="text-primary-100 font-light leading-relaxed line-clamp-2 flex-1 break-words">
+            <p class="text-primary-100 font-light leading-relaxed line-clamp-2 flex-1 break-words min-w-0">
               <span v-if="loading" class="block h-3 w-56 bg-white/30 rounded animate-pulse mb-2"></span>
               <span v-if="loading" class="block h-3 w-40 bg-white/20 rounded animate-pulse"></span>
               <span v-else>{{ user.bio || '這傢伙很懶，什麼都沒留下...' }}</span>
@@ -255,9 +275,9 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <div class="flex-1 text-left min-w-0">
+        <div class="flex-1 text-left min-w-0 overflow-hidden">
           <div class="flex items-center justify-start gap-2 lg:gap-3 mb-2 flex-wrap">
-            <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0">
+            <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0 flex-1">
               <span v-if="loading" class="inline-block h-6 w-48 bg-white/30 rounded animate-pulse"></span>
               <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
             </h1>
@@ -281,25 +301,37 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-col items-end gap-3" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
+        <div class="flex flex-col items-end gap-3 shrink-0" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
           <div
-            class="flex gap-4 lg:gap-8 bg-white/10 rounded-2xl p-4 lg:p-6 border border-white/20"
+            class="flex gap-3 md:gap-4 lg:gap-6 bg-white/10 rounded-2xl p-3 md:p-4 lg:p-6 border border-white/20"
           >
-            <button class="text-center group hover:scale-105 transition" :disabled="loading" @click="$emit('open-friends')">
+            <button class="text-center group hover:scale-105 transition shrink-0" :disabled="loading" @click="$emit('open-friends')">
               <div class="text-xs lg:text-sm text-primary-100 mb-1 group-hover:text-white transition">好友</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.friends }}</span></div>
+              <div class="text-xl md:text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition">
+                <span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span>
+                <span v-else>{{ stats.friends }}</span>
+              </div>
             </button>
-            <div class="text-center">
+            <div class="text-center shrink-0">
               <div class="text-xs lg:text-sm text-primary-100 mb-1">主揪</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.hosted }}</span></div>
+              <div class="text-xl md:text-2xl lg:text-3xl font-bold text-white leading-none">
+                <span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span>
+                <span v-else>{{ stats.hosted }}</span>
+              </div>
             </div>
-            <div class="text-center">
+            <div class="text-center shrink-0">
                <div class="text-xs lg:text-sm text-primary-100 mb-1">貼文</div>
-               <div class="text-2xl lg:text-3xl font-bold text-white leading-none\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.posts }}</span></div>
+              <div class="text-xl md:text-2xl lg:text-3xl font-bold text-white leading-none">
+                <span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span>
+                <span v-else>{{ stats.posts }}</span>
+              </div>
             </div>
-            <div class="text-center">
+            <div class="text-center shrink-0">
                <div class="text-xs lg:text-sm text-primary-100 mb-1">好評</div>
-               <div class="text-2xl lg:text-3xl font-bold text-white leading-none\"><span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span><span v-else>{{ stats.reviews }}</span></div>
+              <div class="text-xl md:text-2xl lg:text-3xl font-bold text-white leading-none">
+                <span v-if="loading" class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"></span>
+                <span v-else>{{ stats.reviews }}</span>
+              </div>
             </div>
           </div>
           <div v-if="isCurrentUser && !loading" class="flex items-center gap-2">
@@ -320,10 +352,10 @@ const shouldMarquee = computed(() => {
           </div>
 
           <!-- Visitor Buttons -->
-          <div v-else-if="!loading" class="flex gap-2">
+          <div v-else-if="!loading" class="flex gap-2 shrink-0">
             <button
               :class="[
-                'flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base font-bold shadow-lg transition',
+                'flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm lg:text-base font-bold shadow-lg transition whitespace-nowrap',
                 friendRequestStatus === 'accepted'
                   ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
                   : friendRequestStatus === 'sent'
@@ -332,14 +364,14 @@ const shouldMarquee = computed(() => {
               ]"
               @click="$emit('add-friend')"
             >
-              <UserPlus class="w-5 h-5" />
+              <UserPlus class="w-4 h-4 md:w-5 md:h-5" />
               {{ friendRequestStatus === 'accepted' ? '解除好友' : friendRequestStatus === 'sent' ? '已發送邀請' : '加好友' }}
             </button>
             <button
-              class="flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 bg-secondary-400 text-white rounded-full text-sm md:text-base font-bold shadow-lg hover:bg-secondary-500 transition"
+              class="flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 bg-secondary-400 text-white rounded-full text-xs md:text-sm lg:text-base font-bold shadow-lg hover:bg-secondary-500 transition whitespace-nowrap"
               @click="$emit('chat')"
             >
-              <MessageCircle class="w-5 h-5" /> 聊聊
+              <MessageCircle class="w-4 h-4 md:w-5 md:h-5" /> 聊聊
             </button>
           </div>
         </div>

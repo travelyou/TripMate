@@ -180,11 +180,35 @@ const handleLogin = async () => {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData) {
         // 優先使用 Neon 資料庫中的頭貼，如果沒有則使用 Firestore 的，最後才使用默認值
-        const avatar = neonUserData.avatar && neonUserData.avatar.trim() !== ''
+        let avatar = neonUserData.avatar && neonUserData.avatar.trim() !== ''
           ? neonUserData.avatar
           : (userData.avatar && userData.avatar.trim() !== ''
             ? userData.avatar
-            : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`)
+            : null)
+
+        // 如果資料庫中都沒有，嘗試從 localStorage 恢復
+        if (!avatar) {
+          try {
+            const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
+            if (savedAvatar && savedAvatar.trim() !== '') {
+              avatar = savedAvatar
+            } else {
+              avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+            }
+          } catch (e) {
+            console.warn('從 localStorage 恢復頭貼失敗:', e)
+            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          }
+        }
+        
+// 如果有有效的頭貼，保存到 localStorage
+        if (avatar && avatar.trim() !== '') {
+          try {
+            localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+          } catch (e) {
+            console.warn('保存頭貼到 localStorage 失敗:', e)
+          }
+        }
         
         applyUserProfileToStore({
           uid: userCredential.user.uid,
@@ -198,9 +222,33 @@ const handleLogin = async () => {
         })
       } else {
         // 如果 Neon 中沒有資料，使用 Firestore 的資料
-        const avatar = userData.avatar && userData.avatar.trim() !== ''
+        let avatar = userData.avatar && userData.avatar.trim() !== ''
           ? userData.avatar
-          : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          : null
+        
+        // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
+        if (!avatar) {
+          try {
+            const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
+            if (savedAvatar && savedAvatar.trim() !== '') {
+              avatar = savedAvatar
+            } else {
+              avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+            }
+          } catch (e) {
+            console.warn('從 localStorage 恢復頭貼失敗:', e)
+            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          }
+        }
+        
+        // 如果有有效的頭貼，保存到 localStorage
+        if (avatar && avatar.trim() !== '') {
+          try {
+            localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+          } catch (e) {
+            console.warn('保存頭貼到 localStorage 失敗:', e)
+          }
+        }
         
         applyUserProfileToStore({
           uid: userCredential.user.uid,
@@ -213,9 +261,33 @@ const handleLogin = async () => {
     } catch (loadError) {
       console.error('從 Neon 載入用戶資料失敗，使用 Firestore 資料：', loadError)
       // 如果載入失敗，使用 Firestore 的資料
-      const avatar = userData.avatar && userData.avatar.trim() !== ''
+      let avatar = userData.avatar && userData.avatar.trim() !== ''
         ? userData.avatar
-        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+        : null
+      
+      // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
+      if (!avatar) {
+        try {
+          const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
+          if (savedAvatar && savedAvatar.trim() !== '') {
+            avatar = savedAvatar
+          } else {
+            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          }
+        } catch (e) {
+          console.warn('從 localStorage 恢復頭貼失敗:', e)
+          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+        }
+      }
+      
+      // 如果有有效的頭貼，保存到 localStorage
+      if (avatar && avatar.trim() !== '') {
+        try {
+          localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+        } catch (e) {
+          console.warn('保存頭貼到 localStorage 失敗:', e)
+        }
+      }
       
       applyUserProfileToStore({
         uid: userCredential.user.uid,

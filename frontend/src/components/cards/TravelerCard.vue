@@ -202,9 +202,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full" @click="$emit('open-detail', traveler)">
+  <div class="h-full w-full overflow-hidden" @click="$emit('open-detail', traveler)">
     <div
-      class="relative flex h-full flex-col cursor-pointer rounded-xl border border-secondary-200 bg-white shadow transition hover:scale-[1.01] hover:shadow-xl active:scale-[0.99]"
+      class="relative flex h-full w-full flex-col cursor-pointer rounded-xl border border-secondary-200 bg-white shadow transition hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] overflow-hidden"
     >
       <div
         v-if="traveler.category"
@@ -293,7 +293,7 @@ onUnmounted(() => {
         </Transition>
       </Teleport>
 
-      <div class="flex h-full flex-col gap-3">
+      <div class="flex h-full w-full flex-col gap-3 overflow-hidden">
         <div
           class="relative w-full shrink-0 overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
         >
@@ -305,37 +305,37 @@ onUnmounted(() => {
           />
 
           <div
-            class="absolute inset-x-0 bottom-0 z-20 flex h-[75%] flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pt-10 pb-4 text-white"
+            class="absolute inset-x-0 bottom-0 z-20 flex h-[75%] flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent px-3 sm:px-4 pt-10 pb-3 sm:pb-4 text-white overflow-hidden"
           >
             <div>
-              <div class="flex items-center space-x-3 mb-2">
+              <div class="flex items-center space-x-2 sm:space-x-3 mb-2 min-w-0">
                 <img
                   :src="traveler.avatar"
-                  class="h-8 w-8 cursor-pointer rounded-full border-2 border-white/80 object-cover transition hover:ring-2 hover:ring-primary-500"
+                  class="h-7 w-7 sm:h-8 sm:w-8 cursor-pointer rounded-full border-2 border-white/80 object-cover transition hover:ring-2 hover:ring-primary-500 shrink-0"
                   @click.stop="handleAvatarClick"
                 />
-                <div>
+                <div class="flex-1 min-w-0">
                   <div class="flex items-center space-x-1 flex-wrap gap-1">
                     <span
-                      class="cursor-pointer text-sm font-bold text-white transition hover:text-primary-300"
+                      class="cursor-pointer text-xs sm:text-sm font-bold text-white transition hover:text-primary-300 truncate max-w-full"
                       @click.stop="handleAvatarClick"
                     >
                       {{ traveler.author }}
                     </span>
                     <span
                       v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
-                      class="whitespace-nowrap rounded-full bg-white/20 px-1.5 py-0.5 text-xs font-semibold text-white/90"
+                      class="whitespace-nowrap rounded-full bg-white/20 px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-white/90 shrink-0"
                     >
                       {{ traveler.spiritAnimal }}
                     </span>
                   </div>
                 </div>
               </div>
-              <div>
-                <h3 class="mb-1 line-clamp-1 text-xl font-bold">
+              <div class="min-w-0">
+                <h3 class="mb-1 line-clamp-1 text-base sm:text-lg md:text-xl font-bold break-words">
                   {{ traveler.title }}
                 </h3>
-                <p class="mb-2 line-clamp-2 text-sm text-white/85 sm:line-clamp-1 xl:line-clamp-2">
+                <p class="mb-2 line-clamp-2 text-xs sm:text-sm text-white/85 sm:line-clamp-1 xl:line-clamp-2 break-words">
                   {{ previewContent }}
                 </p>
               </div>
@@ -353,14 +353,14 @@ onUnmounted(() => {
               </div>
 
               <div class="flex flex-col gap-2">
-                <div class="mt-2 flex min-w-0 flex-wrap items-center gap-4">
-                  <span class="flex max-w-[10rem] items-center truncate">
-                    <MapPinIcon class="mr-1 h-4 w-4 text-white/80" />
-                    {{ traveler.location }}
+                <div class="mt-2 flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
+                  <span class="flex max-w-[8rem] sm:max-w-[10rem] items-center truncate text-xs sm:text-sm">
+                    <MapPinIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/80 shrink-0" />
+                    <span class="truncate">{{ traveler.location }}</span>
                   </span>
-                  <span class="flex items-center">
-                    <CalendarIcon class="mr-1 h-4 w-4 text-white/70" />
-                    {{ traveler.date }}
+                  <span class="flex items-center text-xs sm:text-sm">
+                    <CalendarIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/70 shrink-0" />
+                    <span class="truncate">{{ traveler.date }}</span>
                   </span>
                 </div>
 
@@ -427,12 +427,12 @@ onUnmounted(() => {
               </div>
 
               <div
-                class="relative z-20 flex items-end justify-between border-t border-white/20 pt-2"
+                class="relative z-20 flex items-end justify-between border-t border-white/20 pt-2 gap-2"
               >
-                <div class="flex items-center font-bold text-white">
-                  <UsersIcon class="mr-1 h-5 w-5 text-white/85" />
-                  招募人數：
-                  <span class="ml-1 text-lg text-white">{{ traveler.people }}</span>
+                <div class="flex items-center font-bold text-white min-w-0 flex-1">
+                  <UsersIcon class="mr-1 h-4 w-4 sm:h-5 sm:w-5 text-white/85 shrink-0" />
+                  <span class="text-xs sm:text-sm truncate">招募人數：</span>
+                  <span class="ml-1 text-base sm:text-lg text-white shrink-0">{{ traveler.people }}</span>
                 </div>
 
                 <button
@@ -443,7 +443,7 @@ onUnmounted(() => {
                       ? 'cursor-not-allowed bg-white/20 text-white/60'
                       : 'bg-white text-primary-700 hover:bg-white/90'
                   "
-                  class="relative z-30 rounded-full px-4 py-2 text-sm font-bold shadow-md transition"
+                  class="relative z-30 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
                   @click.stop="
                     traveler.status !== '已額滿' && $emit('open-detail', traveler)
                   "

@@ -14,7 +14,6 @@ export const useUserStore = defineStore('user', () => {
     name: '',
     nickname: '',
     email: '',
-    avatar: '',
     bgImage: '',
     bio: '',
     joinDate: '',
@@ -262,7 +261,7 @@ export const useUserStore = defineStore('user', () => {
     } else {
       currentUser.value = { ...currentUser.value, ...newData }
     }
-    
+
     // 如果更新了頭貼，保存到 localStorage
     if (newData.avatar !== undefined && currentUser.value.uid) {
       try {
@@ -304,8 +303,8 @@ export const useUserStore = defineStore('user', () => {
     if (profileData) {
       // 正確處理頭貼：優先使用傳入的 avatar，如果沒有則從 localStorage 恢復，最後才使用默認值
       let avatarValue = profileData.avatar
-      
-      // 如果傳入的 avatar 有效，使用它
+
+      // 如果傳入的 avatar 有效，使用它並保存到 localStorage
       if (avatarValue && typeof avatarValue === 'string' && avatarValue.trim() !== '') {
         // 保存到 localStorage 作為備份
         if (profileData.uid) {
@@ -321,17 +320,28 @@ export const useUserStore = defineStore('user', () => {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${profileData.uid}`)
             if (savedAvatar && savedAvatar.trim() !== '') {
+              // 如果有保存的頭貼，使用它
               avatarValue = savedAvatar
+            } else if (currentUser.value.avatar && currentUser.value.avatar.trim() !== '') {
+              // 如果當前用戶已有頭貼，保留它並保存到 localStorage
+              avatarValue = currentUser.value.avatar
+              try {
+                localStorage.setItem(`user_avatar_${profileData.uid}`, avatarValue)
+              } catch (e) {
+                console.warn('保存頭貼到 localStorage 失敗:', e)
+              }
             } else {
               // 如果都沒有，使用默認頭貼
               avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
             }
           } catch (e) {
             console.warn('從 localStorage 載入頭貼失敗:', e)
-            avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
+            // 如果載入失敗，嘗試使用當前用戶的頭貼
+            avatarValue = currentUser.value.avatar ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
           }
         } else {
-          avatarValue = currentUser.value.avatar || 
+          avatarValue = currentUser.value.avatar ||
             (profileData.uid ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}` : '')
         }
       }
@@ -369,8 +379,8 @@ export const useUserStore = defineStore('user', () => {
           email: firebaseUser.value?.email || neonUserData.email || '',
           nickname: neonUserData.nickname || '',
           // 確保傳遞有效的 avatar，如果資料庫中有就使用，沒有就傳遞 undefined 讓 setUserProfile 處理
-          avatar: neonUserData.avatar && typeof neonUserData.avatar === 'string' && neonUserData.avatar.trim() !== '' 
-            ? neonUserData.avatar 
+          avatar: neonUserData.avatar && typeof neonUserData.avatar === 'string' && neonUserData.avatar.trim() !== ''
+            ? neonUserData.avatar
             : undefined,
           bio: neonUserData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || '',
@@ -449,8 +459,18 @@ export const useUserStore = defineStore('user', () => {
         } else {
           await new Promise(resolve => setTimeout(resolve, 500))
         }
-      await loadUserProfile(user.uid)
-      await fetchFavorites()
+        await loadUserProfile(user.uid)
+
+        // 確保頭貼已保存到 localStorage（如果有的話）
+        if (currentUser.value.avatar && currentUser.value.avatar.trim() !== '') {
+          try {
+            localStorage.setItem(`user_avatar_${user.uid}`, currentUser.value.avatar)
+          } catch (e) {
+            console.warn('保存頭貼到 localStorage 失敗:', e)
+          }
+        }
+
+        await fetchFavorites()
       } catch (error) {
         const is404Error = error.message?.includes('404') ||
                           error.message?.includes('Not Found')
