@@ -17,7 +17,9 @@ import {
   FileText as FileTextIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
+import { checkoutStore } from '@/stores/checkout'
 import { useRouter } from 'vue-router'
+import { showAlert, showConfirm, showError } from '@/utils/alert'
 import { getItineraryById } from '@/api/itinerary'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
@@ -46,6 +48,7 @@ const isLoadingDetails = ref(false)
 const currentUserUid = ref(null)
 const isLiked = ref(false)
 const likesCount = ref(props.itinerary.likes || 0)
+const isAddingToCart = ref(false)
 
 const contentContainerRef = ref(null)
 
@@ -159,6 +162,40 @@ const jumpToComments = async () => {
   const tabElement = document.getElementById('itinerary-tab-nav')
   if (tabElement) {
     tabElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+const handleAddToCart = async () => {
+  if (isAddingToCart.value) return
+  if (!localItineraryData.value?.id) return
+  if (!userStore.isLoggedIn) {
+    await showAlert('請先登入再加入購物車')
+    router.push('/login')
+    return
+  }
+  isAddingToCart.value = true
+  try {
+    await checkoutStore.addToCart(localItineraryData.value.id, 1, { skipReload: true })
+    if (checkoutStore.cartError) {
+      await showError(checkoutStore.cartError)
+      return
+    }
+    const goToCart = await showConfirm('已成功加入購物車，是否前往查看？', {
+      confirmButtonText: '前往購物車',
+      cancelButtonText: '繼續挑選行程',
+      icon: 'success',
+      iconColor: '#16a34a',
+    })
+    if (goToCart) {
+      await checkoutStore.loadCartFromDb()
+      if (checkoutStore.cartError) {
+        await showError(checkoutStore.cartError)
+        return
+      }
+      router.push('/cart')
+    }
+  } finally {
+    isAddingToCart.value = false
   }
 }
 
@@ -322,17 +359,33 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div
-              v-if="localItineraryData.tags && localItineraryData.tags.length"
-              class="flex flex-wrap gap-2 mb-6"
-            >
-              <span
-                v-for="tag in localItineraryData.tags"
-                :key="tag"
-                class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
+            <div class="flex flex-col lg:flex-row lg:items-center gap-4 mb-6">
+              <div
+                v-if="localItineraryData.tags && localItineraryData.tags.length"
+                class="flex flex-wrap gap-2"
               >
-                #{{ tag }}
-              </span>
+                <span
+                  v-for="tag in localItineraryData.tags"
+                  :key="tag"
+                  class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
+                >
+                  #{{ tag }}
+                </span>
+              </div>
+              <div class="w-full lg:w-auto flex gap-3 lg:ml-auto justify-start">
+                <button
+                  class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
+                >
+                  立即諮詢
+                </button>
+                <button
+                  class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+                  @click="handleAddToCart"
+                  :disabled="isAddingToCart"
+                >
+                  {{ isAddingToCart ? '加入中...' : '立即預訂' }}
+                </button>
+              </div>
             </div>
 
             <div class="prose prose-lg max-w-none mb-6">
@@ -385,18 +438,6 @@ onMounted(async () => {
                 />
               </button>
 
-              <div class="ml-auto flex gap-3">
-                <button
-                  class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
-                >
-                  立即諮詢
-                </button>
-                <button
-                  class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
-                >
-                  立即預訂
-                </button>
-              </div>
             </div>
 
             <div id="itinerary-tab-nav" class="border-b-2 border-primary-200 mb-6">
