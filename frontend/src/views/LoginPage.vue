@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { auth, db } from '@/firebase/config'
 import { useUserStore } from '@/stores/user'
 import {
@@ -7,14 +7,12 @@ import {
   signInWithEmailAndPassword,
   deleteUser,
 } from 'firebase/auth'
-import { Eye as EyeIcon, EyeOff as EyeOffIcon } from 'lucide-vue-next'
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createOrUpdateUser, getUserProfile } from '@/api/users'
 import tripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 import loginPageImage from '@/assets/pic/loginPage-removebg.png'
-import { showAlert } from '@/utils/alert'
 
 const activeTab = ref('login')
 
@@ -37,11 +35,6 @@ const loginErrors = ref({
   password: '',
   general: '',
 })
-const isLoggingIn = ref(false)
-
-const showLoginPassword = ref(false)
-const showRegisterPassword = ref(false)
-const showRegisterConfirmPassword = ref(false)
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -68,8 +61,6 @@ const applyUserProfileToStore = (profileData) => {
 }
 
 const handleLogin = async () => {
-  if (isLoggingIn.value) return
-  isLoggingIn.value = true
   loginForm.value.email = (loginForm.value.email || '')
     .toString()
     .trim()
@@ -127,20 +118,32 @@ const handleLogin = async () => {
     }
 
     try {
-      const userRole = userData.role || 'user'
-      const vendorId =
-        userRole === 'user' || userRole === 'admin'
-          ? null
-          : userData.vendorId || userData.vendor_id || null
-
+      // 先檢查Neon中是否存在用戶
       let neonUserExists = false
+      let existingNeonUser = null
       try {
-        const neonUser = await getUserProfile(userCredential.user.uid)
-        neonUserExists = neonUser && neonUser.uid
-      } catch {
-        // 檢查失敗，繼續處理
+        existingNeonUser = await getUserProfile(userCredential.user.uid)
+        neonUserExists = existingNeonUser && existingNeonUser.uid
+      } catch (checkError) {
+        console.log('檢查 Neon 用戶時出錯（可能不存在）：', checkError)
       }
 
+      // ⚠️ 修正：如果 Neon 已有用戶，保留原有的 role 和 vendor_id
+      const userRole = neonUserExists && existingNeonUser.role
+        ? existingNeonUser.role
+        : (userData.role || 'user')
+
+      const vendorId = neonUserExists && existingNeonUser.vendor_id
+        ? existingNeonUser.vendor_id
+        : (userRole === 'user' || userRole === 'admin'
+            ? null
+            : userData.vendorId || userData.vendor_id || null)
+
+      console.log('🔧 [登入] Neon 使用者存在:', neonUserExists)
+      console.log('🔧 [登入] 保留的 role:', userRole)
+      console.log('🔧 [登入] 保留的 vendor_id:', vendorId)
+
+      // 如果Neon中不存在，嘗試創建/更新
       if (!neonUserExists) {
         try {
           await createOrUpdateUser({
@@ -158,21 +161,9 @@ const handleLogin = async () => {
           // 同步失敗但不影響登入
         }
       } else {
-        try {
-          await createOrUpdateUser({
-            uid: userCredential.user.uid,
-            email: userCredential.user.email,
-            nickname: userData.nickname || '',
-            location: userData.location || '台灣',
-            avatar: userData.avatar || '',
-            bio: userData.bio || null,
-            spirit_animal: userData.spiritAnimal || null,
-            role: userRole,
-            vendor_id: vendorId,
-          })
-        } catch {
-          // 更新失敗但不影響登入
-        }
+        // ⚠️ 修正：如果存在，只更新非關鍵欄位，不覆蓋 role 和 vendor_id
+        console.log('✅ Neon 使用者已存在，保留原有 role 和 vendor_id')
+        // 不再呼叫 createOrUpdateUser，避免覆蓋
       }
     } catch {
       // 同步失敗但不影響登入
@@ -242,18 +233,18 @@ const handleLogin = async () => {
             }
           }
         }
-
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           nickname: neonUserData.nickname || userData.nickname || '',
-          avatar: avatar,
+          avatar: neonUserData.avatar || userData.avatar || '',
           bio: neonUserData.bio || userData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || userData.spiritAnimal || '',
           role: neonUserData.role || 'user',
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
+
         let avatar = null
 
         if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
@@ -307,11 +298,11 @@ const handleLogin = async () => {
           }
         }
 
+
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...userData,
-          avatar: avatar,
           role: userData.role || 'user',
         })
       }
@@ -355,12 +346,10 @@ const handleLogin = async () => {
           // 同步失敗但不影響登入
         }
       }
-
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         ...userData,
-        avatar: avatar,
         role: userData.role || 'user',
       })
     }
@@ -377,8 +366,6 @@ const handleLogin = async () => {
     } else {
       loginErrors.value.general = '登入失敗：' + error.message
     }
-  } finally {
-    isLoggingIn.value = false
   }
 }
 
@@ -496,40 +483,37 @@ const handleRegister = async () => {
       // 創建Firestore用戶資料
       await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
-      // 嘗試同步到Neon資料庫（必須成功，否則註冊失敗）
-      const vendorId = null
+      // 嘗試同步到Neon資料庫
+      const finalRole = registerForm.value.role || 'user'
+
+      // 🆕 詳細除錯日誌
+      console.log('=== 📋 [註冊] 開始註冊流程 ===')
+      console.log('1️⃣ 表單原始 role:', registerForm.value.role)
+      console.log('2️⃣ 最終 finalRole:', finalRole)
+      console.log('3️⃣ 用戶 UID:', userCredential.user.uid)
+      console.log('4️⃣ 用戶 Email:', userCredential.user.email)
+      console.log('5️⃣ 暱稱:', userData.nickname)
 
       try {
-        const neonUserData = {
+        console.log('📤 [註冊] 準備呼叫 createOrUpdateUser API...')
+
+        const apiPayload = {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
-          nickname: userData.nickname || null,
-          real_name: userData.realName || null,
-          avatar: userData.avatar || null,
-          bio: userData.bio || null,
-          spirit_animal: userData.spiritAnimal || null,
-          role: finalRole,
-          vendor_id: vendorId || null,
+          nickname: userData.nickname,
+          real_name: userData.realName,
+          avatar: userData.avatar,
+          bio: userData.bio,
+          spirit_animal: userData.spiritAnimal,
+          role: finalRole,  // ✅ 正確傳遞 role
         }
 
-        const neonResponse = await createOrUpdateUser(neonUserData)
+        console.log('📦 [註冊] API Payload:', JSON.stringify(apiPayload, null, 2))
 
-        if (!neonResponse || !neonResponse.uid) {
-          throw new Error('Neon 資料庫未成功創建用戶資料')
-        }
+        const result = await createOrUpdateUser(apiPayload)
 
-        if (!neonResponse.role) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          try {
-            const retryResponse = await createOrUpdateUser(neonUserData)
-            if (retryResponse && retryResponse.role) {
-              Object.assign(neonResponse, retryResponse)
-            }
-          } catch {
-            // 重試失敗，繼續流程
-          }
-        }
-
+        console.log('✅ [註冊] API 返回成功，返回資料:', result)
+        console.log('✅ [註冊] 返回的 role:', result.role)
         neonUserCreated = true
         userStore.markAsRecentlyRegistered(userCredential.user.uid)
       } catch (syncError) {
@@ -585,7 +569,16 @@ const handleRegister = async () => {
           syncError.message ||
           '未知錯誤'
 
-        throw new Error('註冊失敗：資料同步到資料庫失敗。所有資料已回滾。' + (errorMessage ? ` (${errorMessage})` : ''))
+        // 檢查是否是資料庫連接問題
+        if (
+          syncError.message?.includes('Failed to fetch') ||
+          syncError.message?.includes('NetworkError') ||
+          syncError.response?.status === 503
+        ) {
+          throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
+        }
+
+        throw new Error('資料同步到資料庫失敗：' + errorMessage)
       }
     } catch (error) {
       if (userCredential && !neonUserCreated) {
@@ -663,7 +656,7 @@ const handleForgotPassword = async () => {
       .replace(/\uFF20/g, '@')
       .replace(/[\uFF0E\u3002\uFF61]/g, '.')
     await sendPasswordResetEmail(auth, loginForm.value.email)
-    showAlert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
+    alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
     console.error('發送失敗：', error.message)
     loginErrors.value.email = '發送失敗：' + error.message
@@ -742,7 +735,7 @@ const registerErrors = ref({
                   id="email"
                   v-model="loginForm.email"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
                     loginErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -757,28 +750,17 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-base sm:text-lg"> 密碼 </label>
-                <div class="relative">
-                  <input
-                    id="password"
-                    v-model="loginForm.password"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
-                      loginErrors.password ? 'border-red-500' : 'border-black',
-                    ]"
-                    :type="showLoginPassword ? 'text' : 'password'"
-                    placeholder="請輸入密碼"
-                    @input="loginErrors.password = ''"
-                  />
-                  <button
-                    type="button"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
-                    :aria-label="showLoginPassword ? '隱藏密碼' : '顯示密碼'"
-                    @click="showLoginPassword = !showLoginPassword"
-                  >
-                    <EyeOffIcon v-if="showLoginPassword" class="w-5 h-5" />
-                    <EyeIcon v-else class="w-5 h-5" />
-                  </button>
-                </div>
+                <input
+                  id="password"
+                  v-model="loginForm.password"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    loginErrors.password ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請輸入密碼"
+                  @input="loginErrors.password = ''"
+                />
                 <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
                   loginErrors.password
                 }}</span>
@@ -789,10 +771,9 @@ const registerErrors = ref({
             </div>
             <button
               type="submit"
-              :disabled="isLoggingIn"
-              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
+              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
             >
-              {{ isLoggingIn ? '登入中...' : '登入' }}
+              登入
             </button>
             <a
               href="#"
@@ -856,7 +837,7 @@ const registerErrors = ref({
                   id="realName"
                   v-model="registerForm.realName"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
                     registerErrors.realName ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -875,7 +856,7 @@ const registerErrors = ref({
                   id="nickname"
                   v-model="registerForm.nickname"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
                     registerErrors.nickname ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -894,7 +875,7 @@ const registerErrors = ref({
                   id="email"
                   v-model="registerForm.email"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
                     registerErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -909,28 +890,17 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base"> 密碼 </label>
-                <div class="relative">
-                  <input
-                    id="password"
-                    v-model="registerForm.password"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
-                      registerErrors.password ? 'border-red-500' : 'border-black',
-                    ]"
-                    :type="showRegisterPassword ? 'text' : 'password'"
-                    placeholder="6位以上英、數字，必須包含大小寫"
-                    @input="registerErrors.password = ''"
-                  />
-                  <button
-                    type="button"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
-                    :aria-label="showRegisterPassword ? '隱藏密碼' : '顯示密碼'"
-                    @click="showRegisterPassword = !showRegisterPassword"
-                  >
-                    <EyeOffIcon v-if="showRegisterPassword" class="w-5 h-5" />
-                    <EyeIcon v-else class="w-5 h-5" />
-                  </button>
-                </div>
+                <input
+                  id="password"
+                  v-model="registerForm.password"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.password ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="6位以上英、數字，必須包含大小寫"
+                  @input="registerErrors.password = ''"
+                />
                 <span v-if="registerErrors.password" class="text-red-500 text-sm">
                   {{ registerErrors.password }}
                 </span>
@@ -939,28 +909,17 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="confirmPassword" class="text-sm sm:text-base">確認密碼</label>
-                <div class="relative">
-                  <input
-                    id="confirmPassword"
-                    v-model="registerForm.confirmPassword"
-                    :class="[
-                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
-                      registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
-                    ]"
-                    :type="showRegisterConfirmPassword ? 'text' : 'password'"
-                    placeholder="請再次輸入密碼"
-                    @input="registerErrors.confirmPassword = ''"
-                  />
-                  <button
-                    type="button"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
-                    :aria-label="showRegisterConfirmPassword ? '隱藏密碼' : '顯示密碼'"
-                    @click="showRegisterConfirmPassword = !showRegisterConfirmPassword"
-                  >
-                    <EyeOffIcon v-if="showRegisterConfirmPassword" class="w-5 h-5" />
-                    <EyeIcon v-else class="w-5 h-5" />
-                  </button>
-                </div>
+                <input
+                  id="confirmPassword"
+                  v-model="registerForm.confirmPassword"
+                  :class="[
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
+                  ]"
+                  type="password"
+                  placeholder="請再次輸入密碼"
+                  @input="registerErrors.confirmPassword = ''"
+                />
                 <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
                   {{ registerErrors.confirmPassword }}
                 </span>
