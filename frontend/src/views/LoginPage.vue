@@ -179,55 +179,82 @@ const handleLogin = async () => {
     try {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData) {
-        // 優先使用 Neon 資料庫中的頭貼，如果沒有則使用 Firestore 的，最後才使用默認值
-        let avatar = neonUserData.avatar && neonUserData.avatar.trim() !== ''
-          ? neonUserData.avatar
-          : (userData.avatar && userData.avatar.trim() !== ''
-            ? userData.avatar
-            : null)
-
-        // 如果資料庫中都沒有，嘗試從 localStorage 恢復
+        // 優先級順序：1. Neon 資料庫 2. Firebase Auth photoURL 3. Firestore 4. localStorage 5. 默認頭貼
+        let avatar = null
+        
+        // 1. 優先使用 Neon 資料庫中的頭貼（排除 dicebear 默認頭貼）
+        if (neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')) {
+          avatar = neonUserData.avatar
+          console.log('✅ 使用 Neon 資料庫中的頭貼')
+        }
+        
+        // 2. 如果沒有，嘗試使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
+        if (!avatar && userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
+          avatar = userCredential.user.photoURL
+          console.log('✅ 使用 Firebase Auth 的 photoURL')
+        }
+        
+        // 3. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
+        if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
+          avatar = userData.avatar
+          console.log('✅ 使用 Firestore 的頭貼')
+        }
+        
+        // 4. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
         let avatarFromLocalStorage = false
         if (!avatar) {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
-            if (savedAvatar && savedAvatar.trim() !== '') {
-              // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
+            if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
               avatar = savedAvatar
-              // 只有非 dicebear 的頭貼才需要同步到資料庫
-              if (!savedAvatar.includes('dicebear.com')) {
-                avatarFromLocalStorage = true
-              }
-            } else {
-              // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
-              avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+              avatarFromLocalStorage = true
+              console.log('✅ 使用 localStorage 中的頭貼')
             }
           } catch (e) {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
-            // 如果載入失敗，使用默認頭貼
-            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
           }
         }
+        
+        // 5. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
+        if (!avatar) {
+          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
+        }
 
-        // 如果有有效的頭貼，保存到 localStorage
-        if (avatar && avatar.trim() !== '') {
+        // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
+        if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          // 保存到 localStorage
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+            console.log('✅ 已保存頭貼到 localStorage')
           } catch (e) {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
-        }
-
-        // 如果頭貼是從 localStorage 恢復的，同步到資料庫
-        if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
-          try {
-            await createOrUpdateUser({
-              uid: userCredential.user.uid,
-              avatar: avatar
-            })
-            console.log('已將 localStorage 中的頭貼同步到資料庫')
-          } catch (e) {
-            console.warn('同步頭貼到資料庫失敗:', e)
+          
+          // 如果頭貼是從 localStorage 恢復的，或者資料庫中沒有，同步到資料庫
+          if (avatarFromLocalStorage || !neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) {
+            try {
+              await createOrUpdateUser({
+                uid: userCredential.user.uid,
+                avatar: avatar
+              })
+              console.log('✅ 已將頭貼同步到 Neon 資料庫')
+            } catch (e) {
+              console.warn('同步頭貼到資料庫失敗:', e)
+            }
+          }
+          
+          // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
+          if (userCredential.user.photoURL !== avatar) {
+            try {
+              const { updateProfile } = await import('firebase/auth')
+              await updateProfile(userCredential.user, {
+                photoURL: avatar
+              })
+              console.log('✅ 已更新 Firebase Auth 的 photoURL')
+            } catch (e) {
+              console.warn('更新 Firebase Auth photoURL 失敗:', e)
+            }
           }
         }
 
@@ -242,53 +269,72 @@ const handleLogin = async () => {
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
-        // 如果 Neon 中沒有資料，使用 Firestore 的資料
-        let avatar = userData.avatar && userData.avatar.trim() !== ''
-          ? userData.avatar
-          : null
-
-        // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
-        let avatarFromLocalStorage = false
+        // 如果 Neon 中沒有資料，使用以下優先級：1. Firebase Auth photoURL 2. Firestore 3. localStorage 4. 默認頭貼
+        let avatar = null
+        
+        // 1. 優先使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
+        if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
+          avatar = userCredential.user.photoURL
+          console.log('✅ 使用 Firebase Auth 的 photoURL')
+        }
+        
+        // 2. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
+        if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
+          avatar = userData.avatar
+          console.log('✅ 使用 Firestore 的頭貼')
+        }
+        
+        // 3. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
         if (!avatar) {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
-            if (savedAvatar && savedAvatar.trim() !== '') {
-              // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
+            if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
               avatar = savedAvatar
-              // 只有非 dicebear 的頭貼才需要同步到資料庫
-              if (!savedAvatar.includes('dicebear.com')) {
-                avatarFromLocalStorage = true
-              }
-            } else {
-              // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
-              avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+              console.log('✅ 使用 localStorage 中的頭貼')
             }
           } catch (e) {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
-            // 如果載入失敗，使用默認頭貼
-            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
           }
         }
+        
+        // 4. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
+        if (!avatar) {
+          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
+        }
 
-        // 如果有有效的頭貼，保存到 localStorage
-        if (avatar && avatar.trim() !== '') {
+        // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
+        if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          // 保存到 localStorage
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+            console.log('✅ 已保存頭貼到 localStorage')
           } catch (e) {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
-        }
-
-        // 如果頭貼是從 localStorage 恢復的，同步到資料庫
-        if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          
+          // 同步到資料庫
           try {
             await createOrUpdateUser({
               uid: userCredential.user.uid,
               avatar: avatar
             })
-            console.log('已將 localStorage 中的頭貼同步到資料庫')
+            console.log('✅ 已將頭貼同步到 Neon 資料庫')
           } catch (e) {
             console.warn('同步頭貼到資料庫失敗:', e)
+          }
+          
+          // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
+          if (userCredential.user.photoURL !== avatar) {
+            try {
+              const { updateProfile } = await import('firebase/auth')
+              await updateProfile(userCredential.user, {
+                photoURL: avatar
+              })
+              console.log('✅ 已更新 Firebase Auth 的 photoURL')
+            } catch (e) {
+              console.warn('更新 Firebase Auth photoURL 失敗:', e)
+            }
           }
         }
 

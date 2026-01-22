@@ -38,7 +38,15 @@ const isUploadingFile = ref(false)
 const uploadProgress = ref(0)
 const showFriendRequestsList = ref(false)
 const friendRequestsListContainer = ref(null)
-const friendRequestsPopupPosition = ref({ top: 'auto', bottom: 'auto', left: 'auto', right: 'auto', transform: '' })
+const friendRequestsPopupPosition = ref({ 
+  position: 'fixed',
+  top: 'auto', 
+  bottom: 'auto', 
+  left: 'auto', 
+  right: 'auto', 
+  width: '320px',
+  maxWidth: '384px'
+})
 const showImagePreview = ref(false)
 const previewImageUrl = ref('')
 const previewImageName = ref('')
@@ -922,50 +930,68 @@ const calculateFriendRequestsPopupPosition = () => {
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
 
+    // 使用 fixed 定位，相對於視口計算
     let top = 'auto'
     let bottom = 'auto'
-    let left = 'auto'
-    let right = 'auto'
-    let transform = ''
 
     // 檢查下方空間是否足夠
     const spaceBelow = viewportHeight - rect.bottom - margin
     const spaceAbove = rect.top - margin
 
-    // 如果下方空間不足，向上顯示
-    if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
-      bottom = `${rect.height + margin}px`
-      top = 'auto'
-    } else {
-      top = `${rect.height + margin}px`
+    // 垂直位置：優先向下，空間不足則向上
+    if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
+      // 向下顯示
+      top = `${rect.bottom + margin}px`
       bottom = 'auto'
+    } else {
+      // 向上顯示
+      bottom = `${viewportHeight - rect.top + margin}px`
+      top = 'auto'
     }
 
-    // 檢查右側空間是否足夠
+    // 水平位置：優先右對齊，空間不足則左對齊或居中
     const spaceRight = viewportWidth - rect.right
     const spaceLeft = rect.left
 
-    // 計算可用的最大寬度
-    const maxAvailableWidth = Math.max(spaceLeft, spaceRight) - margin * 2
-    const finalWidth = Math.min(popupWidth, maxAvailableWidth, viewportWidth - margin * 2)
+    // 計算最終寬度（確保不超出視口）
+    let finalWidth = popupWidth
+    let finalLeft = 'auto'
+    let finalRight = 'auto'
 
-    // 如果右側空間不足，調整水平位置
-    if (spaceRight < popupWidth && spaceLeft > spaceRight) {
-      right = 'auto'
-      left = '0'
+    if (spaceRight >= popupWidth) {
+      // 右側空間足夠，右對齊
+      finalRight = `${viewportWidth - rect.right}px`
+      finalLeft = 'auto'
+    } else if (spaceLeft >= popupWidth) {
+      // 左側空間足夠，左對齊
+      finalLeft = `${rect.left}px`
+      finalRight = 'auto'
     } else {
-      right = '0'
-      left = 'auto'
+      // 兩側空間都不足，使用較大的一側並調整寬度
+      if (spaceRight >= spaceLeft) {
+        // 右側空間較大，右對齊但縮小寬度
+        finalRight = `${margin}px`
+        finalLeft = 'auto'
+        finalWidth = Math.min(popupWidth, spaceRight - margin * 2)
+      } else {
+        // 左側空間較大，左對齊但縮小寬度
+        finalLeft = `${margin}px`
+        finalRight = 'auto'
+        finalWidth = Math.min(popupWidth, spaceLeft - margin * 2)
+      }
     }
 
+    // 確保最小寬度
+    finalWidth = Math.max(280, finalWidth)
+
     friendRequestsPopupPosition.value = {
+      position: 'fixed',
       top,
       bottom,
-      left,
-      right,
-      transform,
-      maxWidth: `${finalWidth}px`,
-      width: `${finalWidth}px`
+      left: finalLeft,
+      right: finalRight,
+      width: `${finalWidth}px`,
+      maxWidth: `${finalWidth}px`
     }
   })
 }
@@ -1128,13 +1154,13 @@ onUnmounted(() => {
           <!-- 好友請求列表彈窗 -->
           <div
             v-if="showFriendRequestsList"
-            class="absolute bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
+            class="bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
             :style="{
+              position: friendRequestsPopupPosition.position || 'fixed',
               top: friendRequestsPopupPosition.top,
               bottom: friendRequestsPopupPosition.bottom,
               left: friendRequestsPopupPosition.left,
               right: friendRequestsPopupPosition.right,
-              transform: friendRequestsPopupPosition.transform,
               width: friendRequestsPopupPosition.width || '320px',
               maxWidth: friendRequestsPopupPosition.maxWidth || '384px',
               minWidth: '280px'

@@ -3,6 +3,9 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { usePersonalityStore } from '@/stores/personality'
 import { getTravelers } from '@/api/travelers'
+import { auth, db } from '@/firebase/config'
+import { updateProfile } from 'firebase/auth'
+import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 
 // Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
@@ -562,6 +565,118 @@ const handleAvatarCrop = async (croppedFile) => {
     } catch (uploadError) {
       console.error('❌ 上傳圖片失敗：', uploadError)
       throw new Error('上傳圖片失敗：' + (uploadError.message || '請檢查網路連線'))
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📋 開始更新 Firebase 服務...')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+    // 更新 Firebase Auth 個人資料
+    try {
+      console.log('🔥 開始更新 Firebase Auth 個人資料...')
+      const currentUser = auth.currentUser
+      console.log('👤 當前用戶狀態:', {
+        exists: !!currentUser,
+        uid: currentUser?.uid,
+        email: currentUser?.email
+      })
+      if (currentUser) {
+        console.log('📝 準備更新 Firebase Auth photoURL:', avatarUrl)
+        await updateProfile(currentUser, {
+          photoURL: avatarUrl
+        })
+        console.log('✅ Firebase Auth 個人資料更新成功')
+        // 驗證更新
+        const updatedUser = auth.currentUser
+        console.log('✅ 驗證 Firebase Auth 更新結果 - photoURL:', updatedUser?.photoURL)
+      } else {
+        console.warn('⚠️ 沒有當前登入用戶，跳過 Firebase Auth 更新')
+      }
+    } catch (firebaseError) {
+      console.error('❌ 更新 Firebase Auth 個人資料失敗：', firebaseError)
+      console.error('❌ Firebase Auth 錯誤詳情:', {
+        code: firebaseError.code,
+        message: firebaseError.message,
+        stack: firebaseError.stack
+      })
+      // Firebase 更新失敗不影響整體流程，繼續執行
+      console.warn('⚠️ 將繼續更新 Firestore 和 Neon 資料庫')
+    }
+
+    // 更新 Firebase Firestore 個人資料
+    try {
+      console.log('🔥 開始更新 Firebase Firestore 個人資料...')
+      const currentUser = auth.currentUser
+      console.log('👤 Firestore 更新 - 當前用戶狀態:', {
+        exists: !!currentUser,
+        uid: currentUser?.uid,
+        email: currentUser?.email
+      })
+      if (currentUser) {
+        const userDocRef = doc(db, 'users', currentUser.uid)
+        console.log('📄 Firestore 文檔引用:', userDocRef.path)
+        console.log('📄 Firestore 文檔 ID:', userDocRef.id)
+        
+        const userDoc = await getDoc(userDocRef)
+        console.log('📄 文檔存在狀態:', userDoc.exists())
+
+        if (userDoc.exists()) {
+          // 如果文檔存在，更新 avatar 字段
+          console.log('📝 準備更新現有文檔，avatar URL:', avatarUrl)
+          await updateDoc(userDocRef, {
+            avatar: avatarUrl,
+            updatedAt: serverTimestamp()
+          })
+          console.log('✅ Firebase Firestore 個人資料更新成功')
+          
+          // 驗證更新是否成功
+          const updatedDoc = await getDoc(userDocRef)
+          if (updatedDoc.exists()) {
+            const updatedData = updatedDoc.data()
+            console.log('✅ 驗證更新結果 - avatar:', updatedData.avatar)
+            if (updatedData.avatar !== avatarUrl) {
+              console.warn('⚠️ 警告：更新後的 avatar 與預期不符')
+            }
+          }
+        } else {
+          // 如果文檔不存在，創建新文檔
+          console.log('📝 準備創建新文檔，avatar URL:', avatarUrl)
+          await setDoc(userDocRef, {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            nickname: currentUser.displayName || currentUser.email?.split('@')[0] || '用戶',
+            avatar: avatarUrl,
+            bio: '',
+            spiritAnimal: '',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          })
+          console.log('✅ Firebase Firestore 個人資料創建成功')
+          
+          // 驗證創建是否成功
+          const createdDoc = await getDoc(userDocRef)
+          if (createdDoc.exists()) {
+            const createdData = createdDoc.data()
+            console.log('✅ 驗證創建結果 - avatar:', createdData.avatar)
+          }
+        }
+      } else {
+        console.warn('⚠️ 沒有當前登入用戶，跳過 Firebase Firestore 更新')
+        throw new Error('沒有當前登入用戶，無法更新 Firestore')
+      }
+    } catch (firestoreError) {
+      console.error('❌ 更新 Firebase Firestore 個人資料失敗：', firestoreError)
+      console.error('❌ 錯誤詳情:', {
+        code: firestoreError.code,
+        message: firestoreError.message,
+        stack: firestoreError.stack,
+        uid: auth.currentUser?.uid,
+        avatarUrl: avatarUrl
+      })
+      // Firestore 更新失敗不影響整體流程，繼續執行
+      console.warn('⚠️ 將繼續更新 Neon 資料庫')
+      // 但仍然要讓用戶知道 Firestore 更新失敗
+      alert(`⚠️ 警告：Firebase Firestore 更新失敗，但會繼續更新其他資料庫。\n錯誤：${firestoreError.message || '未知錯誤'}`)
     }
 
     // 更新資料庫
