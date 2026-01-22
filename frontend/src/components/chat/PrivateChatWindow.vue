@@ -37,15 +37,19 @@ const fileInputRef = ref(null)
 const isUploadingFile = ref(false)
 const uploadProgress = ref(0)
 const showFriendRequestsList = ref(false)
+const isFriendRequestsListOpening = ref(false) // 標誌位：防止在開啟過程中被關閉
+const friendRequestsToggleAt = ref(0) // 記錄開啟時間，防止立即關閉
 const friendRequestsListContainer = ref(null)
-const friendRequestsPopupPosition = ref({ 
+const friendRequestsPopupPosition = ref({
   position: 'fixed',
-  top: 'auto', 
-  bottom: 'auto', 
-  left: 'auto', 
-  right: 'auto', 
+  top: '50%',
+  bottom: 'auto',
+  left: '50%',
+  right: 'auto',
   width: '320px',
-  maxWidth: '384px'
+  maxWidth: '384px',
+  maxHeight: '70vh',
+  transform: 'translate(-50%, -50%)'
 })
 const showImagePreview = ref(false)
 const previewImageUrl = ref('')
@@ -912,108 +916,216 @@ const handleClickOutside = (event) => {
   if (showStickerPicker.value && !event.target.closest('.sticker-picker-container')) {
     showStickerPicker.value = false
   }
-  if (showFriendRequestsList.value && !event.target.closest('.friend-requests-list-container')) {
-    showFriendRequestsList.value = false
+  // 檢查是否點擊在好友請求列表容器內（包括按鈕和彈窗）
+  // 如果正在開啟過程中，不處理關閉
+  if (showFriendRequestsList.value && !isFriendRequestsListOpening.value) {
+    const now = Date.now()
+    if (now - friendRequestsToggleAt.value < 300) return
+    const isInsideContainer = event.target.closest('.friend-requests-list-container')
+    const isInsidePopup = event.target.closest('.friend-requests-popup')
+    // 檢查點擊目標是否是按鈕本身或其子元素
+    const isButton = event.target.closest('button[title="好友邀請"]') ||
+                     event.target.closest('.friend-requests-list-container button')
+
+    if (!isInsideContainer && !isInsidePopup && !isButton) {
+      showFriendRequestsList.value = false
+    }
   }
 }
 
 // 計算好友請求列表彈窗位置
 const calculateFriendRequestsPopupPosition = () => {
-  if (!friendRequestsListContainer.value) return
-
-  nextTick(() => {
-    const container = friendRequestsListContainer.value
-    const rect = container.getBoundingClientRect()
-    const popupWidth = 384 // w-96 = 384px
-    const popupHeight = 384 // max-h-96 = 384px
-    const margin = 8 // mt-2 = 8px
+  const useCenterPopup = true
+  if (useCenterPopup) {
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
-
-    // 使用 fixed 定位，相對於視口計算
-    let top = 'auto'
-    let bottom = 'auto'
-
-    // 檢查下方空間是否足夠
-    const spaceBelow = viewportHeight - rect.bottom - margin
-    const spaceAbove = rect.top - margin
-
-    // 垂直位置：優先向下，空間不足則向上
-    if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
-      // 向下顯示
-      top = `${rect.bottom + margin}px`
-      bottom = 'auto'
-    } else {
-      // 向上顯示
-      bottom = `${viewportHeight - rect.top + margin}px`
-      top = 'auto'
-    }
-
-    // 水平位置：優先右對齊，空間不足則左對齊或居中
-    const spaceRight = viewportWidth - rect.right
-    const spaceLeft = rect.left
-
-    // 計算最終寬度（確保不超出視口）
-    let finalWidth = popupWidth
-    let finalLeft = 'auto'
-    let finalRight = 'auto'
-
-    if (spaceRight >= popupWidth) {
-      // 右側空間足夠，右對齊
-      finalRight = `${viewportWidth - rect.right}px`
-      finalLeft = 'auto'
-    } else if (spaceLeft >= popupWidth) {
-      // 左側空間足夠，左對齊
-      finalLeft = `${rect.left}px`
-      finalRight = 'auto'
-    } else {
-      // 兩側空間都不足，使用較大的一側並調整寬度
-      if (spaceRight >= spaceLeft) {
-        // 右側空間較大，右對齊但縮小寬度
-        finalRight = `${margin}px`
-        finalLeft = 'auto'
-        finalWidth = Math.min(popupWidth, spaceRight - margin * 2)
-      } else {
-        // 左側空間較大，左對齊但縮小寬度
-        finalLeft = `${margin}px`
-        finalRight = 'auto'
-        finalWidth = Math.min(popupWidth, spaceLeft - margin * 2)
-      }
-    }
-
-    // 確保最小寬度
-    finalWidth = Math.max(280, finalWidth)
+    const horizontalMargin = 24
+    const verticalMargin = 120
+    const maxWidth = Math.min(384, Math.max(280, viewportWidth - horizontalMargin * 2))
+    const maxHeight = Math.min(384, Math.max(260, viewportHeight - verticalMargin))
 
     friendRequestsPopupPosition.value = {
       position: 'fixed',
-      top,
-      bottom,
-      left: finalLeft,
-      right: finalRight,
-      width: `${finalWidth}px`,
-      maxWidth: `${finalWidth}px`
+      top: '50%',
+      bottom: 'auto',
+      left: '50%',
+      right: 'auto',
+      width: `${maxWidth}px`,
+      maxWidth: `${maxWidth}px`,
+      maxHeight: `${maxHeight}px`,
+      transform: 'translate(-50%, -50%)'
+    }
+    return
+  }
+  if (!friendRequestsListContainer.value) {
+    console.warn('friendRequestsListContainer 未找到')
+    return
+  }
+
+  nextTick(() => {
+    try {
+      const container = friendRequestsListContainer.value
+      if (!container) {
+        console.warn('container 元素不存在')
+        return
+      }
+
+      const rect = container.getBoundingClientRect()
+      if (!rect || rect.width === 0 || rect.height === 0) {
+        console.warn('container 位置信息无效')
+        // 使用預設位置
+        friendRequestsPopupPosition.value = {
+          position: 'fixed',
+          top: '60px',
+          right: '20px',
+          bottom: 'auto',
+          left: 'auto',
+          width: '320px',
+          maxWidth: '384px'
+        }
+        return
+      }
+
+      const popupWidth = 320 // 預設寬度
+      const popupMaxWidth = 384 // 最大宽度
+      const popupHeight = 384 // max-h-96 = 384px
+      const margin = 8 // 边距
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+
+      // 使用 fixed 定位，相對於視口計算
+      let top = 'auto'
+      let bottom = 'auto'
+
+      // 檢查下方空間是否足夠
+      const spaceBelow = viewportHeight - rect.bottom - margin
+      const spaceAbove = rect.top - margin
+
+      // 垂直位置：優先向下，空間不足則向上
+      if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
+        // 向下顯示
+        top = `${rect.bottom + margin}px`
+        bottom = 'auto'
+      } else {
+        // 向上顯示
+        bottom = `${viewportHeight - rect.top + margin}px`
+        top = 'auto'
+      }
+
+      // 水平位置：優先右對齊，空間不足則左對齊或居中
+      const spaceRight = viewportWidth - rect.right
+      const spaceLeft = rect.left
+
+      // 計算最終寬度（確保不超出視口）
+      let finalWidth = popupWidth
+      let finalLeft = 'auto'
+      let finalRight = 'auto'
+
+      if (spaceRight >= popupWidth) {
+        // 右側空間足夠，右對齊
+        finalRight = `${viewportWidth - rect.right}px`
+        finalLeft = 'auto'
+      } else if (spaceLeft >= popupWidth) {
+        // 左側空間足夠，左對齊
+        finalLeft = `${rect.left}px`
+        finalRight = 'auto'
+      } else {
+        // 兩側空間都不足，使用較大的一側並調整寬度
+        if (spaceRight >= spaceLeft) {
+          // 右側空間較大，右對齊但縮小寬度
+          finalRight = `${margin}px`
+          finalLeft = 'auto'
+          finalWidth = Math.min(popupMaxWidth, Math.max(280, spaceRight - margin * 2))
+        } else {
+          // 左側空間較大，左對齊但縮小寬度
+          finalLeft = `${margin}px`
+          finalRight = 'auto'
+          finalWidth = Math.min(popupMaxWidth, Math.max(280, spaceLeft - margin * 2))
+        }
+      }
+
+      // 確保最小寬度
+      finalWidth = Math.max(280, Math.min(finalWidth, popupMaxWidth))
+
+      // 確保至少有一個有效的位置值
+      if (top === 'auto' && bottom === 'auto') {
+        top = `${rect.bottom + margin}px`
+      }
+      if (finalLeft === 'auto' && finalRight === 'auto') {
+        // 如果左右都是 auto，使用右對齊
+        finalRight = `${viewportWidth - rect.right}px`
+      }
+
+      friendRequestsPopupPosition.value = {
+        position: 'fixed',
+        top,
+        bottom,
+        left: finalLeft,
+        right: finalRight,
+        width: `${finalWidth}px`,
+        maxWidth: `${finalWidth}px`
+      }
+    } catch (error) {
+      console.error('計算彈窗位置失敗：', error)
+      // 使用預設位置作為備援
+      friendRequestsPopupPosition.value = {
+        position: 'fixed',
+        top: '60px',
+        right: '20px',
+        bottom: 'auto',
+        left: 'auto',
+        width: '320px',
+        maxWidth: '384px'
+      }
     }
   })
 }
 
 // 切換好友請求列表顯示
-const toggleFriendRequestsList = () => {
-  showFriendRequestsList.value = !showFriendRequestsList.value
-  if (showFriendRequestsList.value) {
+const toggleFriendRequestsList = (event) => {
+  // 阻止事件冒泡和預設行為
+  if (event) {
+    event.stopPropagation()
+    event.preventDefault()
+  }
+
+  const wasVisible = showFriendRequestsList.value
+
+  if (!wasVisible) {
+    // 開啟彈窗
+    friendRequestsToggleAt.value = Date.now()
+    isFriendRequestsListOpening.value = true
+    showFriendRequestsList.value = true
+
     // 重新載入好友請求列表
     loadFriends()
+
     // 在下一個 tick 計算彈窗位置，確保 DOM 已更新
     nextTick(() => {
-      calculateFriendRequestsPopupPosition()
+      // 使用 setTimeout 確保 DOM 完全渲染
+      setTimeout(() => {
+        calculateFriendRequestsPopupPosition()
+        // 延遲後允許關閉檢查
+        setTimeout(() => {
+          isFriendRequestsListOpening.value = false
+        }, 200)
+      }, 50)
     })
+  } else {
+    // 關閉彈窗
+    showFriendRequestsList.value = false
+    isFriendRequestsListOpening.value = false
   }
 }
 
 // 監聽彈窗顯示狀態，動態調整位置
 watch(showFriendRequestsList, (isVisible) => {
-  if (isVisible) {
+  if (isVisible && !isFriendRequestsListOpening.value) {
     nextTick(() => {
-      calculateFriendRequestsPopupPosition()
+      // 使用 setTimeout 確保 DOM 完全渲染
+      setTimeout(() => {
+        calculateFriendRequestsPopupPosition()
+      }, 50)
     })
   }
 })
@@ -1129,7 +1241,7 @@ onUnmounted(() => {
         </button>
         <div>
           <h3 class="font-bold text-lg">
-            {{ activeChatRoom ? activeChatRoom.name : '私人聊天' }}
+            {{ activeChatRoom ? activeChatRoom.name : '我的聊天' }}
           </h3>
         </div>
       </div>
@@ -1139,7 +1251,7 @@ onUnmounted(() => {
           <button
             class="p-1 hover:bg-primary-600 rounded-full transition relative"
             title="好友邀請"
-            @click="toggleFriendRequestsList"
+            @click.stop="toggleFriendRequestsList"
           >
             <PlusIcon class="w-6 h-6" />
             <!-- 未讀邀請數量提示 -->
@@ -1154,17 +1266,20 @@ onUnmounted(() => {
           <!-- 好友請求列表彈窗 -->
           <div
             v-if="showFriendRequestsList"
-            class="bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
+            class="friend-requests-popup bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
             :style="{
               position: friendRequestsPopupPosition.position || 'fixed',
-              top: friendRequestsPopupPosition.top,
-              bottom: friendRequestsPopupPosition.bottom,
-              left: friendRequestsPopupPosition.left,
-              right: friendRequestsPopupPosition.right,
+              top: friendRequestsPopupPosition.top || 'auto',
+              bottom: friendRequestsPopupPosition.bottom || 'auto',
+              left: friendRequestsPopupPosition.left || 'auto',
+              right: friendRequestsPopupPosition.right || 'auto',
               width: friendRequestsPopupPosition.width || '320px',
               maxWidth: friendRequestsPopupPosition.maxWidth || '384px',
-              minWidth: '280px'
+              maxHeight: friendRequestsPopupPosition.maxHeight || '70vh',
+              minWidth: '280px',
+              transform: friendRequestsPopupPosition.transform || 'translate(-50%, -50%)'
             }"
+            @click.stop
           >
             <div class="p-3 sm:p-4 border-b border-gray-200 bg-primary-50 flex-shrink-0">
               <h3 class="font-bold text-primary-700 text-sm sm:text-base">好友邀請</h3>
@@ -1322,7 +1437,7 @@ onUnmounted(() => {
               type="text"
               :disabled="!chatInteractionCount.canSend"
               placeholder="輸入訊息..."
-              class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
             <!-- 貼圖選擇器 -->
             <div

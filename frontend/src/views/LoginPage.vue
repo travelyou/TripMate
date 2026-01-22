@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   deleteUser,
 } from 'firebase/auth'
+import { Eye as EyeIcon, EyeOff as EyeOffIcon } from 'lucide-vue-next'
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -35,6 +36,10 @@ const loginErrors = ref({
   password: '',
   general: '',
 })
+
+const showLoginPassword = ref(false)
+const showRegisterPassword = ref(false)
+const showRegisterConfirmPassword = ref(false)
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -751,7 +756,7 @@ const registerErrors = ref({
                   id="email"
                   v-model="loginForm.email"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     loginErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -766,17 +771,28 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-base sm:text-lg"> 密碼 </label>
-                <input
-                  id="password"
-                  v-model="loginForm.password"
-                  :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                    loginErrors.password ? 'border-red-500' : 'border-black',
-                  ]"
-                  type="password"
-                  placeholder="請輸入密碼"
-                  @input="loginErrors.password = ''"
-                />
+                <div class="relative">
+                  <input
+                    id="password"
+                    v-model="loginForm.password"
+                    :class="[
+                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
+                      loginErrors.password ? 'border-red-500' : 'border-black',
+                    ]"
+                    :type="showLoginPassword ? 'text' : 'password'"
+                    placeholder="請輸入密碼"
+                    @input="loginErrors.password = ''"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
+                    :aria-label="showLoginPassword ? '隱藏密碼' : '顯示密碼'"
+                    @click="showLoginPassword = !showLoginPassword"
+                  >
+                    <EyeOffIcon v-if="showLoginPassword" class="w-5 h-5" />
+                    <EyeIcon v-else class="w-5 h-5" />
+                  </button>
+                </div>
                 <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
                   loginErrors.password
                 }}</span>
@@ -853,7 +869,7 @@ const registerErrors = ref({
                   id="realName"
                   v-model="registerForm.realName"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     registerErrors.realName ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -872,7 +888,7 @@ const registerErrors = ref({
                   id="nickname"
                   v-model="registerForm.nickname"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     registerErrors.nickname ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -891,7 +907,7 @@ const registerErrors = ref({
                   id="email"
                   v-model="registerForm.email"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     registerErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -906,17 +922,28 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base"> 密碼 </label>
-                <input
-                  id="password"
-                  v-model="registerForm.password"
-                  :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                    registerErrors.password ? 'border-red-500' : 'border-black',
-                  ]"
-                  type="password"
-                  placeholder="6位以上英、數字，必須包含大小寫"
-                  @input="registerErrors.password = ''"
-                />
+                <div class="relative">
+                  <input
+                    id="password"
+                    v-model="registerForm.password"
+                    :class="[
+                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
+                      registerErrors.password ? 'border-red-500' : 'border-black',
+                    ]"
+                    :type="showRegisterPassword ? 'text' : 'password'"
+                    placeholder="6位以上英、數字，必須包含大小寫"
+                    @input="registerErrors.password = ''"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
+                    :aria-label="showRegisterPassword ? '隱藏密碼' : '顯示密碼'"
+                    @click="showRegisterPassword = !showRegisterPassword"
+                  >
+                    <EyeOffIcon v-if="showRegisterPassword" class="w-5 h-5" />
+                    <EyeIcon v-else class="w-5 h-5" />
+                  </button>
+                </div>
                 <span v-if="registerErrors.password" class="text-red-500 text-sm">
                   {{ registerErrors.password }}
                 </span>
@@ -925,17 +952,28 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="confirmPassword" class="text-sm sm:text-base">確認密碼</label>
-                <input
-                  id="confirmPassword"
-                  v-model="registerForm.confirmPassword"
-                  :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                    registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
-                  ]"
-                  type="password"
-                  placeholder="請再次輸入密碼"
-                  @input="registerErrors.confirmPassword = ''"
-                />
+                <div class="relative">
+                  <input
+                    id="confirmPassword"
+                    v-model="registerForm.confirmPassword"
+                    :class="[
+                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
+                      registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
+                    ]"
+                    :type="showRegisterConfirmPassword ? 'text' : 'password'"
+                    placeholder="請再次輸入密碼"
+                    @input="registerErrors.confirmPassword = ''"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
+                    :aria-label="showRegisterConfirmPassword ? '隱藏密碼' : '顯示密碼'"
+                    @click="showRegisterConfirmPassword = !showRegisterConfirmPassword"
+                  >
+                    <EyeOffIcon v-if="showRegisterConfirmPassword" class="w-5 h-5" />
+                    <EyeIcon v-else class="w-5 h-5" />
+                  </button>
+                </div>
                 <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
                   {{ registerErrors.confirmPassword }}
                 </span>
