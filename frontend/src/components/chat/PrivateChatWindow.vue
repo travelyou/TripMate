@@ -1,12 +1,13 @@
 ﻿<script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { X as XIcon, MessageCircle as MessageCircleIcon, Send as SendIcon, User as UserIcon, ArrowLeft as ArrowLeftIcon, Smile as SmileIcon, Plus as PlusIcon, Loader2 as LoaderIcon, Check as CheckIcon } from 'lucide-vue-next'
+import { X as XIcon, MessageCircle as MessageCircleIcon, Send as SendIcon, User as UserIcon, ArrowLeft as ArrowLeftIcon, Smile as SmileIcon, Plus as PlusIcon, Loader2 as LoaderIcon, Check as CheckIcon, Download as DownloadIcon } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { getProfile } from '@/api/profile'
 import { uploadImage } from '@/api/storage'
+import { useRouter } from 'vue-router'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
-defineEmits(['close', 'open-chat-room'])
+const emit = defineEmits(['close', 'open-chat-room'])
 
 const props = defineProps({
   openChatWithUser: {
@@ -16,6 +17,7 @@ const props = defineProps({
 })
 
 const userStore = useUserStore()
+const router = useRouter()
 const activeTab = ref('chatrooms') // 'chatrooms' 或 'friends'
 const activeChatRoom = ref(null) // 當前打開的聊天室 { type, uid, name, avatar, messages, ... }
 const avatarErrors = ref({}) // 記錄哪些頭像載入失敗
@@ -35,6 +37,9 @@ const fileInputRef = ref(null)
 const isUploadingFile = ref(false)
 const uploadProgress = ref(0)
 const showFriendRequestsList = ref(false)
+const showImagePreview = ref(false)
+const previewImageUrl = ref('')
+const previewImageName = ref('')
 let messagePollingInterval = null // 訊息輪詢定時器
 
 // 文件類型限制
@@ -148,16 +153,16 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
     // 轉換為前端格式
     const mappedMessages = historyMessages.map(msg => {
       // 檢查是否為圖片訊息
-      const isImage = msg.content && typeof msg.content === 'string' && 
+      const isImage = msg.content && typeof msg.content === 'string' &&
         (msg.content.startsWith('[IMAGE]') || msg.content.includes('[/IMAGE]'))
-      
+
       let content = msg.content
       if (isImage) {
         // 提取圖片 URL
         const match = msg.content.match(/\[IMAGE\](.*?)\[\/IMAGE\]/)
         content = match ? match[1] : msg.content
       }
-      
+
       return {
       id: msg.id,
       type: msg.type || (msg.sender_uid === uid ? 'user' : 'friend'),
@@ -176,13 +181,13 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
 
     if (mappedMessages.length > 0) {
       saveMessagesToStorage(friendUid, mappedMessages)
-      
+
       // 如果有新訊息，自動滾動到底部
       if (hasNewMessages && previousMessageCount > 0) {
         await nextTick()
         scrollToBottom()
       }
-      
+
       // 檢查是否有新訊息（未讀）
       const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
       if (currentUid) {
@@ -236,7 +241,7 @@ const loadChatInteractionCount = async (uid, friendUid) => {
 
     // 確保數據格式正確，如果數據缺失或格式不正確，使用默認值
     if (!data || typeof data !== 'object') {
-      chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
+      chatInteractionCount.value = { count: 0, remaining: 3, canSend: true, isFriend: false }
       return
     }
 
@@ -244,11 +249,13 @@ const loadChatInteractionCount = async (uid, friendUid) => {
     const count = typeof data.count === 'number' ? data.count : 0
     const remaining = typeof data.remaining === 'number' ? data.remaining : Math.max(0, 3 - count)
     const canSend = typeof data.canSend === 'boolean' ? data.canSend : (remaining > 0)
+    const isFriend = typeof data.isFriend === 'boolean' ? data.isFriend : false
 
     chatInteractionCount.value = {
       count,
       remaining,
-      canSend: canSend && remaining > 0  // 雙重確保 canSend 正確
+      canSend: canSend && remaining > 0,  // 雙重確保 canSend 正確
+      isFriend
     }
 
     console.log('[loadChatInteractionCount] 載入對話次數:', {
@@ -264,7 +271,7 @@ const loadChatInteractionCount = async (uid, friendUid) => {
     // 錯誤時不重置，保持當前狀態（避免刷新頁面後重置計數）
     // 只有當沒有有效數據時才使用默認值
     if (!chatInteractionCount.value || !chatInteractionCount.value.count) {
-      chatInteractionCount.value = { count: 0, remaining: 3, canSend: true }
+      chatInteractionCount.value = { count: 0, remaining: 3, canSend: true, isFriend: false }
     }
   }
 }
@@ -401,13 +408,76 @@ const selectSticker = (sticker) => {
   showStickerPicker.value = false
 }
 
+// 切換貼圖選擇器
+const toggleStickerPicker = () => {
+  showStickerPicker.value = !showStickerPicker.value
+}
+
+// 打開圖片預覽
+const openImagePreview = (imageUrl, imageName = '') => {
+  previewImageUrl.value = imageUrl
+  previewImageName.value = imageName
+  showImagePreview.value = true
+}
+
+// 關閉圖片預覽
+const closeImagePreview = () => {
+  showImagePreview.value = false
+  previewImageUrl.value = ''
+  previewImageName.value = ''
+}
+
+// 跳轉到對方個人檔案
+const goToFriendProfile = (friendUid) => {
+  if (!friendUid) {
+    console.warn('無法跳轉：缺少用戶 ID')
+    return
+  }
+  // 關閉聊天窗口
+  emit('close')
+  // 跳轉到對方個人檔案
+  router.push({ name: 'profile', params: { uid: friendUid } })
+}
+
+// 下載圖片
+const downloadImage = async (imageUrl, fileName = 'image') => {
+  try {
+    if (!imageUrl) {
+      throw new Error('圖片網址無效')
+    }
+
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`下載失敗：${response.status} ${response.statusText}`)
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName || 'image.jpg'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('下載圖片失敗：', error)
+    const errorMessage = error.message || '未知錯誤'
+    alert(`下載圖片失敗：${errorMessage}\n請稍後再試或檢查網路連線`)
+  }
+}
+
 // 打開文件選擇器
 const openFilePicker = () => {
   if (!chatInteractionCount.value.canSend) {
-    alert('您已達到對話次數上限（3次），等待對方同意好友請求後才能繼續聊天')
+    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
     return
   }
-  fileInputRef.value?.click()
+  if (!fileInputRef.value) {
+    console.error('文件選擇器未初始化')
+    return
+  }
+  fileInputRef.value.click()
 }
 
 // 處理文件選擇和上傳
@@ -417,28 +487,38 @@ const handleFileSelect = async (event) => {
 
   // 驗證文件類型
   if (!allowedFileTypes.includes(file.type)) {
-    alert('不支援的檔案格式！請選擇 JPG、PNG、GIF 或 WebP 格式的圖片。')
+    alert('❌ 不支援的檔案格式！\n\n請選擇以下格式的圖片：\n• JPG / JPEG\n• PNG\n• GIF\n• WebP')
     event.target.value = ''
     return
   }
 
   // 驗證文件大小
   if (file.size > maxFileSize) {
-    alert(`檔案大小超過限制！請選擇小於 ${maxFileSize / 1024 / 1024}MB 的圖片。`)
+    const maxSizeMB = (maxFileSize / 1024 / 1024).toFixed(0)
+    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2)
+    alert(`❌ 檔案大小超過限制！\n\n檔案大小：${fileSizeMB} MB\n最大限制：${maxSizeMB} MB\n\n請選擇較小的圖片檔案。`)
     event.target.value = ''
     return
   }
 
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !activeChatRoom.value) {
-    alert('無法取得用戶資訊或聊天室資訊')
+    alert('❌ 無法取得用戶資訊或聊天室資訊\n\n請重新整理頁面後再試。')
     event.target.value = ''
     return
   }
 
   // 檢查對話次數
   if (!chatInteractionCount.value.canSend) {
-    alert('您已達到對話次數上限（3次），等待對方同意好友請求後才能繼續聊天')
+    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
+    event.target.value = ''
+    return
+  }
+
+  // 確認是否傳送檔案
+  const fileSizeMB = (file.size / 1024 / 1024).toFixed(2)
+  const confirmMessage = `📤 確定要傳送此檔案嗎？\n\n檔案名稱：${file.name}\n檔案大小：${fileSizeMB} MB`
+  if (!confirm(confirmMessage)) {
     event.target.value = ''
     return
   }
@@ -461,11 +541,13 @@ const handleFileSelect = async (event) => {
         const newCount = typeof data.count === 'number' ? parseInt(data.count) : (parseInt(chatInteractionCount.value.count) || 0) + 1
         const newRemaining = typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
         const newCanSend = typeof data.canSend === 'boolean' ? data.canSend : (newRemaining > 0)
+        const newIsFriend = typeof data.isFriend === 'boolean' ? data.isFriend : (chatInteractionCount.value.isFriend || false)
 
         chatInteractionCount.value = {
           count: newCount,
           remaining: newRemaining,
-          canSend: newCanSend
+          canSend: newCanSend,
+          isFriend: newIsFriend
         }
       } else {
         const newCount = (chatInteractionCount.value.count || 0) + 1
@@ -473,7 +555,8 @@ const handleFileSelect = async (event) => {
         chatInteractionCount.value = {
           count: newCount,
           remaining: newRemaining,
-          canSend: newRemaining > 0
+          canSend: newRemaining > 0,
+          isFriend: chatInteractionCount.value.isFriend || false
         }
       }
     } catch (error) {
@@ -483,7 +566,8 @@ const handleFileSelect = async (event) => {
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newRemaining > 0
+        canSend: newRemaining > 0,
+        isFriend: chatInteractionCount.value.isFriend || false
       }
     }
 
@@ -523,6 +607,9 @@ const handleFileSelect = async (event) => {
       scrollToBottom()
     } catch (error) {
       console.error('保存圖片訊息失敗：', error)
+      const errorMessage = error.message || '未知錯誤'
+      alert(`❌ 保存圖片訊息失敗：${errorMessage}\n\n圖片已顯示在聊天室，但可能無法保存。請檢查網路連線。`)
+
       // 即使保存失敗，也顯示圖片（但不會持久化）
       const imageMessage = {
         id: Date.now(),
@@ -552,7 +639,8 @@ const handleFileSelect = async (event) => {
     }
   } catch (error) {
     console.error('上傳圖片失敗：', error)
-    alert('上傳失敗：' + (error.message || '未知錯誤，請稍後再試'))
+    const errorMessage = error.message || '未知錯誤'
+    alert(`上傳失敗：${errorMessage}\n請檢查網路連線或稍後再試`)
   } finally {
     isUploadingFile.value = false
     uploadProgress.value = 0
@@ -572,7 +660,7 @@ const sendMessage = async () => {
 
   // 檢查對話次數（在發送前檢查）
   if (!chatInteractionCount.value.canSend) {
-    alert('您已達到對話次數上限（3次），等待對方同意好友請求後才能繼續聊天')
+    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
     return
   }
 
@@ -593,17 +681,20 @@ const sendMessage = async () => {
       const newCount = typeof data.count === 'number' ? parseInt(data.count) : (parseInt(chatInteractionCount.value.count) || 0) + 1
       const newRemaining = typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
       const newCanSend = typeof data.canSend === 'boolean' ? data.canSend : (newRemaining > 0)
+      const newIsFriend = typeof data.isFriend === 'boolean' ? data.isFriend : (chatInteractionCount.value.isFriend || false)
 
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newCanSend
+        canSend: newCanSend,
+        isFriend: newIsFriend
       }
 
       console.log('[sendMessage] 發送後狀態:', {
         count: newCount,
         remaining: newRemaining,
-        canSend: newCanSend
+        canSend: newCanSend,
+        isFriend: newIsFriend
       })
 
     } else {
@@ -613,7 +704,8 @@ const sendMessage = async () => {
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newRemaining > 0
+        canSend: newRemaining > 0,
+        isFriend: chatInteractionCount.value.isFriend || false
       }
     }
   } catch (error) {
@@ -626,7 +718,8 @@ const sendMessage = async () => {
     chatInteractionCount.value = {
       count: newCount,
       remaining: newRemaining,
-      canSend: newCanSend
+      canSend: newCanSend,
+      isFriend: chatInteractionCount.value.isFriend || false
     }
 
   }
@@ -670,6 +763,9 @@ const sendMessage = async () => {
     scrollToBottom()
   } catch (error) {
     console.error('保存訊息失敗：', error)
+    const errorMessage = error.message || '未知錯誤'
+    alert(`❌ 發送訊息失敗：${errorMessage}\n\n訊息已顯示在聊天室，但可能無法保存。請檢查網路連線。`)
+
     // 即使保存失敗，也顯示訊息（但不會持久化）
     const userMessage = {
       id: Date.now(),
@@ -705,7 +801,7 @@ const sendMessage = async () => {
 const startMessagePolling = (uid, friendUid) => {
   // 清除現有的輪詢
   stopMessagePolling()
-  
+
   // 每 3 秒檢查一次新訊息
   messagePollingInterval = setInterval(async () => {
     if (activeChatRoom.value && activeChatRoom.value.uid === friendUid) {
@@ -829,7 +925,7 @@ const handleAcceptFriendRequest = async (request) => {
     const { acceptFriendRequest } = await import('@/api/profile')
     await acceptFriendRequest(currentUid, request.uid)
     await loadFriends()
-    
+
     // 如果接受成功，可以選擇打開聊天室
     const acceptAndChat = confirm(`已接受 ${request.name || request.nickname || '用戶'} 的好友請求！是否開始聊天？`)
     if (acceptAndChat) {
@@ -889,23 +985,29 @@ onUnmounted(() => {
         >
           <ArrowLeftIcon class="w-5 h-5" />
         </button>
-        <div
-          v-if="activeChatRoom && activeChatRoom.avatar && !avatarErrors[`chat-${activeChatRoom.uid}`]"
-          class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex-shrink-0 overflow-hidden"
+        <button
+          v-if="activeChatRoom"
+          class="flex-shrink-0"
+          @click="goToFriendProfile(activeChatRoom.uid)"
         >
-          <img
-            :src="activeChatRoom.avatar"
-            :alt="activeChatRoom.name"
-            class="w-full h-full object-cover"
-            @error="avatarErrors[`chat-${activeChatRoom.uid}`] = true"
-          />
-        </div>
-        <div
-          v-else-if="activeChatRoom"
-          class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center flex-shrink-0"
-        >
-          <UserIcon class="w-5 h-5 text-white" />
-        </div>
+          <div
+            v-if="activeChatRoom.avatar && !avatarErrors[`chat-${activeChatRoom.uid}`]"
+            class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden cursor-pointer hover:opacity-80 transition"
+          >
+            <img
+              :src="activeChatRoom.avatar"
+              :alt="activeChatRoom.name"
+              class="w-full h-full object-cover"
+              @error="avatarErrors[`chat-${activeChatRoom.uid}`] = true"
+            />
+          </div>
+          <div
+            v-else
+            class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center cursor-pointer hover:opacity-80 transition"
+          >
+            <UserIcon class="w-5 h-5 text-white" />
+          </div>
+        </button>
         <div>
           <h3 class="font-bold text-lg">
             {{ activeChatRoom ? activeChatRoom.name : '私人聊天' }}
@@ -933,15 +1035,15 @@ onUnmounted(() => {
           <!-- 好友請求列表彈窗 -->
           <div
             v-if="showFriendRequestsList"
-            class="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-50 max-h-80 overflow-y-auto"
+            class="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
           >
-            <div class="p-3 border-b border-gray-200 bg-primary-50">
-              <h3 class="font-bold text-primary-700 text-sm">好友邀請</h3>
-              <p class="text-xs text-gray-500 mt-1">
+            <div class="p-3 sm:p-4 border-b border-gray-200 bg-primary-50 flex-shrink-0">
+              <h3 class="font-bold text-primary-700 text-sm sm:text-base">好友邀請</h3>
+              <p class="text-xs text-gray-500 mt-1 break-words whitespace-normal">
                 {{ friendRequests.received && friendRequests.received.length > 0 ? `${friendRequests.received.length} 個待處理邀請` : '目前沒有邀請' }}
               </p>
             </div>
-            <div class="p-2">
+            <div class="flex-1 overflow-y-auto p-2 sm:p-3 min-h-0 custom-scrollbar">
               <div
                 v-if="!friendRequests.received || friendRequests.received.length === 0"
                 class="text-center text-gray-400 py-8 text-sm"
@@ -951,9 +1053,9 @@ onUnmounted(() => {
               <div
                 v-for="request in friendRequests.received"
                 :key="request.uid"
-                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition border border-gray-100 mb-2"
+                class="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-lg hover:bg-gray-50 transition border border-gray-100 mb-2 last:mb-0"
               >
-                <div class="w-10 h-10 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
                   <img
                     v-if="request.avatar && request.avatar.trim() && !avatarErrors[`request-${request.uid}`]"
                     :src="request.avatar"
@@ -963,31 +1065,31 @@ onUnmounted(() => {
                   />
                   <UserIcon
                     v-else
-                    class="w-5 h-5 text-primary-600"
+                    class="w-5 h-5 sm:w-6 sm:h-6 text-primary-600"
                   />
                 </div>
-                <div class="flex-1 min-w-0">
-                  <div class="font-bold text-gray-800 text-sm truncate">
+                <div class="flex-1 min-w-0 pr-2 sm:pr-3 overflow-hidden">
+                  <div class="font-bold text-gray-800 text-sm sm:text-base truncate break-words">
                     {{ request.name || request.nickname || '未知用戶' }}
                   </div>
-                  <div class="text-xs text-gray-500 truncate">
+                  <div class="text-xs text-gray-500 truncate break-words">
                     @{{ request.nickname || request.name || 'user' }}
                   </div>
                 </div>
-                <div class="flex items-center gap-1 flex-shrink-0">
+                <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                   <button
-                    class="p-1.5 bg-green-500 text-white rounded-full hover:bg-green-600 transition shadow-sm"
+                    class="p-1.5 sm:p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition shadow-sm flex-shrink-0 flex items-center justify-center"
                     title="接受"
-                    @click="handleAcceptFriendRequest(request)"
+                    @click.stop="handleAcceptFriendRequest(request)"
                   >
-                    <CheckIcon class="w-4 h-4" />
+                    <CheckIcon class="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   <button
-                    class="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-sm"
+                    class="p-1.5 sm:p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-sm flex-shrink-0 flex items-center justify-center"
                     title="拒絕"
-                    @click="handleRejectFriendRequest(request)"
+                    @click.stop="handleRejectFriendRequest(request)"
                   >
-                    <XIcon class="w-4 h-4" />
+                    <XIcon class="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
               </div>
@@ -1019,12 +1121,13 @@ onUnmounted(() => {
           class="flex items-end gap-2"
           :class="{ 'justify-end': msg.type === 'user' }"
         >
-          <div
-            v-if="msg.type !== 'user'"
-            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-white/80 shadow-sm overflow-hidden"
+          <button
+            v-if="msg.type !== 'user' && activeChatRoom"
+            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-white/80 shadow-sm overflow-hidden cursor-pointer hover:opacity-80 transition"
+            @click="goToFriendProfile(activeChatRoom.uid)"
           >
             <img
-              v-if="activeChatRoom && activeChatRoom.avatar && !avatarErrors[`msg-${activeChatRoom.uid}`]"
+              v-if="activeChatRoom.avatar && !avatarErrors[`msg-${activeChatRoom.uid}`]"
               :src="activeChatRoom.avatar"
               :alt="activeChatRoom.name"
               class="w-full h-full object-cover"
@@ -1034,7 +1137,7 @@ onUnmounted(() => {
               v-else
               class="w-5 h-5 text-white"
             />
-          </div>
+          </button>
 
           <div
             class="p-3 shadow-sm max-w-[80%] text-sm font-medium"
@@ -1048,8 +1151,9 @@ onUnmounted(() => {
               v-if="msg.isImage"
               :src="msg.content"
               alt="傳送的圖片"
-              class="max-w-full h-auto rounded-lg"
-              @error="console.error('圖片載入失敗')"
+              class="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition"
+              @error="(e) => { console.error('圖片載入失敗：', msg.content); e.target.style.display = 'none' }"
+              @click.stop="openImagePreview(msg.content, '圖片')"
             />
             <span v-else>{{ msg.content }}</span>
           </div>
@@ -1074,9 +1178,9 @@ onUnmounted(() => {
 
         <div
           v-if="!chatInteractionCount.canSend"
-          class="text-center text-xs text-gray-500 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+          class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
-          已達到對話次數上限（3次），等待對方同意好友請求後才能繼續
+          ⚠️ 已達到對話次數上限（3次），等待對方同意好友請求後才能繼續
         </div>
       </div>
 
@@ -1084,17 +1188,18 @@ onUnmounted(() => {
       <div class="p-4 border-t border-secondary-200 bg-white/90">
         <form class="flex items-center space-x-2" @submit.prevent="sendMessage">
           <div class="relative flex-1 sticker-picker-container">
-          <input
-            v-model="messageInput"
-            type="text"
-            :disabled="!chatInteractionCount.canSend"
-            placeholder="輸入訊息..."
+            <input
+              v-model="messageInput"
+              type="text"
+              :disabled="!chatInteractionCount.canSend"
+              placeholder="輸入訊息..."
               class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
             <!-- 貼圖選擇器 -->
             <div
               v-if="showStickerPicker"
-              class="absolute bottom-full right-0 mb-2 w-80 h-64 bg-white border-2 border-primary-200 rounded-xl shadow-xl overflow-y-auto z-50 p-4 grid grid-cols-8 gap-2"
+              class="absolute bottom-full left-0 mb-2 w-80 h-64 bg-white border-2 border-primary-200 rounded-xl shadow-xl overflow-y-auto z-50 p-4 grid grid-cols-8 gap-2"
+              style="scrollbar-width: none; -ms-overflow-style: none;"
             >
               <button
                 v-for="sticker in stickers"
@@ -1108,33 +1213,6 @@ onUnmounted(() => {
             </div>
           </div>
           <button
-            type="button"
-            :disabled="!chatInteractionCount.canSend || isUploadingFile"
-            class="p-2.5 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition border border-primary-600/70 shadow-md active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="表情符號"
-            @click="showStickerPicker = !showStickerPicker"
-          >
-            <SmileIcon class="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            :disabled="!chatInteractionCount.canSend || isUploadingFile"
-            class="p-2.5 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition border border-primary-600/70 shadow-md active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            :title="isUploadingFile ? `上傳中... ${uploadProgress}%` : '上傳圖片'"
-            @click="openFilePicker"
-          >
-            <LoaderIcon v-if="isUploadingFile" class="w-5 h-5 animate-spin" />
-            <PlusIcon v-else class="w-5 h-5" />
-          </button>
-          <!-- 隱藏的文件選擇器 -->
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-            class="hidden"
-            @change="handleFileSelect"
-          />
-          <button
             type="submit"
             :disabled="!chatInteractionCount.canSend || isUploadingFile"
             class="p-2.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border border-primary-700/70 shadow-md active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1142,8 +1220,34 @@ onUnmounted(() => {
             <SendIcon class="w-5 h-5" />
           </button>
         </form>
-        <div v-if="chatInteractionCount.remaining > 0" class="text-xs text-gray-500 mt-1 text-center">
-          還可發送 {{ chatInteractionCount.remaining }} 次訊息
+        <!-- 隱藏的文件選擇器 -->
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+          class="hidden"
+          @change="handleFileSelect"
+        />
+        <div class="flex items-center justify-start gap-4 mt-1.5">
+          <button
+            type="button"
+            :disabled="!chatInteractionCount.canSend || isUploadingFile"
+            class="p-0 text-primary-600 hover:text-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-0 shadow-none"
+            :title="isUploadingFile ? `上傳中... ${uploadProgress}%` : '上傳圖片'"
+            @click.stop="openFilePicker"
+          >
+            <LoaderIcon v-if="isUploadingFile" class="w-3.5 h-3.5 animate-spin" />
+            <PlusIcon v-else class="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            :disabled="!chatInteractionCount.canSend || isUploadingFile"
+            class="p-0 text-primary-600 hover:text-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-0 shadow-none"
+            title="表情符號"
+            @click.stop="toggleStickerPicker"
+          >
+            <SmileIcon class="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </template>
@@ -1278,6 +1382,66 @@ onUnmounted(() => {
         </div>
       </div>
     </template>
+
+    <!-- 圖片預覽模态框 -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showImagePreview"
+          class="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4"
+          @click="closeImagePreview"
+        >
+          <div class="relative max-w-5xl max-h-[95vh] w-full flex items-center justify-center" @click.stop>
+            <!-- 關閉按鈕 -->
+            <button
+              class="absolute top-4 right-4 z-20 p-2.5 bg-white/95 hover:bg-white rounded-full transition shadow-xl hover:scale-110"
+              title="關閉"
+              @click.stop="closeImagePreview"
+            >
+              <XIcon class="w-6 h-6 text-gray-800" />
+            </button>
+
+            <!-- 圖片容器 -->
+            <div class="relative w-full h-full flex flex-col items-center justify-center">
+              <img
+                v-if="previewImageUrl"
+                :src="previewImageUrl"
+                alt="預覽圖片"
+                class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                @error="(e) => { console.error('預覽圖片載入失敗'); e.target.style.display = 'none' }"
+                @click.stop
+              />
+              <div
+                v-else
+                class="text-white text-center p-8"
+              >
+                <p class="text-lg mb-2">無法載入圖片</p>
+                <p class="text-sm opacity-75">圖片網址無效或已失效</p>
+              </div>
+
+              <!-- 下載按鈕 -->
+              <div v-if="previewImageUrl" class="mt-4 flex items-center gap-3">
+                <button
+                  class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2 shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  :disabled="!previewImageUrl"
+                  @click.stop="downloadImage(previewImageUrl, previewImageName || 'image')"
+                >
+                  <DownloadIcon class="w-5 h-5" />
+                  <span>下載</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -1295,5 +1459,10 @@ onUnmounted(() => {
 }
 .animate-slide-up {
   animation: slideUp 0.2s ease-out forwards;
+}
+
+/* 隱藏貼圖選擇器的滾動條 */
+.sticker-picker-container > div::-webkit-scrollbar {
+  display: none;
 }
 </style>

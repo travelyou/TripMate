@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { X, Upload, Loader2 } from 'lucide-vue-next'
+import { X, Loader2 } from 'lucide-vue-next'
 import ImageCrop from '@/components/common/ImageCrop.vue'
 
 const props = defineProps({
@@ -28,32 +28,27 @@ watch(() => props.isOpen, (isOpen) => {
   }
 })
 
-const handleCrop = async () => {
-  if (!imageCropRef.value || isUploading.value || !isReady.value) return
-  
-  try {
-    const croppedFile = await imageCropRef.value.getCroppedImage()
-    if (croppedFile) {
-      isUploading.value = true
-      emit('crop', croppedFile)
-    }
-  } catch (error) {
-    console.error('裁切失敗：', error)
-    alert('裁切失敗，請重試')
-  }
-}
-
 const handleReady = () => {
   isReady.value = true
 }
 
 const handleCropConfirm = (croppedFile) => {
   if (!croppedFile || isUploading.value) return
-  
+
   isUploading.value = true
   emit('crop', croppedFile)
   // Note: isProcessing in ImageCrop will be reset when modal closes
 }
+
+const resetUploadState = () => {
+  isUploading.value = false
+  isReady.value = false
+}
+
+// 暴露方法供父组件调用
+defineExpose({
+  resetUploadState
+})
 </script>
 
 <template>
@@ -71,7 +66,7 @@ const handleCropConfirm = (croppedFile) => {
           <X class="w-6 h-6 text-secondary-500" />
         </button>
       </div>
-      
+
       <div class="p-4 md:p-6 flex-1 min-h-0 overflow-y-auto">
         <ImageCrop
           v-if="imageFile"
@@ -85,14 +80,14 @@ const handleCropConfirm = (croppedFile) => {
           @ready="handleReady"
           @confirm="handleCropConfirm"
         />
-        
+
         <div class="mt-4 text-xs md:text-sm text-secondary-600">
           <p>• 拖動裁切框來移動位置</p>
           <p>• 拖動角落的白色方塊來調整大小</p>
           <p>• 裁切框會保持等比例（正方形）</p>
         </div>
       </div>
-      
+
       <div class="p-6 border-t border-secondary-100 flex justify-end gap-3">
         <button
           class="px-6 py-2 text-secondary-600 hover:bg-secondary-50 rounded-xl font-medium transition"

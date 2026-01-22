@@ -74,37 +74,6 @@
             />
             <UserIcon v-else class="w-6 h-6 text-gray-400" />
           </button>
-            
-            <!-- 上傳頭貼按鈕 -->
-            <button
-              class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 transition shadow-md border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="isUploading"
-              @click.stop="openFilePicker"
-              :title="isUploading ? `上傳中... ${uploadProgress}%` : '更換頭貼'"
-            >
-              <LoaderIcon v-if="isUploading" class="w-3 h-3 animate-spin" />
-              <PlusIcon v-else class="w-3 h-3" />
-            </button>
-            
-            <!-- 上傳進度條 -->
-            <div
-              v-if="isUploading"
-              class="absolute -bottom-6 left-1/2 -translate-x-1/2 w-20 h-1 bg-gray-200 rounded-full overflow-hidden"
-            >
-              <div
-                class="h-full bg-primary-600 transition-all duration-300"
-                :style="{ width: `${uploadProgress}%` }"
-              ></div>
-            </div>
-            
-            <!-- 隱藏的文件選擇器 -->
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-              class="hidden"
-              @change="handleFileSelect"
-            />
           </div>
 
           <Transition
@@ -210,13 +179,9 @@ import {
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
   Award as AwardIcon,
-  Plus as PlusIcon,
-  Loader2 as LoaderIcon,
 } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { uploadImage } from '@/api/storage'
-import { updateUserProfile, createOrUpdateUser } from '@/api/users'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -306,81 +271,4 @@ const handleLogout = () => {
   }
 }
 
-// 頭貼上傳相關
-const fileInputRef = ref(null)
-const isUploading = ref(false)
-const uploadProgress = ref(0)
-
-// 文件類型限制
-const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-const maxFileSize = 5 * 1024 * 1024 // 5MB
-
-// 打開文件選擇器
-const openFilePicker = () => {
-  if (!userStore.isLoggedIn) {
-    alert('請先登入')
-    return
-  }
-  fileInputRef.value?.click()
-}
-
-// 處理文件選擇
-const handleFileSelect = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
-
-  // 驗證文件類型
-  if (!allowedTypes.includes(file.type)) {
-    alert('不支援的檔案格式！請選擇 JPG、PNG、GIF 或 WebP 格式的圖片。')
-    event.target.value = '' // 清空選擇
-    return
-  }
-
-  // 驗證文件大小
-  if (file.size > maxFileSize) {
-    alert(`檔案大小超過限制！請選擇小於 ${maxFileSize / 1024 / 1024}MB 的圖片。`)
-    event.target.value = '' // 清空選擇
-    return
-  }
-
-  // 開始上傳
-  try {
-    isUploading.value = true
-    uploadProgress.value = 0
-
-    // 上傳到 Firebase Storage
-    const avatarUrl = await uploadImage(file, 'avatars', (progress) => {
-      uploadProgress.value = progress
-    })
-
-    // 更新用戶資料
-    const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-    if (!currentUid) {
-      throw new Error('無法取得用戶 ID')
-    }
-
-    // 更新到 Neon 資料庫
-    await createOrUpdateUser({
-      uid: currentUid,
-      avatar: avatarUrl,
-    })
-
-    // 更新本地 store
-    userStore.updateProfile({
-      avatar: avatarUrl,
-    })
-
-    alert('頭貼更新成功！')
-  } catch (error) {
-    console.error('上傳頭貼失敗：', error)
-    alert('上傳失敗：' + (error.message || '未知錯誤，請稍後再試'))
-  } finally {
-    isUploading.value = false
-    uploadProgress.value = 0
-    // 清空文件選擇器
-    if (event.target) {
-      event.target.value = ''
-    }
-  }
-}
 </script>

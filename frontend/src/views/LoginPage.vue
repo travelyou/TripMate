@@ -187,21 +187,29 @@ const handleLogin = async () => {
             : null)
 
         // 如果資料庫中都沒有，嘗試從 localStorage 恢復
+        let avatarFromLocalStorage = false
         if (!avatar) {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
             if (savedAvatar && savedAvatar.trim() !== '') {
+              // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
               avatar = savedAvatar
+              // 只有非 dicebear 的頭貼才需要同步到資料庫
+              if (!savedAvatar.includes('dicebear.com')) {
+                avatarFromLocalStorage = true
+              }
             } else {
+              // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
               avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
             }
           } catch (e) {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
+            // 如果載入失敗，使用默認頭貼
             avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
           }
         }
-        
-// 如果有有效的頭貼，保存到 localStorage
+
+        // 如果有有效的頭貼，保存到 localStorage
         if (avatar && avatar.trim() !== '') {
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
@@ -209,7 +217,20 @@ const handleLogin = async () => {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
         }
-        
+
+        // 如果頭貼是從 localStorage 恢復的，同步到資料庫
+        if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          try {
+            await createOrUpdateUser({
+              uid: userCredential.user.uid,
+              avatar: avatar
+            })
+            console.log('已將 localStorage 中的頭貼同步到資料庫')
+          } catch (e) {
+            console.warn('同步頭貼到資料庫失敗:', e)
+          }
+        }
+
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
@@ -225,22 +246,30 @@ const handleLogin = async () => {
         let avatar = userData.avatar && userData.avatar.trim() !== ''
           ? userData.avatar
           : null
-        
+
         // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
+        let avatarFromLocalStorage = false
         if (!avatar) {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
             if (savedAvatar && savedAvatar.trim() !== '') {
+              // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
               avatar = savedAvatar
+              // 只有非 dicebear 的頭貼才需要同步到資料庫
+              if (!savedAvatar.includes('dicebear.com')) {
+                avatarFromLocalStorage = true
+              }
             } else {
+              // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
               avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
             }
           } catch (e) {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
+            // 如果載入失敗，使用默認頭貼
             avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
           }
         }
-        
+
         // 如果有有效的頭貼，保存到 localStorage
         if (avatar && avatar.trim() !== '') {
           try {
@@ -249,7 +278,20 @@ const handleLogin = async () => {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
         }
-        
+
+        // 如果頭貼是從 localStorage 恢復的，同步到資料庫
+        if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          try {
+            await createOrUpdateUser({
+              uid: userCredential.user.uid,
+              avatar: avatar
+            })
+            console.log('已將 localStorage 中的頭貼同步到資料庫')
+          } catch (e) {
+            console.warn('同步頭貼到資料庫失敗:', e)
+          }
+        }
+
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
@@ -264,22 +306,30 @@ const handleLogin = async () => {
       let avatar = userData.avatar && userData.avatar.trim() !== ''
         ? userData.avatar
         : null
-      
+
       // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
+      let avatarFromLocalStorage = false
       if (!avatar) {
         try {
           const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
           if (savedAvatar && savedAvatar.trim() !== '') {
+            // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
             avatar = savedAvatar
+            // 只有非 dicebear 的頭貼才需要同步到資料庫
+            if (!savedAvatar.includes('dicebear.com')) {
+              avatarFromLocalStorage = true
+            }
           } else {
+            // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
             avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
           }
         } catch (e) {
           console.warn('從 localStorage 恢復頭貼失敗:', e)
+          // 如果載入失敗，使用默認頭貼
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
         }
       }
-      
+
       // 如果有有效的頭貼，保存到 localStorage
       if (avatar && avatar.trim() !== '') {
         try {
@@ -288,7 +338,20 @@ const handleLogin = async () => {
           console.warn('保存頭貼到 localStorage 失敗:', e)
         }
       }
-      
+
+      // 如果頭貼是從 localStorage 恢復的，同步到資料庫
+      if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+        try {
+          await createOrUpdateUser({
+            uid: userCredential.user.uid,
+            avatar: avatar
+          })
+          console.log('已將 localStorage 中的頭貼同步到資料庫')
+        } catch (e) {
+          console.warn('同步頭貼到資料庫失敗:', e)
+        }
+      }
+
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
@@ -402,7 +465,7 @@ const handleRegister = async () => {
     let neonUserCreated = false
     let userCredential = null
     let userData = null
-    
+
     try {
       // 先創建Firebase用戶
       userCredential = await createUserWithEmailAndPassword(
@@ -420,7 +483,7 @@ const handleRegister = async () => {
         spiritAnimal: '',
         createdAt: new Date(),
       }
-      
+
       // 創建Firestore用戶資料
       await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
@@ -444,7 +507,7 @@ const handleRegister = async () => {
         userStore.markAsRecentlyRegistered(userCredential.user.uid)
       } catch (syncError) {
         console.error('同步到 Neon 資料庫失敗，開始回滾：', syncError)
-        
+
         // 回滾：刪除Firebase用戶和Firestore資料
         try {
           // 刪除Firestore資料
@@ -452,7 +515,7 @@ const handleRegister = async () => {
         } catch (firestoreError) {
           console.error('刪除 Firestore 資料失敗：', firestoreError)
         }
-        
+
         try {
           // 刪除Firebase用戶
           await deleteUser(userCredential.user)
@@ -460,14 +523,14 @@ const handleRegister = async () => {
           console.error('刪除 Firebase 用戶失敗：', deleteError)
           // 如果刪除失敗，記錄錯誤但繼續拋出原始錯誤
         }
-        
+
         const errorMessage =
           syncError.response?.data?.error ||
           syncError.response?.data?.details ||
           syncError.response?.data?.message ||
           syncError.message ||
           '未知錯誤'
-        
+
         // 檢查是否是資料庫連接問題
         if (
           syncError.message?.includes('Failed to fetch') ||
@@ -476,7 +539,7 @@ const handleRegister = async () => {
         ) {
           throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
         }
-        
+
         throw new Error('資料同步到資料庫失敗：' + errorMessage)
       }
     } catch (error) {
@@ -516,7 +579,7 @@ const handleRegister = async () => {
     registerForm.value.confirmPassword = ''
   } catch (error) {
     console.error('註冊失敗：', error.code, error.message)
-    
+
     // 如果是我们抛出的自定义错误，显示给用户
     if (error.message && !error.code) {
       registerErrors.value.general = error.message

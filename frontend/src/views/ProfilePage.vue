@@ -1,8 +1,6 @@
 ﻿<script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useDiscussionsStore } from '@/stores/discussions'
-import { useItineraryStore } from '@/stores/itinerary'
 import { usePersonalityStore } from '@/stores/personality'
 import { getTravelers } from '@/api/travelers'
 
@@ -24,8 +22,6 @@ import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const userStore = useUserStore()
-const discussionsStore = useDiscussionsStore()
-const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
 const router = useRouter()
 const route = useRoute()
@@ -253,18 +249,6 @@ const checkFriendRequestStatus = async () => {
   }
 }
 
-const clearPendingFriendRequests = async (currentUid, friendUid) => {
-  try {
-    const { cancelFriendRequest, rejectFriendRequest } = await import('@/api/profile')
-    await Promise.allSettled([
-      cancelFriendRequest(currentUid, friendUid),
-      rejectFriendRequest(currentUid, friendUid),
-    ])
-  } catch (error) {
-    console.error('清除好友邀請失敗：', error)
-  }
-}
-
 const refreshCurrentUserFriends = async () => {
   const currentUid = userStore.currentUser?.uid
   if (!currentUid) return
@@ -343,18 +327,6 @@ const handleAddFriend = async () => {
       alert('操作失敗：' + (error.message || '未知錯誤'))
     }
   }
-}
-
-const handleChatWithFriend = (friend) => {
-  console.log('Chat with friend:', friend.name)
-  // Future: 導向聊天頁面
-}
-
-const handleChatWithUser = () => {
-  const targetUserId = route.params.uid || user.value.uid
-  console.log('開始與使用者聊天:', targetUserId)
-  // TODO: 導向聊天頁面
-  alert('聊天功能開發中，即將導向聊天頁面')
 }
 
 const openDetail = (item, focusComment = false) => {
@@ -542,44 +514,142 @@ const handleUpdateAvatar = (file) => {
 }
 
 const handleAvatarCrop = async (croppedFile) => {
-  if (!isCurrentUser.value || !croppedFile) return
+  console.log('🔄 開始上傳頭貼流程...')
+
+  if (!isCurrentUser.value || !croppedFile) {
+    console.error('❌ 無法上傳頭貼：缺少必要資訊', { isCurrentUser: isCurrentUser.value, croppedFile: !!croppedFile })
+    alert('❌ 無法上傳頭貼：缺少必要資訊')
+    return
+  }
+
+  if (!user.value || !user.value.uid) {
+    console.error('❌ 無法上傳頭貼：無法取得用戶 ID', { user: user.value })
+    alert('❌ 無法上傳頭貼：無法取得用戶 ID')
+    return
+  }
+
+  console.log('✅ 驗證通過，用戶 ID:', user.value.uid)
 
   try {
     const { uploadImage } = await import('@/api/storage')
     const { compressImage } = await import('@/utils/imageCompress')
 
-    const compressedFile = await compressImage(croppedFile, {
-      maxWidth: 400,
-      maxHeight: 400,
-      quality: 0.9,
-      maxSizeMB: 1
-    })
+    // 壓縮圖片
+    let compressedFile
+    try {
+      console.log('📦 開始壓縮圖片...')
+      compressedFile = await compressImage(croppedFile, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.9,
+        maxSizeMB: 1
+      })
+      console.log('✅ 圖片壓縮成功，檔案大小:', compressedFile.size, 'bytes')
+    } catch (compressError) {
+      console.error('❌ 圖片壓縮失敗：', compressError)
+      throw new Error('圖片壓縮失敗：' + (compressError.message || '未知錯誤'))
+    }
 
-    const avatarUrl = await uploadImage(compressedFile, 'avatars')
+    // 上傳到 Firebase Storage
+    let avatarUrl
+    try {
+      console.log('☁️ 開始上傳圖片到 Firebase Storage...')
+      avatarUrl = await uploadImage(compressedFile, 'avatars')
+      if (!avatarUrl || avatarUrl.trim() === '') {
+        throw new Error('上傳成功但未取得圖片網址')
+      }
+      console.log('✅ 圖片上傳成功，URL:', avatarUrl)
+    } catch (uploadError) {
+      console.error('❌ 上傳圖片失敗：', uploadError)
+      throw new Error('上傳圖片失敗：' + (uploadError.message || '請檢查網路連線'))
+    }
 
-    const { updateUserProfile } = await import('@/api/users')
-    await updateUserProfile(user.value.uid, {
-      avatar: avatarUrl
-    })
+    // 更新資料庫
+    try {
+      console.log('💾 開始更新資料庫...', { uid: user.value.uid, avatarUrl })
+      const { updateUserProfile } = await import('@/api/users')
+      const result = await updateUserProfile(user.value.uid, {
+        avatar: avatarUrl
+      })
 
-    userStore.updateProfile({ avatar: avatarUrl })
+      console.log('📥 資料庫回應:', result)
+
+      if (!result) {
+        throw new Error('更新資料庫失敗：未收到回應')
+      }
+      console.log('✅ 資料庫更新成功')
+    } catch (updateError) {
+      console.error('❌ 更新資料庫失敗：', updateError)
+      console.error('錯誤詳情:', {
+        message: updateError.message,
+        stack: updateError.stack,
+        uid: user.value.uid,
+        avatarUrl: avatarUrl
+      })
+      throw new Error('更新資料庫失敗：' + (updateError.message || '請稍後再試'))
+    }
+
+    // 更新本地狀態
+    try {
+      console.log('🔄 更新本地狀態...')
+      userStore.updateProfile({ avatar: avatarUrl })
+      console.log('✅ 本地狀態更新成功')
+
+      // 保存到 localStorage
+      if (user.value.uid) {
+        try {
+          localStorage.setItem(`user_avatar_${user.value.uid}`, avatarUrl)
+          console.log('✅ 已保存到 localStorage')
+        } catch (e) {
+          console.warn('⚠️ 保存頭貼到 localStorage 失敗:', e)
+        }
+      }
+    } catch (storeError) {
+      console.error('❌ 更新本地狀態失敗：', storeError)
+      // 即使本地更新失敗，也繼續執行
+    }
 
     // 清除討論區的用戶資訊緩存，確保頭貼更新
-    const { useDiscussionsStore } = await import('@/stores/discussions')
-    const discussionsStore = useDiscussionsStore()
-    if (discussionsStore && discussionsStore.clearUserCache) {
-      discussionsStore.clearUserCache(user.value.uid)
+    try {
+      const { useDiscussionsStore } = await import('@/stores/discussions')
+      const discussionsStore = useDiscussionsStore()
+      if (discussionsStore && discussionsStore.clearUserCache) {
+        discussionsStore.clearUserCache(user.value.uid)
+        console.log('✅ 已清除討論區緩存')
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ 清除緩存失敗：', cacheError)
+      // 緩存清除失敗不影響上傳成功
     }
 
-    isAvatarCropOpen.value = false
-    avatarFileToCrop.value = null
-    if (avatarCropModalRef.value) {
+    // 成功提示
+    console.log('🎉 頭貼上傳流程完成！')
+
+    // 重新載入個人檔案資料以確保界面更新
+    try {
+      console.log('🔄 重新載入個人檔案資料...')
+      await loadProfileData()
+      console.log('✅ 個人檔案資料已重新載入')
+    } catch (reloadError) {
+      console.warn('⚠️ 重新載入個人檔案資料失敗:', reloadError)
+      // 即使重新載入失敗，也顯示成功訊息
+    }
+
+    alert('✅ 頭貼更新成功！')
+
+    // 重置状态
+    if (avatarCropModalRef.value && avatarCropModalRef.value.resetUploadState) {
       avatarCropModalRef.value.resetUploadState()
     }
+    isAvatarCropOpen.value = false
+    avatarFileToCrop.value = null
   } catch (error) {
     console.error('上傳頭貼失敗：', error)
-    alert('上傳頭貼失敗，請重試')
-    if (avatarCropModalRef.value) {
+    const errorMessage = error.message || '未知錯誤'
+    alert(`❌ 上傳頭貼失敗：${errorMessage}\n\n請檢查：\n• 網路連線是否正常\n• 圖片格式是否正確\n• 檔案大小是否過大\n\n如問題持續，請稍後再試。`)
+
+    // 重置状态
+    if (avatarCropModalRef.value && avatarCropModalRef.value.resetUploadState) {
       avatarCropModalRef.value.resetUploadState()
     }
   }
