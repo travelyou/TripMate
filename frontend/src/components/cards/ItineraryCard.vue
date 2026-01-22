@@ -26,6 +26,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  showMenuButton: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const userStore = useUserStore()
@@ -229,7 +233,7 @@ onUnmounted(() => {
     @click="emit('open-detail', props.itinerary, false)"
   >
     <!-- 三点菜单按钮 -->
-    <div class="absolute top-2 right-2 post-menu-container z-30">
+    <div v-if="showMenuButton" class="absolute top-2 right-2 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
         @click="toggleMenu"

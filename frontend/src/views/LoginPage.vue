@@ -588,7 +588,9 @@ const handleRegister = async () => {
           syncError.message?.includes('NetworkError') ||
           syncError.response?.status === 503
         ) {
-          throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
+          throw new Error(
+            '無法連接到資料庫伺服器，註冊已取消。請稍後再試。您可能需要聯繫客服以確認帳戶狀態。'
+          )
         }
 
         throw new Error('資料同步到資料庫失敗：' + errorMessage)

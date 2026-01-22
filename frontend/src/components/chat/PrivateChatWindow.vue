@@ -63,6 +63,70 @@ const maxFileSize = 10 * 1024 * 1024 // 10MB
 // 對話次數限制
 const chatInteractionCount = ref({ count: 0, remaining: 3, canSend: true, isFriend: false })
 
+const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = '') => {
+  try {
+    const { incrementChatInteraction } = await import('@/api/profile')
+    const data = await incrementChatInteraction(currentUid, targetUid)
+
+    if (logPrefix) {
+      console.log(`[${logPrefix}] API 返回資料:`, data)
+      console.log(`[${logPrefix}] 發送前狀態:`, {
+        count: chatInteractionCount.value.count,
+        remaining: chatInteractionCount.value.remaining,
+        canSend: chatInteractionCount.value.canSend,
+      })
+    }
+
+    if (data && data.success !== false) {
+      const newCount =
+        typeof data.count === 'number'
+          ? parseInt(data.count)
+          : (parseInt(chatInteractionCount.value.count) || 0) + 1
+      const newRemaining =
+        typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
+      const newCanSend =
+        typeof data.canSend === 'boolean' ? data.canSend : newRemaining > 0
+      const newIsFriend =
+        typeof data.isFriend === 'boolean' ? data.isFriend : chatInteractionCount.value.isFriend || false
+
+      chatInteractionCount.value = {
+        count: newCount,
+        remaining: newRemaining,
+        canSend: newCanSend,
+        isFriend: newIsFriend,
+      }
+
+      if (logPrefix) {
+        console.log(`[${logPrefix}] 發送後狀態:`, {
+          count: newCount,
+          remaining: newRemaining,
+          canSend: newCanSend,
+          isFriend: newIsFriend,
+        })
+      }
+    } else {
+      const newCount = (chatInteractionCount.value.count || 0) + 1
+      const newRemaining = Math.max(0, 3 - newCount)
+      chatInteractionCount.value = {
+        count: newCount,
+        remaining: newRemaining,
+        canSend: newRemaining > 0,
+        isFriend: chatInteractionCount.value.isFriend || false,
+      }
+    }
+  } catch (error) {
+    console.error('記錄對話次數失敗：', error)
+    const newCount = (chatInteractionCount.value.count || 0) + 1
+    const newRemaining = Math.max(0, 3 - newCount)
+    chatInteractionCount.value = {
+      count: newCount,
+      remaining: newRemaining,
+      canSend: newRemaining > 0,
+      isFriend: chatInteractionCount.value.isFriend || false,
+    }
+  }
+}
+
 const CHAT_STORAGE_PREFIX = 'tripmate-private-chats-'
 const getChatStorageKey = (uid) => `${CHAT_STORAGE_PREFIX}${uid}`
 const CHAT_MESSAGES_STORAGE_PREFIX = 'tripmate-private-chat-messages-'
@@ -547,43 +611,7 @@ const handleFileSelect = async (event) => {
     })
 
     // 記錄對話次數
-    try {
-      const { incrementChatInteraction } = await import('@/api/profile')
-      const data = await incrementChatInteraction(currentUid, activeChatRoom.value.uid)
-
-      if (data && data.success !== false) {
-        const newCount = typeof data.count === 'number' ? parseInt(data.count) : (parseInt(chatInteractionCount.value.count) || 0) + 1
-        const newRemaining = typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
-        const newCanSend = typeof data.canSend === 'boolean' ? data.canSend : (newRemaining > 0)
-        const newIsFriend = typeof data.isFriend === 'boolean' ? data.isFriend : (chatInteractionCount.value.isFriend || false)
-
-        chatInteractionCount.value = {
-          count: newCount,
-          remaining: newRemaining,
-          canSend: newCanSend,
-          isFriend: newIsFriend
-        }
-      } else {
-        const newCount = (chatInteractionCount.value.count || 0) + 1
-        const newRemaining = Math.max(0, 3 - newCount)
-        chatInteractionCount.value = {
-          count: newCount,
-          remaining: newRemaining,
-          canSend: newRemaining > 0,
-          isFriend: chatInteractionCount.value.isFriend || false
-        }
-      }
-    } catch (error) {
-      console.error('記錄對話次數失敗：', error)
-      const newCount = (chatInteractionCount.value.count || 0) + 1
-      const newRemaining = Math.max(0, 3 - newCount)
-      chatInteractionCount.value = {
-        count: newCount,
-        remaining: newRemaining,
-        canSend: newRemaining > 0,
-        isFriend: chatInteractionCount.value.isFriend || false
-      }
-    }
+    await incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
 
     // 保存圖片訊息到資料庫（使用特殊格式標記為圖片訊息）
     try {
@@ -679,64 +707,7 @@ const sendMessage = async () => {
   }
 
   // 1. 先記錄對話次數（發送前更新，確保即時反映）
-  try {
-    const { incrementChatInteraction } = await import('@/api/profile')
-    const data = await incrementChatInteraction(currentUid, activeChatRoom.value.uid)
-
-    console.log('[sendMessage] API 返回資料:', data)
-    console.log('[sendMessage] 發送前狀態:', {
-      count: chatInteractionCount.value.count,
-      remaining: chatInteractionCount.value.remaining,
-      canSend: chatInteractionCount.value.canSend
-    })
-
-    if (data && data.success !== false) {
-      // 更新對話次數狀態（優先使用 API 返回的準確值）
-      const newCount = typeof data.count === 'number' ? parseInt(data.count) : (parseInt(chatInteractionCount.value.count) || 0) + 1
-      const newRemaining = typeof data.remaining === 'number' ? parseInt(data.remaining) : Math.max(0, 3 - newCount)
-      const newCanSend = typeof data.canSend === 'boolean' ? data.canSend : (newRemaining > 0)
-      const newIsFriend = typeof data.isFriend === 'boolean' ? data.isFriend : (chatInteractionCount.value.isFriend || false)
-
-      chatInteractionCount.value = {
-        count: newCount,
-        remaining: newRemaining,
-        canSend: newCanSend,
-        isFriend: newIsFriend
-      }
-
-      console.log('[sendMessage] 發送後狀態:', {
-        count: newCount,
-        remaining: newRemaining,
-        canSend: newCanSend,
-        isFriend: newIsFriend
-      })
-
-    } else {
-      // API 返回異常，使用本地計算
-      const newCount = (chatInteractionCount.value.count || 0) + 1
-      const newRemaining = Math.max(0, 3 - newCount)
-      chatInteractionCount.value = {
-        count: newCount,
-        remaining: newRemaining,
-        canSend: newRemaining > 0,
-        isFriend: chatInteractionCount.value.isFriend || false
-      }
-    }
-  } catch (error) {
-    console.error('記錄對話次數失敗：', error)
-    // 即使 API 失敗，也應該更新本地狀態以避免無限制發送
-    const newCount = (chatInteractionCount.value.count || 0) + 1
-    const newRemaining = Math.max(0, 3 - newCount)
-    const newCanSend = newCount < 3
-
-    chatInteractionCount.value = {
-      count: newCount,
-      remaining: newRemaining,
-      canSend: newCanSend,
-      isFriend: chatInteractionCount.value.isFriend || false
-    }
-
-  }
+  await incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
 
   // 2. 保存訊息到資料庫
   try {

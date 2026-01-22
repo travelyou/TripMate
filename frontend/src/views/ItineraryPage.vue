@@ -196,6 +196,7 @@ onMounted(() => {
           v-for="itinerary in filteredItineraries"
           :key="itinerary.id"
           :itinerary="itinerary"
+          :show-menu-button="false"
           @open-detail="openDetailModal"
           @open-share="openShareModal"
           @edit="handleCardEdit"
