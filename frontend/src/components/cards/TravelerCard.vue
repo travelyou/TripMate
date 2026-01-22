@@ -203,9 +203,9 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full" @click="$emit('open-detail', traveler)">
-      <div
-        class="relative flex h-full flex-col cursor-pointer rounded-xl border border-secondary-200 bg-white shadow transition hover:scale-[1.01] hover:shadow-xl active:scale-[0.99]"
-      >
+    <div
+      class="relative flex h-full flex-col cursor-pointer rounded-xl border border-secondary-200 bg-white shadow transition hover:scale-[1.01] hover:shadow-xl active:scale-[0.99]"
+    >
       <div
         v-if="traveler.category"
         class="absolute top-0 left-0 z-10 rounded-tl-xl rounded-br-xl border-b-2 border-r-2 border-white/50 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-primary-700 shadow-sm backdrop-blur-sm"
@@ -293,7 +293,7 @@ onUnmounted(() => {
         </Transition>
       </Teleport>
 
-      <div class="flex flex-col gap-3 h-full">
+      <div class="flex h-full flex-col gap-3">
         <div
           class="relative w-full shrink-0 overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
         >
