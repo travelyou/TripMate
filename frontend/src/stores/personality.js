@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { useUserStore } from '@/stores/user'
+import { auth, db } from '@/firebase/config'
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 
 const QUESTIONS = [
   {
@@ -535,6 +537,31 @@ export const usePersonalityStore = defineStore('personalityTest', {
         await updateUserProfile(uid, {
           spirit_animal: spiritAnimalValue,
         })
+
+        const userDocRef = doc(db, 'users', uid)
+        const userDoc = await getDoc(userDocRef)
+        if (userDoc.exists()) {
+          await updateDoc(userDocRef, {
+            spiritAnimal: spiritAnimalValue,
+            updatedAt: serverTimestamp(),
+          })
+        } else {
+          const email =
+            userStore.firebaseUser?.email || userStore.currentUser?.email || auth.currentUser?.email
+          const nickname =
+            userStore.currentUser?.nickname ||
+            userStore.currentUser?.name ||
+            auth.currentUser?.displayName ||
+            '用戶'
+          await setDoc(userDocRef, {
+            uid,
+            email: email || '',
+            nickname,
+            spiritAnimal: spiritAnimalValue,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        }
 
         this.savedResult = result
         userStore.updateProfile({

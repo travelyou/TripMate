@@ -4,26 +4,32 @@ export const formatTime = (timestamp) => {
 
   const now = new Date()
   const time = new Date(timestamp)
+  if (Number.isNaN(time.getTime())) return ''
   const diff = Math.floor((now - time) / 1000)
 
   // 3分鐘內：剛剛
   if (diff < 180) return '剛剛'
 
   // 超過3分鐘：顯示完整日期時間 YYYY/MM/DD HH:mm
-  const year = time.getFullYear()
-  const month = String(time.getMonth() + 1).padStart(2, '0')
-  const day = String(time.getDate()).padStart(2, '0')
-  const hours = String(time.getHours()).padStart(2, '0')
-  const minutes = String(time.getMinutes()).padStart(2, '0')
-
-  return `${year}/${month}/${day} ${hours}:${minutes}`
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(time)
 }
 
 export const formatDate = (date) => {
   if (!date) return ''
   const d = new Date(date)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}/${month}/${day}`
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d)
 }

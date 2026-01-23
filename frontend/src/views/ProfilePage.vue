@@ -1,11 +1,17 @@
 ﻿<script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { useDiscussionsStore } from '@/stores/discussions'
-import { useItineraryStore } from '@/stores/itinerary'
 import { usePersonalityStore } from '@/stores/personality'
 import { getTravelers } from '@/api/travelers'
+
+// Modal Components
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
+import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
+import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
+import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
 // Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -21,19 +27,11 @@ import TabPosts from '@/components/profile/tabs/TabPosts.vue'
 import TabReviews from '@/components/profile/tabs/TabReviews.vue'
 import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
 
-// Modals for details
-import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
-import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
-import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
-
 // [NEW] 引入名片設定組件
 import CardSettingsModal from '@/components/profile/card/CardSettingsModal.vue'
 
 const userStore = useUserStore()
-const discussionsStore = useDiscussionsStore()
-const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
-const router = useRouter()
 const route = useRoute()
 
 // --- 核心資料計算 ---
@@ -104,8 +102,12 @@ const tabs = computed(() => {
 // --- 狀態控制變數 ---
 const isDetailModalOpen = ref(false)
 const isTravelerDetailModalOpen = ref(false)
+const isTravelerApplyModalOpen = ref(false)
+const isTravelerApplicationsModalOpen = ref(false)
+const isTravelerPostModalOpen = ref(false)
 const selectedPost = ref(null)
 const selectedTraveler = ref(null)
+const selectedTravelerDraft = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
@@ -116,6 +118,7 @@ const avatarFileToCrop = ref(null)
 // [NEW] 名片 Modal 狀態
 const isCardSettingsOpen = ref(false)
 const isMatchingEnabled = ref(true)
+const friendRequestStatus = ref(null)
 
 const hostedTravelers = ref([])
 const userPosts = ref([])
@@ -198,7 +201,7 @@ const handleSaveProfile = async (formData) => {
   if (!isCurrentUser.value || !user.value?.uid) return
 
   // 1. 解構資料
-  const { wishlist, hiddenStamps, tags, ...profileData } = formData
+  const { wishlist, tags, ...profileData } = formData
 
   try {
     const { updateUserProfile } = await import('@/api/users')
@@ -245,7 +248,7 @@ const handleAddFriend = async () => {
     return
   }
   try {
-    const { addFriend, cancelFriendRequest, removeFriend } = await import('@/api/profile')
+    await import('@/api/profile')
     // ... (簡化，請保留你原本完整的加好友邏輯) ...
     // 這裡只是示意，實際請用你原本的程式碼，或者如果需要我提供完整的這段請告訴我
     alert('好友功能暫時保留原樣')
@@ -326,7 +329,8 @@ const loadProfileData = async () => {
   }
 }
 
-const openDetail = (item) => {
+const openDetail = (item, scrollToComments = false) => {
+  shouldScrollToComments.value = !!scrollToComments
   if (item.type === 'traveler') {
     selectedTraveler.value = item
     isTravelerDetailModalOpen.value = true
@@ -334,6 +338,67 @@ const openDetail = (item) => {
     selectedPost.value = item
     isDetailModalOpen.value = true
   }
+}
+
+const loadHostedTravelers = async (uid = targetUid.value) => {
+  if (!uid) return
+  try {
+    const travelersRes = await getTravelers({ author_uid: uid, limit: 100 })
+    if (travelersRes.success) hostedTravelers.value = travelersRes.data
+  } catch (error) {
+    console.error('載入主揪旅程失敗', error)
+  }
+}
+
+const handleSaveField = async ({ field, data }) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
+  try {
+    if (field === 'wishlist') {
+      const { updateWishlist } = await import('@/api/profile')
+      const nextWishlist = Array.isArray(data?.wishlist) ? data.wishlist : []
+      await updateWishlist(user.value.uid, nextWishlist)
+      userStore.wishlist = nextWishlist
+      return
+    }
+
+    const { updateUserProfile } = await import('@/api/users')
+    await updateUserProfile(user.value.uid, data || {})
+    userStore.updateProfile(data || {})
+  } catch (error) {
+    console.error('欄位儲存失敗', error)
+    alert('儲存失敗，請稍後再試')
+  }
+}
+
+const handleUpdateWishlist = (nextWishlist) => {
+  userStore.wishlist = Array.isArray(nextWishlist) ? nextWishlist : []
+}
+
+const handlePostEdit = () => {
+  isDetailModalOpen.value = false
+}
+
+const handleTravelerEdit = (traveler) => {
+  selectedTravelerDraft.value = traveler || selectedTraveler.value
+  isTravelerPostModalOpen.value = true
+}
+
+const handleTravelerOpenApply = () => {
+  isTravelerApplyModalOpen.value = true
+}
+
+const handleTravelerOpenApplications = () => {
+  isTravelerApplicationsModalOpen.value = true
+}
+
+const handleTravelerPostModalClose = () => {
+  isTravelerPostModalOpen.value = false
+  selectedTravelerDraft.value = null
+}
+
+const handleTravelerPostSuccess = async () => {
+  handleTravelerPostModalClose()
+  await loadHostedTravelers(targetUid.value)
 }
 
 const handleUpdateAvatar = (file) => {
@@ -414,13 +479,13 @@ onMounted(() => {
             <button
               v-for="tab in tabs"
               :key="tab.k"
-              @click="activeTab = tab.k"
               :class="[
                 'flex-1 py-2 text-sm font-semibold rounded-xl transition',
                 activeTab === tab.k
                   ? 'bg-primary-50 text-primary-600'
                   : 'text-secondary-500 hover:bg-secondary-50',
               ]"
+              @click="activeTab = tab.k"
             >
               {{ tab.l }}
             </button>
@@ -436,6 +501,7 @@ onMounted(() => {
               v-if="activeTab === 'hosted_trips'"
               :trips="activeTabsData.hostedTrips"
               @open-detail="openDetail"
+              @edit="handleTravelerEdit"
             />
             <TabPosts
               v-if="activeTab === 'posts'"
@@ -453,8 +519,11 @@ onMounted(() => {
       v-if="isCurrentUser"
       :is-open="isEditingProfile"
       :user="user"
+      :wishlist="displayWishlist"
       @close="isEditingProfile = false"
       @save="handleSaveProfile"
+      @save-field="handleSaveField"
+      @update-wishlist="handleUpdateWishlist"
     />
 
     <CardSettingsModal
@@ -476,12 +545,37 @@ onMounted(() => {
     <DiscussionDetailModal
       v-if="isDetailModalOpen"
       :post="selectedPost"
+      :scroll-to-comments="shouldScrollToComments"
       @close="isDetailModalOpen = false"
+      @edit="handlePostEdit"
     />
     <TravelerDetailModal
       v-if="isTravelerDetailModalOpen"
       :traveler="selectedTraveler"
       @close="isTravelerDetailModalOpen = false"
+      @open-apply="handleTravelerOpenApply"
+      @open-applications="handleTravelerOpenApplications"
+      @edit="handleTravelerEdit"
+    />
+
+    <TravelerApplyModal
+      v-if="isTravelerApplyModalOpen"
+      :traveler="selectedTraveler"
+      @close="isTravelerApplyModalOpen = false"
+    />
+
+    <TravelerApplicationsModal
+      v-if="isTravelerApplicationsModalOpen"
+      :traveler="selectedTraveler"
+      @close="isTravelerApplicationsModalOpen = false"
+      @application-updated="loadHostedTravelers(targetUid)"
+    />
+
+    <TravelerPostModal
+      v-if="isTravelerPostModalOpen"
+      :draft-data="selectedTravelerDraft"
+      @close="handleTravelerPostModalClose"
+      @success="handleTravelerPostSuccess"
     />
     <PersonalityResultModal
       v-if="isPersonalityModalOpen"

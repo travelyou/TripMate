@@ -25,6 +25,14 @@ const router = createRouter({
       component: () => import('@/views/DiscussionPage.vue'),
     },
     {
+      path: '/post/:id',
+      name: 'post_redirect',
+      redirect: (to) => ({
+        path: '/discussion',
+        query: { postId: to.params.id },
+      }),
+    },
+    {
       path: '/travelers',
       name: 'travelers',
       component: () => import('@/views/TravelerPage.vue'),

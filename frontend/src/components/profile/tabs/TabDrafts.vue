@@ -22,6 +22,16 @@ const getTagColor = (type) => {
   return 'bg-secondary-500 text-white'
 }
 
+const getDraftPreviewText = (content) => {
+  if (!content) return ''
+  try {
+    const doc = new DOMParser().parseFromString(String(content), 'text/html')
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim()
+  } catch {
+    return String(content).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  }
+}
+
 /**
  * 當使用者點擊草稿卡片時觸發
  * @param {Object} draft - 被點擊的草稿物件
@@ -72,7 +82,9 @@ const handleDraftClick = (draft) => {
         <h4 class="font-bold text-base text-secondary-800 mb-2 group-hover:text-primary-700 transition">
           {{ draft.title }}
         </h4>
-        <p class="text-xs text-secondary-500 line-clamp-2 leading-relaxed">{{ draft.content }}</p>
+        <p class="text-xs text-secondary-500 line-clamp-2 leading-relaxed">
+          {{ getDraftPreviewText(draft.content) }}
+        </p>
       </div>
     </div>
 

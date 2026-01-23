@@ -78,7 +78,7 @@ const shouldMarquee = computed(() => {
 
     <div class="relative z-10">
       <div class="md:hidden flex flex-col gap-4">
-        <div class="flex items-start gap-4">
+        <div class="flex items-start gap-3 sm:gap-4">
           <div class="flex flex-col items-center shrink-0 -mt-2">
             <div class="relative group">
               <div
@@ -131,8 +131,9 @@ const shouldMarquee = computed(() => {
             </div>
           </div>
 
-          <div class="flex-1 min-w-0 flex flex-col justify-center h-20">
-            <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
+            <div class="flex-1 min-w-0 flex flex-col justify-between">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0">
                   <h1
@@ -144,8 +145,6 @@ const shouldMarquee = computed(() => {
                     ></span>
                     <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
                   </h1>
-                </div>
-                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <span
                     class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
                     :title="locationFull"
@@ -161,6 +160,7 @@ const shouldMarquee = computed(() => {
                       <span class="location-marquee-text">@{{ locationFull }}</span>
                     </span>
                   </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -175,9 +175,7 @@ const shouldMarquee = computed(() => {
                 >
                   好友
                 </div>
-                <div
-                  class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition\"
-                >
+                <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition">
                   <span
                     v-if="loading"
                     class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"
@@ -188,7 +186,7 @@ const shouldMarquee = computed(() => {
               <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
               <div class="text-center">
                 <div class="text-[9px] sm:text-[10px] text-primary-100">主揪</div>
-                <div class="text-sm sm:text-base font-bold text-white leading-tight\">
+                <div class="text-sm sm:text-base font-bold text-white leading-tight">
                   <span
                     v-if="loading"
                     class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"
@@ -199,7 +197,7 @@ const shouldMarquee = computed(() => {
               <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
               <div class="text-center">
                 <div class="text-[9px] sm:text-[10px] text-primary-100">貼文</div>
-                <div class="text-sm sm:text-base font-bold text-white leading-tight\">
+                <div class="text-sm sm:text-base font-bold text-white leading-tight">
                   <span
                     v-if="loading"
                     class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"
@@ -210,7 +208,7 @@ const shouldMarquee = computed(() => {
               <div class="w-px bg-white/20 h-5 sm:h-6 self-center"></div>
               <div class="text-center">
                 <div class="text-[9px] sm:text-[10px] text-primary-100">好評</div>
-                <div class="text-sm sm:text-base font-bold text-white leading-tight\">
+                <div class="text-sm sm:text-base font-bold text-white leading-tight">
                   <span
                     v-if="loading"
                     class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"
@@ -250,9 +248,9 @@ const shouldMarquee = computed(() => {
             <div v-else-if="!loading" class="flex gap-2 self-end mt-1">
               <button
                 :class="[
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg transition',
+                  'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
                   friendRequestStatus === 'accepted'
-                    ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
+                    ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
                     : friendRequestStatus === 'sent'
                       ? 'bg-orange-500/20 text-white border border-orange-500'
                       : 'bg-white text-primary-600 hover:bg-gray-100',
@@ -385,9 +383,9 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-col items-end gap-3" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
+        <div class="flex flex-col items-end gap-3 shrink-0" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
           <div
-            class="flex gap-4 lg:gap-8 bg-white/10 rounded-2xl p-4 lg:p-6 border border-white/20"
+            class="flex gap-3 md:gap-4 lg:gap-6 bg-white/10 rounded-2xl p-3 md:p-4 lg:p-6 border border-white/20"
           >
             <button
               class="text-center group hover:scale-105 transition"
@@ -399,9 +397,7 @@ const shouldMarquee = computed(() => {
               >
                 好友
               </div>
-              <div
-                class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition\"
-              >
+              <div class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition">
                 <span
                   v-if="loading"
                   class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"
@@ -409,9 +405,9 @@ const shouldMarquee = computed(() => {
                 ><span v-else>{{ stats.friends }}</span>
               </div>
             </button>
-            <div class="text-center">
+            <div class="text-center shrink-0">
               <div class="text-xs lg:text-sm text-primary-100 mb-1">主揪</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none\">
+              <div class="text-2xl lg:text-3xl font-bold text-white leading-none">
                 <span
                   v-if="loading"
                   class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"
@@ -421,7 +417,7 @@ const shouldMarquee = computed(() => {
             </div>
             <div class="text-center">
               <div class="text-xs lg:text-sm text-primary-100 mb-1">貼文</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none\">
+              <div class="text-2xl lg:text-3xl font-bold text-white leading-none">
                 <span
                   v-if="loading"
                   class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"
@@ -431,7 +427,7 @@ const shouldMarquee = computed(() => {
             </div>
             <div class="text-center">
               <div class="text-xs lg:text-sm text-primary-100 mb-1">好評</div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none\">
+              <div class="text-2xl lg:text-3xl font-bold text-white leading-none">
                 <span
                   v-if="loading"
                   class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"
@@ -469,9 +465,9 @@ const shouldMarquee = computed(() => {
           <div v-else-if="!loading" class="flex gap-2">
             <button
               :class="[
-                'flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base font-bold shadow-lg transition',
+                'flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm lg:text-base font-bold shadow-lg transition whitespace-nowrap',
                 friendRequestStatus === 'accepted'
-                  ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
+                  ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
                   : friendRequestStatus === 'sent'
                     ? 'bg-white/20 text-white border border-white'
                     : 'bg-white text-primary-600 hover:bg-gray-100',
@@ -488,10 +484,10 @@ const shouldMarquee = computed(() => {
               }}
             </button>
             <button
-              class="flex items-center gap-1.5 px-4 py-2 md:px-5 md:py-2.5 bg-secondary-400 text-white rounded-full text-sm md:text-base font-bold shadow-lg hover:bg-secondary-500 transition"
+              class="flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 bg-secondary-400 text-white rounded-full text-xs md:text-sm lg:text-base font-bold shadow-lg hover:bg-secondary-500 transition whitespace-nowrap"
               @click="$emit('chat')"
             >
-              <MessageCircle class="w-5 h-5" /> 聊聊
+              <MessageCircle class="w-4 h-4 md:w-5 md:h-5" /> 聊聊
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, ref, onMounted, onUnmounted, Teleport, Transition } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -38,6 +38,7 @@ const isReported = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('info')
+const localLikes = ref(0)
 
 const handleAvatarClick = (e) => {
   e.stopPropagation()
@@ -71,16 +72,50 @@ const itemData = computed(() => ({
   people: props.traveler.people,
   tags: props.traveler.tags,
   comments: props.traveler.comments,
-  category: props.traveler.category, // 確保有這個欄位
+  category: props.traveler.category,
 }))
 
 const previewContent = computed(() => {
   if (!props.traveler.content) return ''
-  let content = props.traveler.content
 
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = content
+  tempDiv.innerHTML = props.traveler.content
   return tempDiv.textContent || tempDiv.innerText || ''
+})
+
+const isExpired = computed(() => {
+  if (!props.traveler.end_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const endDate = new Date(props.traveler.end_date)
+  endDate.setHours(0, 0, 0, 0)
+  return endDate < today
+})
+
+const likeCount = computed(() => localLikes.value)
+const isFavorited = computed(() => userStore.isFavorite(itemData.value))
+
+const isFull = computed(() => {
+  const currentFromField = Number(props.traveler.current_people)
+  const maxFromField = Number(props.traveler.max_people)
+  if (!Number.isNaN(currentFromField) && !Number.isNaN(maxFromField) && maxFromField > 0) {
+    return currentFromField >= maxFromField
+  }
+  if (props.traveler.people) {
+    const [currentStr, maxStr] = String(props.traveler.people).split('/')
+    const current = Number(currentStr)
+    const max = Number(maxStr)
+    if (!Number.isNaN(current) && !Number.isNaN(max) && max > 0) {
+      return current >= max
+    }
+  }
+  return false
+})
+
+const displayStatus = computed(() => {
+  if (isExpired.value) return '已成行'
+  if (isFull.value) return '已額滿'
+  return props.traveler.status || '招募中'
 })
 
 const getStatusClasses = (status) => {
@@ -89,6 +124,8 @@ const getStatusClasses = (status) => {
       return 'bg-primary-600 text-white'
     case '已額滿':
       return 'bg-primary-700 text-white'
+    case '已成行':
+      return 'bg-secondary-600 text-white'
     case '已出發':
       return 'bg-secondary-500 text-white'
     default:
@@ -101,12 +138,22 @@ const isAuthor = computed(() => {
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
+const syncLocalLikes = () => {
+  localLikes.value = Number(props.traveler.likes ?? props.traveler.likes_count ?? 0)
+}
+
 const handleApply = (e) => {
   e.stopPropagation()
+
+  if (displayStatus.value === '已額滿' || displayStatus.value === '已成行') {
+    return
+  }
+
   if (!currentUserUid.value) {
     alert('請先登入後才能報名')
     return
   }
+
   emit('open-apply', props.traveler)
 }
 
@@ -118,6 +165,13 @@ const handleViewApplications = (e) => {
 const toggleMenu = (e) => {
   e.stopPropagation()
   showMenu.value = !showMenu.value
+}
+
+const handleToggleFavorite = (e) => {
+  e.stopPropagation()
+  const wasFavorite = isFavorited.value
+  localLikes.value = Math.max(0, localLikes.value + (wasFavorite ? -1 : 1))
+  userStore.toggleFavorite(itemData.value)
 }
 
 const closeMenu = () => {
@@ -161,7 +215,7 @@ const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/travelers#traveler-${props.traveler.id}`
+    const url = `${window.location.origin}/travelers?travelerId=${props.traveler.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
@@ -192,53 +246,59 @@ onMounted(() => {
   if (user) {
     currentUserUid.value = user.uid
   }
+  syncLocalLikes()
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+watch(
+  () => [props.traveler.likes, props.traveler.likes_count],
+  () => syncLocalLikes(),
+)
 </script>
 
 <template>
-  <div class="h-full" @click="$emit('open-detail', traveler)">
+  <div class="h-full w-full overflow-hidden" @click="$emit('open-detail', traveler)">
     <div
-      class="bg-white transition relative cursor-pointer rounded-xl border border-secondary-200 shadow hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] h-full flex flex-col"
+      class="relative flex h-full w-full flex-col cursor-pointer rounded-xl border border-secondary-200 bg-white shadow transition hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] overflow-hidden"
     >
       <div
         v-if="traveler.category"
-        class="absolute top-0 left-0 px-3.5 py-1.5 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl rounded-tl-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
+        class="absolute top-0 left-0 z-10 rounded-tl-xl rounded-br-xl border-b-2 border-r-2 border-white/50 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-primary-700 shadow-sm backdrop-blur-sm"
       >
         {{ traveler.category }}
       </div>
 
       <div
-        :class="getStatusClasses(traveler.status)"
-        class="absolute top-0 right-0 px-3 py-1 font-bold text-xs rounded-bl-xl rounded-tr-xl border-b-2 border-l-2 border-primary-200 shadow-primary-sm z-10"
+        :class="getStatusClasses(displayStatus)"
+        class="absolute top-0 right-0 z-10 rounded-tr-xl rounded-bl-xl border-b-2 border-l-2 border-primary-200 px-3 py-1 text-xs font-bold shadow-primary-sm"
       >
-        {{ traveler.status }}
+        {{ displayStatus }}
       </div>
 
-      <!-- 三点菜单按钮 -->
+      <!-- 三點選單按鈕 -->
       <div
         class="absolute top-2 right-2 post-menu-container z-30"
-        :style="{ top: traveler.status ? '3.5rem' : '0.5rem' }"
+        :style="{ top: displayStatus ? '3.5rem' : '0.5rem' }"
       >
         <button
-          class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
+          class="rounded-full bg-black/20 p-2 text-white backdrop-blur-sm transition hover:bg-white/80 hover:text-gray-700"
           @click="toggleMenu"
         >
           <MoreVertical class="w-5 h-5" />
         </button>
 
-        <!-- 菜单下拉 -->
+        <!-- 選單下拉 -->
         <div
           v-if="showMenu"
-          class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
+          class="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-2 shadow-xl"
         >
           <button
             v-if="isAuthor"
-            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+            class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleEdit"
           >
             <Edit class="w-4 h-4" />
@@ -246,22 +306,22 @@ onUnmounted(() => {
           </button>
           <button
             v-if="isAuthor"
-            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition"
+            class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
             @click="handleDelete"
           >
             <Trash2 class="w-4 h-4" />
             <span>刪除</span>
           </button>
-          <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
+          <div v-if="isAuthor" class="my-1 border-t border-gray-200"></div>
           <button
-            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+            class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleShare"
           >
             <Share2 class="w-4 h-4" />
             <span>分享</span>
           </button>
           <button
-            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition"
+            class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleReport"
           >
             <Flag class="w-4 h-4" />
@@ -283,18 +343,18 @@ onUnmounted(() => {
           <div
             v-if="showToast"
             :class="[
-              'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
+              'fixed bottom-20 left-1/2 z-[9999] -translate-x-1/2 transform rounded-lg px-6 py-3 shadow-xl transition-all duration-300',
               toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white',
             ]"
           >
-            <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>
+            <p class="whitespace-nowrap text-sm font-bold">{{ toastMessage }}</p>
           </div>
         </Transition>
       </Teleport>
 
-      <div class="flex flex-col gap-3 h-full">
+      <div class="flex h-full w-full flex-col gap-3 overflow-hidden">
         <div
-          class="relative shrink-0 w-full overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
+          class="relative w-full shrink-0 overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
         >
           <img
             :src="traveler.image"
@@ -304,36 +364,37 @@ onUnmounted(() => {
           />
 
           <div
-            class="absolute inset-x-0 bottom-0 h-[75%] px-4 pb-4 pt-10 text-white bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end z-20"
+            class="absolute inset-x-0 bottom-0 z-20 flex h-[75%] flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent px-3 sm:px-4 pt-10 pb-3 sm:pb-4 text-white overflow-hidden"
           >
             <div>
-              <div class="flex items-center space-x-3 mb-2">
+              <div class="flex items-center space-x-2 sm:space-x-3 mb-2 min-w-0">
                 <img
                   :src="traveler.avatar"
-                  class="w-8 h-8 rounded-full object-cover border-2 border-white/80 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+                  class="h-7 w-7 sm:h-8 sm:w-8 cursor-pointer rounded-full border-2 border-white/80 object-cover transition hover:ring-2 hover:ring-primary-500 shrink-0"
                   @click.stop="handleAvatarClick"
                 />
-                <div>
+                <div class="flex-1 min-w-0">
                   <div class="flex items-center space-x-1 flex-wrap gap-1">
                     <span
-                      class="font-bold text-sm text-white cursor-pointer hover:text-primary-300 transition"
+                      class="cursor-pointer text-xs sm:text-sm font-bold text-white transition hover:text-primary-300 truncate max-w-full"
                       @click.stop="handleAvatarClick"
-                      >{{ traveler.author }}</span
                     >
+                      {{ traveler.author }}
+                    </span>
                     <span
                       v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
-                      class="text-xs font-semibold text-white/90 bg-white/20 px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                      class="whitespace-nowrap rounded-full bg-white/20 px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-white/90 shrink-0"
                     >
                       {{ traveler.spiritAnimal }}
                     </span>
                   </div>
                 </div>
               </div>
-              <div>
-                <h3 class="text-xl font-bold mb-1 line-clamp-1">
+              <div class="min-w-0">
+                <h3 class="mb-1 line-clamp-1 text-base sm:text-lg md:text-xl font-bold break-words">
                   {{ traveler.title }}
                 </h3>
-                <p class="text-sm text-white/85 mb-2 line-clamp-2 sm:line-clamp-1 xl:line-clamp-2">
+                <p class="mb-2 line-clamp-2 text-xs sm:text-sm text-white/85 sm:line-clamp-1 xl:line-clamp-2 break-words">
                   {{ previewContent }}
                 </p>
               </div>
@@ -344,42 +405,43 @@ onUnmounted(() => {
                 <span
                   v-for="tag in traveler.tags || []"
                   :key="tag"
-                  class="text-xs font-medium text-white/90 bg-white/15 px-2 py-0.5 rounded-full hover:bg-white/25 transition inline-flex items-center h-5 max-w-[6.5rem] truncate"
+                  class="inline-flex h-5 max-w-[6.5rem] items-center truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white/90 transition hover:bg-white/25"
                 >
                   #{{ tag }}
                 </span>
               </div>
 
               <div class="flex flex-col gap-2">
-                <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
-                  <span class="flex items-center max-w-[10rem] truncate">
-                    <MapPinIcon class="w-4 h-4 mr-1 text-white/80" />
-                    {{ traveler.location }}
+                <div class="mt-2 flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
+                  <span class="flex max-w-[8rem] sm:max-w-[10rem] items-center truncate text-xs sm:text-sm">
+                    <MapPinIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/80 shrink-0" />
+                    <span class="truncate">{{ traveler.location }}</span>
                   </span>
-                  <span class="flex items-center">
-                    <CalendarIcon class="w-4 h-4 mr-1 text-white/70" />
-                    {{ traveler.date }}
+                  <span class="flex items-center text-xs sm:text-sm">
+                    <CalendarIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/70 shrink-0" />
+                    <span class="truncate">{{ traveler.date }}</span>
                   </span>
                 </div>
 
-                <div class="flex items-center flex-wrap gap-4 mt-2 min-w-0">
+                <div class="mt-2 flex min-w-0 flex-wrap items-center gap-4">
                   <button
-                    class="flex items-center group transition"
+                    class="group flex items-center transition"
                     :class="
-                      userStore.isFavorite(itemData)
+                      isFavorited
                         ? 'text-red-300'
                         : 'text-white/70 hover:text-red-300'
                     "
-                    @click.stop="userStore.toggleFavorite(itemData)"
+                    @click.stop="handleToggleFavorite"
                   >
                     <HeartIcon
-                      class="w-4 h-4 mr-1 transition-transform group-active:scale-125"
-                      :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+                      class="mr-1 h-4 w-4 transition-transform group-active:scale-125"
+                      :class="{ 'fill-current text-red-300': isFavorited }"
                     />
+                    <span>{{ likeCount }}</span>
                   </button>
 
                   <button
-                    class="flex items-center space-x-1 transition group"
+                    class="group flex items-center space-x-1 transition"
                     :class="
                       userStore.isCollected(itemData)
                         ? 'text-emerald-300'
@@ -392,7 +454,7 @@ onUnmounted(() => {
                     "
                   >
                     <BookmarkIcon
-                      class="w-4 h-4 transition-transform group-active:scale-125"
+                      class="h-4 w-4 transition-transform group-active:scale-125"
                       :class="{ 'fill-current': userStore.isCollected(itemData) }"
                     />
                     <span>{{
@@ -402,47 +464,49 @@ onUnmounted(() => {
 
                   <button
                     v-if="isAuthor"
-                    class="flex items-center space-x-1 transition group text-white/70 hover:text-blue-300"
-                    @click.stop="handleViewApplications"
+                    class="group flex items-center space-x-1 text-white/70 transition hover:text-blue-300"
                     title="查看報名清單"
+                    @click.stop="handleViewApplications"
                   >
-                    <UserPlusIcon class="w-4 h-4 transition-transform group-active:scale-125" />
+                    <UserPlusIcon class="h-4 w-4 transition-transform group-active:scale-125" />
                   </button>
                   <button
                     v-else
-                    class="flex items-center space-x-1 transition group text-white/70 hover:text-blue-300"
-                    @click.stop="handleApply"
+                    class="group flex items-center space-x-1 text-white/70 transition hover:text-blue-300"
                     title="報名"
+                    @click.stop="handleApply"
                   >
-                    <UserPlusIcon class="w-4 h-4 transition-transform group-active:scale-125" />
+                    <UserPlusIcon class="h-4 w-4 transition-transform group-active:scale-125" />
                   </button>
 
-                  <span class="flex items-center text-white/90 ml-auto md:ml-0">
-                    <MessageCircleIcon class="w-4 h-4 mr-1" />
+                  <span class="ml-auto flex items-center text-white/90 md:ml-0">
+                    <MessageCircleIcon class="mr-1 h-4 w-4" />
                     {{ traveler.comments || 0 }}
                   </span>
                 </div>
               </div>
 
               <div
-                class="flex justify-between items-end pt-2 border-t border-white/20 relative z-20"
+                class="relative z-20 flex items-end justify-between border-t border-white/20 pt-2 gap-2"
               >
-                <div class="flex items-center font-bold text-white">
-                  <UsersIcon class="w-5 h-5 mr-1 text-white/85" />
-                  招募人數：
-                  <span class="text-lg text-white ml-1">{{ traveler.people }}</span>
+                <div class="flex items-center font-bold text-white min-w-0 flex-1">
+                  <UsersIcon class="mr-1 h-4 w-4 sm:h-5 sm:w-5 text-white/85 shrink-0" />
+                  <span class="text-xs sm:text-sm truncate">招募人數：</span>
+                  <span class="ml-1 text-base sm:text-lg text-white shrink-0">{{ traveler.people }}</span>
                 </div>
 
                 <button
                   v-if="!isAuthor"
-                  :disabled="traveler.status === '已額滿'"
+                  :disabled="displayStatus === '已額滿' || displayStatus === '已成行'"
                   :class="
-                    traveler.status === '已額滿'
-                      ? 'bg-white/20 text-white/60 cursor-not-allowed'
+                    displayStatus === '已額滿' || displayStatus === '已成行'
+                      ? 'cursor-not-allowed bg-white/20 text-white/60'
                       : 'bg-white text-primary-700 hover:bg-white/90'
                   "
-                  class="px-4 py-2 rounded-full font-bold transition text-sm shadow-md relative z-30"
-                  @click.stop="traveler.status !== '已額滿' && handleApply()"
+                  class="relative z-30 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
+                  @click.stop="
+                    displayStatus !== '已額滿' && displayStatus !== '已成行' && handleApply($event)
+                  "
                 >
                   私訊報名
                 </button>

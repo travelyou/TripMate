@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config'
+import { auth } from '@/firebase/config'
 
 // 輔助函數：統一將資料轉為前端元件需要的格式
 function normalizeUserData(data) {
@@ -48,18 +49,14 @@ function normalizeUserData(data) {
 
 // 創建或更新用戶資料
 export async function createOrUpdateUser(userData) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData),
-    })
-    if (!response.ok) throw new Error('創建/更新用戶失敗')
-    const data = await response.json()
-    return data.data || data
-  } catch (error) {
-    throw error
-  }
+  const response = await fetch(`${API_BASE_URL}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+  })
+  if (!response.ok) throw new Error('創建/更新用戶失敗')
+  const data = await response.json()
+  return data.data || data
 }
 
 export async function getUserProfile(uid) {
@@ -80,9 +77,38 @@ export async function getUserProfile(uid) {
 
 // 更新用戶資料 (PUT)
 export async function updateUserProfile(uid, userData) {
-  const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
+  const url = `${API_BASE_URL}/users/${uid}`
+
+  // 獲取 Firebase 認證 token
+  let token = null
+  if (auth.currentUser) {
+    try {
+      token = await auth.currentUser.getIdToken()
+      console.log('✅ 已獲取認證 token')
+    } catch (tokenError) {
+      console.warn('⚠️ 獲取 token 失敗:', tokenError)
+    }
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  console.log('📤 發送更新請求:', {
+    url,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    uid,
+    userData,
+    hasToken: !!token,
+    headers
+  })
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers,
     body: JSON.stringify(userData),
   })
   if (!response.ok) throw new Error('更新用戶資料失敗')

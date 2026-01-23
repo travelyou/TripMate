@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   deleteUser,
 } from 'firebase/auth'
+import { Eye as EyeIcon, EyeOff as EyeOffIcon } from 'lucide-vue-next'
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -37,6 +38,10 @@ const loginErrors = ref({
   general: '',
 })
 const isLoggingIn = ref(false)
+
+const showLoginPassword = ref(false)
+const showRegisterPassword = ref(false)
+const showRegisterConfirmPassword = ref(false)
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -183,30 +188,230 @@ const handleLogin = async () => {
     try {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData) {
+        // 優先級順序：1. Neon 資料庫 2. Firebase Auth photoURL 3. Firestore 4. localStorage 5. 默認頭貼
+        let avatar = null
+        
+        // 1. 優先使用 Neon 資料庫中的頭貼（排除 dicebear 默認頭貼）
+        if (neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')) {
+          avatar = neonUserData.avatar
+          console.log('✅ 使用 Neon 資料庫中的頭貼')
+        }
+        
+        // 2. 如果沒有，嘗試使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
+        if (!avatar && userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
+          avatar = userCredential.user.photoURL
+          console.log('✅ 使用 Firebase Auth 的 photoURL')
+        }
+        
+        // 3. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
+        if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
+          avatar = userData.avatar
+          console.log('✅ 使用 Firestore 的頭貼')
+        }
+        
+        // 4. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
+        let avatarFromLocalStorage = false
+        if (!avatar) {
+          try {
+            const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
+            if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
+              avatar = savedAvatar
+              avatarFromLocalStorage = true
+              console.log('✅ 使用 localStorage 中的頭貼')
+            }
+          } catch (e) {
+            console.warn('從 localStorage 恢復頭貼失敗:', e)
+          }
+        }
+        
+        // 5. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
+        if (!avatar) {
+          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
+        }
+
+        // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
+        if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          // 保存到 localStorage
+          try {
+            localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+            console.log('✅ 已保存頭貼到 localStorage')
+          } catch (e) {
+            console.warn('保存頭貼到 localStorage 失敗:', e)
+          }
+          
+          // 如果頭貼是從 localStorage 恢復的，或者資料庫中沒有，同步到資料庫
+          if (avatarFromLocalStorage || !neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) {
+            try {
+              await createOrUpdateUser({
+                uid: userCredential.user.uid,
+                avatar: avatar
+              })
+              console.log('✅ 已將頭貼同步到 Neon 資料庫')
+            } catch (e) {
+              console.warn('同步頭貼到資料庫失敗:', e)
+            }
+          }
+          
+          // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
+          if (userCredential.user.photoURL !== avatar) {
+            try {
+              const { updateProfile } = await import('firebase/auth')
+              await updateProfile(userCredential.user, {
+                photoURL: avatar
+              })
+              console.log('✅ 已更新 Firebase Auth 的 photoURL')
+            } catch (e) {
+              console.warn('更新 Firebase Auth photoURL 失敗:', e)
+            }
+          }
+        }
+
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           nickname: neonUserData.nickname || userData.nickname || '',
-          avatar: neonUserData.avatar || userData.avatar || '',
+          avatar: avatar,
           bio: neonUserData.bio || userData.bio || '',
           spiritAnimal: neonUserData.spirit_animal || userData.spiritAnimal || '',
           role: neonUserData.role || 'user',
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
+        // 如果 Neon 中沒有資料，使用以下優先級：1. Firebase Auth photoURL 2. Firestore 3. localStorage 4. 默認頭貼
+        let avatar = null
+        
+        // 1. 優先使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
+        if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
+          avatar = userCredential.user.photoURL
+          console.log('✅ 使用 Firebase Auth 的 photoURL')
+        }
+        
+        // 2. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
+        if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
+          avatar = userData.avatar
+          console.log('✅ 使用 Firestore 的頭貼')
+        }
+        
+        // 3. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
+        if (!avatar) {
+          try {
+            const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
+            if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
+              avatar = savedAvatar
+              console.log('✅ 使用 localStorage 中的頭貼')
+            }
+          } catch (e) {
+            console.warn('從 localStorage 恢復頭貼失敗:', e)
+          }
+        }
+        
+        // 4. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
+        if (!avatar) {
+          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
+        }
+
+        // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
+        if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+          // 保存到 localStorage
+          try {
+            localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+            console.log('✅ 已保存頭貼到 localStorage')
+          } catch (e) {
+            console.warn('保存頭貼到 localStorage 失敗:', e)
+          }
+          
+          // 同步到資料庫
+          try {
+            await createOrUpdateUser({
+              uid: userCredential.user.uid,
+              avatar: avatar
+            })
+            console.log('✅ 已將頭貼同步到 Neon 資料庫')
+          } catch (e) {
+            console.warn('同步頭貼到資料庫失敗:', e)
+          }
+          
+          // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
+          if (userCredential.user.photoURL !== avatar) {
+            try {
+              const { updateProfile } = await import('firebase/auth')
+              await updateProfile(userCredential.user, {
+                photoURL: avatar
+              })
+              console.log('✅ 已更新 Firebase Auth 的 photoURL')
+            } catch (e) {
+              console.warn('更新 Firebase Auth photoURL 失敗:', e)
+            }
+          }
+        }
+
         applyUserProfileToStore({
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           ...userData,
+          avatar: avatar,
           role: userData.role || 'user',
         })
       }
     } catch (loadError) {
       console.error('從 Neon 載入用戶資料失敗，使用 Firestore 資料：', loadError)
+      // 如果載入失敗，使用 Firestore 的資料
+      let avatar = userData.avatar && userData.avatar.trim() !== ''
+        ? userData.avatar
+        : null
+
+      // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
+      let avatarFromLocalStorage = false
+      if (!avatar) {
+        try {
+          const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
+          if (savedAvatar && savedAvatar.trim() !== '') {
+            // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
+            avatar = savedAvatar
+            // 只有非 dicebear 的頭貼才需要同步到資料庫
+            if (!savedAvatar.includes('dicebear.com')) {
+              avatarFromLocalStorage = true
+            }
+          } else {
+            // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
+            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+          }
+        } catch (e) {
+          console.warn('從 localStorage 恢復頭貼失敗:', e)
+          // 如果載入失敗，使用默認頭貼
+          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
+        }
+      }
+
+      // 如果有有效的頭貼，保存到 localStorage
+      if (avatar && avatar.trim() !== '') {
+        try {
+          localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
+        } catch (e) {
+          console.warn('保存頭貼到 localStorage 失敗:', e)
+        }
+      }
+
+      // 如果頭貼是從 localStorage 恢復的，同步到資料庫
+      if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
+        try {
+          await createOrUpdateUser({
+            uid: userCredential.user.uid,
+            avatar: avatar
+          })
+          console.log('已將 localStorage 中的頭貼同步到資料庫')
+        } catch (e) {
+          console.warn('同步頭貼到資料庫失敗:', e)
+        }
+      }
+
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         ...userData,
+        avatar: avatar,
         role: userData.role || 'user',
       })
     }
@@ -389,7 +594,9 @@ const handleRegister = async () => {
           syncError.message?.includes('NetworkError') ||
           syncError.response?.status === 503
         ) {
-          throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
+          throw new Error(
+            '無法連接到資料庫伺服器，註冊已取消。請稍後再試。您可能需要聯繫客服以確認帳戶狀態。'
+          )
         }
 
         throw new Error('資料同步到資料庫失敗：' + errorMessage)
@@ -557,7 +764,7 @@ const registerErrors = ref({
                   id="email"
                   v-model="loginForm.email"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     loginErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -572,17 +779,28 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-base sm:text-lg"> 密碼 </label>
-                <input
-                  id="password"
-                  v-model="loginForm.password"
-                  :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                    loginErrors.password ? 'border-red-500' : 'border-black',
-                  ]"
-                  type="password"
-                  placeholder="請輸入密碼"
-                  @input="loginErrors.password = ''"
-                />
+                <div class="relative">
+                  <input
+                    id="password"
+                    v-model="loginForm.password"
+                    :class="[
+                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
+                      loginErrors.password ? 'border-red-500' : 'border-black',
+                    ]"
+                    :type="showLoginPassword ? 'text' : 'password'"
+                    placeholder="請輸入密碼"
+                    @input="loginErrors.password = ''"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
+                    :aria-label="showLoginPassword ? '隱藏密碼' : '顯示密碼'"
+                    @click="showLoginPassword = !showLoginPassword"
+                  >
+                    <EyeOffIcon v-if="showLoginPassword" class="w-5 h-5" />
+                    <EyeIcon v-else class="w-5 h-5" />
+                  </button>
+                </div>
                 <span v-if="loginErrors.password" class="text-red-500 text-sm">{{
                   loginErrors.password
                 }}</span>
@@ -660,7 +878,7 @@ const registerErrors = ref({
                   id="realName"
                   v-model="registerForm.realName"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     registerErrors.realName ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -679,7 +897,7 @@ const registerErrors = ref({
                   id="nickname"
                   v-model="registerForm.nickname"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     registerErrors.nickname ? 'border-red-500' : 'border-black',
                   ]"
                   type="text"
@@ -698,7 +916,7 @@ const registerErrors = ref({
                   id="email"
                   v-model="registerForm.email"
                   :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
+                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-black placeholder-gray-400',
                     registerErrors.email ? 'border-red-500' : 'border-black',
                   ]"
                   type="email"
@@ -713,17 +931,28 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="password" class="text-sm sm:text-base"> 密碼 </label>
-                <input
-                  id="password"
-                  v-model="registerForm.password"
-                  :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                    registerErrors.password ? 'border-red-500' : 'border-black',
-                  ]"
-                  type="password"
-                  placeholder="6位以上英、數字，必須包含大小寫"
-                  @input="registerErrors.password = ''"
-                />
+                <div class="relative">
+                  <input
+                    id="password"
+                    v-model="registerForm.password"
+                    :class="[
+                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
+                      registerErrors.password ? 'border-red-500' : 'border-black',
+                    ]"
+                    :type="showRegisterPassword ? 'text' : 'password'"
+                    placeholder="6位以上英、數字，必須包含大小寫"
+                    @input="registerErrors.password = ''"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
+                    :aria-label="showRegisterPassword ? '隱藏密碼' : '顯示密碼'"
+                    @click="showRegisterPassword = !showRegisterPassword"
+                  >
+                    <EyeOffIcon v-if="showRegisterPassword" class="w-5 h-5" />
+                    <EyeIcon v-else class="w-5 h-5" />
+                  </button>
+                </div>
                 <span v-if="registerErrors.password" class="text-red-500 text-sm">
                   {{ registerErrors.password }}
                 </span>
@@ -732,17 +961,28 @@ const registerErrors = ref({
             <div class="formInput flex flex-row gap-2">
               <div class="flex flex-col gap-1.5 sm:gap-2 flex-1">
                 <label for="confirmPassword" class="text-sm sm:text-base">確認密碼</label>
-                <input
-                  id="confirmPassword"
-                  v-model="registerForm.confirmPassword"
-                  :class="[
-                    'w-full border-2 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base',
-                    registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
-                  ]"
-                  type="password"
-                  placeholder="請再次輸入密碼"
-                  @input="registerErrors.confirmPassword = ''"
-                />
+                <div class="relative">
+                  <input
+                    id="confirmPassword"
+                    v-model="registerForm.confirmPassword"
+                    :class="[
+                      'w-full border-2 rounded-md px-3 py-2 sm:px-4 pr-10 text-sm sm:text-base text-black placeholder-gray-400',
+                      registerErrors.confirmPassword ? 'border-red-500' : 'border-black',
+                    ]"
+                    :type="showRegisterConfirmPassword ? 'text' : 'password'"
+                    placeholder="請再次輸入密碼"
+                    @input="registerErrors.confirmPassword = ''"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary-600"
+                    :aria-label="showRegisterConfirmPassword ? '隱藏密碼' : '顯示密碼'"
+                    @click="showRegisterConfirmPassword = !showRegisterConfirmPassword"
+                  >
+                    <EyeOffIcon v-if="showRegisterConfirmPassword" class="w-5 h-5" />
+                    <EyeIcon v-else class="w-5 h-5" />
+                  </button>
+                </div>
                 <span v-if="registerErrors.confirmPassword" class="text-red-500 text-sm">
                   {{ registerErrors.confirmPassword }}
                 </span>

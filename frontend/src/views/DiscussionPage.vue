@@ -129,6 +129,10 @@ onMounted(async () => {
   }
   // 檢查是否有草稿需要打開
   tryOpenDraft()
+  // 檢查是否需要開啟編輯
+  tryOpenEditPost()
+  // 檢查是否有分享連結需要開啟
+  tryOpenSharedPost()
 })
 
 onUnmounted(() => {
@@ -147,6 +151,22 @@ watch(
   },
 )
 
+watch(() => route.query.postId, (newPostId) => {
+  if (newPostId) {
+    nextTick(() => {
+      tryOpenSharedPost()
+    })
+  }
+})
+
+watch(() => route.query.editPost, (newPostId) => {
+  if (newPostId) {
+    nextTick(() => {
+      tryOpenEditPost()
+    })
+  }
+})
+
 // 發文成功後的回調
 const handlePostSuccess = async () => {
   isPostingModalOpen.value = false
@@ -164,6 +184,9 @@ const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const postToEdit = ref(null)
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
@@ -178,18 +201,30 @@ const closeDiscussionDetailModal = () => {
 }
 
 const handleEditPost = (post) => {
+  setAppLoading(true)
   postToEdit.value = post
   closeDiscussionDetailModal()
   isPostingModalOpen.value = true
+  nextTick(() => setAppLoading(false))
 }
 
 const handleCardEdit = (post) => {
+  setAppLoading(true)
   postToEdit.value = post
   isPostingModalOpen.value = true
+  nextTick(() => setAppLoading(false))
+}
+
+const handleDetailEdit = (post) => {
+  handleEditPost(post)
 }
 
 const handleCardDelete = (post) => {
   // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
+  loadDiscussionsData(false)
+}
+
+const handleDetailDeleted = () => {
   loadDiscussionsData(false)
 }
 
@@ -200,7 +235,7 @@ const handlePostModalClose = () => {
 }
 
 const openShareModal = (postId) => {
-  shareLink.value = `/post/${postId}`
+  shareLink.value = `${window.location.origin}/discussion?postId=${postId}`
   isShareModalOpen.value = true
 }
 
@@ -237,6 +272,56 @@ const tryOpenDraft = () => {
         router.replace({ path: '/discussion', query: {} })
       })
     }
+  }
+}
+
+const tryOpenSharedPost = async () => {
+  let postId = route.query.postId
+  if (!postId && route.hash) {
+    const match = route.hash.match(/^#post-(.+)$/)
+    if (match?.[1]) {
+      postId = match[1]
+    }
+  }
+  if (!postId) return
+  setAppLoading(true)
+  try {
+    const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
+    if (existing) {
+      openDiscussionDetailModal(existing, false)
+      router.replace({ path: '/discussion', query: {}, hash: '' })
+      return
+    }
+
+    const { fetchPostById } = await import('@/api/discussions')
+    const post = await fetchPostById(postId)
+    if (post) {
+      openDiscussionDetailModal(post, false)
+      router.replace({ path: '/discussion', query: {}, hash: '' })
+    }
+  } catch (error) {
+    console.error('開啟分享貼文失敗：', error)
+  } finally {
+    setAppLoading(false)
+  }
+}
+
+const tryOpenEditPost = async () => {
+  const postId = route.query.editPost
+  if (!postId) return
+  setAppLoading(true)
+  try {
+    const { fetchPostById } = await import('@/api/discussions')
+    const post = await fetchPostById(postId)
+    if (post) {
+      postToEdit.value = post
+      isPostingModalOpen.value = true
+      router.replace({ path: '/discussion', query: {} })
+    }
+  } catch (error) {
+    console.error('開啟編輯貼文失敗：', error)
+  } finally {
+    setAppLoading(false)
   }
 }
 </script>
@@ -349,7 +434,8 @@ const tryOpenDraft = () => {
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
-    @edit="handleEditPost"
+    @edit="handleDetailEdit"
+    @deleted="handleDetailDeleted"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

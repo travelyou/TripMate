@@ -26,6 +26,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  showMenuButton: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const userStore = useUserStore()
@@ -187,7 +191,7 @@ const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/featured-itinerary#itinerary-${props.itinerary.id}`
+    const url = `${window.location.origin}/featured-itinerary?itineraryId=${props.itinerary.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
@@ -229,7 +233,7 @@ onUnmounted(() => {
     @click="emit('open-detail', props.itinerary, false)"
   >
     <!-- 三点菜单按钮 -->
-    <div class="absolute top-2 right-2 post-menu-container z-30">
+    <div v-if="showMenuButton" class="absolute top-2 right-2 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
         @click="toggleMenu"

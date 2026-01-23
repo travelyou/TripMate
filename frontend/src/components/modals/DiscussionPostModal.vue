@@ -149,110 +149,28 @@ const ResetStyleOnEnter = Extension.create({
 
           if (editor.isActive('bulletList') || editor.isActive('orderedList')) return false
 
-          // 處理標題換行變段落
+          // 標題 Enter：只換到下一段，避免多插入空行
           if (editor.isActive('heading')) {
-            return editor.chain().focus().splitBlock().setParagraph().run()
-          }
-
-          const { state } = editor
-          const { selection } = state
-
-          const docSize = state.doc.content.size
-          if (selection.$from.pos < 0 || selection.$from.pos > docSize) {
-            return false
-          }
-
-          if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
-            return false
-          }
-
-          if (editor.isActive('heading', { level: 2 })) {
-            if (!editor.can().splitBlock()) {
-              return false
+            if (editor.can().splitBlock()) {
+              editor
+                .chain()
+                .focus()
+                .splitBlock({ keepMarks: false })
+                .setParagraph()
+                .unsetAllMarks()
+                .run()
             }
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const newState = editor.state
-                    const newSelection = newState.selection
-                    if (
-                      newSelection.$from.pos >= 0 &&
-                      newSelection.$from.pos <= newState.doc.content.size &&
-                      editor.can().setHeading({ level: 2 })
-                    ) {
-                      editor.chain().focus().setHeading({ level: 2 }).run()
-                    }
-                  }
-                } catch {
-                  // 忽略錯誤，避免無限循環
-                }
-              })
-            }
-            return splitSuccess
+            return true
           }
 
-          if (editor.isActive('heading', { level: 3 })) {
-            if (!editor.can().splitBlock()) {
-              return false
-            }
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const newState = editor.state
-                    const newSelection = newState.selection
-                    if (
-                      newSelection.$from.pos >= 0 &&
-                      newSelection.$from.pos <= newState.doc.content.size &&
-                      editor.can().setHeading({ level: 3 })
-                    ) {
-                      editor.chain().focus().setHeading({ level: 3 }).run()
-                    }
-                  }
-                } catch {
-                  // 忽略錯誤，避免無限循環
-                }
-              })
-            }
-            return splitSuccess
-          }
+          if (!editor.can().splitBlock()) return false
 
-          if (!editor.can().splitBlock()) {
-            return false
-          }
-
-          try {
-            const splitSuccess = editor.chain().focus().splitBlock({ keepMarks: false }).run()
-            if (splitSuccess) {
-              requestAnimationFrame(() => {
-                try {
-                  if (editor && !editor.isDestroyed && editor.view && editor.state) {
-                    const currentState = editor.state
-                    const currentSelection = currentState.selection
-                    const currentDocSize = currentState.doc.content.size
-
-                    if (
-                      currentSelection.$from.pos >= 0 &&
-                      currentSelection.$from.pos <= currentDocSize &&
-                      currentSelection.$from.pos === currentSelection.$to.pos &&
-                      editor.can().unsetAllMarks()
-                    ) {
-                      editor.chain().focus().unsetAllMarks().run()
-                    }
-                  }
-                } catch {
-                  // 忽略錯誤，避免無限循環
-                }
-              })
-            }
-            return splitSuccess
-          } catch (error) {
-            console.error('[發文編輯器的] 普通段落 Enter 鍵出錯了:', error)
-            return false
-          }
+          return editor
+            .chain()
+            .focus()
+            .splitBlock({ keepMarks: false })
+            .unsetAllMarks()
+            .run()
         } catch (error) {
           console.error('[發文編輯器] Enter 鍵處理錯誤:', error)
           return false

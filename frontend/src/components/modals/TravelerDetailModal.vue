@@ -17,12 +17,13 @@ import {
   UserPlus as UserPlusIcon,
   Check as CheckIcon,
   X as XCloseIcon,
+  MoreVertical,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
-import { createComment } from '@/api/comments'
+import { createComment, toggleCommentLike as toggleCommentLikeApi } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import {
   getTravelerById,
@@ -32,6 +33,7 @@ import {
   rejectApplication,
   submitApplication,
 } from '@/api/travelers'
+import { deleteTraveler } from '@/api/travelers'
 import { formatTime } from '@/utils/time'
 
 const userStore = useUserStore()
@@ -48,7 +50,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'traveler-updated', 'open-apply', 'open-applications'])
+const emit = defineEmits(['close', 'traveler-updated', 'open-apply', 'open-applications', 'edit'])
 
 const currentUserUid = ref(null)
 const isLiked = ref(false)
@@ -66,11 +68,42 @@ const applicationMessage = ref('')
 const isSubmittingApplication = ref(false)
 const applicationError = ref('')
 const myApplication = ref(null) // 當前用戶的報名資訊
+const showMenu = ref(false)
 
 const handleAuthorClick = () => {
   const authorUid = props.traveler.author_uid || localTravelerData.value?.author_uid
   if (authorUid) {
     router.push(`/profile/${authorUid}`)
+  }
+}
+
+const handleCopyLink = async () => {
+  if (!localTravelerData.value?.id) return
+  const link = `${window.location.origin}/travelers?travelerId=${localTravelerData.value.id}`
+  try {
+    await navigator.clipboard.writeText(link)
+    showMenu.value = false
+  } catch (error) {
+    console.error('複製連結失敗：', error)
+  }
+}
+
+const handleEdit = () => {
+  showMenu.value = false
+  emit('edit', localTravelerData.value)
+}
+
+const handleDelete = async () => {
+  if (!localTravelerData.value?.id) return
+  if (!confirm('確定要刪除此招募嗎？')) return
+  try {
+    await deleteTraveler(localTravelerData.value.id)
+    showMenu.value = false
+    emit('traveler-updated')
+    emit('close')
+  } catch (error) {
+    console.error('刪除失敗：', error)
+    alert('刪除失敗，請稍後再試')
   }
 }
 
@@ -160,6 +193,24 @@ const fetchFullTravelerDetails = async () => {
     if (response.success) {
       localTravelerData.value = { ...localTravelerData.value, ...response.data }
       incrementView(props.traveler.id)
+      const commentsData = response.data?.commentsData || response.data?.comments || []
+      if (Array.isArray(commentsData)) {
+        localComments.value = commentsData.map((comment) => ({
+          id: comment.id,
+          author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+          author_uid: comment.author_uid,
+          avatar:
+            comment.author_avatar ||
+            comment.avatar ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+          content: comment.content,
+          time: comment.created_at || comment.timestamp || comment.time,
+          likes: comment.likes || 0,
+          replies: comment.replies || [],
+        }))
+      } else {
+        localComments.value = []
+      }
     }
   } catch (error) {
     console.error(error)
@@ -180,11 +231,29 @@ const handleLike = async () => {
   }
 }
 
-const toggleCommentLike = (item) => {
-  if (typeof item.likes !== 'number') item.likes = 0
-  if (item.isLiked) item.likes--
-  else item.likes++
-  item.isLiked = !item.isLiked
+const toggleCommentLike = async (item) => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+  const originalLikes = typeof item.likes === 'number' ? item.likes : 0
+  const wasLiked = !!item.isLiked
+  const nextLiked = !wasLiked
+  const delta = nextLiked ? 1 : -1
+
+  item.isLiked = nextLiked
+  item.likes = Math.max(originalLikes + delta, 0)
+
+  try {
+    const result = await toggleCommentLikeApi(item.id, nextLiked ? 'like' : 'unlike')
+    if (typeof result?.likesCount === 'number') {
+      item.likes = result.likesCount
+    }
+  } catch (error) {
+    item.isLiked = wasLiked
+    item.likes = originalLikes
+    alert('留言按讚失敗，請稍後再試')
+  }
 }
 
 // 檢查文章是否已過期
@@ -518,6 +587,47 @@ onMounted(async () => {
       <div
         class="bg-white w-full h-full flex flex-col rounded-xl border-2 border-primary overflow-hidden relative z-10"
       >
+        <div class="absolute top-4 right-16 z-20">
+          <button
+            class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
+            @click.stop="showMenu = !showMenu"
+            title="更多"
+          >
+            <MoreVertical class="w-6 h-6" />
+          </button>
+          <div
+            v-if="showMenu"
+            class="absolute right-0 mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-xl z-30"
+          >
+            <button
+              v-if="isAuthor"
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="handleEdit"
+            >
+              編輯
+            </button>
+            <button
+              v-if="isAuthor"
+              class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              @click="handleDelete"
+            >
+              刪除
+            </button>
+            <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
+            <button
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="handleCopyLink"
+            >
+              複製連結
+            </button>
+            <button
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="emit('close')"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
         <button
           class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
           @click="emit('close')"

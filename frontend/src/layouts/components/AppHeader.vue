@@ -60,7 +60,8 @@
         </button>
 
         <!-- 已登入時顯示頭像選單 -->
-        <div v-else ref="menuRef" class="relative ml-1">
+        <div v-else ref="menuRef" class="relative ml-1 flex items-center gap-2">
+          <div class="relative">
           <button
             class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm"
             @click="toggleMenu"
@@ -73,6 +74,7 @@
             />
             <UserIcon v-else class="w-6 h-6 text-gray-400" />
           </button>
+          </div>
 
           <Transition
             enter-active-class="transition-opacity transform duration-200"
@@ -269,4 +271,5 @@ const handleLogout = async () => {
     router.push('/')
   }
 }
+
 </script>

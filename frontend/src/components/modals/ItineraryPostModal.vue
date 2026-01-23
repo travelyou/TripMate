@@ -167,7 +167,20 @@ const ResetStyleOnEnter = Extension.create({
     return {
       Enter: ({ editor }) => {
         if (editor.isActive('bulletList') || editor.isActive('orderedList')) return false
-        return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
+        if (editor.isActive('heading')) {
+          if (editor.can().splitBlock()) {
+            editor
+              .chain()
+              .focus()
+              .splitBlock({ keepMarks: false })
+              .setParagraph()
+              .unsetAllMarks()
+              .run()
+          }
+          return true
+        }
+        if (!editor.can().splitBlock()) return false
+        return editor.chain().focus().splitBlock({ keepMarks: false }).unsetAllMarks().run()
       },
     }
   },

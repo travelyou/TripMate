@@ -68,7 +68,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
     if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' })
     }
-    const { author_uid, content, board, author_name, author_avatar } = req.body
+    const { author_uid, content, board, author_name, author_avatar, parent_comment_id } = req.body
 
     // 驗證必填欄位
     if (!author_uid || !content) {
@@ -108,8 +108,17 @@ router.post('/posts/:postId/comments', async (req, res) => {
 
     // 插入留言（包含所有必需字段）
     const insertCommentQuery = `
-      INSERT INTO public.comments (post_id, post_type, author_uid, author_name, author_avatar, content, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+      INSERT INTO public.comments (
+        post_id,
+        post_type,
+        author_uid,
+        author_name,
+        author_avatar,
+        content,
+        parent_comment_id,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
       RETURNING *
     `
 
@@ -120,6 +129,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
       author_name || '匿名用戶',
       author_avatar || null,
       content,
+      parent_comment_id || null,
     ])
     const newComment = result.rows[0]
 
@@ -184,6 +194,40 @@ router.delete('/comments/:id', async (req, res) => {
   } catch (error) {
     console.error('刪除留言失敗：', error)
     res.status(500).json({ error: '刪除留言失敗', details: error?.message || String(error) })
+  }
+})
+
+// POST /api/comments/:id/likes - 留言按讚/取消按讚（僅更新 likes_count）
+router.post('/comments/:id/likes', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { action } = req.body || {}
+    const commentIdNum = Number(id)
+
+    if (!Number.isInteger(commentIdNum) || commentIdNum <= 0) {
+      return res.status(400).json({ error: '留言 ID 格式錯誤', details: 'id 必須是正整數' })
+    }
+
+    if (action !== 'like' && action !== 'unlike') {
+      return res.status(400).json({ error: 'action 格式錯誤', details: "action 必須是 'like' 或 'unlike'" })
+    }
+
+    const delta = action === 'like' ? 1 : -1
+    const updateQuery = `
+      UPDATE public.comments
+      SET likes_count = GREATEST(COALESCE(likes_count, 0) + $2, 0)
+      WHERE id = $1 AND deleted_at IS NULL
+      RETURNING likes_count
+    `
+    const updateResult = await pool.query(updateQuery, [commentIdNum, delta])
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: '留言不存在' })
+    }
+
+    res.json({ likesCount: Number(updateResult.rows[0].likes_count) || 0 })
+  } catch (error) {
+    res.status(500).json({ error: '更新留言按讚失敗', details: error?.message || String(error) })
   }
 })
 

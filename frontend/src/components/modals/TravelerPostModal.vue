@@ -238,7 +238,20 @@ const ResetStyleOnEnter = Extension.create({
     return {
       Enter: ({ editor }) => {
         if (editor.isActive('bulletList') || editor.isActive('orderedList')) return false
-        return editor.chain().splitBlock().setParagraph().unsetAllMarks().run()
+        if (editor.isActive('heading')) {
+          if (editor.can().splitBlock()) {
+            editor
+              .chain()
+              .focus()
+              .splitBlock({ keepMarks: false })
+              .setParagraph()
+              .unsetAllMarks()
+              .run()
+          }
+          return true
+        }
+        if (!editor.can().splitBlock()) return false
+        return editor.chain().focus().splitBlock({ keepMarks: false }).unsetAllMarks().run()
       },
     }
   },
@@ -283,6 +296,14 @@ watch(
       postData.value.end_date = draft.end_date || ''
       postData.value.max_people = draft.max_people || 2
       postData.value.tags = draft.tags || []
+      postData.value.banner_image = draft.banner_image || ''
+      postData.value.itinerary = draft.itinerary || { days: [] }
+      postData.value.packingList = draft.packingList || []
+      postData.value.status = draft.status || postData.value.status || '招募中'
+
+      bannerPreview.value = draft.banner_image || ''
+      bannerFile.value = null
+      bannerPositionY.value = Number(draft.banner_position_y) || 50
 
       if (editor.value && draft.content) {
         nextTick(() => {

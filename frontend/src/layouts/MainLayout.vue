@@ -4,6 +4,8 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { auth } from '@/firebase/config'
+import { getChatMessages } from '@/api/profile'
+import { API_BASE_URL } from '@/api/config'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -56,8 +58,339 @@ const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 const unreadMessageCount = ref(0) // 未讀訊息總數
+const incomingMessageToasts = ref([])
+let incomingToastTimer = null
+let chatSyncTimer = null
+let chatSocket = null
+let chatSocketUid = null
+let chatSocketReconnectTimer = null
+let chatSocketFailureCount = 0
+let chatSocketBlockedUntil = 0
+let chatSocketHasConnected = false
+let warnedNoChatSocketBase = false
+const isChatSyncing = ref(false)
+const isAppLoading = ref(false)
+
+
+const getFriendIds = () => {
+  const friends = userStore.currentUser?.friends || []
+  return friends
+    .map(friend => friend.uid || friend.id)
+    .filter(Boolean)
+}
+
+const CHAT_STORAGE_PREFIX = 'tripmate-private-chats-'
+const CHAT_MESSAGES_STORAGE_PREFIX = 'tripmate-private-chat-messages-'
+const getChatStorageKey = (uid) => `${CHAT_STORAGE_PREFIX}${uid}`
+const getChatMessagesStorageKey = (uid, friendUid) =>
+  `${CHAT_MESSAGES_STORAGE_PREFIX}${uid}-${friendUid}`
+
+const loadChatRoomsFromStorage = (uid) => {
+  try {
+    const raw = localStorage.getItem(getChatStorageKey(uid))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    console.warn('讀取聊天室資料失敗:', error)
+    return []
+  }
+}
+
+const saveChatRoomsToStorage = (uid, rooms) => {
+  try {
+    localStorage.setItem(getChatStorageKey(uid), JSON.stringify(rooms || []))
+  } catch (error) {
+    console.warn('保存聊天室資料失敗:', error)
+  }
+}
+
+const saveChatMessagesToStorage = (uid, friendUid, messages) => {
+  try {
+    localStorage.setItem(
+      getChatMessagesStorageKey(uid, friendUid),
+      JSON.stringify(messages || []),
+    )
+  } catch (error) {
+    console.warn('保存聊天訊息失敗:', error)
+  }
+}
+
+const mapChatMessages = (uid, historyMessages) => {
+  return (historyMessages || []).map(msg => {
+    const contentRaw = msg.content || ''
+    const isImage = typeof contentRaw === 'string' &&
+      (contentRaw.startsWith('[IMAGE]') || contentRaw.includes('[/IMAGE]'))
+    let content = contentRaw
+    if (isImage) {
+      const match = contentRaw.match(/\[IMAGE\](.*?)\[\/IMAGE\]/)
+      content = match ? match[1] : contentRaw
+    }
+    return {
+      id: msg.id,
+      type: msg.type || (msg.sender_uid === uid ? 'user' : 'friend'),
+      content,
+      isImage,
+      timestamp: msg.timestamp || msg.created_at,
+    }
+  })
+}
+
+const getUnreadCountForRoom = (currentUid, friendUid, mappedMessages) => {
+  if (!currentUid || !friendUid || !Array.isArray(mappedMessages)) return 0
+  const unreadKey = `unread_${currentUid}_${friendUid}`
+  let lastReadMs = null
+  const unreadData = localStorage.getItem(unreadKey)
+  if (unreadData) {
+    try {
+      const unreadInfo = JSON.parse(unreadData)
+      if (unreadInfo.lastReadTime) {
+        lastReadMs = new Date(unreadInfo.lastReadTime).getTime()
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return mappedMessages.reduce((count, message) => {
+    if (message.type === 'user') return count
+    const messageTime = new Date(message.timestamp || message.created_at).getTime()
+    if (!lastReadMs || messageTime > lastReadMs) {
+      return count + 1
+    }
+    return count
+  }, 0)
+}
+
+const getChatSocketUrl = () => {
+  const envBase = import.meta.env.VITE_WS_BASE_URL
+  const base = (envBase || API_BASE_URL).replace(/\/api\/?$/, '')
+  try {
+    const url = new URL(base)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    url.pathname = '/ws'
+    url.search = ''
+    return url.toString()
+  } catch (error) {
+    if (!warnedNoChatSocketBase) {
+      warnedNoChatSocketBase = true
+      console.warn('無法解析 WS URL，將停用即時聊天連線:', error)
+    }
+    return ''
+  }
+}
+
+const disconnectChatSocket = () => {
+  if (chatSocketReconnectTimer) {
+    clearTimeout(chatSocketReconnectTimer)
+    chatSocketReconnectTimer = null
+  }
+  if (chatSocket) {
+    chatSocket.close()
+    chatSocket = null
+  }
+  chatSocketUid = null
+}
+
+const connectChatSocket = (uid) => {
+  if (!uid) return
+  if (chatSocketBlockedUntil && Date.now() < chatSocketBlockedUntil) return
+  if (chatSocket && chatSocketUid === uid) return
+  disconnectChatSocket()
+  const wsUrl = getChatSocketUrl()
+  if (!wsUrl) return
+  chatSocketUid = uid
+  chatSocketHasConnected = false
+  chatSocket = new WebSocket(`${wsUrl}?uid=${encodeURIComponent(uid)}`)
+  chatSocket.onopen = () => {
+    chatSocketHasConnected = true
+    chatSocketFailureCount = 0
+    chatSocketBlockedUntil = 0
+    try {
+      chatSocket.send(JSON.stringify({ type: 'register', uid }))
+    } catch (error) {
+      console.warn('WS 註冊失敗:', error)
+    }
+  }
+  chatSocket.onmessage = (event) => {
+    if (!event?.data) return
+    let data = null
+    try {
+      data = JSON.parse(event.data)
+    } catch {
+      return
+    }
+    if (!data || typeof data !== 'object') return
+    if (data.type === 'chat_message') {
+      handleIncomingChatMessage(data)
+    }
+  }
+  chatSocket.onclose = () => {
+    if (chatSocketUid === uid) {
+      if (chatSocketBlockedUntil && Date.now() < chatSocketBlockedUntil) {
+        return
+      }
+      chatSocketReconnectTimer = setTimeout(() => {
+        connectChatSocket(uid)
+      }, 2000)
+    }
+  }
+  chatSocket.onerror = () => {
+    chatSocketFailureCount += 1
+    if (!chatSocketHasConnected && chatSocketFailureCount >= 3) {
+      chatSocketBlockedUntil = Date.now() + 30000
+      if (chatSocketReconnectTimer) {
+        clearTimeout(chatSocketReconnectTimer)
+        chatSocketReconnectTimer = null
+      }
+    }
+    if (chatSocket) {
+      chatSocket.close()
+    }
+  }
+}
+
+const sendChatSocketMessage = (payload) => {
+  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) return false
+  try {
+    chatSocket.send(JSON.stringify(payload))
+    return true
+  } catch (error) {
+    console.warn('WS 傳送失敗:', error)
+    return false
+  }
+}
+
+const handleIncomingChatMessage = (payload) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const fromUid = payload.fromUid
+  if (!fromUid) return
+  const mappedMessage = {
+    id: payload.clientId || payload.id || Date.now(),
+    type: 'friend',
+    content: payload.content || '',
+    isImage: Boolean(payload.isImage),
+    timestamp: payload.timestamp || new Date().toISOString(),
+  }
+  const rooms = loadChatRoomsFromStorage(currentUid)
+  let room = rooms.find(r => r.uid === fromUid)
+  if (!room) {
+    room = {
+      uid: fromUid,
+      name: payload.senderName || '未知用戶',
+      nickname: payload.senderName || '',
+      avatar: payload.senderAvatar || '',
+      lastMessage: '',
+      lastMessageTime: '',
+      unreadCount: 0,
+      messages: [],
+    }
+    rooms.unshift(room)
+  }
+  const storedMessages = Array.isArray(room.messages) ? room.messages : []
+  storedMessages.push(mappedMessage)
+  room.messages = storedMessages
+  const preview = mappedMessage.isImage ? '傳送了圖片' : mappedMessage.content
+  room.lastMessage = preview || room.lastMessage || '新訊息'
+  room.lastMessageTime = '剛剛'
+  room.lastMessageTimestamp = new Date(mappedMessage.timestamp).getTime()
+  room.unreadCount = getUnreadCountForRoom(currentUid, fromUid, storedMessages)
+  saveChatMessagesToStorage(currentUid, fromUid, storedMessages)
+  saveChatRoomsToStorage(currentUid, rooms)
+  window.dispatchEvent(new CustomEvent('message-updated'))
+  window.dispatchEvent(new CustomEvent('incoming-message', {
+    detail: {
+      uid: fromUid,
+      name: room.name || '新訊息',
+      avatar: room.avatar || '',
+      content: room.lastMessage,
+    },
+  }))
+  window.dispatchEvent(new CustomEvent('chat-received', {
+    detail: {
+      fromUid,
+      message: mappedMessage,
+      senderName: payload.senderName || '',
+      senderAvatar: payload.senderAvatar || '',
+    },
+  }))
+}
+
+const syncChatRoomsInBackground = async () => {
+  if (isChatSyncing.value || isPrivateChatOpen.value) return
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const rooms = loadChatRoomsFromStorage(currentUid)
+  if (rooms.length === 0) return
+  isChatSyncing.value = true
+  try {
+    for (const room of rooms) {
+      if (!room?.uid) continue
+      const history = await getChatMessages(currentUid, room.uid)
+      const mappedMessages = mapChatMessages(currentUid, history)
+      if (mappedMessages.length === 0) {
+        room.unreadCount = room.unreadCount || 0
+        continue
+      }
+      const lastMessage = mappedMessages[mappedMessages.length - 1]
+      const lastMessageTimeMs = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
+      const previousTimestamp = typeof room.lastMessageTimestamp === 'number'
+        ? room.lastMessageTimestamp
+        : room.lastMessageTimestamp
+          ? new Date(room.lastMessageTimestamp).getTime()
+          : 0
+      const hasNewLastMessage = lastMessageTimeMs && lastMessageTimeMs > previousTimestamp
+      if (hasNewLastMessage) {
+        room.lastMessage = lastMessage.isImage ? '傳送了圖片' : (lastMessage.content || '')
+        room.lastMessageTime = '剛剛'
+        room.lastMessageTimestamp = lastMessageTimeMs
+        if (lastMessage.type !== 'user') {
+          window.dispatchEvent(new CustomEvent('incoming-message', {
+            detail: {
+              uid: room.uid,
+              name: room.name || room.nickname || '未知用戶',
+              avatar: room.avatar || '',
+              content: room.lastMessage,
+            },
+          }))
+        }
+      }
+      room.messages = mappedMessages
+      room.unreadCount = getUnreadCountForRoom(currentUid, room.uid, mappedMessages)
+      saveChatMessagesToStorage(currentUid, room.uid, mappedMessages)
+    }
+    saveChatRoomsToStorage(currentUid, rooms)
+    window.dispatchEvent(new CustomEvent('message-updated'))
+  } catch (error) {
+    console.error('背景同步聊天訊息失敗:', error)
+  } finally {
+    isChatSyncing.value = false
+  }
+}
+
+const saveFriendSnapshot = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const friendSnapshotKey = `friends_seen_${currentUid}`
+  try {
+    localStorage.setItem(friendSnapshotKey, JSON.stringify(getFriendIds()))
+  } catch (error) {
+    console.warn('保存好友快照失敗:', error)
+  }
+}
+
+const ensureLoggedIn = () => {
+  if (userStore.isLoggedIn) return true
+  alert('請先登入後才可使用')
+  return false
+}
 
 const handleOpenPosting = () => {
+  if (!ensureLoggedIn()) {
+    isPostingModalOpen.value = false
+    isMobileActionMenuOpen.value = false
+    return
+  }
   isPostingModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
@@ -68,10 +401,22 @@ const handleSelectFindTraveler = () => {
   isPostingModalOpen.value = false
 }
 const handleQuickAction = () => {
+  if (!ensureLoggedIn()) {
+    isSwipeModalOpen.value = false
+    isMobileActionMenuOpen.value = false
+    return
+  }
   isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
 const handleTogglePrivateChat = (user = null) => {
+  if (!ensureLoggedIn()) {
+    isPrivateChatOpen.value = false
+    isAiChatOpen.value = false
+    isMobileActionMenuOpen.value = false
+    openChatWithUser.value = null
+    return
+  }
   if (user) {
     openChatWithUser.value = user
   }
@@ -82,6 +427,13 @@ const handleTogglePrivateChat = (user = null) => {
 
 // 監聽全局事件來開啟聊天（從 ProfilePage 觸發）
 const handleOpenChat = (event) => {
+  if (!ensureLoggedIn()) {
+    isPrivateChatOpen.value = false
+    isAiChatOpen.value = false
+    isMobileActionMenuOpen.value = false
+    openChatWithUser.value = null
+    return
+  }
   if (event.detail && event.detail.user) {
     openChatWithUser.value = event.detail.user
     isPrivateChatOpen.value = true
@@ -171,12 +523,88 @@ const calculateUnreadCount = () => {
       }
     }
 
+    // 檢查新增加好友
+    const friendSnapshotKey = `friends_seen_${currentUid}`
+    const friendSnapshotData = localStorage.getItem(friendSnapshotKey)
+    const currentFriendIds = getFriendIds()
+    if (friendSnapshotData) {
+      try {
+        const snapshot = JSON.parse(friendSnapshotData)
+        if (Array.isArray(snapshot)) {
+          const newFriends = currentFriendIds.filter(id => !snapshot.includes(id))
+          totalUnread += newFriends.length
+        }
+      } catch (e) {
+        console.warn('解析好友快照失敗:', e)
+      }
+    } else {
+      // 初次沒有快照，避免直接計入未讀
+      saveFriendSnapshot()
+    }
+
     // 限制最多顯示9
     unreadMessageCount.value = Math.min(totalUnread, 9)
   } catch (error) {
     console.error('計算未讀訊息失敗:', error)
     unreadMessageCount.value = 0
   }
+}
+
+
+const handleIncomingMessage = (event) => {
+  const detail = event.detail || {}
+  const toastId = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  incomingMessageToasts.value.unshift({
+    id: toastId,
+    avatar: detail.avatar || '',
+    name: detail.name || '新訊息',
+    content: detail.content || '',
+    uid: detail.uid || '',
+  })
+  setTimeout(() => {
+    incomingMessageToasts.value = incomingMessageToasts.value.filter((t) => t.id !== toastId)
+  }, 10000)
+}
+
+const handleIncomingToastClick = (toast) => {
+  if (!toast?.uid) return
+  window.dispatchEvent(
+    new CustomEvent('open-chat', {
+      detail: {
+        user: {
+          uid: toast.uid,
+          name: toast.name,
+          nickname: toast.name,
+          avatar: toast.avatar,
+        },
+      },
+    }),
+  )
+  incomingMessageToasts.value = incomingMessageToasts.value.filter((t) => t.id !== toast.id)
+}
+
+const handleChatSend = (event) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const detail = event.detail || {}
+  const toUid = detail.toUid
+  if (!toUid) return
+  sendChatSocketMessage({
+    type: 'chat_message',
+    fromUid: currentUid,
+    toUid,
+    content: detail.content || '',
+    isImage: Boolean(detail.isImage),
+    timestamp: detail.timestamp || new Date().toISOString(),
+    clientId: detail.clientId || null,
+    senderName: userStore.currentUser?.name || userStore.currentUser?.nickname || '',
+    senderAvatar: userStore.currentUser?.avatar || '',
+  })
+}
+
+const handleAppLoading = (event) => {
+  const detail = event.detail || {}
+  isAppLoading.value = Boolean(detail.active)
 }
 
 // 監聽訊息變化
@@ -194,22 +622,61 @@ onMounted(() => {
   window.addEventListener('open-chat', handleOpenChat)
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
+  window.addEventListener('friends-viewed', saveFriendSnapshot)
+  window.addEventListener('incoming-message', handleIncomingMessage)
+  window.addEventListener('chat-send', handleChatSend)
+  window.addEventListener('app-loading', handleAppLoading)
   // 初始計算未讀訊息
   calculateUnreadCount()
+  syncChatRoomsInBackground()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (currentUid) {
+    connectChatSocket(currentUid)
+  }
   // 定期檢查未讀訊息（每5秒）
-  const interval = setInterval(calculateUnreadCount, 5000)
+  const interval = setInterval(() => {
+    calculateUnreadCount()
+  }, 5000)
   // 存储interval以便清理
   window._unreadMessageInterval = interval
+  chatSyncTimer = setInterval(() => {
+    syncChatRoomsInBackground()
+  }, 6000)
 })
 onUnmounted(() => {
   window.removeEventListener('open-chat', handleOpenChat)
   window.removeEventListener('message-updated', handleMessageUpdate)
   window.removeEventListener('new-chat-room', handleNewChatRoom)
+  window.removeEventListener('friends-viewed', saveFriendSnapshot)
+  window.removeEventListener('incoming-message', handleIncomingMessage)
+  window.removeEventListener('chat-send', handleChatSend)
+  window.removeEventListener('app-loading', handleAppLoading)
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
   }
+  if (chatSyncTimer) {
+    clearInterval(chatSyncTimer)
+    chatSyncTimer = null
+  }
+  disconnectChatSocket()
+  if (incomingToastTimer) {
+    clearTimeout(incomingToastTimer)
+    incomingToastTimer = null
+  }
 })
+
+watch(
+  () => userStore.currentUser?.uid || userStore.currentUser?.id,
+  (uid) => {
+    if (!uid) {
+      disconnectChatSocket()
+      return
+    }
+    connectChatSocket(uid)
+  },
+  { immediate: true },
+)
 
 // 監聽聊天視窗打開/關閉，更新未讀計數
 watch(
@@ -382,6 +849,40 @@ const handleClosePrivateChat = () => {
           @toggle-ai-chat="handleToggleAiChat"
         />
       </div>
+      <div
+        v-for="(toast, idx) in incomingMessageToasts"
+        :key="toast.id"
+        class="fixed right-4 z-[60] max-w-[90vw] sm:max-w-md bg-primary-600 text-white border-2 border-primary-700 rounded-lg shadow-xl p-5 flex items-center gap-4 cursor-pointer hover:bg-primary-700 transition"
+        :style="{ bottom: `${16 + idx * 88}px` }"
+        @click="handleIncomingToastClick(toast)"
+      >
+        <div class="w-12 h-12 rounded-md bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
+          <img
+            v-if="toast.avatar"
+            :src="toast.avatar"
+            :alt="toast.name"
+            class="w-full h-full object-cover"
+          />
+          <span v-else class="text-lg font-bold text-white">
+            {{ toast.name.slice(0, 1) }}
+          </span>
+        </div>
+        <div class="min-w-0">
+          <div class="text-lg font-bold truncate">{{ toast.name }}</div>
+          <div class="text-base text-white/90 truncate">{{ toast.content }}</div>
+        </div>
+      </div>
+      <div
+        v-if="isAppLoading"
+        class="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center"
+      >
+        <div class="bg-white/90 rounded-2xl px-6 py-4 shadow-xl border border-primary-200">
+          <div class="flex items-center gap-3">
+            <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-600 border-t-transparent"></div>
+            <span class="text-sm font-bold text-secondary-800">載入中…</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div
@@ -423,9 +924,9 @@ const handleClosePrivateChat = () => {
               </div>
               <span class="text-lg font-bold text-gray-700">發布</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group" @click="handleQuickAction">
+            <button class="flex flex-col items-center gap-2 group relative" @click="handleQuickAction">
               <div
-                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
+                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition relative"
               >
                 <SparklesIcon class="w-8 h-8 text-white" />
               </div>

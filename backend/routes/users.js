@@ -84,7 +84,6 @@ router.put('/:uid', async (req, res) => {
       bio,
       spirit_animal,
       tags,
-      email,
       card_bio,
       card_photo,
       card_tags,
