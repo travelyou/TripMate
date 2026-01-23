@@ -288,6 +288,8 @@ router.get('/', async (req, res) => {
         o.unit_price,
         o.persons,
         o.itinerary_id,
+        o.contact_json,
+        o.emergency_contact_json,
         o.created_at,
         i.title,
         i.start_date,
@@ -383,6 +385,22 @@ router.get('/:id', async (req, res) => {
     }
 
     const row = q.rows[0]
+    let contact = null
+    let emergencyContact = null
+    try {
+      contact =
+        typeof row.contact_json === 'string' ? JSON.parse(row.contact_json) : row.contact_json
+    } catch {
+      contact = null
+    }
+    try {
+      emergencyContact =
+        typeof row.emergency_contact_json === 'string'
+          ? JSON.parse(row.emergency_contact_json)
+          : row.emergency_contact_json
+    } catch {
+      emergencyContact = null
+    }
 
     // （可選）把付款狀態也帶回來：取最新一筆 payment
     const p = await pool.query(
@@ -409,6 +427,8 @@ router.get('/:id', async (req, res) => {
         unitPrice: Number(row.unit_price),
         persons: Number(row.persons),
         itineraryId: row.itinerary_id,
+        contact,
+        emergencyContact,
         createdAt: row.created_at,
       },
       itinerary: {
@@ -437,4 +457,3 @@ router.get('/:id', async (req, res) => {
 })
 
 module.exports = router
-
