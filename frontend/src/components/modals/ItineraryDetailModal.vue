@@ -24,6 +24,7 @@ import { useRouter } from 'vue-router'
 import { showAlert, showConfirm, showError } from '@/utils/alert'
 import { getItineraryById } from '@/api/itinerary'
 import { toggleLike, getLikesInfo } from '@/api/likes'
+import { updateCartItemPersons } from '@/api/cart'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import ShareModal from './ShareModal.vue' // [新增]
@@ -222,6 +223,57 @@ const handleAddToCart = async () => {
   }
   isAddingToCart.value = true
   try {
+    await checkoutStore.loadCartFromDb()
+    if (checkoutStore.cartError) {
+      await showError(checkoutStore.cartError)
+      return
+    }
+
+    const itineraryId = localItineraryData.value.id
+    const existingItem = checkoutStore.cartItems.find(
+      (item) => Number(item.itineraryId) === Number(itineraryId),
+    )
+    if (existingItem) {
+      const shouldIncrease = await showConfirm(
+        '\u8cfc\u7269\u8eca\u5df2\u7d93\u6709\u76f8\u540c\u884c\u7a0b\uff0c\u662f\u5426\u8981\u589e\u52a0\u4eba\u6578\uff1f',
+        {
+          confirmButtonText: '\u589e\u52a0\u4eba\u6578',
+          cancelButtonText: '\u53d6\u6d88',
+          icon: 'question',
+          iconColor: '#2563eb',
+        },
+      )
+      if (!shouldIncrease) return
+
+      const nextPersons = Number(existingItem.persons ?? 1) + 1
+      try {
+        await updateCartItemPersons({ itineraryId, persons: nextPersons })
+        existingItem.persons = nextPersons
+        const group = checkoutStore.tourGroups.find((t) => Number(t.id) === Number(itineraryId))
+        if (group) group.persons = nextPersons
+        const goToCart = await showConfirm(
+          '\u5df2\u589e\u52a0\u4eba\u6578\uff0c\u662f\u5426\u524d\u5f80\u8cfc\u7269\u8eca\uff1f',
+          {
+            confirmButtonText: '\u524d\u5f80\u8cfc\u7269\u8eca',
+            cancelButtonText: '\u7559\u5728\u6b64\u9801',
+            icon: 'success',
+            iconColor: '#16a34a',
+          },
+        )
+        if (goToCart) {
+          await checkoutStore.loadCartFromDb()
+          if (checkoutStore.cartError) {
+            await showError(checkoutStore.cartError)
+            return
+          }
+          router.push('/cart')
+        }
+      } catch (error) {
+        await showError(error?.message || '\u589e\u52a0\u4eba\u6578\u5931\u6557')
+      }
+      return
+    }
+
     await checkoutStore.addToCart(localItineraryData.value.id, 1, { skipReload: true })
     if (checkoutStore.cartError) {
       await showError(checkoutStore.cartError)
