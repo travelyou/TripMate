@@ -26,7 +26,7 @@ import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
-// [NEW] 引入位於新路徑的名片設定組件 (包含預覽與編輯)
+// [NEW] 引入名片設定組件
 import CardSettingsModal from '@/components/profile/card/CardSettingsModal.vue'
 
 const userStore = useUserStore()
@@ -70,6 +70,10 @@ const user = computed(() => {
         visitedPlaces: { domestic: [], international: [] },
         wishlist: [],
         gallery: [],
+        // Card specific
+        card_bio: '',
+        card_tags: [],
+        card_photo: '',
       }
     )
   }
@@ -103,7 +107,7 @@ const isTravelerDetailModalOpen = ref(false)
 const selectedPost = ref(null)
 const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
-const isEditingProfile = ref(false) // 編輯個人檔案 (Email/密碼等)
+const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
 const isPersonalityModalOpen = ref(false)
 const isAvatarCropOpen = ref(false)
@@ -142,17 +146,14 @@ const stats = computed(() => ({
 
 // --- Methods ---
 
-// 1. 名片與配對相關
 const openCardSettings = () => {
   isCardSettingsOpen.value = true
 }
 
 const handleToggleMatching = async () => {
   if (!isCurrentUser.value || !user.value?.uid) return
-
   const newValue = !isMatchingEnabled.value
   isMatchingEnabled.value = newValue
-
   try {
     const { updateUserProfile } = await import('@/api/users')
     await updateUserProfile(user.value.uid, { is_matching_enabled: newValue })
@@ -166,83 +167,83 @@ const handleToggleMatching = async () => {
   }
 }
 
-// 儲存名片 (Bio, Tags, Wishlist) - 由 CardSettingsModal 觸發
+// 儲存名片：只存 card_bio, card_tags, card_photo
 const handleSaveCard = async (formData) => {
   if (!user.value?.uid) return
   try {
     const { updateUserProfile } = await import('@/api/users')
-    const { updateWishlist } = await import('@/api/profile')
 
-    // 更新個人資料
-    await updateUserProfile(user.value.uid, {
-      bio: formData.bio,
-      tags: formData.tags,
-    })
+    // 只更新名片專用欄位
+    const updateData = {
+      card_bio: formData.card_bio,
+      card_tags: formData.card_tags,
+      card_photo: formData.card_photo,
+    }
 
-    // 更新許願清單
-    await updateWishlist(user.value.uid, formData.wishlist || [])
+    await updateUserProfile(user.value.uid, updateData)
 
     // 更新 Store (讓 UI 即時反應)
-    userStore.updateProfile({
-      bio: formData.bio,
-      tags: formData.tags,
-    })
-    userStore.wishlist = formData.wishlist || []
+    userStore.updateProfile(updateData)
 
     // 重新拉取資料確保同步
     await loadProfileData()
-
-    // 這裡不需關閉 Modal，因為 CardSettingsModal 內部邏輯會切回預覽模式
   } catch (error) {
     console.error('儲存名片失敗', error)
     alert('儲存失敗')
   }
 }
 
-// 2. 個人檔案編輯 (帳號層級)
+// [修正] 個人檔案編輯 (帳號層級 + 許願球池 + 標籤)
 const handleSaveProfile = async (formData) => {
   if (!isCurrentUser.value || !user.value?.uid) return
-  // ... (保留原有的 handleSaveProfile 邏輯，處理 nickname, location, avatar 等)
-  // 為節省篇幅，這裡使用簡化的邏輯，請保留你原本完整的代碼
+
+  // 1. 解構資料
   const { wishlist, hiddenStamps, tags, ...profileData } = formData
+
   try {
     const { updateUserProfile } = await import('@/api/users')
+    const { updateWishlist } = await import('@/api/profile')
+
+    // 2. 更新使用者基本資料 (包含 tags)
     await updateUserProfile(user.value.uid, {
       nickname: profileData.nickname || profileData.name,
       location: profileData.location,
       avatar: profileData.avatar,
-      // 注意：這裡不更新 bio 和 tags，因為那是名片負責的
+      bio: profileData.bio, // 這是個人檔案的 bio
+      tags: tags || [], // [修正] 這裡要存個人檔案的 tags
     })
+
+    // 3. [修正] 更新許願球池 (這段之前漏掉了！)
+    const newWishlist = Array.isArray(wishlist) ? wishlist : []
+    await updateWishlist(user.value.uid, newWishlist)
+
+    // 4. 更新 Store
     userStore.updateProfile({
       ...profileData,
       nickname: profileData.nickname || profileData.name,
+      tags: tags || [],
     })
+    userStore.wishlist = newWishlist // 更新 Store 中的球池
+
     isEditingProfile.value = false
     await loadProfileData()
   } catch (e) {
-    console.error(e)
+    console.error('儲存個人檔案失敗', e)
+    alert('儲存失敗，請稍後再試')
   }
 }
 
-// 3. 好友與聊天相關
-const friendRequestStatus = ref('none')
-const checkFriendRequestStatus = async () => {
-  // ... (保留原本的邏輯)
-}
-
 const handleAddFriend = async () => {
-  // ... (保留原本的邏輯)
+  // ... (保留原本邏輯)
 }
-
 const handleChat = () => {
-  // ... (保留原本的邏輯)
+  // ... (保留原本邏輯)
 }
-
 const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
 
-// 4. 資料載入
+// 資料載入
 const loadProfileData = async () => {
   const uidToLoad = route.params.uid || userStore.currentUser?.uid
   if (!uidToLoad) return
@@ -252,7 +253,6 @@ const loadProfileData = async () => {
     const { getProfile } = await import('@/api/profile')
     const profileData = await getProfile(uidToLoad)
 
-    // 載入貼文與活動
     const { getTravelers } = await import('@/api/travelers')
     const travelersRes = await getTravelers({ author_uid: uidToLoad, limit: 100 })
     if (travelersRes.success) hostedTravelers.value = travelersRes.data
@@ -261,9 +261,7 @@ const loadProfileData = async () => {
     const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
     if (postsRes?.posts) userPosts.value = postsRes.posts
 
-    // 處理 User Data
     if (profileData) {
-      // 設定 isMatchingEnabled
       if (typeof profileData.user.is_matching_enabled !== 'undefined') {
         isMatchingEnabled.value = profileData.user.is_matching_enabled
       }
@@ -274,7 +272,7 @@ const loadProfileData = async () => {
           friends: profileData.friends,
           wishlist: profileData.wishlist,
         }
-        await checkFriendRequestStatus()
+        // checkFriendRequestStatus() ...
       } else {
         userStore.setUserProfile(profileData.user)
         userStore.wishlist = profileData.wishlist
@@ -289,9 +287,7 @@ const loadProfileData = async () => {
   }
 }
 
-// 5. 其他 UI 邏輯
-const openDetail = (item, focusComment = false) => {
-  // ... (保留原本邏輯)
+const openDetail = (item) => {
   if (item.type === 'traveler') {
     selectedTraveler.value = item
     isTravelerDetailModalOpen.value = true
@@ -333,6 +329,7 @@ onMounted(() => {
       :friend-request-status="friendRequestStatus"
       :loading="loading"
       @edit-profile="isEditingProfile = true"
+      @edit-bio="isEditingProfile = true"
       @update-avatar="handleUpdateAvatar"
       @open-friends="handleOpenFriends"
       @chat="handleChat"
@@ -349,6 +346,7 @@ onMounted(() => {
             :personality-result="personalityResult"
             :is-current-user="isCurrentUser"
             @open-personality-result="isPersonalityModalOpen = true"
+            @edit-wishlist="isEditingProfile = true"
           />
         </div>
 

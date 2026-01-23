@@ -1,7 +1,6 @@
 import { API_BASE_URL } from './config'
 
 // 輔助函數：統一將資料轉為前端元件需要的格式
-// 這樣無論後端給 display_name 還是 displayName，前端都能拿到 displayName
 function normalizeUserData(data) {
   if (!data) return null
 
@@ -9,17 +8,15 @@ function normalizeUserData(data) {
     // ID 容錯
     uid: data.uid || data.firebase_uid,
 
-    // 名稱容錯 (優先使用 displayName，沒有則找 display_name，再沒有就顯示 User)
+    // 名稱
     displayName: data.displayName || data.display_name || 'User',
-
-    // 暱稱/顯示名稱（給個人頁與頭像使用）
     nickname: data.nickname || data.displayName || data.display_name || '',
 
-    // 頭像容錯
+    // 頭像
     photoURL: data.photoURL || data.photo_url || '',
     avatar: data.avatar || data.photoURL || data.photo_url || '',
 
-    // 其他文字欄位
+    // 個人檔案資料
     bio: data.bio || '',
     location: data.location || '',
     email: data.email || '',
@@ -28,6 +25,11 @@ function normalizeUserData(data) {
     role: data.role || 'user',
     vendor_id: data.vendor_id || data.vendorId || null,
     tags: Array.isArray(data.tags) ? data.tags : [],
+
+    // [NEW] 名片專屬欄位 (必須要在這裡宣告，前端才能讀到)
+    card_bio: data.card_bio || '',
+    card_photo: data.card_photo || '',
+    card_tags: Array.isArray(data.card_tags) ? data.card_tags : [],
 
     stats: data.stats || {
       followers: 0,
@@ -42,40 +44,13 @@ export async function createOrUpdateUser(userData) {
   try {
     const response = await fetch(`${API_BASE_URL}/users`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     })
-
-    if (!response.ok) {
-      let errorData
-      try {
-        errorData = await response.json()
-      } catch {
-        errorData = {
-          error: '未知錯誤',
-          message: `HTTP ${response.status}: ${response.statusText}`,
-        }
-      }
-
-      const errorMessage =
-        errorData.message || errorData.error || errorData.details || '創建/更新用戶失敗'
-      const error = new Error(errorMessage)
-      error.response = { data: errorData, status: response.status }
-      error.code = errorData.code
-      throw error
-    }
-
+    if (!response.ok) throw new Error('創建/更新用戶失敗')
     const data = await response.json()
     return data.data || data
   } catch (error) {
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      const networkError = new Error('無法連接到後端伺服器，請確認後端服務是否運行')
-      networkError.originalError = error
-      throw networkError
-    }
-
     throw error
   }
 }
@@ -83,25 +58,14 @@ export async function createOrUpdateUser(userData) {
 export async function getUserProfile(uid) {
   try {
     const response = await fetch(`${API_BASE_URL}/users/${uid}`)
-
     if (!response.ok) {
-      if (response.status === 404) {
-        // 如果找不到用戶，回傳一個安全的預設物件，而不是 null，防止頁面崩潰
-        console.warn(`User ${uid} not found, returning default structure.`)
-        return normalizeUserData({ uid })
-      }
-      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.details || '獲取用戶資料失敗')
+      if (response.status === 404) return normalizeUserData({ uid })
+      throw new Error('獲取用戶資料失敗')
     }
     const jsonResponse = await response.json()
-
-    // 根據後端回傳結構，資料可能在 jsonResponse.data 或 jsonResponse 本身
-    const rawData = jsonResponse.data || jsonResponse
-
-    return normalizeUserData(rawData)
+    return normalizeUserData(jsonResponse.data || jsonResponse)
   } catch (error) {
     console.error('獲取用戶資料錯誤：', error)
-    // 發生錯誤時，至少回傳一個基本結構，避免全頁白屏
     return normalizeUserData({ uid, displayName: '載入失敗' })
   }
 }
@@ -110,72 +74,22 @@ export async function getUserProfile(uid) {
 export async function updateUserProfile(uid, userData) {
   const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(userData),
   })
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-    throw new Error(errorData.error || errorData.message || errorData.details || '更新用戶資料失敗')
-  }
-  const data = await response.json()
-  return data
+  if (!response.ok) throw new Error('更新用戶資料失敗')
+  return await response.json()
 }
 
-// 取得用戶列表
-export async function getUsers({ page = 1, limit = 100, role } = {}) {
-  const params = new URLSearchParams()
-  params.set('page', String(page))
-  params.set('limit', String(limit))
-  if (role) params.set('role', role)
-
-  const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`)
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-    throw new Error(errorData.error || errorData.message || errorData.details || '獲取用戶列表失敗')
-  }
-
-  const data = await response.json()
-  return Array.isArray(data) ? data : data?.data || []
-}
-
-// 取得所有用戶（分頁拉取）
-export async function getAllUsers({ limit = 100, role } = {}) {
-  const results = []
-  let page = 1
-
-  while (true) {
-    const batch = await getUsers({ page, limit, role })
-    if (!Array.isArray(batch) || batch.length === 0) break
-    results.push(...batch)
-    if (batch.length < limit) break
-    page += 1
-  }
-
-  return results
-}
-
-// 修復用戶：為已存在的Firebase用戶創建Neon記錄
-export async function fixUser(uid, userData) {
+export async function getAllUsers({ limit = 100 } = {}) {
+  // 簡化版 getAllUsers，直接呼叫後端 list 接口
   try {
-    const response = await fetch(`${API_BASE_URL}/users/${uid}/fix`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.message || '修復用戶失敗')
-    }
-
+    const response = await fetch(`${API_BASE_URL}/users?limit=${limit}`)
+    if (!response.ok) throw new Error('Fetch users failed')
     const data = await response.json()
-    return data.user || data
-  } catch (error) {
-    console.error('修復用戶失敗：', error)
-    throw error
+    return Array.isArray(data) ? data : data.data || []
+  } catch (e) {
+    console.error(e)
+    return []
   }
 }

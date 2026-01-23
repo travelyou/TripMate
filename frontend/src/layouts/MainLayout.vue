@@ -321,6 +321,11 @@ const handleSubmitPost = async (postData) => {
     alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
   }
 }
+
+const handleClosePrivateChat = () => {
+  isPrivateChatOpen.value = false
+  openChatWithUser.value = null
+}
 </script>
 
 <template>
@@ -466,10 +471,7 @@ const handleSubmitPost = async (postData) => {
     <PrivateChatWindow
       v-if="isPrivateChatOpen"
       :open-chat-with-user="openChatWithUser"
-      @close="
-        isPrivateChatOpen = false
-        openChatWithUser = null
-      "
+      @close="handleClosePrivateChat"
     />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />

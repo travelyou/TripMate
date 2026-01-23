@@ -7,12 +7,14 @@ import {
   Tent as TentIcon,
   Camera as CameraIcon,
   Edit as EditIcon,
-  UserCog as UserEditIcon,
   ArrowLeft as ArrowLeftIcon,
   PenLine as PenLineIcon,
-  Plus as PlusIcon,
+  Upload as UploadIcon,
+  Loader2 as LoaderIcon,
 } from 'lucide-vue-next'
-import WishBallPool from '@/components/WishBallPool.vue'
+
+import WishBallPool from '@/components/profile/WishBallPool.vue'
+import { uploadImage } from '@/api/storage'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -23,56 +25,18 @@ const props = defineProps({
 const emit = defineEmits(['close', 'toggle-matching', 'save'])
 
 // --- 狀態控制 ---
-const isEditing = ref(false) // 控制是否在編輯模式
+const isEditing = ref(false)
+const isUploading = ref(false)
+const fileInput = ref(null)
 
 // --- 編輯模式的表單資料 ---
 const formData = ref({
-  bio: '',
-  tags: [],
-  wishlist: [],
-})
-const newWishItem = ref('')
-
-// 當打開 Modal 或切換到編輯模式時，初始化表單
-const initFormData = () => {
-  if (props.user) {
-    formData.value = {
-      bio: props.user.bio || '',
-      tags: props.user.tags ? [...props.user.tags] : [],
-      wishlist: props.user.wishlist ? [...props.user.wishlist] : [],
-    }
-  }
-}
-
-// 監聽 isOpen，每次打開重置回預覽模式
-watch(
-  () => props.isOpen,
-  (val) => {
-    if (val) {
-      isEditing.value = false
-    }
-  },
-)
-
-// --- 預覽模式的資料 (Computed) ---
-const cardPreview = computed(() => {
-  if (!props.user) return {}
-  // 如果正在編輯，預覽可以選擇顯示「編輯中的資料」或是「原始資料」
-  // 這裡我們顯示原始資料 (props.user)，等儲存後才會更新
-  return {
-    name: props.user.nickname || props.user.name || '使用者',
-    age: props.user.age || '—',
-    location: props.user.location || '台灣',
-    spiritAnimal: props.user.spiritAnimal || '🐾',
-    image: props.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${props.user.uid}`,
-    bio: props.user.bio || '尚未填寫名片介紹...',
-    wishlist: props.user.wishlist || [],
-    activities: props.user.tags || [],
-    gallery: props.user.gallery || [],
-  }
+  card_bio: '',
+  card_tags: [],
+  card_photo: '', // 獨立的名片照片
 })
 
-// --- 編輯邏輯 ---
+// 預設標籤庫
 const PREDEFINED_TAGS = [
   '美食吃貨',
   '攝影愛好',
@@ -92,6 +56,62 @@ const PREDEFINED_TAGS = [
   '文青之旅',
 ]
 
+// --- 初始化資料 ---
+const initFormData = () => {
+  if (props.user) {
+    formData.value = {
+      // 若無 card_bio，預設為空 (不帶入 profile bio)
+      card_bio: props.user.card_bio || '',
+      // 若無 card_tags，預設帶入 profile tags 當初始值，之後分離
+      card_tags: props.user.card_tags
+        ? [...props.user.card_tags]
+        : props.user.tags
+          ? [...props.user.tags]
+          : [],
+      // 若無 card_photo，預設為空 (編輯時不顯示 avatar，鼓勵上傳新照)
+      card_photo: props.user.card_photo || '',
+    }
+  }
+}
+
+watch(
+  () => props.isOpen,
+  (val) => {
+    if (val) isEditing.value = false
+  },
+)
+
+// --- 預覽資料 (Computed) ---
+const cardPreview = computed(() => {
+  if (!props.user) return {}
+
+  // 照片邏輯：編輯模式優先顯示 formData，否則顯示 user.card_photo，最後 fallback 到 avatar
+  const displayPhoto = isEditing.value
+    ? formData.value.card_photo || props.user.card_photo || props.user.avatar
+    : props.user.card_photo || props.user.avatar
+
+  const displayBio = isEditing.value
+    ? formData.value.card_bio
+    : props.user.card_bio || '尚未填寫名片介紹...'
+
+  const displayTags = isEditing.value
+    ? formData.value.card_tags
+    : props.user.card_tags || props.user.tags || []
+
+  return {
+    name: props.user.nickname || props.user.name || '使用者',
+    age: props.user.age || '—',
+    location: props.user.location || '台灣',
+    spiritAnimal: props.user.spiritAnimal || '🐾',
+    image: displayPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${props.user.uid}`,
+    bio: displayBio,
+    // [重點] 強制連動 user.wishlist (唯讀)
+    wishlist: props.user.wishlist || [],
+    tags: displayTags,
+  }
+})
+
+// --- 編輯邏輯 ---
 const startEditing = () => {
   initFormData()
   isEditing.value = true
@@ -102,31 +122,44 @@ const cancelEditing = () => {
 }
 
 const toggleTag = (tag) => {
-  const index = formData.value.tags.indexOf(tag)
+  const index = formData.value.card_tags.indexOf(tag)
   if (index === -1) {
-    if (formData.value.tags.length >= 5) return alert('最多 5 個標籤')
-    formData.value.tags.push(tag)
+    if (formData.value.card_tags.length >= 5) return alert('最多 5 個標籤')
+    formData.value.card_tags.push(tag)
   } else {
-    formData.value.tags.splice(index, 1)
+    formData.value.card_tags.splice(index, 1)
   }
 }
 
-const addWishItem = () => {
-  const val = newWishItem.value.trim()
-  if (!val) return
-  if (formData.value.wishlist.includes(val)) return alert('已存在')
-  if (formData.value.wishlist.length >= 10) return alert('最多 10 個')
-  formData.value.wishlist.push(val)
-  newWishItem.value = ''
+// 處理照片上傳
+const triggerFileUpload = () => {
+  fileInput.value.click()
 }
 
-const removeWishItem = (index) => {
-  formData.value.wishlist.splice(index, 1)
+const handleFileChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  isUploading.value = true
+  try {
+    const url = await uploadImage(file, 'card-photos')
+    formData.value.card_photo = url
+  } catch (error) {
+    console.error('上傳失敗', error)
+    alert('照片上傳失敗，請重試')
+  } finally {
+    isUploading.value = false
+  }
 }
 
 const handleSave = () => {
-  emit('save', formData.value)
-  isEditing.value = false // 儲存後回到預覽
+  // Emit 包含 card_ 前綴的獨立資料
+  emit('save', {
+    card_bio: formData.value.card_bio,
+    card_tags: formData.value.card_tags,
+    card_photo: formData.value.card_photo,
+  })
+  isEditing.value = false
 }
 </script>
 
@@ -192,7 +225,7 @@ const handleSave = () => {
 
         <div class="overflow-y-auto flex-1 bg-gray-50 detail-scrollbar">
           <div class="bg-white pb-10 min-h-full">
-            <div class="relative h-80 w-full overflow-hidden group">
+            <div class="relative h-96 w-full overflow-hidden group bg-gray-200">
               <img :src="cardPreview.image" class="w-full h-full object-cover" />
               <div
                 class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
@@ -237,7 +270,7 @@ const handleSave = () => {
                 </div>
               </section>
 
-              <section v-if="cardPreview.activities.length">
+              <section v-if="cardPreview.tags.length">
                 <h3
                   class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
                 >
@@ -245,7 +278,7 @@ const handleSave = () => {
                 </h3>
                 <div class="flex flex-wrap gap-2">
                   <span
-                    v-for="tag in cardPreview.activities"
+                    v-for="tag in cardPreview.tags"
                     :key="tag"
                     class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
                     >#{{ tag }}</span
@@ -270,14 +303,53 @@ const handleSave = () => {
         <div class="overflow-y-auto flex-1 p-6 space-y-6 custom-scrollbar">
           <div class="space-y-2">
             <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
-              <PenLineIcon class="w-4 h-4 text-primary-500" /> 自我介紹 (Bio)
+              <CameraIcon class="w-4 h-4 text-primary-500" /> 名片封面照
+            </label>
+            <div
+              class="relative w-full aspect-[4/5] bg-gray-200 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 group"
+            >
+              <img
+                v-if="formData.card_photo || props.user.card_photo || props.user.avatar"
+                :src="formData.card_photo || props.user.card_photo || props.user.avatar"
+                class="w-full h-full object-cover"
+              />
+
+              <div
+                class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                @click="triggerFileUpload"
+              >
+                <UploadIcon class="w-8 h-8 text-white mb-2" />
+                <span class="text-white text-xs font-bold">更換照片 (支援長方形)</span>
+              </div>
+
+              <div
+                v-if="isUploading"
+                class="absolute inset-0 bg-black/60 flex items-center justify-center z-10"
+              >
+                <LoaderIcon class="w-8 h-8 text-white animate-spin" />
+              </div>
+            </div>
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleFileChange"
+            />
+            <p class="text-xs text-gray-500">建議上傳長方形或方形的生活照，讓旅伴更認識你。</p>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <PenLineIcon class="w-4 h-4 text-primary-500" /> 名片自我介紹 (Card Bio)
             </label>
             <textarea
-              v-model="formData.bio"
+              v-model="formData.card_bio"
               rows="4"
               class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-300 outline-none resize-none shadow-sm"
-              placeholder="寫下你的旅行宣言..."
+              placeholder="寫一段專屬於抽卡的自我介紹..."
             ></textarea>
+            <p class="text-xs text-gray-400">此介紹只會顯示在抽卡頁面，不會影響您的個人檔案。</p>
           </div>
 
           <div class="space-y-2">
@@ -285,7 +357,7 @@ const handleSave = () => {
               <span class="flex items-center gap-2"
                 ><TentIcon class="w-4 h-4 text-green-600" /> 選擇標籤</span
               >
-              <span class="text-xs text-gray-500">{{ formData.tags.length }}/5</span>
+              <span class="text-xs text-gray-500">{{ formData.card_tags.length }}/5</span>
             </label>
             <div
               class="flex flex-wrap gap-2 p-4 bg-white rounded-xl border border-gray-100 shadow-sm"
@@ -296,7 +368,7 @@ const handleSave = () => {
                 @click="toggleTag(tag)"
                 class="px-3 py-1.5 rounded-lg text-xs font-bold transition border"
                 :class="
-                  formData.tags.includes(tag)
+                  formData.card_tags.includes(tag)
                     ? 'bg-primary-500 text-white border-primary-500 shadow-sm transform scale-105'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600'
                 "
@@ -306,48 +378,21 @@ const handleSave = () => {
             </div>
           </div>
 
-          <div class="space-y-2">
+          <div class="space-y-2 opacity-80">
             <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
               <SparklesIcon class="w-4 h-4 text-yellow-500" />
-              許願球池
+              許願球池 (連動中)
             </label>
-            <div class="flex gap-2">
-              <input
-                v-model="newWishItem"
-                @keyup.enter="addWishItem"
-                type="text"
-                class="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-300 outline-none shadow-sm"
-                placeholder="輸入城市按 Enter"
-              />
-              <button
-                @click="addWishItem"
-                class="px-4 py-2 bg-secondary-100 text-secondary-700 rounded-xl font-bold shadow-sm"
-              >
-                <PlusIcon class="w-5 h-5" />
-              </button>
-            </div>
 
             <div
-              class="relative mt-2 h-40 bg-white rounded-xl border-2 border-dashed border-gray-200 overflow-hidden"
+              class="relative mt-2 h-40 bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 overflow-hidden"
             >
-              <WishBallPool :wishlist="formData.wishlist" />
+              <WishBallPool :wishlist="props.user?.wishlist || []" />
             </div>
 
-            <div
-              class="flex flex-wrap gap-2 bg-white p-3 rounded-xl border border-gray-100 shadow-sm"
-              v-if="formData.wishlist.length > 0"
-            >
-              <span
-                v-for="(item, idx) in formData.wishlist"
-                :key="idx"
-                class="inline-flex items-center px-2 py-1 bg-gray-100 border rounded-full text-xs text-gray-600 font-bold"
-              >
-                {{ item }}
-                <button @click="removeWishItem(idx)" class="ml-1 text-gray-400 hover:text-red-500">
-                  <XIcon class="w-3 h-3" />
-                </button>
-              </span>
-            </div>
+            <p class="text-xs text-orange-500 font-medium">
+              * 許願球池與個人檔案同步，如需修改請至個人檔案頁面。
+            </p>
           </div>
         </div>
 
