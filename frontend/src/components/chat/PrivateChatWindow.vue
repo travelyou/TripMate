@@ -71,6 +71,50 @@ const isFriendChat = computed(() => {
 })
 const canSendMessage = computed(() => chatInteractionCount.value.canSend && isFriendChat.value)
 
+const updateUnreadCount = (friendUid, mappedMessages) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid || !Array.isArray(mappedMessages)) return
+
+  const room = chatRoomsList.value.find(r => r.uid === friendUid)
+  if (!room) return
+
+  const unreadKey = `unread_${currentUid}_${friendUid}`
+  const isActiveRoom = activeChatRoom.value?.uid === friendUid
+
+  if (isActiveRoom) {
+    room.unreadCount = 0
+    localStorage.setItem(unreadKey, JSON.stringify({
+      lastReadTime: new Date().toISOString()
+    }))
+    persistChatRooms()
+    return
+  }
+
+  let lastReadTime = null
+  const unreadData = localStorage.getItem(unreadKey)
+  if (unreadData) {
+    try {
+      const unreadInfo = JSON.parse(unreadData)
+      lastReadTime = unreadInfo.lastReadTime
+    } catch {
+      // ignore
+    }
+  }
+
+  const lastReadMs = lastReadTime ? new Date(lastReadTime).getTime() : null
+  const unreadCount = mappedMessages.reduce((count, message) => {
+    if (message.type === 'user') return count
+    const messageTime = new Date(message.timestamp || message.created_at).getTime()
+    if (!lastReadMs || messageTime > lastReadMs) {
+      return count + 1
+    }
+    return count
+  }, 0)
+
+  room.unreadCount = unreadCount
+  persistChatRooms()
+}
+
 const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = '') => {
   try {
     const { incrementChatInteraction } = await import('@/api/profile')
@@ -210,7 +254,7 @@ const chatRooms = computed(() => {
       avatar: room.avatar || '',
       lastMessage: room.lastMessage || '開始聊天',
       lastMessageTime: room.lastMessageTime || '',
-      unreadCount: 0,
+      unreadCount: room.unreadCount || 0,
       isStranger: !isFriendUid(room.uid),
       messages: room.messages || []
     })
@@ -286,6 +330,22 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
           }
         }
       }
+
+      if (hasNewMessages && previousMessageCount > 0) {
+        const lastMessage = mappedMessages[mappedMessages.length - 1]
+        if (lastMessage && lastMessage.type !== 'user') {
+          const roomInfo = chatRoomsList.value.find(r => r.uid === friendUid) || activeChatRoom.value
+          const preview = lastMessage.isImage ? '傳送了圖片' : lastMessage.content
+          window.dispatchEvent(new CustomEvent('incoming-message', {
+            detail: {
+              uid: friendUid,
+              name: roomInfo?.name || '未知用戶',
+              avatar: roomInfo?.avatar || '',
+              content: preview
+            }
+          }))
+        }
+      }
     }
 
     // 更新聊天室的訊息列表
@@ -297,6 +357,7 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
       activeChatRoom.value.messages = messages.value
     }
 
+    updateUnreadCount(friendUid, mappedMessages)
     persistChatRooms()
 
     if (!silent) {
@@ -384,6 +445,7 @@ const openOrCreateChatRoom = async (user) => {
       avatar: user.avatar || '',
       messages: existingRoom.messages || []
     }
+    existingRoom.unreadCount = 0
   } else {
     // 創建新聊天室
     const newRoom = {
@@ -393,6 +455,7 @@ const openOrCreateChatRoom = async (user) => {
       avatar: user.avatar || '',
       lastMessage: '',
       lastMessageTime: '',
+      unreadCount: 0,
       messages: []
     }
     chatRoomsList.value.push(newRoom)
@@ -424,6 +487,7 @@ const openOrCreateChatRoom = async (user) => {
   localStorage.setItem(unreadKey, JSON.stringify({
     lastReadTime: new Date().toISOString()
   }))
+  persistChatRooms()
 
   scrollToBottom()
 
@@ -860,6 +924,12 @@ watch(() => props.openChatWithUser, (newUser) => {
     openOrCreateChatRoom(newUser)
   }
 }, { immediate: true })
+
+watch(() => activeTab.value, (tab) => {
+  if (tab === 'friends') {
+    window.dispatchEvent(new CustomEvent('friends-viewed'))
+  }
+})
 
 
 watch(chatRoomsList, () => {

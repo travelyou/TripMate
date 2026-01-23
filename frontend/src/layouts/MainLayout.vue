@@ -56,6 +56,35 @@ const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 const unreadMessageCount = ref(0) // 未讀訊息總數
+const swipeReminderActive = ref(false)
+const incomingMessageToast = ref({
+  visible: false,
+  avatar: '',
+  name: '',
+  content: '',
+})
+let incomingToastTimer = null
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10)
+const getSwipeOpenedKey = (uid) => `swipe_opened_${uid}`
+
+const getFriendIds = () => {
+  const friends = userStore.currentUser?.friends || []
+  return friends
+    .map(friend => friend.uid || friend.id)
+    .filter(Boolean)
+}
+
+const saveFriendSnapshot = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const friendSnapshotKey = `friends_seen_${currentUid}`
+  try {
+    localStorage.setItem(friendSnapshotKey, JSON.stringify(getFriendIds()))
+  } catch (error) {
+    console.warn('保存好友快照失敗:', error)
+  }
+}
 
 const ensureLoggedIn = () => {
   if (userStore.isLoggedIn) return true
@@ -83,6 +112,16 @@ const handleQuickAction = () => {
     isSwipeModalOpen.value = false
     isMobileActionMenuOpen.value = false
     return
+  }
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (currentUid) {
+    try {
+      localStorage.setItem(getSwipeOpenedKey(currentUid), getTodayKey())
+    } catch (error) {
+      console.warn('保存抽卡開啟記錄失敗:', error)
+    }
+    swipeReminderActive.value = false
+    window.dispatchEvent(new CustomEvent('swipe-opened'))
   }
   isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
@@ -199,12 +238,58 @@ const calculateUnreadCount = () => {
       }
     }
 
+    // 檢查新增加好友
+    const friendSnapshotKey = `friends_seen_${currentUid}`
+    const friendSnapshotData = localStorage.getItem(friendSnapshotKey)
+    const currentFriendIds = getFriendIds()
+    if (friendSnapshotData) {
+      try {
+        const snapshot = JSON.parse(friendSnapshotData)
+        if (Array.isArray(snapshot)) {
+          const newFriends = currentFriendIds.filter(id => !snapshot.includes(id))
+          totalUnread += newFriends.length
+        }
+      } catch (e) {
+        console.warn('解析好友快照失敗:', e)
+      }
+    } else {
+      // 初次沒有快照，避免直接計入未讀
+      saveFriendSnapshot()
+    }
+
     // 限制最多顯示9
     unreadMessageCount.value = Math.min(totalUnread, 9)
   } catch (error) {
     console.error('計算未讀訊息失敗:', error)
     unreadMessageCount.value = 0
   }
+}
+
+const calculateSwipeReminder = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    swipeReminderActive.value = false
+    return
+  }
+  const openedKey = getSwipeOpenedKey(currentUid)
+  const lastOpened = localStorage.getItem(openedKey)
+  swipeReminderActive.value = lastOpened !== getTodayKey()
+}
+
+const handleIncomingMessage = (event) => {
+  const detail = event.detail || {}
+  incomingMessageToast.value = {
+    visible: true,
+    avatar: detail.avatar || '',
+    name: detail.name || '新訊息',
+    content: detail.content || '',
+  }
+  if (incomingToastTimer) {
+    clearTimeout(incomingToastTimer)
+  }
+  incomingToastTimer = setTimeout(() => {
+    incomingMessageToast.value.visible = false
+  }, 10000)
 }
 
 // 監聽訊息變化
@@ -222,10 +307,17 @@ onMounted(() => {
   window.addEventListener('open-chat', handleOpenChat)
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
+  window.addEventListener('friends-viewed', saveFriendSnapshot)
+  window.addEventListener('swipe-opened', calculateSwipeReminder)
+  window.addEventListener('incoming-message', handleIncomingMessage)
   // 初始計算未讀訊息
   calculateUnreadCount()
+  calculateSwipeReminder()
   // 定期檢查未讀訊息（每5秒）
-  const interval = setInterval(calculateUnreadCount, 5000)
+  const interval = setInterval(() => {
+    calculateUnreadCount()
+    calculateSwipeReminder()
+  }, 5000)
   // 存储interval以便清理
   window._unreadMessageInterval = interval
 })
@@ -233,9 +325,16 @@ onUnmounted(() => {
   window.removeEventListener('open-chat', handleOpenChat)
   window.removeEventListener('message-updated', handleMessageUpdate)
   window.removeEventListener('new-chat-room', handleNewChatRoom)
+  window.removeEventListener('friends-viewed', saveFriendSnapshot)
+  window.removeEventListener('swipe-opened', calculateSwipeReminder)
+  window.removeEventListener('incoming-message', handleIncomingMessage)
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
+  }
+  if (incomingToastTimer) {
+    clearTimeout(incomingToastTimer)
+    incomingToastTimer = null
   }
 })
 
@@ -402,6 +501,26 @@ const handleSubmitPost = async (postData) => {
           @toggle-ai-chat="handleToggleAiChat"
         />
       </div>
+      <div
+        v-if="incomingMessageToast.visible"
+        class="fixed bottom-24 right-4 z-[60] max-w-[90vw] sm:max-w-sm bg-white border border-gray-200 rounded-2xl shadow-xl p-3 flex items-center gap-3"
+      >
+        <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+          <img
+            v-if="incomingMessageToast.avatar"
+            :src="incomingMessageToast.avatar"
+            :alt="incomingMessageToast.name"
+            class="w-full h-full object-cover"
+          />
+          <span v-else class="text-sm font-bold text-gray-600">
+            {{ incomingMessageToast.name.slice(0, 1) }}
+          </span>
+        </div>
+        <div class="min-w-0">
+          <div class="text-sm font-bold text-gray-800 truncate">{{ incomingMessageToast.name }}</div>
+          <div class="text-xs text-gray-600 truncate">{{ incomingMessageToast.content }}</div>
+        </div>
+      </div>
     </div>
 
     <div
@@ -441,11 +560,17 @@ const handleSubmitPost = async (postData) => {
               </div>
               <span class="text-lg font-bold text-gray-700">發布</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group" @click="handleQuickAction">
+            <button class="flex flex-col items-center gap-2 group relative" @click="handleQuickAction">
               <div
-                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
+                class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition relative"
               >
                 <SparklesIcon class="w-8 h-8 text-white" />
+                <span
+                  v-if="swipeReminderActive"
+                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow-lg"
+                >
+                  !
+                </span>
               </div>
               <span class="text-sm font-bold text-gray-700">抽卡</span>
             </button>

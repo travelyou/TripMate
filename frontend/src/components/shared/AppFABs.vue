@@ -10,6 +10,28 @@ import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 const unreadMessageCount = ref(0)
+const swipeReminderActive = ref(false)
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10)
+const getSwipeOpenedKey = (uid) => `swipe_opened_${uid}`
+
+const getFriendIds = () => {
+  const friends = userStore.currentUser?.friends || []
+  return friends
+    .map(friend => friend.uid || friend.id)
+    .filter(Boolean)
+}
+
+const saveFriendSnapshot = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const friendSnapshotKey = `friends_seen_${currentUid}`
+  try {
+    localStorage.setItem(friendSnapshotKey, JSON.stringify(getFriendIds()))
+  } catch (error) {
+    console.warn('保存好友快照失敗:', error)
+  }
+}
 
 // 計算未讀訊息總數
 const calculateUnreadCount = () => {
@@ -88,6 +110,24 @@ const calculateUnreadCount = () => {
       }
     }
 
+    // 檢查新增加好友
+    const friendSnapshotKey = `friends_seen_${currentUid}`
+    const friendSnapshotData = localStorage.getItem(friendSnapshotKey)
+    const currentFriendIds = getFriendIds()
+    if (friendSnapshotData) {
+      try {
+        const snapshot = JSON.parse(friendSnapshotData)
+        if (Array.isArray(snapshot)) {
+          const newFriends = currentFriendIds.filter(id => !snapshot.includes(id))
+          totalUnread += newFriends.length
+        }
+      } catch (e) {
+        console.warn('解析好友快照失敗:', e)
+      }
+    } else {
+      saveFriendSnapshot()
+    }
+
     // 限制最多顯示9
     unreadMessageCount.value = Math.min(totalUnread, 9)
   } catch (error) {
@@ -106,17 +146,36 @@ const handleNewChatRoom = () => {
   calculateUnreadCount()
 }
 
+const calculateSwipeReminder = () => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    swipeReminderActive.value = false
+    return
+  }
+  const openedKey = getSwipeOpenedKey(currentUid)
+  const lastOpened = localStorage.getItem(openedKey)
+  swipeReminderActive.value = lastOpened !== getTodayKey()
+}
+
 onMounted(() => {
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
+  window.addEventListener('friends-viewed', saveFriendSnapshot)
+  window.addEventListener('swipe-opened', calculateSwipeReminder)
   calculateUnreadCount()
-  const interval = setInterval(calculateUnreadCount, 5000)
+  calculateSwipeReminder()
+  const interval = setInterval(() => {
+    calculateUnreadCount()
+    calculateSwipeReminder()
+  }, 5000)
   window._unreadMessageInterval = interval
 })
 
 onUnmounted(() => {
   window.removeEventListener('message-updated', handleMessageUpdate)
   window.removeEventListener('new-chat-room', handleNewChatRoom)
+  window.removeEventListener('friends-viewed', saveFriendSnapshot)
+  window.removeEventListener('swipe-opened', calculateSwipeReminder)
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
@@ -126,6 +185,7 @@ onUnmounted(() => {
 // 監聽用戶登入狀態
 watch(() => userStore.currentUser, () => {
   calculateUnreadCount()
+  calculateSwipeReminder()
 }, { deep: true })
 
 defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-chat'])
@@ -144,11 +204,17 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     </button>
 
     <button
-      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl"
+      class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl relative"
       title="抽卡找旅伴"
       @click="$emit('quick-action')"
     >
       <ZapIcon class="w-6 h-6 md:w-7 md:h-7" />
+      <span
+        v-if="swipeReminderActive"
+        class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow-lg"
+      >
+        !
+      </span>
     </button>
 
     <button
