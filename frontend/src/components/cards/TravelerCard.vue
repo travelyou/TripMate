@@ -93,6 +93,7 @@ const isExpired = computed(() => {
 })
 
 const likeCount = computed(() => localLikes.value)
+const isFavorited = computed(() => userStore.isFavorite(itemData.value))
 
 const isFull = computed(() => {
   const currentFromField = Number(props.traveler.current_people)
@@ -168,7 +169,7 @@ const toggleMenu = (e) => {
 
 const handleToggleFavorite = (e) => {
   e.stopPropagation()
-  const wasFavorite = userStore.isFavorite(itemData.value)
+  const wasFavorite = isFavorited.value
   localLikes.value = Math.max(0, localLikes.value + (wasFavorite ? -1 : 1))
   userStore.toggleFavorite(itemData.value)
 }
@@ -426,7 +427,7 @@ watch(
                   <button
                     class="group flex items-center transition"
                     :class="
-                      userStore.isFavorite(itemData)
+                      isFavorited
                         ? 'text-red-300'
                         : 'text-white/70 hover:text-red-300'
                     "
@@ -434,7 +435,7 @@ watch(
                   >
                     <HeartIcon
                       class="mr-1 h-4 w-4 transition-transform group-active:scale-125"
-                      :class="{ 'fill-current': userStore.isFavorite(itemData) }"
+                      :class="{ 'fill-current text-red-300': isFavorited }"
                     />
                     <span>{{ likeCount }}</span>
                   </button>

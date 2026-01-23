@@ -3,9 +3,7 @@
 require('dotenv').config()
 
 const express = require('express')
-const http = require('http')
 const cors = require('cors')
-const { WebSocketServer } = require('ws')
 const pool = require('./database/connection')
 const discussionsRouter = require('./routes/discussions')
 const commentsRouter = require('./routes/comments')
@@ -20,99 +18,8 @@ const cartRouter = require('./routes/cart')
 const swipesRouter = require('./routes/swipes')
 
 const app = express()
-const server = http.createServer(app)
 const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || '0.0.0.0'
-
-const wss = new WebSocketServer({ server, path: '/ws' })
-const wsClients = new Map()
-
-const registerClient = (uid, ws) => {
-  if (!uid) return
-  let clients = wsClients.get(uid)
-  if (!clients) {
-    clients = new Set()
-    wsClients.set(uid, clients)
-  }
-  ws._uid = uid
-  clients.add(ws)
-}
-
-const unregisterClient = (ws) => {
-  const uid = ws._uid
-  if (!uid) return
-  const clients = wsClients.get(uid)
-  if (!clients) return
-  clients.delete(ws)
-  if (clients.size === 0) {
-    wsClients.delete(uid)
-  }
-}
-
-const sendToUid = (uid, payload, excludeWs = null) => {
-  const clients = wsClients.get(uid)
-  if (!clients || clients.size === 0) return
-  const message = JSON.stringify(payload)
-  clients.forEach((client) => {
-    if (client.readyState !== client.OPEN) return
-    if (excludeWs && client === excludeWs) return
-    client.send(message)
-  })
-}
-
-wss.on('connection', (ws, req) => {
-  try {
-    const url = new URL(req.url, `http://${req.headers.host}`)
-    const uid = url.searchParams.get('uid')
-    if (uid) {
-      registerClient(uid, ws)
-    }
-  } catch (error) {
-    console.warn('WebSocket 連線參數解析失敗:', error.message)
-  }
-
-  ws.on('message', (raw) => {
-    let data = null
-    try {
-      data = JSON.parse(raw.toString())
-    } catch (error) {
-      return
-    }
-    if (!data || typeof data !== 'object') return
-
-    if (data.type === 'register') {
-      registerClient(data.uid, ws)
-      return
-    }
-
-    if (data.type === 'chat_message') {
-      const fromUid = data.fromUid
-      const toUid = data.toUid
-      if (!fromUid || !toUid) return
-      const payload = {
-        type: 'chat_message',
-        fromUid,
-        toUid,
-        content: data.content || '',
-        isImage: Boolean(data.isImage),
-        timestamp: data.timestamp || new Date().toISOString(),
-        clientId: data.clientId || null,
-        senderName: data.senderName || '',
-        senderAvatar: data.senderAvatar || '',
-      }
-      sendToUid(toUid, payload)
-      sendToUid(fromUid, payload, ws)
-    }
-  })
-
-  ws.on('close', () => {
-    unregisterClient(ws)
-  })
-
-  ws.on('error', () => {
-    unregisterClient(ws)
-  })
-})
 
 // 1. 修改：加入 Vercel 前端網址到允許清單
 const allowedOrigins = [
@@ -285,7 +192,7 @@ app.use((req, res) => {
 
 // 2. 修改：只在非 Vercel 環境下啟動監聽 (Zeabur/Local 依然會執行這裡)
 if (!process.env.VERCEL) {
-  server.listen(PORT, HOST, () => {
+  app.listen(PORT, HOST, () => {
     console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
     console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
   })

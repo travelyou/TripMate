@@ -59,3 +59,24 @@ export async function deleteComment(id) {
     throw error
   }
 }
+
+// 留言按讚/取消按讚（僅更新 likes_count）
+export async function toggleCommentLike(commentId, action) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/comments/${commentId}/likes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action }),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+      throw new Error(errorData.error || errorData.details || '更新留言按讚失敗')
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('更新留言按讚錯誤：', error)
+    throw error
+  }
+}
