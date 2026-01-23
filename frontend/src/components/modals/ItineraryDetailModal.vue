@@ -279,6 +279,16 @@ const handleAddToCart = async () => {
       await showError(checkoutStore.cartError)
       return
     }
+    if (
+      !checkoutStore.cartItems?.some(
+        (item) => Number(item.itineraryId) === Number(itineraryId),
+      )
+    ) {
+      checkoutStore.cartItems = [
+        ...(checkoutStore.cartItems || []),
+        { itineraryId, persons: 1 },
+      ]
+    }
     const goToCart = await showConfirm('已成功加入購物車，是否前往查看？', {
       confirmButtonText: '前往購物車',
       cancelButtonText: '繼續挑選行程',
