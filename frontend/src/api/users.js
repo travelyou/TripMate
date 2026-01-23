@@ -26,6 +26,7 @@ function normalizeUserData(data) {
     role: data.role || 'user',
     vendor_id: data.vendor_id || data.vendorId || null,
     tags: Array.isArray(data.tags) ? data.tags : [],
+    wishlist: Array.isArray(data.wishlist) ? data.wishlist : [],
 
     // [NEW] 這是關鍵！加上卡片專屬欄位，前端才讀得到
     card_bio: data.card_bio || '',

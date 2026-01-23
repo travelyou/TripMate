@@ -131,9 +131,9 @@ const shouldMarquee = computed(() => {
             </div>
           </div>
 
-            <div class="flex-1 min-w-0 flex flex-col justify-between">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
+          <div class="flex-1 min-w-0 flex flex-col justify-between">
+            <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0">
                   <h1
@@ -248,7 +248,7 @@ const shouldMarquee = computed(() => {
             <div v-else-if="!loading" class="flex gap-2 self-end mt-1">
               <button
                 :class="[
-                  'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
+                    'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
                   friendRequestStatus === 'accepted'
                     ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
                     : friendRequestStatus === 'sent'

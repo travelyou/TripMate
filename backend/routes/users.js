@@ -35,20 +35,53 @@ router.get('/', async (req, res) => {
     // [修正] 加上 gallery
     let query = `
       SELECT
-        uid, email, nickname, real_name, avatar, role, vendor_id, created_at,
-        location, bio, spirit_animal, tags,
-        card_bio, card_photo, card_tags, gallery, is_matching_enabled
-      FROM users
+        u.uid,
+        u.email,
+        u.nickname,
+        u.real_name,
+        u.avatar,
+        u.role,
+        u.vendor_id,
+        u.created_at,
+        u.location,
+        u.bio,
+        u.spirit_animal,
+        u.tags,
+        u.card_bio,
+        u.card_photo,
+        u.card_tags,
+        u.gallery,
+        u.is_matching_enabled,
+        COALESCE(
+          ARRAY_AGG(w.item ORDER BY w.created_at DESC) FILTER (WHERE w.item IS NOT NULL),
+          '{}'
+        ) AS wishlist
+      FROM users u
+      LEFT JOIN wishlist w ON w.user_uid = u.uid
     `
     const params = []
 
     if (role && ['user', 'vendor', 'admin'].includes(role)) {
-      query += ' WHERE role = $1'
+      query += ' WHERE u.role = $1'
       params.push(role)
-      query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+      query += `
+        GROUP BY
+          u.uid, u.email, u.nickname, u.real_name, u.avatar, u.role, u.vendor_id, u.created_at,
+          u.location, u.bio, u.spirit_animal, u.tags,
+          u.card_bio, u.card_photo, u.card_tags, u.gallery, u.is_matching_enabled
+        ORDER BY u.created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+      `
       params.push(parseInt(limit), offset)
     } else {
-      query += ` ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+      query += `
+        GROUP BY
+          u.uid, u.email, u.nickname, u.real_name, u.avatar, u.role, u.vendor_id, u.created_at,
+          u.location, u.bio, u.spirit_animal, u.tags,
+          u.card_bio, u.card_photo, u.card_tags, u.gallery, u.is_matching_enabled
+        ORDER BY u.created_at DESC
+        LIMIT $1 OFFSET $2
+      `
       params.push(parseInt(limit), offset)
     }
 

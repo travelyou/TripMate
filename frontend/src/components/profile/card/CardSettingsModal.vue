@@ -32,12 +32,15 @@ const emit = defineEmits(['close', 'toggle-matching', 'save'])
 const isEditing = ref(false)
 const isUploading = ref(false)
 const fileInput = ref(null)
+const galleryInput = ref(null)
+const isGalleryUploading = ref(false)
 
 // --- 編輯模式的表單資料 ---
 const formData = ref({
   card_bio: '',
   card_tags: [],
   card_photo: '', // 獨立的名片照片
+  gallery: [],
 })
 
 // 預設標籤庫
@@ -74,6 +77,7 @@ const initFormData = () => {
           : [],
       // 若無 card_photo，預設為空 (編輯時不顯示 avatar，鼓勵上傳新照)
       card_photo: props.user.card_photo || '',
+      gallery: Array.isArray(props.user.gallery) ? [...props.user.gallery] : [],
     }
   }
 }
@@ -102,6 +106,12 @@ const cardPreview = computed(() => {
     ? formData.value.card_tags
     : props.user.card_tags || props.user.tags || []
 
+  const displayGallery = isEditing.value
+    ? formData.value.gallery
+    : Array.isArray(props.user.gallery)
+      ? props.user.gallery
+      : []
+
   return {
     name: props.user.nickname || props.user.name || '使用者',
     age: props.user.age || '—',
@@ -112,6 +122,7 @@ const cardPreview = computed(() => {
     // [重點] 強制連動 user.wishlist (唯讀)
     wishlist: props.wishlist?.length ? props.wishlist : props.user.wishlist || [],
     tags: displayTags,
+    gallery: displayGallery,
   }
 })
 
@@ -162,8 +173,43 @@ const handleSave = () => {
     card_bio: formData.value.card_bio,
     card_tags: formData.value.card_tags,
     card_photo: formData.value.card_photo,
+    gallery: formData.value.gallery,
   })
   isEditing.value = false
+}
+
+const triggerGalleryUpload = () => {
+  if (galleryInput.value) galleryInput.value.click()
+}
+
+const handleGalleryChange = async (event) => {
+  const files = Array.from(event.target.files || [])
+  if (!files.length) return
+  const remaining = 6 - formData.value.gallery.length
+  if (remaining <= 0) {
+    alert('最多 6 張照片')
+    return
+  }
+  const uploadFiles = files.slice(0, remaining)
+  isGalleryUploading.value = true
+  try {
+    const urls = []
+    for (const file of uploadFiles) {
+      const url = await uploadImage(file, 'gallery')
+      urls.push(url)
+    }
+    formData.value.gallery = [...formData.value.gallery, ...urls]
+  } catch (error) {
+    console.error('相簿上傳失敗', error)
+    alert('相簿上傳失敗，請重試')
+  } finally {
+    isGalleryUploading.value = false
+    event.target.value = ''
+  }
+}
+
+const removeGalleryImage = (idx) => {
+  formData.value.gallery.splice(idx, 1)
 }
 </script>
 
@@ -259,6 +305,23 @@ const handleSave = () => {
                   關於我
                 </h3>
                 <p class="text-gray-700 leading-relaxed text-base">{{ cardPreview.bio }}</p>
+              </section>
+
+              <section v-if="cardPreview.gallery && cardPreview.gallery.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
+                </h3>
+                <div class="grid grid-cols-3 gap-2">
+                  <div
+                    v-for="(photo, idx) in cardPreview.gallery"
+                    :key="photo || idx"
+                    class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                  >
+                    <img :src="photo" class="w-full h-full object-cover" />
+                  </div>
+                </div>
               </section>
 
               <section v-if="cardPreview.wishlist.length">
@@ -357,6 +420,52 @@ const handleSave = () => {
           </div>
 
           <div class="space-y-2">
+            <label class="text-sm font-bold text-gray-700 flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <CameraIcon class="w-4 h-4 text-primary-500" /> 旅遊相簿
+              </span>
+              <span class="text-xs text-gray-500">{{ formData.gallery.length }}/6</span>
+            </label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-if="formData.gallery.length < 6"
+                type="button"
+                class="aspect-square rounded-xl border-2 border-dashed border-gray-300 text-gray-400 flex flex-col items-center justify-center hover:border-primary-400 hover:text-primary-500 transition"
+                @click="triggerGalleryUpload"
+              >
+                <UploadIcon class="w-5 h-5 mb-1" />
+                <span class="text-xs font-bold">新增</span>
+              </button>
+              <div
+                v-for="(photo, idx) in formData.gallery"
+                :key="photo"
+                class="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200"
+              >
+                <img :src="photo" class="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  class="absolute top-1 right-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                  @click="removeGalleryImage(idx)"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <input
+              ref="galleryInput"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              @change="handleGalleryChange"
+            />
+            <div v-if="isGalleryUploading" class="text-xs text-gray-500 flex items-center gap-2">
+              <LoaderIcon class="w-4 h-4 animate-spin" />
+              上傳中...
+            </div>
+          </div>
+
+          <div class="space-y-2">
             <label class="text-sm font-bold text-gray-700 flex justify-between">
               <span class="flex items-center gap-2"
                 ><TentIcon class="w-4 h-4 text-green-600" /> 選擇標籤</span
@@ -391,7 +500,7 @@ const handleSave = () => {
             <div
               class="relative mt-2 h-40 bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 overflow-hidden"
             >
-              <WishBallPool :wishlist="props.user?.wishlist || []" />
+              <WishBallPool :wishlist="props.wishlist?.length ? props.wishlist : props.user?.wishlist || []" />
             </div>
 
             <p class="text-xs text-orange-500 font-medium">

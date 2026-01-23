@@ -264,8 +264,10 @@ const mapUserToCandidate = (user) => {
         ? user.tags
         : []
 
-  // 3. 自介優先使用 card_bio
-  const bio = user.card_bio || user.bio || '期待一起出發的新旅伴。'
+  // 3. 自介只使用名片 card_bio（與名片顯示一致）
+  const bio = user.card_bio || '尚未填寫名片介紹...'
+
+  const gallery = Array.isArray(user.gallery) ? user.gallery.slice(0, 3) : []
 
   return {
     id: uid,
@@ -279,7 +281,7 @@ const mapUserToCandidate = (user) => {
     wishlist: user.wishlist || [],
     activities: [],
     tags,
-    gallery: user.gallery || [],
+    gallery,
     pastTrips: [],
   }
 }

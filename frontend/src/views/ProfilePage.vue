@@ -181,6 +181,7 @@ const handleSaveCard = async (formData) => {
       card_bio: formData.card_bio,
       card_tags: formData.card_tags,
       card_photo: formData.card_photo,
+      gallery: formData.gallery,
     }
 
     await updateUserProfile(user.value.uid, updateData)

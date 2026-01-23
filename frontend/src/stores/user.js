@@ -54,12 +54,12 @@ export const useUserStore = defineStore('user', () => {
       const [discussionResponse, travelerResponse] = await Promise.all([
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
-            params: { board: 'discussion' },
+          params: { board: 'discussion' },
           })
           .catch(() => ({ data: [] })),
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
-            params: { board: 'traveler' },
+          params: { board: 'traveler' },
           })
           .catch(() => ({ data: [] })),
       ])
@@ -440,15 +440,15 @@ export const useUserStore = defineStore('user', () => {
             }
           }
 
-          setUserProfile({
-            uid: uid,
-            email: firebaseUser.value?.email || neonUserData.email || '',
-            nickname: neonUserData.nickname || '',
+        setUserProfile({
+          uid: uid,
+          email: firebaseUser.value?.email || neonUserData.email || '',
+          nickname: neonUserData.nickname || '',
             avatar: avatar,
-            bio: neonUserData.bio || '',
-            spiritAnimal: neonUserData.spirit_animal || '',
-            role: neonUserData.role || 'user',
-            vendorId: neonUserData.vendor_id || null,
+          bio: neonUserData.bio || '',
+          spiritAnimal: neonUserData.spirit_animal || '',
+          role: neonUserData.role || 'user',
+          vendorId: neonUserData.vendor_id || null,
             tags: neonUserData.tags,
             card_bio: neonUserData.card_bio,
             card_tags: neonUserData.card_tags,
@@ -470,7 +470,7 @@ export const useUserStore = defineStore('user', () => {
               console.warn('同步頭貼到資料庫失敗:', e)
             }
           }
-          return
+        return
         }
       } catch (neonError) {
         const is404Error = neonError.message?.includes('404') ||
@@ -591,7 +591,7 @@ export const useUserStore = defineStore('user', () => {
         } else {
           await new Promise(resolve => setTimeout(resolve, 500))
         }
-        await loadUserProfile(user.uid)
+      await loadUserProfile(user.uid)
 
         // 確保頭貼已保存到 localStorage（如果有的話）
         if (currentUser.value.avatar && currentUser.value.avatar.trim() !== '') {
@@ -602,7 +602,7 @@ export const useUserStore = defineStore('user', () => {
           }
         }
 
-        await fetchFavorites()
+      await fetchFavorites()
       } catch (error) {
         const is404Error = error.message?.includes('404') ||
                           error.message?.includes('Not Found')
