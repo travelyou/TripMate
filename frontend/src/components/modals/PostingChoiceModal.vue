@@ -139,7 +139,8 @@ const startPosting = (initialBoard = '') => {
 }
 
 const openItineraryDirectly = () => {
-  showItineraryModal.value = true
+  emit('close')
+  router.push({ path: '/my-itinerary' })
 }
 
 const addTag = (tagText) => {

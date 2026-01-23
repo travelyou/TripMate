@@ -24,6 +24,7 @@ const avatarErrors = ref({}) // 記錄哪些頭像載入失敗
 
 // 聊天室列表（動態創建的聊天室）
 const chatRoomsList = ref([])
+const groupChatRooms = ref([])
 
 // 載入好友列表和好友請求
 const friendRequests = ref({ received: [], sent: [] })
@@ -62,13 +63,17 @@ const maxFileSize = 10 * 1024 * 1024 // 10MB
 
 // 對話次數限制
 const chatInteractionCount = ref({ count: 0, remaining: 3, canSend: true, isFriend: false })
+const isGroupChat = computed(() => activeChatRoom.value?.type === 'group')
 const isFriendChat = computed(() => {
+  if (isGroupChat.value) return true
   const targetUid = activeChatRoom.value?.uid
   if (!targetUid) return false
   const friendList = userStore.currentUser?.friends || []
   return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
-const canSendMessage = computed(() => chatInteractionCount.value.canSend && isFriendChat.value)
+const canSendMessage = computed(() =>
+  isGroupChat.value ? true : (chatInteractionCount.value.canSend && isFriendChat.value),
+)
 
 const updateUnreadCount = (friendUid, mappedMessages) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
@@ -112,6 +117,10 @@ const updateUnreadCount = (friendUid, mappedMessages) => {
 
   room.unreadCount = unreadCount
   persistChatRooms()
+}
+
+const emitChatSend = (payload) => {
+  window.dispatchEvent(new CustomEvent('chat-send', { detail: payload }))
 }
 
 const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = '') => {
@@ -236,12 +245,39 @@ const loadMessagesFromStorage = (friendUid) => {
   }
 }
 
+const loadGroupChatRooms = async () => {
+  try {
+    const { getGroupChatRooms } = await import('@/api/travelers')
+    const response = await getGroupChatRooms()
+    if (response?.success) {
+      groupChatRooms.value = response.data || []
+    }
+  } catch (error) {
+    console.warn('載入群組聊天室失敗:', error)
+  }
+}
+
 // 聊天室列表（動態創建的聊天室）
 const chatRooms = computed(() => {
   const rooms = []
 
   const friendList = userStore.currentUser?.friends || []
   const isFriendUid = (uid) => friendList.some(friend => (friend.uid || friend.id) === uid)
+
+  groupChatRooms.value.forEach((room) => {
+    rooms.push({
+      id: `group-${room.id}`,
+      type: 'group',
+      roomId: room.id,
+      uid: `group-${room.id}`,
+      name: room.name || room.traveler_title || '旅伴群組',
+      avatar: room.avatar || '',
+      lastMessage: room.lastMessage || '群組聊天室',
+      lastMessageTime: room.lastMessageTime || '',
+      unreadCount: room.unreadCount || 0,
+      messages: room.messages || [],
+    })
+  })
 
   // 添加動態創建的聊天室
   chatRoomsList.value.forEach(room => {
@@ -365,6 +401,44 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
   } catch (error) {
     console.error('載入聊天記錄失敗：', error)
     // 失敗時不重置，保持當前狀態
+  }
+}
+
+const loadGroupChatHistory = async (roomId, silent = false) => {
+  try {
+    const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+    if (!currentUid) return
+    const { getGroupChatMessages } = await import('@/api/travelers')
+    const response = await getGroupChatMessages(roomId)
+    const rawMessages = response?.data || []
+    const mappedMessages = rawMessages.map((msg) => ({
+      id: msg.id,
+      type: msg.sender_uid === currentUid ? 'user' : 'friend',
+      content: msg.content,
+      timestamp: msg.created_at,
+      senderName: msg.sender_name || '成員',
+      senderAvatar: msg.sender_avatar || '',
+      senderUid: msg.sender_uid,
+    }))
+
+    messages.value = mappedMessages
+    saveMessagesToStorage(`group-${roomId}`, messages.value)
+
+    const groupRoom = groupChatRooms.value.find((room) => room.id === roomId)
+    if (groupRoom) {
+      groupRoom.lastMessage = mappedMessages.length ? mappedMessages[mappedMessages.length - 1].content : ''
+      groupRoom.lastMessageTime = mappedMessages.length ? '剛剛' : groupRoom.lastMessageTime
+    }
+
+    if (activeChatRoom.value) {
+      activeChatRoom.value.messages = messages.value
+    }
+
+    if (!silent) {
+      console.log('[loadGroupChatHistory] 載入群組聊天記錄:', messages.value.length, '條訊息')
+    }
+  } catch (error) {
+    console.error('載入群組聊天記錄失敗：', error)
   }
 }
 
@@ -607,6 +681,10 @@ const downloadImage = async (imageUrl, fileName = 'image') => {
 
 // 打開文件選擇器
 const openFilePicker = () => {
+  if (isGroupChat.value) {
+    alert('⚠️ 群組聊天室暫不支援傳送圖片。')
+    return
+  }
   if (!isFriendChat.value) {
     alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
     return
@@ -624,6 +702,10 @@ const openFilePicker = () => {
 
 // 處理文件選擇和上傳
 const handleFileSelect = async (event) => {
+  if (isGroupChat.value) {
+    event.target.value = ''
+    return
+  }
   const file = event.target.files?.[0]
   if (!file) return
 
@@ -680,75 +762,55 @@ const handleFileSelect = async (event) => {
       uploadProgress.value = progress
     })
 
-    // 記錄對話次數
-    await incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
+    const optimisticId = Date.now()
+    const timestamp = new Date().toISOString()
+    const imageMessage = {
+      id: optimisticId,
+      type: 'user',
+      content: imageUrl,
+      isImage: true,
+      timestamp,
+    }
 
-    // 保存圖片訊息到資料庫（使用特殊格式標記為圖片訊息）
-    try {
+    messages.value.push(imageMessage)
+
+    const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
+    if (room) {
+      room.lastMessage = '[圖片]'
+      room.lastMessageTime = '剛剛'
+      room.lastMessageTimestamp = new Date(timestamp).getTime()
+      room.messages = messages.value
+    }
+
+    if (activeChatRoom.value) {
+      activeChatRoom.value.messages = messages.value
+    }
+
+    persistChatRooms()
+    saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
+    window.dispatchEvent(new CustomEvent('message-updated'))
+    scrollToBottom()
+
+    emitChatSend({
+      toUid: activeChatRoom.value.uid,
+      content: imageUrl,
+      isImage: true,
+      timestamp,
+      clientId: optimisticId,
+    })
+
+    // 記錄對話次數（背景）
+    incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
+      .catch(() => {})
+
+    // 保存圖片訊息到資料庫（背景）
+    ;(async () => {
       const { saveChatMessage } = await import('@/api/profile')
       const imageMessageText = `[IMAGE]${imageUrl}[/IMAGE]`
-      const savedMessage = await saveChatMessage(currentUid, activeChatRoom.value.uid, imageMessageText)
-
-      // 加入使用者的圖片訊息
-      const imageMessage = {
-        id: savedMessage.message?.id || Date.now(),
-        type: 'user',
-        content: imageUrl,
-        isImage: true,
-        timestamp: savedMessage.message?.created_at || new Date().toISOString()
-      }
-
-      messages.value.push(imageMessage)
-
-      // 更新聊天室的最後訊息
-      const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
-      if (room) {
-        room.lastMessage = '[圖片]'
-        room.lastMessageTime = '剛剛'
-        room.messages = messages.value
-      }
-
-      if (activeChatRoom.value) {
-        activeChatRoom.value.messages = messages.value
-      }
-
-      persistChatRooms()
-      saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
-      window.dispatchEvent(new CustomEvent('message-updated'))
-
-      scrollToBottom()
-    } catch (error) {
+      await saveChatMessage(currentUid, activeChatRoom.value.uid, imageMessageText)
+    })().catch((error) => {
       console.error('保存圖片訊息失敗：', error)
-      const errorMessage = error.message || '未知錯誤'
-      alert(`❌ 保存圖片訊息失敗：${errorMessage}\n\n圖片已顯示在聊天室，但可能無法保存。請檢查網路連線。`)
-
-      // 即使保存失敗，也顯示圖片（但不會持久化）
-      const imageMessage = {
-        id: Date.now(),
-        type: 'user',
-        content: imageUrl,
-        isImage: true,
-        timestamp: new Date().toISOString()
-      }
-
-      messages.value.push(imageMessage)
-
-      const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
-      if (room) {
-        room.lastMessage = '[圖片]'
-        room.lastMessageTime = '剛剛'
-        room.messages = messages.value
-      }
-
-      if (activeChatRoom.value) {
-        activeChatRoom.value.messages = messages.value
-      }
-
-      persistChatRooms()
-      saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
-      window.dispatchEvent(new CustomEvent('message-updated'))
-      scrollToBottom()
-    }
+    })
   } catch (error) {
     console.error('上傳圖片失敗：', error)
     const errorMessage = error.message || '未知錯誤'
@@ -767,8 +829,43 @@ const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text) return
 
+  messageInput.value = ''
+
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !activeChatRoom.value) return
+
+  if (isGroupChat.value) {
+    const optimisticId = Date.now()
+    const timestamp = new Date().toISOString()
+    const userMessage = {
+      id: optimisticId,
+      type: 'user',
+      content: text,
+      timestamp,
+      senderName: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
+      senderAvatar: userStore.currentUser?.avatar || '',
+      senderUid: currentUid,
+    }
+
+    messages.value.push(userMessage)
+    saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
+    window.dispatchEvent(new CustomEvent('message-updated'))
+    scrollToBottom()
+
+    const groupRoom = groupChatRooms.value.find((room) => room.id === activeChatRoom.value.roomId)
+    if (groupRoom) {
+      groupRoom.lastMessage = text
+      groupRoom.lastMessageTime = '剛剛'
+    }
+
+    try {
+      const { sendGroupChatMessage } = await import('@/api/travelers')
+      await sendGroupChatMessage(activeChatRoom.value.roomId, text)
+    } catch (error) {
+      console.error('發送群組訊息失敗：', error)
+    }
+    return
+  }
 
   if (!isFriendChat.value) {
     alert('⚠️ 目前不是好友，無法傳送訊息。')
@@ -781,80 +878,51 @@ const sendMessage = async () => {
     return
   }
 
-  // 1. 先記錄對話次數（發送前更新，確保即時反映）
-  await incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
-
-  // 2. 保存訊息到資料庫
-  try {
-    const { saveChatMessage } = await import('@/api/profile')
-    const savedMessage = await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
-
-    // 3. 加入使用者的訊息（使用資料庫返回的訊息ID）
-    const userMessage = {
-      id: savedMessage.message?.id || Date.now(),
-      type: 'user',
-      content: text,
-      timestamp: savedMessage.message?.created_at || new Date().toISOString()
-    }
-
-    messages.value.push(userMessage)
-
-    // 更新聊天室的最後訊息
-    const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
-    if (room) {
-      room.lastMessage = text
-      room.lastMessageTime = '剛剛'
-      room.messages = messages.value
-    }
-
-    // 保存到 activeChatRoom
-    if (activeChatRoom.value) {
-      activeChatRoom.value.messages = messages.value
-    }
-
-    // 清空輸入框
-    messageInput.value = ''
-
-    persistChatRooms()
-    saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
-    // 觸發訊息更新事件
-    window.dispatchEvent(new CustomEvent('message-updated'))
-
-    scrollToBottom()
-  } catch (error) {
-    console.error('保存訊息失敗：', error)
-    const errorMessage = error.message || '未知錯誤'
-    alert(`❌ 發送訊息失敗：${errorMessage}\n\n訊息已顯示在聊天室，但可能無法保存。請檢查網路連線。`)
-
-    // 即使保存失敗，也顯示訊息（但不會持久化）
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: text,
-      timestamp: new Date().toISOString()
-    }
-
-    messages.value.push(userMessage)
-
-    // 更新聊天室的最後訊息
-    const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
-    if (room) {
-      room.lastMessage = text
-      room.lastMessageTime = '剛剛'
-      room.messages = messages.value
-    }
-
-    if (activeChatRoom.value) {
-      activeChatRoom.value.messages = messages.value
-    }
-
-    messageInput.value = ''
-    persistChatRooms()
-    saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
-    // 觸發訊息更新事件
-    window.dispatchEvent(new CustomEvent('message-updated'))
-    scrollToBottom()
+  const optimisticId = Date.now()
+  const timestamp = new Date().toISOString()
+  const userMessage = {
+    id: optimisticId,
+    type: 'user',
+    content: text,
+    timestamp,
   }
+
+  messages.value.push(userMessage)
+
+  const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
+  if (room) {
+    room.lastMessage = text
+    room.lastMessageTime = '剛剛'
+    room.lastMessageTimestamp = new Date(timestamp).getTime()
+    room.messages = messages.value
+  }
+
+  if (activeChatRoom.value) {
+    activeChatRoom.value.messages = messages.value
+  }
+
+  persistChatRooms()
+  saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
+  window.dispatchEvent(new CustomEvent('message-updated'))
+  scrollToBottom()
+
+  emitChatSend({
+    toUid: activeChatRoom.value.uid,
+    content: text,
+    isImage: false,
+    timestamp,
+    clientId: optimisticId,
+  })
+
+  // 背景記錄對話次數與保存訊息
+  incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
+    .catch(() => {})
+  ;(async () => {
+    const { saveChatMessage } = await import('@/api/profile')
+    await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
+  })().catch((error) => {
+    console.error('保存訊息失敗：', error)
+  })
 }
 
 // 開始輪詢新訊息
@@ -868,6 +936,15 @@ const startMessagePolling = (uid, friendUid) => {
       await loadChatHistory(uid, friendUid, true) // silent = true，不輸出日誌
     }
   }, 3000) // 3 秒輪詢一次
+}
+
+const startGroupMessagePolling = (roomId) => {
+  stopMessagePolling()
+  messagePollingInterval = setInterval(async () => {
+    if (activeChatRoom.value && activeChatRoom.value.roomId === roomId) {
+      await loadGroupChatHistory(roomId, true)
+    }
+  }, 5000)
 }
 
 // 停止輪詢新訊息
@@ -901,6 +978,23 @@ const handleChatRoomClick = async (room) => {
 
     scrollToBottom()
   }
+
+  if (room.type === 'group') {
+    activeChatRoom.value = {
+      type: 'group',
+      uid: room.uid,
+      roomId: room.roomId,
+      name: room.name,
+      avatar: room.avatar,
+      messages: room.messages || [],
+    }
+    const roomKey = `group-${room.roomId}`
+    const localMessages = loadMessagesFromStorage(roomKey)
+    messages.value = localMessages
+    await loadGroupChatHistory(room.roomId)
+    startGroupMessagePolling(room.roomId)
+    scrollToBottom()
+  }
 }
 
 // 返回聊天室列表
@@ -923,6 +1017,16 @@ watch(() => props.openChatWithUser, (newUser) => {
     openOrCreateChatRoom(newUser)
   }
 }, { immediate: true })
+
+watch(
+  () => userStore.currentUser?.uid,
+  (uid) => {
+    if (uid) {
+      loadGroupChatRooms()
+    }
+  },
+  { immediate: true },
+)
 
 watch(() => activeTab.value, (tab) => {
   if (tab === 'friends') {
@@ -1212,18 +1316,79 @@ const handleScroll = () => {
   }
 }
 
+const handleChatReceived = (event) => {
+  const detail = event.detail || {}
+  const fromUid = detail.fromUid
+  const incomingMessage = detail.message
+  if (!fromUid || !incomingMessage) return
+
+  const room = chatRoomsList.value.find(r => r.uid === fromUid) || {
+    uid: fromUid,
+    name: detail.senderName || '未知用戶',
+    nickname: detail.senderName || '',
+    avatar: detail.senderAvatar || '',
+    lastMessage: '',
+    lastMessageTime: '',
+    unreadCount: 0,
+    messages: [],
+  }
+
+  if (!chatRoomsList.value.some(r => r.uid === fromUid)) {
+    chatRoomsList.value.unshift(room)
+  }
+
+  const roomMessages = Array.isArray(room.messages) ? room.messages : []
+  const exists = roomMessages.some(msg => msg.id === incomingMessage.id && msg.timestamp === incomingMessage.timestamp)
+  if (!exists) {
+    roomMessages.push({
+      ...incomingMessage,
+      type: 'friend',
+    })
+  }
+  room.messages = roomMessages
+  room.lastMessage = incomingMessage.isImage ? '傳送了圖片' : (incomingMessage.content || '新訊息')
+  room.lastMessageTime = '剛剛'
+  room.lastMessageTimestamp = new Date(incomingMessage.timestamp || new Date().toISOString()).getTime()
+
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  const isActiveRoom = activeChatRoom.value?.uid === fromUid
+  if (isActiveRoom) {
+    messages.value = roomMessages
+    if (activeChatRoom.value) {
+      activeChatRoom.value.messages = roomMessages
+    }
+    if (currentUid) {
+      const unreadKey = `unread_${currentUid}_${fromUid}`
+      localStorage.setItem(unreadKey, JSON.stringify({
+        lastReadTime: new Date().toISOString(),
+      }))
+    }
+    room.unreadCount = 0
+    scrollToBottom()
+  } else {
+    updateUnreadCount(fromUid, roomMessages)
+  }
+
+  persistChatRooms()
+  saveMessagesToStorage(fromUid, roomMessages)
+  window.dispatchEvent(new CustomEvent('message-updated'))
+}
+
 onMounted(() => {
   loadFriends()
   loadChatRoomsFromStorage()
+  loadGroupChatRooms()
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('resize', handleResize)
   window.addEventListener('scroll', handleScroll, true)
+  window.addEventListener('chat-received', handleChatReceived)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('scroll', handleScroll, true)
+  window.removeEventListener('chat-received', handleChatReceived)
   // 清除輪詢定時器
   stopMessagePolling()
 })
@@ -1245,7 +1410,7 @@ onUnmounted(() => {
           <ArrowLeftIcon class="w-5 h-5" />
         </button>
         <button
-          v-if="activeChatRoom"
+          v-if="activeChatRoom && activeChatRoom.type === 'chat'"
           class="flex-shrink-0"
           @click="goToFriendProfile(activeChatRoom.uid)"
         >
@@ -1267,6 +1432,13 @@ onUnmounted(() => {
             <UserIcon class="w-5 h-5 text-white" />
           </div>
         </button>
+        <div v-else-if="activeChatRoom" class="flex-shrink-0">
+          <div
+            class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center"
+          >
+            <UserIcon class="w-5 h-5 text-white" />
+          </div>
+        </div>
         <div>
           <h3 class="font-bold text-lg">
             {{ activeChatRoom ? activeChatRoom.name : '我的聊天' }}
@@ -1526,6 +1698,87 @@ onUnmounted(() => {
             <SmileIcon class="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+    </template>
+
+    <template v-else-if="activeChatRoom && activeChatRoom.type === 'group'">
+      <!-- 群組訊息列表 -->
+      <div
+        ref="messagesContainer"
+        class="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white via-slate-50 to-slate-100 custom-scrollbar"
+      >
+        <div v-if="messages.length === 0" class="text-center text-gray-400 py-8 text-sm">
+          開始在 {{ activeChatRoom.name }} 群組聊天
+        </div>
+        <div
+          v-for="msg in messages"
+          :key="msg.id"
+          class="flex items-end gap-2"
+          :class="{ 'justify-end': msg.type === 'user' }"
+        >
+          <div
+            v-if="msg.type !== 'user'"
+            class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 border-2 border-white/80 shadow-sm overflow-hidden"
+          >
+            <img
+              v-if="msg.senderAvatar && !avatarErrors[`group-${msg.senderUid}`]"
+              :src="msg.senderAvatar"
+              :alt="msg.senderName"
+              class="w-full h-full object-cover"
+              @error="avatarErrors[`group-${msg.senderUid}`] = true"
+            />
+            <UserIcon v-else class="w-5 h-5 text-white" />
+          </div>
+
+          <div
+            class="p-3 shadow-sm max-w-[80%] text-sm font-medium"
+            :class="[
+              msg.type === 'user'
+                ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm border border-primary-700/60 shadow-lg shadow-primary-900/10'
+                : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border border-secondary-100 shadow-sm',
+            ]"
+          >
+            <div v-if="msg.type !== 'user'" class="text-[10px] text-gray-500 mb-1">
+              {{ msg.senderName }}
+            </div>
+            <span>{{ msg.content }}</span>
+          </div>
+
+          <div
+            v-if="msg.type === 'user'"
+            class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 border-2 border-white/80 shadow-sm overflow-hidden"
+          >
+            <img
+              v-if="userStore.currentUser && userStore.currentUser.avatar && !avatarErrors['current-user']"
+              :src="userStore.currentUser.avatar"
+              :alt="userStore.currentUser.name || userStore.currentUser.nickname"
+              class="w-full h-full object-cover"
+              @error="avatarErrors['current-user'] = true"
+            />
+            <UserIcon v-else class="w-5 h-5 text-gray-600" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 群組輸入框 -->
+      <div class="p-4 border-t border-secondary-200 bg-white/90">
+        <form class="flex items-center space-x-2" @submit.prevent="sendMessage">
+          <div class="relative flex-1">
+            <input
+              v-model="messageInput"
+              type="text"
+              placeholder="輸入群組訊息..."
+              class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400"
+            />
+          </div>
+          <button
+            type="submit"
+            :disabled="isUploadingFile"
+            class="p-2.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border border-primary-700/70 shadow-md active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <SendIcon class="w-5 h-5" />
+          </button>
+        </form>
       </div>
     </template>
 

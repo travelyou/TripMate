@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { auth } from '@/firebase/config'
 import { getChatMessages } from '@/api/profile'
+import { API_BASE_URL } from '@/api/config'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -58,14 +59,12 @@ const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 const unreadMessageCount = ref(0) // 未讀訊息總數
 const swipeReminderActive = ref(false)
-const incomingMessageToast = ref({
-  visible: false,
-  avatar: '',
-  name: '',
-  content: '',
-})
+const incomingMessageToasts = ref([])
 let incomingToastTimer = null
 let chatSyncTimer = null
+let chatSocket = null
+let chatSocketUid = null
+let chatSocketReconnectTimer = null
 const isChatSyncing = ref(false)
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10)
@@ -158,6 +157,141 @@ const getUnreadCountForRoom = (currentUid, friendUid, mappedMessages) => {
     }
     return count
   }, 0)
+}
+
+const getChatSocketUrl = () => {
+  const base = API_BASE_URL.replace(/\/api\/?$/, '')
+  try {
+    const url = new URL(base)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    url.pathname = '/ws'
+    url.search = ''
+    return url.toString()
+  } catch (error) {
+    console.warn('無法解析 WS URL:', error)
+    return ''
+  }
+}
+
+const disconnectChatSocket = () => {
+  if (chatSocketReconnectTimer) {
+    clearTimeout(chatSocketReconnectTimer)
+    chatSocketReconnectTimer = null
+  }
+  if (chatSocket) {
+    chatSocket.close()
+    chatSocket = null
+  }
+  chatSocketUid = null
+}
+
+const connectChatSocket = (uid) => {
+  if (!uid) return
+  if (chatSocket && chatSocketUid === uid) return
+  disconnectChatSocket()
+  const wsUrl = getChatSocketUrl()
+  if (!wsUrl) return
+  chatSocketUid = uid
+  chatSocket = new WebSocket(`${wsUrl}?uid=${encodeURIComponent(uid)}`)
+  chatSocket.onopen = () => {
+    try {
+      chatSocket.send(JSON.stringify({ type: 'register', uid }))
+    } catch (error) {
+      console.warn('WS 註冊失敗:', error)
+    }
+  }
+  chatSocket.onmessage = (event) => {
+    if (!event?.data) return
+    let data = null
+    try {
+      data = JSON.parse(event.data)
+    } catch {
+      return
+    }
+    if (!data || typeof data !== 'object') return
+    if (data.type === 'chat_message') {
+      handleIncomingChatMessage(data)
+    }
+  }
+  chatSocket.onclose = () => {
+    if (chatSocketUid === uid) {
+      chatSocketReconnectTimer = setTimeout(() => {
+        connectChatSocket(uid)
+      }, 2000)
+    }
+  }
+  chatSocket.onerror = () => {
+    if (chatSocket) {
+      chatSocket.close()
+    }
+  }
+}
+
+const sendChatSocketMessage = (payload) => {
+  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) return false
+  try {
+    chatSocket.send(JSON.stringify(payload))
+    return true
+  } catch (error) {
+    console.warn('WS 傳送失敗:', error)
+    return false
+  }
+}
+
+const handleIncomingChatMessage = (payload) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const fromUid = payload.fromUid
+  if (!fromUid) return
+  const mappedMessage = {
+    id: payload.clientId || payload.id || Date.now(),
+    type: 'friend',
+    content: payload.content || '',
+    isImage: Boolean(payload.isImage),
+    timestamp: payload.timestamp || new Date().toISOString(),
+  }
+  const rooms = loadChatRoomsFromStorage(currentUid)
+  let room = rooms.find(r => r.uid === fromUid)
+  if (!room) {
+    room = {
+      uid: fromUid,
+      name: payload.senderName || '未知用戶',
+      nickname: payload.senderName || '',
+      avatar: payload.senderAvatar || '',
+      lastMessage: '',
+      lastMessageTime: '',
+      unreadCount: 0,
+      messages: [],
+    }
+    rooms.unshift(room)
+  }
+  const storedMessages = Array.isArray(room.messages) ? room.messages : []
+  storedMessages.push(mappedMessage)
+  room.messages = storedMessages
+  const preview = mappedMessage.isImage ? '傳送了圖片' : mappedMessage.content
+  room.lastMessage = preview || room.lastMessage || '新訊息'
+  room.lastMessageTime = '剛剛'
+  room.lastMessageTimestamp = new Date(mappedMessage.timestamp).getTime()
+  room.unreadCount = getUnreadCountForRoom(currentUid, fromUid, storedMessages)
+  saveChatMessagesToStorage(currentUid, fromUid, storedMessages)
+  saveChatRoomsToStorage(currentUid, rooms)
+  window.dispatchEvent(new CustomEvent('message-updated'))
+  window.dispatchEvent(new CustomEvent('incoming-message', {
+    detail: {
+      uid: fromUid,
+      name: room.name || '新訊息',
+      avatar: room.avatar || '',
+      content: room.lastMessage,
+    },
+  }))
+  window.dispatchEvent(new CustomEvent('chat-received', {
+    detail: {
+      fromUid,
+      message: mappedMessage,
+      senderName: payload.senderName || '',
+      senderAvatar: payload.senderAvatar || '',
+    },
+  }))
 }
 
 const syncChatRoomsInBackground = async () => {
@@ -415,18 +549,53 @@ const calculateSwipeReminder = () => {
 
 const handleIncomingMessage = (event) => {
   const detail = event.detail || {}
-  incomingMessageToast.value = {
-    visible: true,
+  const toastId = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  incomingMessageToasts.value.push({
+    id: toastId,
     avatar: detail.avatar || '',
     name: detail.name || '新訊息',
     content: detail.content || '',
-  }
-  if (incomingToastTimer) {
-    clearTimeout(incomingToastTimer)
-  }
-  incomingToastTimer = setTimeout(() => {
-    incomingMessageToast.value.visible = false
+    uid: detail.uid || '',
+  })
+  setTimeout(() => {
+    incomingMessageToasts.value = incomingMessageToasts.value.filter((t) => t.id !== toastId)
   }, 10000)
+}
+
+const handleIncomingToastClick = (toast) => {
+  if (!toast?.uid) return
+  window.dispatchEvent(
+    new CustomEvent('open-chat', {
+      detail: {
+        user: {
+          uid: toast.uid,
+          name: toast.name,
+          nickname: toast.name,
+          avatar: toast.avatar,
+        },
+      },
+    }),
+  )
+  incomingMessageToasts.value = incomingMessageToasts.value.filter((t) => t.id !== toast.id)
+}
+
+const handleChatSend = (event) => {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const detail = event.detail || {}
+  const toUid = detail.toUid
+  if (!toUid) return
+  sendChatSocketMessage({
+    type: 'chat_message',
+    fromUid: currentUid,
+    toUid,
+    content: detail.content || '',
+    isImage: Boolean(detail.isImage),
+    timestamp: detail.timestamp || new Date().toISOString(),
+    clientId: detail.clientId || null,
+    senderName: userStore.currentUser?.name || userStore.currentUser?.nickname || '',
+    senderAvatar: userStore.currentUser?.avatar || '',
+  })
 }
 
 // 監聽訊息變化
@@ -447,10 +616,15 @@ onMounted(() => {
   window.addEventListener('friends-viewed', saveFriendSnapshot)
   window.addEventListener('swipe-opened', calculateSwipeReminder)
   window.addEventListener('incoming-message', handleIncomingMessage)
+  window.addEventListener('chat-send', handleChatSend)
   // 初始計算未讀訊息
   calculateUnreadCount()
   calculateSwipeReminder()
   syncChatRoomsInBackground()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (currentUid) {
+    connectChatSocket(currentUid)
+  }
   // 定期檢查未讀訊息（每5秒）
   const interval = setInterval(() => {
     calculateUnreadCount()
@@ -469,6 +643,7 @@ onUnmounted(() => {
   window.removeEventListener('friends-viewed', saveFriendSnapshot)
   window.removeEventListener('swipe-opened', calculateSwipeReminder)
   window.removeEventListener('incoming-message', handleIncomingMessage)
+  window.removeEventListener('chat-send', handleChatSend)
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
@@ -477,11 +652,24 @@ onUnmounted(() => {
     clearInterval(chatSyncTimer)
     chatSyncTimer = null
   }
+  disconnectChatSocket()
   if (incomingToastTimer) {
     clearTimeout(incomingToastTimer)
     incomingToastTimer = null
   }
 })
+
+watch(
+  () => userStore.currentUser?.uid || userStore.currentUser?.id,
+  (uid) => {
+    if (!uid) {
+      disconnectChatSocket()
+      return
+    }
+    connectChatSocket(uid)
+  },
+  { immediate: true },
+)
 
 // 監聽聊天視窗打開/關閉，更新未讀計數
 watch(() => isPrivateChatOpen.value, (isOpen) => {
@@ -647,23 +835,28 @@ const handleSubmitPost = async (postData) => {
         />
       </div>
       <div
-        v-if="incomingMessageToast.visible"
-        class="fixed bottom-24 right-4 z-[60] max-w-[90vw] sm:max-w-sm bg-white border border-gray-200 rounded-2xl shadow-xl p-3 flex items-center gap-3"
+        v-for="(toast, idx) in incomingMessageToasts"
+        :key="toast.id"
+        class="fixed right-4 z-[60] max-w-[90vw] sm:max-w-sm bg-blue-600 text-white border border-blue-700 rounded-2xl shadow-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-blue-700 transition"
+        :style="{ bottom: `${96 + idx * 76}px` }"
+        @click="handleIncomingToastClick(toast)"
       >
-        <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+        <div
+          class="w-11 h-11 rounded-full bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0"
+        >
           <img
-            v-if="incomingMessageToast.avatar"
-            :src="incomingMessageToast.avatar"
-            :alt="incomingMessageToast.name"
+            v-if="toast.avatar"
+            :src="toast.avatar"
+            :alt="toast.name"
             class="w-full h-full object-cover"
           />
-          <span v-else class="text-sm font-bold text-gray-600">
-            {{ incomingMessageToast.name.slice(0, 1) }}
+          <span v-else class="text-base font-bold text-white">
+            {{ toast.name.slice(0, 1) }}
           </span>
         </div>
         <div class="min-w-0">
-          <div class="text-sm font-bold text-gray-800 truncate">{{ incomingMessageToast.name }}</div>
-          <div class="text-xs text-gray-600 truncate">{{ incomingMessageToast.content }}</div>
+          <div class="text-base font-bold truncate">{{ toast.name }}</div>
+          <div class="text-sm text-white/90 truncate">{{ toast.content }}</div>
         </div>
       </div>
     </div>

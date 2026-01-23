@@ -8,7 +8,7 @@ import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
 import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
-import { getTravelers } from '@/api/travelers'
+import { getTravelers, getTravelerById } from '@/api/travelers'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 
@@ -151,23 +151,35 @@ const handleTravelerUpdated = () => {
   loadTravelers(false)
 }
 
-const handleCardEdit = (traveler) => {
-  // 將traveler資料轉換為draftData格式
+const handleCardEdit = async (traveler) => {
+  // 編輯時改用完整資料，避免行程/打包清單遺失
+  let source = traveler
+  try {
+    const response = await getTravelerById(traveler.id)
+    if (response?.success && response.data) {
+      source = response.data
+    }
+  } catch (error) {
+    console.error('取得旅伴完整資料失敗，改用列表資料：', error)
+  }
+
   selectedDraft.value = {
     type: 'traveler',
     data: {
-      category: traveler.category || '',
-      title: traveler.title || '',
-      content: traveler.content || '',
-      location: traveler.location || '',
-      start_date: traveler.start_date || '',
-      end_date: traveler.end_date || '',
-      max_people: traveler.max_people || traveler.people?.split('/')[1] || 2,
-      tags: traveler.tags || [],
-      banner_image: traveler.image || '',
-      itinerary: traveler.itinerary || { days: [] },
-      packingList: traveler.packingList || [],
-    }
+      category: source.category || '',
+      title: source.title || '',
+      content: source.content || '',
+      location: source.location || '',
+      start_date: source.start_date || '',
+      end_date: source.end_date || '',
+      max_people: source.max_people || source.people?.split('/')[1] || 2,
+      tags: source.tags || [],
+      banner_image: source.image || source.banner_image || '',
+      banner_position_y: source.banner_position_y,
+      itinerary: source.itinerary || { days: [] },
+      packingList: source.packingList || [],
+      status: source.status || '招募中',
+    },
   }
   isPostingModalOpen.value = true
 }

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 import { API_BASE_URL } from './config'
 
@@ -151,6 +152,31 @@ export const getGroupChatRooms = async () => {
     console.error('獲取群組聊天室列表失敗：', error)
     throw error
   }
+}
+
+export const getGroupChatMessages = async (roomId) => {
+  const userStore = useUserStore()
+  if (!userStore.currentUser?.uid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.get(`${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/messages`, {
+    params: { user_uid: userStore.currentUser.uid },
+  })
+  return response.data
+}
+
+export const sendGroupChatMessage = async (roomId, content) => {
+  const userStore = useUserStore()
+  if (!userStore.currentUser?.uid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.post(`${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/messages`, {
+    user_uid: userStore.currentUser.uid,
+    sender_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
+    sender_avatar: userStore.currentUser?.avatar || null,
+    content,
+  })
+  return response.data
 }
 
 export const rejectApplication = async (travelerId, applicationId) => {

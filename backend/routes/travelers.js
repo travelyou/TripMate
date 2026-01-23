@@ -269,6 +269,24 @@ const ensureGroupChatRoomsTable = async () => {
   )
 }
 
+const ensureGroupChatMessagesTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS public.group_chat_messages (
+      id SERIAL PRIMARY KEY,
+      room_id INTEGER NOT NULL REFERENCES public.group_chat_rooms(id) ON DELETE CASCADE,
+      sender_uid VARCHAR(255) NOT NULL,
+      sender_name VARCHAR(255),
+      sender_avatar TEXT,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_group_chat_messages_room_id
+     ON public.group_chat_messages(room_id, created_at)`,
+  )
+}
+
 // 提交报名
 router.post('/:id/applications', async (req, res) => {
   try {
@@ -391,8 +409,10 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
 
     // 验证是否为作者
     const travelerResult = await client.query(
-      `SELECT author_uid, title FROM travelers.travelers WHERE id = $1 AND deleted_at IS NULL`,
-      [id]
+      `SELECT author_uid, title, max_people, status
+       FROM travelers.travelers
+       WHERE id = $1 AND deleted_at IS NULL`,
+      [id],
     )
 
     if (travelerResult.rows.length === 0) {
@@ -421,6 +441,26 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
     }
 
     const application = updateResult.rows[0]
+
+    const maxPeopleNum = Number(traveler.max_people) || 2
+    const acceptedCountResult = await client.query(
+      `SELECT COUNT(*)::int AS count
+       FROM travelers.traveler_applications
+       WHERE traveler_id = $1 AND status = 'accepted'`,
+      [id],
+    )
+    const acceptedCount = acceptedCountResult.rows[0]?.count || 0
+    const currentPeople = Math.max(1, acceptedCount + 1)
+    const shouldFull = currentPeople >= maxPeopleNum
+
+    await client.query(
+      `UPDATE travelers.travelers
+       SET current_people = $1,
+           status = CASE WHEN $2 THEN '已額滿' ELSE status END,
+           updated_at = NOW()
+       WHERE id = $3 AND deleted_at IS NULL`,
+      [currentPeople, shouldFull, id],
+    )
 
     // 检查是否已存在群组聊天室
     let roomResult = await client.query(
@@ -523,6 +563,88 @@ router.get('/group-chat-rooms', async (req, res) => {
   } catch (error) {
     console.error('獲取群組聊天室列表失敗:', error)
     res.status(500).json({ success: false, message: '獲取群組聊天室列表失敗', error: error.message })
+  }
+})
+
+// 獲取群組聊天記錄
+router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+    await ensureGroupChatMessagesTable()
+
+    const { roomId } = req.params
+    const { user_uid } = req.query
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+
+    const roomIdNum = Number(roomId)
+    if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+      return res.status(400).json({ success: false, message: 'roomId 格式錯誤' })
+    }
+
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM public.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
+      [roomIdNum, user_uid],
+    )
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ success: false, message: '非群組成員，無法查看訊息' })
+    }
+
+    const messagesResult = await pool.query(
+      `SELECT id, sender_uid, sender_name, sender_avatar, content, created_at
+       FROM public.group_chat_messages
+       WHERE room_id = $1
+       ORDER BY created_at ASC`,
+      [roomIdNum],
+    )
+
+    res.json({ success: true, data: messagesResult.rows })
+  } catch (error) {
+    console.error('獲取群組聊天記錄失敗：', error)
+    res.status(500).json({ success: false, message: '獲取群組聊天記錄失敗', error: error.message })
+  }
+})
+
+// 發送群組訊息
+router.post('/group-chat-rooms/:roomId/messages', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+    await ensureGroupChatMessagesTable()
+
+    const { roomId } = req.params
+    const { user_uid, content, sender_name, sender_avatar } = req.body
+    if (!user_uid || !content || !content.trim()) {
+      return res.status(400).json({ success: false, message: '缺少必填欄位' })
+    }
+    if (content.length > 500) {
+      return res.status(400).json({ success: false, message: '訊息長度不能超過500字' })
+    }
+
+    const roomIdNum = Number(roomId)
+    if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+      return res.status(400).json({ success: false, message: 'roomId 格式錯誤' })
+    }
+
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM public.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
+      [roomIdNum, user_uid],
+    )
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ success: false, message: '非群組成員，無法發送訊息' })
+    }
+
+    const insertResult = await pool.query(
+      `INSERT INTO public.group_chat_messages (room_id, sender_uid, sender_name, sender_avatar, content)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, sender_uid, sender_name, sender_avatar, content, created_at`,
+      [roomIdNum, user_uid, sender_name || null, sender_avatar || null, content.trim()],
+    )
+
+    res.json({ success: true, data: insertResult.rows[0] })
+  } catch (error) {
+    console.error('發送群組訊息失敗：', error)
+    res.status(500).json({ success: false, message: '發送群組訊息失敗', error: error.message })
   }
 })
 
@@ -772,6 +894,7 @@ router.post('/', async (req, res) => {
         'category',
         'start_date',
         'end_date',
+        'current_people',
         'max_people',
         'author_uid',
         'author_name',
@@ -789,6 +912,7 @@ router.post('/', async (req, res) => {
         category,
         start_date,
         end_date,
+        1,
         maxPeopleNum,
         author_uid,
         author_name || null,

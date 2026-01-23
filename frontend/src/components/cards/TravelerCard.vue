@@ -82,12 +82,46 @@ const previewContent = computed(() => {
   return tempDiv.textContent || tempDiv.innerText || ''
 })
 
+const isExpired = computed(() => {
+  if (!props.traveler.end_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const endDate = new Date(props.traveler.end_date)
+  endDate.setHours(0, 0, 0, 0)
+  return endDate < today
+})
+
+const isFull = computed(() => {
+  const currentFromField = Number(props.traveler.current_people)
+  const maxFromField = Number(props.traveler.max_people)
+  if (!Number.isNaN(currentFromField) && !Number.isNaN(maxFromField) && maxFromField > 0) {
+    return currentFromField >= maxFromField
+  }
+  if (props.traveler.people) {
+    const [currentStr, maxStr] = String(props.traveler.people).split('/')
+    const current = Number(currentStr)
+    const max = Number(maxStr)
+    if (!Number.isNaN(current) && !Number.isNaN(max) && max > 0) {
+      return current >= max
+    }
+  }
+  return false
+})
+
+const displayStatus = computed(() => {
+  if (isExpired.value) return '已成行'
+  if (isFull.value) return '已額滿'
+  return props.traveler.status || '招募中'
+})
+
 const getStatusClasses = (status) => {
   switch (status) {
     case '招募中':
       return 'bg-primary-600 text-white'
     case '已額滿':
       return 'bg-primary-700 text-white'
+    case '已成行':
+      return 'bg-secondary-600 text-white'
     case '已出發':
       return 'bg-secondary-500 text-white'
     default:
@@ -102,6 +136,10 @@ const isAuthor = computed(() => {
 
 const handleApply = (e) => {
   e.stopPropagation()
+
+  if (displayStatus.value === '已額滿' || displayStatus.value === '已成行') {
+    return
+  }
 
   if (!currentUserUid.value) {
     alert('請先登入後才能報名')
@@ -214,16 +252,16 @@ onUnmounted(() => {
       </div>
 
       <div
-        :class="getStatusClasses(traveler.status)"
+        :class="getStatusClasses(displayStatus)"
         class="absolute top-0 right-0 z-10 rounded-tr-xl rounded-bl-xl border-b-2 border-l-2 border-primary-200 px-3 py-1 text-xs font-bold shadow-primary-sm"
       >
-        {{ traveler.status }}
+        {{ displayStatus }}
       </div>
 
       <!-- 三點選單按鈕 -->
       <div
         class="absolute top-2 right-2 post-menu-container z-30"
-        :style="{ top: traveler.status ? '3.5rem' : '0.5rem' }"
+        :style="{ top: displayStatus ? '3.5rem' : '0.5rem' }"
       >
         <button
           class="rounded-full bg-black/20 p-2 text-white backdrop-blur-sm transition hover:bg-white/80 hover:text-gray-700"
@@ -437,14 +475,16 @@ onUnmounted(() => {
 
                 <button
                   v-if="!isAuthor"
-                  :disabled="traveler.status === '已額滿'"
+                  :disabled="displayStatus === '已額滿' || displayStatus === '已成行'"
                   :class="
-                    traveler.status === '已額滿'
+                    displayStatus === '已額滿' || displayStatus === '已成行'
                       ? 'cursor-not-allowed bg-white/20 text-white/60'
                       : 'bg-white text-primary-700 hover:bg-white/90'
                   "
                   class="relative z-30 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
-                  @click.stop="traveler.status !== '已額滿' && handleApply($event)"
+                  @click.stop="
+                    displayStatus !== '已額滿' && displayStatus !== '已成行' && handleApply($event)
+                  "
                 >
                   私訊報名
                 </button>
