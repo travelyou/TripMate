@@ -40,6 +40,7 @@ const newComment = ref('')
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const contentContainerRef = ref(null)
+const activeSection = ref('content')
 const localComments = ref([])
 const localPostData = ref({ ...props.post })
 
@@ -82,11 +83,13 @@ const processedContent = computed(() => {
 })
 
 const scrollToTop = () => {
+  activeSection.value = 'content'
   contentContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // 滑動到留言區
 const scrollToCommentsSection = () => {
+  activeSection.value = 'comments'
   commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -271,8 +274,32 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
+        <button
+          :class="[
+            'bg-tag-amber text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeSection === 'content' ? '-translate-y-1' : '',
+          ]"
+          title="回到內文"
+          @click="scrollToTop"
+        >
+          <FileTextIcon class="w-4 h-4" />
+          內文
+        </button>
+        <button
+          :class="[
+            'bg-tag-blue text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeSection === 'comments' ? '-translate-y-1' : '',
+          ]"
+          title="跳轉至留言區"
+          @click="scrollToCommentsSection"
+        >
+          <MessageCircleIcon class="w-4 h-4" />
+          留言區
+        </button>
+      </div>
       <button
-        class="absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
@@ -285,7 +312,7 @@ onMounted(async () => {
       </button>
 
       <button
-        class="absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >

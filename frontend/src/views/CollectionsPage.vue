@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { Bookmark, FolderOpen, Plus, Trash2 } from 'lucide-vue-next'
+import { showConfirm, showPrompt } from '@/utils/alert'
 
 // 引入卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
@@ -14,8 +15,8 @@ const userStore = useUserStore()
 const activeCategoryId = ref('all')
 
 // --- 動作：新增分類 ---
-const createNewCategory = () => {
-  const name = window.prompt('請輸入新分類名稱：')
+const createNewCategory = async () => {
+  const name = await showPrompt('請輸入新分類名稱：')
   if (name) {
     userStore.createCategoryAndSave(name)
     const newCat = userStore.collectionCategories[userStore.collectionCategories.length - 1]
@@ -24,12 +25,13 @@ const createNewCategory = () => {
 }
 
 // --- 動作：刪除目前分類 ---
-const deleteCurrentCategory = () => {
+const deleteCurrentCategory = async () => {
   // 保護預設分類不被刪除
   const protectedIds = ['all', 'default', 'domestic', 'international']
   if (protectedIds.includes(activeCategoryId.value)) return
 
-  if (confirm('確定要刪除這個分類嗎？裡面的收藏會變回「未分類」狀態。')) {
+  const confirmed = await showConfirm('確定要刪除這個分類嗎？裡面的收藏會變回「未分類」狀態。')
+  if (confirmed) {
     const index = userStore.collectionCategories.findIndex((c) => c.id === activeCategoryId.value)
     if (index > -1) {
       userStore.collectionCategories.splice(index, 1)
@@ -39,8 +41,9 @@ const deleteCurrentCategory = () => {
 }
 
 // --- 動作：從分類中移除項目 ---
-const removeItem = (item) => {
-  if (confirm('確定要取消收藏嗎？')) {
+const removeItem = async (item) => {
+  const confirmed = await showConfirm('確定要取消收藏嗎？')
+  if (confirmed) {
     const targetCatId = activeCategoryId.value === 'all' ? null : activeCategoryId.value
     userStore.removeFromCollection(item, targetCatId)
   }

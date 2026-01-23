@@ -5,6 +5,7 @@ import SubButton from './SubButton.vue'
 import TourInfoBlock from './TourInfoBlock.vue'
 import { checkoutStore } from '@/stores/checkout'
 import { useRouter, useRoute } from 'vue-router'
+import { showAlert } from '@/utils/alert'
 
 const router = useRouter()
 const route = useRoute()
@@ -15,7 +16,7 @@ const agree = computed({
   set: (v) => (checkoutStore.agree = v),
 })
 
-// ✅ 進 step3 時也確保購物車資料存在（後端為準）
+// 進 step3 時也確保購物車資料存在（後端為準）
 // 並支援 itineraryId query（防止 refresh/直連丟狀態）
 onMounted(async () => {
   const itineraryId = Number(route.query.itineraryId)
@@ -31,14 +32,14 @@ onMounted(async () => {
 
 async function nextStep() {
   if (!agree.value) {
-    window.alert('請先勾選：我已閱讀並同意服務條款及隱私權政策，並確認以上資料皆正確無誤')
+    showAlert('請先勾選：我已閱讀並同意服務條款及隱私權政策，並確認以上資料皆正確無誤')
     return
   }
 
   // ✅ 後端為準：用 cartSelectedTour（不要用 selectedTour 相容層）
   const tour = checkoutStore.cartSelectedTour
   if (!tour) {
-    window.alert('找不到要結帳的行程，請回購物車重新選擇')
+    showAlert('找不到要結帳的行程，請回購物車重新選擇')
     router.replace('/cart')
     return
   }
@@ -54,7 +55,7 @@ async function nextStep() {
     router.push(`/checkout/step4?orderId=${orderId}`)
   } catch (e) {
     console.error('[Step3 submit order] failed:', e)
-    window.alert(e?.message || '送出訂單失敗')
+    showAlert(e?.message || '送出訂單失敗')
   } finally {
     submitting.value = false
   }

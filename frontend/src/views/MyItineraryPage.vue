@@ -8,6 +8,7 @@ import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.v
 import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
 import FeaturedItineraryTab from '@/components/itinerary-tabs/FeaturedItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
+import { showAlert, showConfirm } from '@/utils/alert'
 
 const myItineraryStore = useMyItineraryStore()
 const route = useRoute()
@@ -61,7 +62,7 @@ const openDraft = (draft) => {
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
     isDetailModalOpen.value = true
   } else {
-    alert(
+    showAlert(
       `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
     )
   }
@@ -96,8 +97,9 @@ const handleSaveItinerary = (updatedItinerary) => {
   isDetailModalOpen.value = false
 }
 
-const handleDeleteItinerary = (id) => {
-  if (confirm('確定要刪除這個行程嗎？')) {
+const handleDeleteItinerary = async (id) => {
+  const confirmed = await showConfirm('確定要刪除這個行程嗎？')
+  if (confirmed) {
     myItineraryStore.deleteItinerary(id)
     isDetailModalOpen.value = false
   }
