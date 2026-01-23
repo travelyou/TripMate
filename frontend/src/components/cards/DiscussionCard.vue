@@ -152,11 +152,11 @@ const handleEdit = (e) => {
 const handleDelete = async (e) => {
   e.stopPropagation()
   closeMenu()
-  
+
   if (!confirm('確定要刪除此貼文嗎？')) {
     return
   }
-  
+
   try {
     await deletePost(props.post.id)
     emit('delete', props.post)
@@ -172,7 +172,7 @@ const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/discussion#post-${props.post.id}`
+    const url = `${window.location.origin}/discussion?postId=${props.post.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
@@ -223,7 +223,7 @@ onUnmounted(() => {
       >
         <MoreVertical class="w-5 h-5" />
       </button>
-      
+
       <!-- 菜单下拉 -->
       <div
         v-if="showMenu"
@@ -272,7 +272,7 @@ onUnmounted(() => {
       />
       <div>
         <div class="flex items-center space-x-2">
-          <span 
+          <span
             class="font-bold text-gray-800 cursor-pointer hover:text-primary-600 transition"
             @click="handleAvatarClick"
           >{{ post.author }}</span>

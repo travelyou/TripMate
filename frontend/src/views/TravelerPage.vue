@@ -266,7 +266,13 @@ const tryOpenDraft = () => {
 }
 
 const tryOpenSharedTraveler = async () => {
-  const travelerId = route.query.travelerId
+  let travelerId = route.query.travelerId
+  if (!travelerId && route.hash) {
+    const match = route.hash.match(/^#traveler-(.+)$/)
+    if (match?.[1]) {
+      travelerId = match[1]
+    }
+  }
   if (!travelerId) return
   setAppLoading(true)
   try {
@@ -275,7 +281,7 @@ const tryOpenSharedTraveler = async () => {
       selectedTraveler.value = response.data
       shouldScrollToComments.value = false
       isDetailModalOpen.value = true
-      router.replace({ path: '/travelers', query: {} })
+      router.replace({ path: '/travelers', query: {}, hash: '' })
     }
   } catch (error) {
     console.error('開啟分享旅伴失敗：', error)

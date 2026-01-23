@@ -200,7 +200,7 @@ const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/travelers#traveler-${props.traveler.id}`
+    const url = `${window.location.origin}/travelers?travelerId=${props.traveler.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {

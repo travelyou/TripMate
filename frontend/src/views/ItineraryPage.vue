@@ -67,7 +67,13 @@ const closeDetailModal = () => {
 }
 
 const tryOpenSharedItinerary = async () => {
-  const itineraryId = route.query.itineraryId
+  let itineraryId = route.query.itineraryId
+  if (!itineraryId && route.hash) {
+    const match = route.hash.match(/^#itinerary-(.+)$/)
+    if (match?.[1]) {
+      itineraryId = match[1]
+    }
+  }
   if (!itineraryId) return
   setAppLoading(true)
   try {
@@ -75,7 +81,7 @@ const tryOpenSharedItinerary = async () => {
     const itinerary = response?.data || response
     if (itinerary) {
       openDetailModal(itinerary, false)
-      router.replace({ path: '/featured-itinerary', query: {} })
+      router.replace({ path: '/featured-itinerary', query: {}, hash: '' })
     }
   } catch (error) {
     console.error('開啟分享行程失敗：', error)

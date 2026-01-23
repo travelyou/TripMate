@@ -275,14 +275,20 @@ const tryOpenDraft = () => {
 }
 
 const tryOpenSharedPost = async () => {
-  const postId = route.query.postId
+  let postId = route.query.postId
+  if (!postId && route.hash) {
+    const match = route.hash.match(/^#post-(.+)$/)
+    if (match?.[1]) {
+      postId = match[1]
+    }
+  }
   if (!postId) return
   setAppLoading(true)
   try {
     const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
     if (existing) {
       openDiscussionDetailModal(existing, false)
-      router.replace({ path: '/discussion', query: {} })
+      router.replace({ path: '/discussion', query: {}, hash: '' })
       return
     }
 
@@ -290,7 +296,7 @@ const tryOpenSharedPost = async () => {
     const post = await fetchPostById(postId)
     if (post) {
       openDiscussionDetailModal(post, false)
-      router.replace({ path: '/discussion', query: {} })
+      router.replace({ path: '/discussion', query: {}, hash: '' })
     }
   } catch (error) {
     console.error('開啟分享貼文失敗：', error)

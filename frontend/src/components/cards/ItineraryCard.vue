@@ -191,7 +191,7 @@ const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/featured-itinerary#itinerary-${props.itinerary.id}`
+    const url = `${window.location.origin}/featured-itinerary?itineraryId=${props.itinerary.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
