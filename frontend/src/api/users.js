@@ -37,7 +37,7 @@ function normalizeUserData(data) {
         ? data.is_matching_enabled
         : typeof data.isMatchingEnabled === 'boolean'
           ? data.isMatchingEnabled
-          : undefined,
+          : true,
 
     stats: data.stats || {
       followers: 0,

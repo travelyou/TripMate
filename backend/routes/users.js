@@ -9,12 +9,15 @@ router.post('/', async (req, res) => {
   // ... (保留你原本的 POST 邏輯)
   try {
     // 簡單範例，請保留你原本的完整代碼
-    const { uid, email } = req.body
+    const { uid, email, is_matching_enabled } = req.body
     if (!uid || !email) return res.status(400).json({ error: 'Missing fields' })
     const existing = await pool.query('SELECT * FROM users WHERE uid=$1', [uid])
     if (existing.rows.length > 0) res.json(existing.rows[0])
     else {
-      await pool.query('INSERT INTO users (uid, email) VALUES ($1, $2)', [uid, email])
+      await pool.query(
+        'INSERT INTO users (uid, email, is_matching_enabled) VALUES ($1, $2, COALESCE($3, true))',
+        [uid, email, is_matching_enabled],
+      )
       res.status(201).json({ uid, email })
     }
   } catch (e) {

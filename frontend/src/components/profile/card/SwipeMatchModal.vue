@@ -292,6 +292,11 @@ const loadCandidates = async (uid, state = swipeState.value) => {
     if (seq !== loadSeq.value) return
     const rejections = state?.rejections || {}
     const cutoff = Date.now() - REAPPEAR_MS
+    const myWishlist = Array.isArray(userStore.wishlist)
+      ? userStore.wishlist
+      : Array.isArray(userStore.currentUser?.wishlist)
+        ? userStore.currentUser.wishlist
+        : []
 
     const filtered = allUsers
       .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
@@ -301,10 +306,26 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         const rejectedAt = Number(rejections[userId])
         return !rejectedAt || rejectedAt < cutoff
       })
+      .filter((user) => (user.is_matching_enabled ?? true) === true)
       .map(mapUserToCandidate)
 
     if (seq !== loadSeq.value) return
-    candidates.value = shuffle(filtered)
+    if (myWishlist.length) {
+      const preferred = []
+      const normal = []
+      filtered.forEach((card) => {
+        const overlap = (card.wishlist || []).filter((w) => myWishlist.includes(w)).length
+        if (overlap > 0) {
+          preferred.push({ card, overlap })
+        } else {
+          normal.push(card)
+        }
+      })
+      preferred.sort((a, b) => b.overlap - a.overlap)
+      candidates.value = [...preferred.map((p) => p.card), ...shuffle(normal)]
+    } else {
+      candidates.value = shuffle(filtered)
+    }
     currentIndex.value = 0
   } catch (error) {
     console.error('[SwipeMatch] 載入用戶列表失敗', error)
