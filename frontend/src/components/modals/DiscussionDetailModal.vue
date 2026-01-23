@@ -13,7 +13,7 @@ import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
-import { createComment } from '@/api/comments'
+import { createComment, toggleCommentLike as toggleCommentLikeApi } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
@@ -246,11 +246,29 @@ const submitComment = async () => {
   }
 }
 
-const toggleCommentLike = (item) => {
-  if (typeof item.likes !== 'number') item.likes = 0
-  if (item.isLiked) item.likes--
-  else item.likes++
-  item.isLiked = !item.isLiked
+const toggleCommentLike = async (item) => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+  const originalLikes = typeof item.likes === 'number' ? item.likes : 0
+  const wasLiked = !!item.isLiked
+  const nextLiked = !wasLiked
+  const delta = nextLiked ? 1 : -1
+
+  item.isLiked = nextLiked
+  item.likes = Math.max(originalLikes + delta, 0)
+
+  try {
+    const result = await toggleCommentLikeApi(item.id, nextLiked ? 'like' : 'unlike')
+    if (typeof result?.likesCount === 'number') {
+      item.likes = result.likesCount
+    }
+  } catch (error) {
+    item.isLiked = wasLiked
+    item.likes = originalLikes
+    alert('留言按讚失敗，請稍後再試')
+  }
 }
 
 const startReply = async (comment) => {

@@ -197,4 +197,38 @@ router.delete('/comments/:id', async (req, res) => {
   }
 })
 
+// POST /api/comments/:id/likes - 留言按讚/取消按讚（僅更新 likes_count）
+router.post('/comments/:id/likes', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { action } = req.body || {}
+    const commentIdNum = Number(id)
+
+    if (!Number.isInteger(commentIdNum) || commentIdNum <= 0) {
+      return res.status(400).json({ error: '留言 ID 格式錯誤', details: 'id 必須是正整數' })
+    }
+
+    if (action !== 'like' && action !== 'unlike') {
+      return res.status(400).json({ error: 'action 格式錯誤', details: "action 必須是 'like' 或 'unlike'" })
+    }
+
+    const delta = action === 'like' ? 1 : -1
+    const updateQuery = `
+      UPDATE public.comments
+      SET likes_count = GREATEST(COALESCE(likes_count, 0) + $2, 0)
+      WHERE id = $1 AND deleted_at IS NULL
+      RETURNING likes_count
+    `
+    const updateResult = await pool.query(updateQuery, [commentIdNum, delta])
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: '留言不存在' })
+    }
+
+    res.json({ likesCount: Number(updateResult.rows[0].likes_count) || 0 })
+  } catch (error) {
+    res.status(500).json({ error: '更新留言按讚失敗', details: error?.message || String(error) })
+  }
+})
+
 module.exports = router
