@@ -39,8 +39,6 @@ const displayPrice = computed(() => {
         </div>
         <div class="space-y-2">
           <h1 class="text-lg font-bold sm:text-xl">{{ tour.title }}</h1>
-          <p class="text-sm">{{ tour.description }}</p>
-
           <div class="text-sm mt-3 flex flex-col xl:gap-5 xl:flex-row">
             <p>行程日期：{{ tour.date }}</p>
             <p>人數：{{ tour.persons }} 人</p>
