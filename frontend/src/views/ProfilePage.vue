@@ -214,6 +214,11 @@ const handleTravelerOpenApplications = (traveler) => {
   isTravelerApplicationsModalOpen.value = true
 }
 
+const handlePostEdit = (post) => {
+  if (!post?.id) return
+  router.push({ name: 'discussion', query: { editPost: post.id } })
+}
+
 const handleTravelerEdit = async (traveler) => {
   let source = traveler
   try {
@@ -1154,6 +1159,7 @@ onMounted(() => {
               :posts="activeTabsData.posts"
               @open-detail="openDetail($event, false)"
               @open-comment="openDetail($event, true)"
+              @edit="handlePostEdit"
             />
 
             <TabReviews

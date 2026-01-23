@@ -141,6 +141,11 @@ const closeTravelerDetailModal = () => {
   selectedTraveler.value = null
 }
 
+const handleDiscussionEdit = (post) => {
+  if (!post?.id) return
+  router.push({ name: 'discussion', query: { editPost: post.id } })
+}
+
 const handleTravelerOpenApply = (traveler) => {
   selectedTraveler.value = traveler
   isTravelerApplyModalOpen.value = true
@@ -155,7 +160,7 @@ const isShareModalOpen = ref(false)
 const shareLink = ref('')
 
 const openShareModal = (postId) => {
-  shareLink.value = `https://tripmate.com/post/${postId}`
+  shareLink.value = `${window.location.origin}/discussion?postId=${postId}`
   isShareModalOpen.value = true
 }
 
@@ -356,6 +361,7 @@ const getFirstTag = (item) => {
             @click="openDiscussionDetailModal(post, false)"
             @comment="openDiscussionDetailModal(post, true)"
             @share="openShareModal(post.id)"
+            @edit="handleDiscussionEdit"
           />
         </div>
       </div>

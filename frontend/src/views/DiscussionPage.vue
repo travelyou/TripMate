@@ -131,6 +131,10 @@ onMounted(async () => {
   }
   // 檢查是否有草稿需要打開
   tryOpenDraft()
+  // 檢查是否需要開啟編輯
+  tryOpenEditPost()
+  // 檢查是否有分享連結需要開啟
+  tryOpenSharedPost()
 })
 
 onUnmounted(() => {
@@ -142,6 +146,22 @@ watch(() => route.query.openDraft, (newDraftId) => {
   if (newDraftId) {
     nextTick(() => {
       tryOpenDraft()
+    })
+  }
+})
+
+watch(() => route.query.postId, (newPostId) => {
+  if (newPostId) {
+    nextTick(() => {
+      tryOpenSharedPost()
+    })
+  }
+})
+
+watch(() => route.query.editPost, (newPostId) => {
+  if (newPostId) {
+    nextTick(() => {
+      tryOpenEditPost()
     })
   }
 })
@@ -199,7 +219,7 @@ const handlePostModalClose = () => {
 }
 
 const openShareModal = (postId) => {
-  shareLink.value = `/post/${postId}`
+  shareLink.value = `${window.location.origin}/discussion?postId=${postId}`
   isShareModalOpen.value = true
 }
 
@@ -236,6 +256,44 @@ const tryOpenDraft = () => {
         router.replace({ path: '/discussion', query: {} })
       })
     }
+  }
+}
+
+const tryOpenSharedPost = async () => {
+  const postId = route.query.postId
+  if (!postId) return
+  try {
+    const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
+    if (existing) {
+      openDiscussionDetailModal(existing, false)
+      router.replace({ path: '/discussion', query: {} })
+      return
+    }
+
+    const { fetchPostById } = await import('@/api/discussions')
+    const post = await fetchPostById(postId)
+    if (post) {
+      openDiscussionDetailModal(post, false)
+      router.replace({ path: '/discussion', query: {} })
+    }
+  } catch (error) {
+    console.error('開啟分享貼文失敗：', error)
+  }
+}
+
+const tryOpenEditPost = async () => {
+  const postId = route.query.editPost
+  if (!postId) return
+  try {
+    const { fetchPostById } = await import('@/api/discussions')
+    const post = await fetchPostById(postId)
+    if (post) {
+      postToEdit.value = post
+      isPostingModalOpen.value = true
+      router.replace({ path: '/discussion', query: {} })
+    }
+  } catch (error) {
+    console.error('開啟編輯貼文失敗：', error)
   }
 }
 </script>
