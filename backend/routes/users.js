@@ -387,16 +387,6 @@ router.put('/:uid', async (req, res) => {
     const { uid } = req.params
     let { nickname, location, avatar, bio, spirit_animal, tags, email } = req.body
 
-    console.log(`[PUT /users/${uid}] 收到更新請求:`, {
-      nickname,
-      location,
-      avatar: avatar ? `${avatar.substring(0, 50)}...` : avatar,
-      bio,
-      spirit_animal,
-      tags,
-      email
-    })
-
     if (bio === '') bio = null
     if (spirit_animal === '') spirit_animal = null
 
@@ -423,39 +413,37 @@ router.put('/:uid', async (req, res) => {
     const params = [uid]
     let paramIndex = 2
 
-    setClauses.push(`nickname = COALESCE($${paramIndex}, nickname)`)
-    params.push(nickname)
-    paramIndex++
-
-    setClauses.push(`location = COALESCE($${paramIndex}, location, '台灣')`)
-    params.push(location)
-    paramIndex++
-
-    // 確保 avatar 能正確更新（如果提供了值，即使是空字符串也要更新）
-    if (avatar !== undefined) {
-      // 如果 avatar 是空字符串，轉為 null
-      const avatarValue = (avatar === '' || avatar === null) ? null : avatar
-      setClauses.push(`avatar = $${paramIndex}`)
-      params.push(avatarValue)
-      console.log(`[PUT /users/${uid}] 更新 avatar:`, avatarValue ? `${avatarValue.substring(0, 50)}...` : 'null')
-    } else {
-      // 如果沒有提供 avatar，保持原值
-      setClauses.push(`avatar = avatar`)
+    const addParam = (clause, value) => {
+      setClauses.push(clause.replace('{param}', `$${paramIndex}`))
+      params.push(value)
+      paramIndex++
     }
-    paramIndex++
 
-    setClauses.push(`bio = COALESCE($${paramIndex}, bio)`)
-    params.push(bio)
-    paramIndex++
+    if (nickname !== undefined) {
+      addParam('nickname = COALESCE({param}::text, nickname)', nickname)
+    }
 
-    setClauses.push(`spirit_animal = COALESCE($${paramIndex}, spirit_animal)`)
-    params.push(spirit_animal)
-    paramIndex++
+    if (location !== undefined) {
+      addParam("location = COALESCE({param}::text, location, '台灣')", location)
+    }
 
-    const tagsValue = Array.isArray(tags) ? tags : tags ? [tags] : []
-    setClauses.push(`tags = $${paramIndex}`)
-    params.push(tagsValue)
-    paramIndex++
+    if (avatar !== undefined) {
+      const avatarValue = avatar === '' || avatar === null ? null : avatar
+      addParam('avatar = {param}::text', avatarValue)
+    }
+
+    if (bio !== undefined) {
+      addParam('bio = COALESCE({param}::text, bio)', bio)
+    }
+
+    if (spirit_animal !== undefined) {
+      addParam('spirit_animal = COALESCE({param}::text, spirit_animal)', spirit_animal)
+    }
+
+    if (tags !== undefined) {
+      const tagsValue = Array.isArray(tags) ? tags : tags ? [tags] : []
+      addParam('tags = {param}::text[]', tagsValue)
+    }
 
     setClauses.push('updated_at = CURRENT_TIMESTAMP')
 
@@ -467,17 +455,7 @@ router.put('/:uid', async (req, res) => {
     `
     const queryParams = params
 
-    console.log(`[PUT /users/${uid}] 執行 SQL 更新:`, {
-      query: updateQuery.substring(0, 200) + '...',
-      paramsCount: queryParams.length
-    })
-
     const result = await pool.query(updateQuery, queryParams)
-
-    console.log(`[PUT /users/${uid}] 更新結果:`, {
-      rowsAffected: result.rows.length,
-      updatedAvatar: result.rows[0]?.avatar ? `${result.rows[0].avatar.substring(0, 50)}...` : result.rows[0]?.avatar
-    })
 
     if (result.rows.length === 0) {
       if (!email) {
