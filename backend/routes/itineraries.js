@@ -147,7 +147,6 @@ router.post('/', authenticate, async (req, res) => {
 
     await client.query('BEGIN')
 
-    // 注意：這裡假設資料庫 author_uid 欄位是對應 Firebase 的 UID
     const insertItineraryQuery = `
       INSERT INTO itinerary.itineraries
       (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, author_uid, status, created_at)

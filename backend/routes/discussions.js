@@ -31,9 +31,6 @@ router.get('/', async (req, res) => {
     console.log('🔵 [Backend GET / Step 2] WHERE 子句:', whereClause)
     console.log('🔵 [Backend GET / Step 2] 查詢參數:', queryParams)
 
-    // 查詢討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
-    // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar（Firebase Storage URL）
-    // 注意：d.author_avatar 在 COALESCE 中引用，即使不在 SELECT 列表中也可以使用
     const discussionsQuery = `
       SELECT
         d.id,
@@ -77,13 +74,13 @@ router.get('/', async (req, res) => {
     let countQuery = 'SELECT COUNT(*) FROM discussion.discussion WHERE deleted_at IS NULL'
     let countParams = []
     let countParamIndex = 1
-    
+
     if (author_uid) {
       countQuery += ` AND author_uid = $${countParamIndex}`
       countParams.push(author_uid)
       countParamIndex++
     }
-    
+
     if (category && category !== '全部') {
       countQuery += ` AND category = $${countParamIndex}`
       countParams.push(category)
@@ -293,7 +290,7 @@ router.get('/:id', async (req, res) => {
 
     // 獲取留言，JOIN users 表獲取最新用戶資訊
     const commentsResult = await pool.query(
-      `SELECT 
+      `SELECT
         c.*,
         COALESCE(u.nickname, c.author_name) as author_nickname,
         COALESCE(u.avatar, c.author_avatar) as author_avatar,

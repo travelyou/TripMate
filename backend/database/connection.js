@@ -101,8 +101,6 @@ async function createPool() {
     console.log('連接字符串來源:', process.env.DB_URL ? 'DB_URL' : 'DATABASE_URL')
 
     try {
-      // 注意：Neon 連接池不支持在連接字符串中使用 options 參數
-      // 我們將在連接建立後通過 SET search_path 命令設置
       const poolConfig = {
         connectionString: connectionString,
         ssl: {
