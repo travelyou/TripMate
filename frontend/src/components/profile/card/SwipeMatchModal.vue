@@ -367,7 +367,7 @@ watch(
     ></div>
 
     <div
-      class="relative w-full max-w-sm h-[650px] max-h-[calc(100dvh-2rem)] flex flex-col perspective-1000"
+      class="relative w-full max-w-md h-[90vh] max-h-[calc(100dvh-2rem)] flex flex-col perspective-1000"
     >
       <div
         v-if="isLimitReached"
@@ -484,86 +484,91 @@ watch(
         <Transition name="slide-up">
           <div
             v-if="isDetailOpen"
-            class="absolute inset-0 bg-white z-50 overflow-y-auto detail-scrollbar flex flex-col"
+            class="absolute inset-0 bg-white z-50 flex flex-col"
             @mousedown.stop
             @touchstart.stop
           >
-            <div class="relative h-[45%] shrink-0 bg-gray-100">
-              <img
-                :src="currentCard.image"
-                :alt="currentCard.name"
-                class="w-full h-full object-cover"
-              />
-              <div
-                class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"
-              ></div>
-
-              <button
-                class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white text-primary-700 border-2 border-primary backdrop-blur-md flex items-center justify-center hover:bg-primary-50 transition z-50 shadow-primary-sm"
-                @click="closeDetail"
-              >
-                <ChevronDownIcon class="w-6 h-6" />
-              </button>
-
-              <div class="absolute bottom-0 left-0 p-6 w-full">
-                <h2 class="text-3xl font-black text-secondary-900 mb-1">
-                  {{ currentCard.name }}, {{ currentCard.age }}
-                </h2>
-                <div class="flex items-center text-secondary-600 font-bold text-sm">
-                  <MapPinIcon class="w-4 h-4 mr-1" /> {{ currentCard.location }}
-                </div>
-              </div>
-            </div>
-
-            <div class="p-6 pt-2 space-y-8 pb-32">
-              <section>
-                <h3 class="section-title">關於我</h3>
-                <p class="text-gray-700 leading-relaxed font-medium">{{ currentCard.bio }}</p>
-              </section>
-
-              <section v-if="currentCard.wishlist && currentCard.wishlist.length">
-                <h3 class="section-title flex items-center">
-                  <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 也想去的地方 (許願球池)
-                </h3>
-                <div
-                  class="h-48 rounded-2xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
-                >
-                  <WishBallPool :wishlist="currentCard.wishlist" />
-                </div>
-              </section>
-
-              <section v-if="currentCard.tags && currentCard.tags.length">
-                <h3 class="section-title flex items-center">
-                  <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 喜歡的活動
-                </h3>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="act in currentCard.tags"
-                    :key="act"
-                    class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
-                  >
-                    {{ act }}
-                  </span>
-                </div>
-              </section>
-
-              <section v-if="currentCard.gallery && currentCard.gallery.length">
-                <h3 class="section-title flex items-center">
-                  <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
-                </h3>
-                <div class="grid grid-cols-2 gap-2">
+            <div class="overflow-y-auto flex-1 bg-gray-50 detail-scrollbar">
+              <div class="bg-white pb-10 min-h-full">
+                <div class="relative h-96 w-full overflow-hidden bg-gray-200">
+                  <img :src="currentCard.image" :alt="currentCard.name" class="w-full h-full object-cover" />
                   <div
-                    v-for="(photo, idx) in currentCard.gallery"
-                    :key="photo"
-                    class="aspect-square rounded-xl overflow-hidden bg-gray-200"
+                    class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
+                  ></div>
+                  <button
+                    class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-secondary-600 border border-white/80 backdrop-blur-md flex items-center justify-center hover:bg-white transition z-50 shadow-sm"
+                    @click="$emit('close')"
                   >
-                    <img
-                      :src="photo"
-                      class="w-full h-full object-cover hover:scale-110 transition duration-500"
-                    />
+                    <XIcon class="w-5 h-5" />
+                  </button>
+
+                  <div class="absolute bottom-0 left-0 p-6 text-white w-full">
+                    <h2 class="text-3xl font-black mb-1 flex items-end gap-2 drop-shadow-md">
+                      {{ currentCard.name }}
+                      <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
+                    </h2>
+                    <div class="flex items-center text-sm font-bold opacity-90">
+                      <MapPinIcon class="w-4 h-4 mr-1 text-primary-200" /> {{ currentCard.location }}
+                    </div>
                   </div>
                 </div>
-              </section>
+
+                <div class="p-6 space-y-8">
+                  <section>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                      關於我
+                    </h3>
+                    <p class="text-gray-700 leading-relaxed text-base">{{ currentCard.bio }}</p>
+                  </section>
+
+                  <section v-if="currentCard.wishlist && currentCard.wishlist.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
+                    </h3>
+                    <div
+                      class="h-48 rounded-2xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
+                    >
+                      <WishBallPool :wishlist="currentCard.wishlist" />
+                    </div>
+                  </section>
+
+                  <section v-if="currentCard.tags && currentCard.tags.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 旅行風格
+                    </h3>
+                    <div class="flex flex-wrap gap-2">
+                      <span
+                        v-for="act in currentCard.tags"
+                        :key="act"
+                        class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
+                      >
+                        #{{ act }}
+                      </span>
+                    </div>
+                  </section>
+
+                  <section v-if="currentCard.gallery && currentCard.gallery.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
+                    </h3>
+                    <div class="grid grid-cols-3 gap-2">
+                      <div
+                        v-for="(photo, idx) in currentCard.gallery"
+                        :key="photo || idx"
+                        class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                      >
+                        <img :src="photo" class="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
             </div>
 
             <div
