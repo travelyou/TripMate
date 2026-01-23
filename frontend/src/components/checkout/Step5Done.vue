@@ -32,8 +32,23 @@ const paymentMethodText = computed(() => {
 })
 
 const paymentStatusText = computed(() => {
-  // 以 payment 狀態為主，沒有就退回訂單狀態
-  return payment.value?.status ?? order.value?.status ?? 'UNKNOWN'
+  const status = payment.value?.status ?? order.value?.status ?? 'UNKNOWN'
+  switch (status) {
+    case 'PAID':
+      return '已付款'
+    case 'PENDING':
+      return '未付款'
+    case 'CANCELLED':
+      return '已取消'
+    case 'REFUNDED':
+      return '已退款'
+    case 'FAILED':
+      return '付款失敗'
+    case 'INIT':
+      return '付款處理中'
+    default:
+      return '未知'
+  }
 })
 
 // TourInfoBlock 要的 shape

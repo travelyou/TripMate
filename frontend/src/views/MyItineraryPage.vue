@@ -6,7 +6,6 @@ import { Briefcase as BriefcaseIcon } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.vue'
 import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
-import FeaturedItineraryTab from '@/components/itinerary-tabs/FeaturedItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
 import { showAlert, showConfirm } from '@/utils/alert'
 
@@ -15,8 +14,7 @@ const route = useRoute()
 const router = useRouter()
 
 // 使用 storeToRefs 拿資料，這樣資料變動時畫面才會跟著變
-const { myItineraries, drafts, featuredItineraries, partnerItineraries } =
-  storeToRefs(myItineraryStore)
+const { myItineraries, drafts, partnerItineraries } = storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
@@ -24,7 +22,6 @@ const activeTab = ref('my')
 
 const tabs = [
   { id: 'my', label: '我的行程' },
-  { id: 'featured', label: '精選行程' },
   { id: 'partner', label: '找旅伴' },
 ]
 
@@ -116,14 +113,6 @@ const tryOpenDraft = () => {
   }
 }
 
-const handleFeaturedRate = ({ id, rating, comment }) => {
-  myItineraryStore.updateFeaturedRating({ id, rating, comment })
-}
-
-const handleFeaturedClear = (id) => {
-  myItineraryStore.clearFeaturedRating(id)
-}
-
 const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
   myItineraryStore.updatePartnerItinerary({ id, comment, reviewLabel })
 }
@@ -156,7 +145,7 @@ watch(
 
       <!-- 標籤頁籤容器 -->
       <div class="p-4 space-y-4">
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-2 gap-4">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -179,12 +168,6 @@ watch(
             :itineraries="myItineraries"
             @open="openItineraryDetail"
             @add="openAddItineraryModal"
-          />
-          <FeaturedItineraryTab
-            v-if="activeTab === 'featured'"
-            :itineraries="featuredItineraries"
-            @rate="handleFeaturedRate"
-            @clear="handleFeaturedClear"
           />
           <FindPartnerTab
             v-if="activeTab === 'partner'"

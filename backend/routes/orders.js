@@ -1,6 +1,9 @@
-const express = require('express')
+﻿const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection') // 你們 connection.js export 的 pool
+const { authenticate } = require('../middleware/auth')
+
+router.use(authenticate)
 
 function generateOrderNo() {
   const now = new Date()
@@ -106,7 +109,7 @@ router.post('/from-cart', async (req, res) => {
 
     // 4) 建立訂單
     const orderNo = generateOrderNo()
-    const userUid = null // 之後接登入再改
+    const userUid = req.user?.uid || null
 
     const orderIns = await client.query(
       `INSERT INTO commerce.orders
@@ -214,7 +217,7 @@ router.post('/', async (req, res) => {
     const orderNo = generateOrderNo()
 
     // 若尚未接登入，先存 null；之後可以換成 Firebase uid
-    const userUid = null
+    const userUid = req.user?.uid || null
 
     const insert = await pool.query(
       `INSERT INTO commerce.orders
@@ -255,6 +258,92 @@ router.post('/', async (req, res) => {
   }
 })
 
+/**
+ * GET /api/orders
+ * query: userUid?, limit?
+ */
+router.get('/', async (req, res) => {
+  try {
+    const { userUid: userUidQuery } = req.query || {}
+    const userUid = req.user?.uid || userUidQuery
+    const limitRaw = Number(req.query?.limit)
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50
+
+    const params = []
+    let whereSql = ''
+    if (userUid) {
+      params.push(userUid)
+      whereSql = `WHERE o.user_uid = $1`
+    }
+
+    params.push(limit)
+    const limitIndex = params.length
+
+    const q = await pool.query(
+      `SELECT
+        o.id,
+        o.order_no,
+        o.status,
+        o.amount,
+        o.unit_price,
+        o.persons,
+        o.itinerary_id,
+        o.created_at,
+        i.title,
+        i.start_date,
+        i.end_date,
+        i.location,
+        i.banner_image,
+        p.provider AS payment_provider,
+        p.method AS payment_method,
+        p.payer_meta AS payment_meta
+      FROM commerce.orders o
+      JOIN itinerary.itineraries i ON i.id = o.itinerary_id
+      LEFT JOIN LATERAL (
+        SELECT provider, method, status, created_at, payer_meta
+        FROM commerce.payments
+        WHERE order_id = o.id
+        ORDER BY
+          CASE status
+            WHEN 'PAID' THEN 1
+            ELSE 2
+          END,
+          created_at DESC
+        LIMIT 1
+      ) p ON true
+      ${whereSql}
+      ORDER BY o.created_at DESC
+      LIMIT $${limitIndex}`,
+      params,
+    )
+
+    const orders = q.rows.map((row) => ({
+      id: row.id,
+      orderNo: row.order_no,
+      status: row.status,
+      amount: Number(row.amount),
+      unitPrice: Number(row.unit_price),
+      persons: Number(row.persons),
+      itineraryId: row.itinerary_id,
+      createdAt: row.created_at,
+      itinerary: {
+        id: row.itinerary_id,
+        title: row.title,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        location: row.location,
+        bannerImage: row.banner_image,
+      },
+      paymentMethod: row.payment_method || row.payment_provider || null,
+      paymentMeta: row.payment_meta || null,
+    }))
+
+    return res.json({ ok: true, orders })
+  } catch (err) {
+    console.error('[GET /api/orders] error:', err)
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+  }
+})
 /**
  * GET /api/orders/:id
  * 用途：前端 Step5 Done 查詢訂單狀態/金額/行程資訊
@@ -348,3 +437,4 @@ router.get('/:id', async (req, res) => {
 })
 
 module.exports = router
+
