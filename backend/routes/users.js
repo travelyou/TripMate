@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
       SELECT
         uid, email, nickname, real_name, avatar, role, vendor_id, created_at,
         location, bio, spirit_animal, tags,
-        card_bio, card_photo, card_tags, gallery
+        card_bio, card_photo, card_tags, gallery, is_matching_enabled
       FROM users
     `
     const params = []
@@ -89,13 +89,12 @@ router.put('/:uid', async (req, res) => {
       card_photo,
       card_tags,
       gallery, // [NEW] 接收 gallery
+      is_matching_enabled,
     } = req.body
 
     if (bio === '') bio = null
     if (spirit_animal === '') spirit_animal = null
-    if (!location) location = '台灣'
-
-    tags = Array.isArray(tags) ? tags : []
+    if (location === '') location = null
 
     const setClauses = []
     const params = [uid]
@@ -115,9 +114,10 @@ router.put('/:uid', async (req, res) => {
     addUpdate('bio', bio)
     addUpdate('spirit_animal', spirit_animal)
 
-    if (tags !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(req.body, 'tags')) {
+      const val = Array.isArray(tags) ? tags : []
       setClauses.push(`tags = $${paramIndex}`)
-      params.push(tags)
+      params.push(val)
       paramIndex++
     }
 
@@ -144,6 +144,12 @@ router.put('/:uid', async (req, res) => {
       const val = Array.isArray(gallery) ? gallery : []
       setClauses.push(`gallery = $${paramIndex}`)
       params.push(val)
+      paramIndex++
+    }
+
+    if (is_matching_enabled !== undefined) {
+      setClauses.push(`is_matching_enabled = $${paramIndex}`)
+      params.push(is_matching_enabled)
       paramIndex++
     }
 

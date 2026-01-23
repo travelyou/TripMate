@@ -29,6 +29,11 @@ export const useUserStore = defineStore('user', () => {
     tags: [],
     reviews: [],
     friends: [],
+    card_bio: '',
+    card_tags: [],
+    card_photo: '',
+    gallery: [],
+    is_matching_enabled: true,
   })
 
   const visitedPlaces = ref({
@@ -314,6 +319,28 @@ export const useUserStore = defineStore('user', () => {
         spiritAnimal: profileData.spiritAnimal !== undefined ? profileData.spiritAnimal : currentUser.value.spiritAnimal,
         vendorId: profileData.vendorId || null,
         tags: profileData.tags !== undefined ? (Array.isArray(profileData.tags) ? profileData.tags : []) : (currentUser.value.tags || []),
+        card_bio:
+          profileData.card_bio !== undefined ? profileData.card_bio : currentUser.value.card_bio,
+        card_tags:
+          profileData.card_tags !== undefined
+            ? Array.isArray(profileData.card_tags)
+              ? profileData.card_tags
+              : []
+            : currentUser.value.card_tags || [],
+        card_photo:
+          profileData.card_photo !== undefined
+            ? profileData.card_photo
+            : currentUser.value.card_photo,
+        gallery:
+          profileData.gallery !== undefined
+            ? Array.isArray(profileData.gallery)
+              ? profileData.gallery
+              : []
+            : currentUser.value.gallery || [],
+        is_matching_enabled:
+          profileData.is_matching_enabled !== undefined
+            ? profileData.is_matching_enabled
+            : currentUser.value.is_matching_enabled,
       }
     }
   }
@@ -338,6 +365,12 @@ export const useUserStore = defineStore('user', () => {
           spiritAnimal: neonUserData.spirit_animal || '',
           role: neonUserData.role || 'user',
           vendorId: neonUserData.vendor_id || null,
+          tags: neonUserData.tags,
+          card_bio: neonUserData.card_bio,
+          card_tags: neonUserData.card_tags,
+          card_photo: neonUserData.card_photo,
+          gallery: neonUserData.gallery,
+          is_matching_enabled: neonUserData.is_matching_enabled,
         })
         return
         }

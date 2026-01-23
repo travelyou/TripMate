@@ -20,6 +20,10 @@ const props = defineProps({
   isOpen: Boolean,
   user: Object,
   isMatchingEnabled: Boolean,
+  wishlist: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['close', 'toggle-matching', 'save'])
@@ -106,7 +110,7 @@ const cardPreview = computed(() => {
     image: displayPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${props.user.uid}`,
     bio: displayBio,
     // [重點] 強制連動 user.wishlist (唯讀)
-    wishlist: props.user.wishlist || [],
+    wishlist: props.wishlist?.length ? props.wishlist : props.user.wishlist || [],
     tags: displayTags,
   }
 })

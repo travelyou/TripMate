@@ -30,6 +30,13 @@ function normalizeUserData(data) {
     card_bio: data.card_bio || '',
     card_photo: data.card_photo || '',
     card_tags: Array.isArray(data.card_tags) ? data.card_tags : [],
+    gallery: Array.isArray(data.gallery) ? data.gallery : [],
+    is_matching_enabled:
+      typeof data.is_matching_enabled === 'boolean'
+        ? data.is_matching_enabled
+        : typeof data.isMatchingEnabled === 'boolean'
+          ? data.isMatchingEnabled
+          : undefined,
 
     stats: data.stats || {
       followers: 0,

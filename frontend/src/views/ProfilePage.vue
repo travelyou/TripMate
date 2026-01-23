@@ -461,6 +461,7 @@ onMounted(() => {
       v-if="isCurrentUser"
       :is-open="isCardSettingsOpen"
       :user="user"
+      :wishlist="displayWishlist"
       :is-matching-enabled="isMatchingEnabled"
       @close="isCardSettingsOpen = false"
       @toggle-matching="handleToggleMatching"
