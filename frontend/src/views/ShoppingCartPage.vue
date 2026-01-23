@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 onMounted(() => {
-  // ✅ 購物車永遠以後端為準：每次進來都抓一次
+  // 購物車永遠以後端為準：每次進來都抓一次
   checkoutStore.loadCartFromDb()
 })
 
@@ -201,10 +201,10 @@ function goToFeatured() {
               <!-- radio/圖/資料 -->
               <div class="flex flex-col gap-5 sm:flex-row">
                 <input
+                  :id="`tour-${tour.id}`"
                   v-model="selectedTourId"
                   type="radio"
                   name="tour"
-                  :id="`tour-${tour.id}`"
                   :value="tour.id"
                   class="sr-only peer"
                 />
@@ -222,7 +222,6 @@ function goToFeatured() {
                 <div class="flex flex-col justify-between">
                   <div>
                     <h1 class="font-bold">{{ tour.title }}</h1>
-                    <p class="text-sm text-gray-500 line-clamp-2">{{ tour.description }}</p>
                   </div>
                   <div class="flex gap-5 mt-5">
                     <p class="text-sm text-gray-500">{{ tour.date }}</p>
