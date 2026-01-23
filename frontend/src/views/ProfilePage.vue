@@ -10,6 +10,8 @@ import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firest
 // Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
+import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -93,6 +95,8 @@ const tabs = computed(() => {
 
 const isDetailModalOpen = ref(false)
 const isTravelerDetailModalOpen = ref(false)
+const isTravelerApplyModalOpen = ref(false)
+const isTravelerApplicationsModalOpen = ref(false)
 const selectedPost = ref(null)
 const selectedTraveler = ref(null)
 const shouldScrollToComments = ref(false)
@@ -193,6 +197,16 @@ const handleFriendChat = (friend) => {
   if (chatUser.uid) {
     window.dispatchEvent(new CustomEvent('open-chat', { detail: { user: chatUser } }))
   }
+}
+
+const handleTravelerOpenApply = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplyModalOpen.value = true
+}
+
+const handleTravelerOpenApplications = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplicationsModalOpen.value = true
 }
 
 const handleOpenFriendProfile = (friend) => {
@@ -616,7 +630,7 @@ const handleAvatarCrop = async (croppedFile) => {
         const userDocRef = doc(db, 'users', currentUser.uid)
         console.log('📄 Firestore 文檔引用:', userDocRef.path)
         console.log('📄 Firestore 文檔 ID:', userDocRef.id)
-        
+
         const userDoc = await getDoc(userDocRef)
         console.log('📄 文檔存在狀態:', userDoc.exists())
 
@@ -628,7 +642,7 @@ const handleAvatarCrop = async (croppedFile) => {
             updatedAt: serverTimestamp()
           })
           console.log('✅ Firebase Firestore 個人資料更新成功')
-          
+
           // 驗證更新是否成功
           const updatedDoc = await getDoc(userDocRef)
           if (updatedDoc.exists()) {
@@ -652,7 +666,7 @@ const handleAvatarCrop = async (croppedFile) => {
             updatedAt: serverTimestamp()
           })
           console.log('✅ Firebase Firestore 個人資料創建成功')
-          
+
           // 驗證創建是否成功
           const createdDoc = await getDoc(userDocRef)
           if (createdDoc.exists()) {
@@ -1138,6 +1152,20 @@ onMounted(() => {
       :traveler="selectedTraveler"
       :scroll-to-comments="shouldScrollToComments"
       @close="isTravelerDetailModalOpen = false"
+      @open-apply="handleTravelerOpenApply"
+      @open-applications="handleTravelerOpenApplications"
+    />
+
+    <TravelerApplyModal
+      v-if="isTravelerApplyModalOpen"
+      :traveler="selectedTraveler"
+      @close="isTravelerApplyModalOpen = false"
+    />
+
+    <TravelerApplicationsModal
+      v-if="isTravelerApplicationsModalOpen"
+      :traveler="selectedTraveler"
+      @close="isTravelerApplicationsModalOpen = false"
     />
 
     <PersonalityResultModal

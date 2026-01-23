@@ -1,6 +1,8 @@
 <script setup>
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
+import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -88,6 +90,8 @@ const shouldScrollToComments = ref(false)
 
 // --- 旅伴 Modal 狀態 ---
 const isTravelerModalOpen = ref(false)
+const isTravelerApplyModalOpen = ref(false)
+const isTravelerApplicationsModalOpen = ref(false)
 const selectedTraveler = ref(null)
 
 const scroll = (direction) => {
@@ -135,6 +139,16 @@ const openTravelerDetailModal = (traveler) => {
 const closeTravelerDetailModal = () => {
   isTravelerModalOpen.value = false
   selectedTraveler.value = null
+}
+
+const handleTravelerOpenApply = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplyModalOpen.value = true
+}
+
+const handleTravelerOpenApplications = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplicationsModalOpen.value = true
 }
 
 const isShareModalOpen = ref(false)
@@ -359,6 +373,20 @@ const getFirstTag = (item) => {
     v-if="isTravelerModalOpen"
     :traveler="selectedTraveler"
     @close="closeTravelerDetailModal"
+    @open-apply="handleTravelerOpenApply"
+    @open-applications="handleTravelerOpenApplications"
+  />
+
+  <TravelerApplyModal
+    v-if="isTravelerApplyModalOpen"
+    :traveler="selectedTraveler"
+    @close="isTravelerApplyModalOpen = false"
+  />
+
+  <TravelerApplicationsModal
+    v-if="isTravelerApplicationsModalOpen"
+    :traveler="selectedTraveler"
+    @close="isTravelerApplicationsModalOpen = false"
   />
 
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />

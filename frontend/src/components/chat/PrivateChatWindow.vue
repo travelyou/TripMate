@@ -66,8 +66,7 @@ const isFriendChat = computed(() => {
   const targetUid = activeChatRoom.value?.uid
   if (!targetUid) return false
   const friendList = userStore.currentUser?.friends || []
-  const inFriendList = friendList.some(friend => (friend.uid || friend.id) === targetUid)
-  return inFriendList || chatInteractionCount.value.isFriend
+  return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
 const canSendMessage = computed(() => chatInteractionCount.value.canSend && isFriendChat.value)
 

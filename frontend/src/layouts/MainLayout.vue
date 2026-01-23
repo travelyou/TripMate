@@ -4,6 +4,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { auth } from '@/firebase/config'
+import { getChatMessages } from '@/api/profile'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -64,6 +65,8 @@ const incomingMessageToast = ref({
   content: '',
 })
 let incomingToastTimer = null
+let chatSyncTimer = null
+const isChatSyncing = ref(false)
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10)
 const getSwipeOpenedKey = (uid) => `swipe_opened_${uid}`
@@ -73,6 +76,140 @@ const getFriendIds = () => {
   return friends
     .map(friend => friend.uid || friend.id)
     .filter(Boolean)
+}
+
+const CHAT_STORAGE_PREFIX = 'tripmate-private-chats-'
+const CHAT_MESSAGES_STORAGE_PREFIX = 'tripmate-private-chat-messages-'
+const getChatStorageKey = (uid) => `${CHAT_STORAGE_PREFIX}${uid}`
+const getChatMessagesStorageKey = (uid, friendUid) =>
+  `${CHAT_MESSAGES_STORAGE_PREFIX}${uid}-${friendUid}`
+
+const loadChatRoomsFromStorage = (uid) => {
+  try {
+    const raw = localStorage.getItem(getChatStorageKey(uid))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    console.warn('讀取聊天室資料失敗:', error)
+    return []
+  }
+}
+
+const saveChatRoomsToStorage = (uid, rooms) => {
+  try {
+    localStorage.setItem(getChatStorageKey(uid), JSON.stringify(rooms || []))
+  } catch (error) {
+    console.warn('保存聊天室資料失敗:', error)
+  }
+}
+
+const saveChatMessagesToStorage = (uid, friendUid, messages) => {
+  try {
+    localStorage.setItem(
+      getChatMessagesStorageKey(uid, friendUid),
+      JSON.stringify(messages || []),
+    )
+  } catch (error) {
+    console.warn('保存聊天訊息失敗:', error)
+  }
+}
+
+const mapChatMessages = (uid, historyMessages) => {
+  return (historyMessages || []).map(msg => {
+    const contentRaw = msg.content || ''
+    const isImage = typeof contentRaw === 'string' &&
+      (contentRaw.startsWith('[IMAGE]') || contentRaw.includes('[/IMAGE]'))
+    let content = contentRaw
+    if (isImage) {
+      const match = contentRaw.match(/\[IMAGE\](.*?)\[\/IMAGE\]/)
+      content = match ? match[1] : contentRaw
+    }
+    return {
+      id: msg.id,
+      type: msg.type || (msg.sender_uid === uid ? 'user' : 'friend'),
+      content,
+      isImage,
+      timestamp: msg.timestamp || msg.created_at,
+    }
+  })
+}
+
+const getUnreadCountForRoom = (currentUid, friendUid, mappedMessages) => {
+  if (!currentUid || !friendUid || !Array.isArray(mappedMessages)) return 0
+  const unreadKey = `unread_${currentUid}_${friendUid}`
+  let lastReadMs = null
+  const unreadData = localStorage.getItem(unreadKey)
+  if (unreadData) {
+    try {
+      const unreadInfo = JSON.parse(unreadData)
+      if (unreadInfo.lastReadTime) {
+        lastReadMs = new Date(unreadInfo.lastReadTime).getTime()
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return mappedMessages.reduce((count, message) => {
+    if (message.type === 'user') return count
+    const messageTime = new Date(message.timestamp || message.created_at).getTime()
+    if (!lastReadMs || messageTime > lastReadMs) {
+      return count + 1
+    }
+    return count
+  }, 0)
+}
+
+const syncChatRoomsInBackground = async () => {
+  if (isChatSyncing.value || isPrivateChatOpen.value) return
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+  const rooms = loadChatRoomsFromStorage(currentUid)
+  if (rooms.length === 0) return
+  isChatSyncing.value = true
+  try {
+    for (const room of rooms) {
+      if (!room?.uid) continue
+      const history = await getChatMessages(currentUid, room.uid)
+      const mappedMessages = mapChatMessages(currentUid, history)
+      if (mappedMessages.length === 0) {
+        room.unreadCount = room.unreadCount || 0
+        continue
+      }
+      const lastMessage = mappedMessages[mappedMessages.length - 1]
+      const lastMessageTimeMs = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
+      const previousTimestamp = typeof room.lastMessageTimestamp === 'number'
+        ? room.lastMessageTimestamp
+        : room.lastMessageTimestamp
+          ? new Date(room.lastMessageTimestamp).getTime()
+          : 0
+      const hasNewLastMessage = lastMessageTimeMs && lastMessageTimeMs > previousTimestamp
+      if (hasNewLastMessage) {
+        room.lastMessage = lastMessage.isImage ? '傳送了圖片' : (lastMessage.content || '')
+        room.lastMessageTime = '剛剛'
+        room.lastMessageTimestamp = lastMessageTimeMs
+        if (lastMessage.type !== 'user') {
+          window.dispatchEvent(new CustomEvent('incoming-message', {
+            detail: {
+              uid: room.uid,
+              name: room.name || room.nickname || '未知用戶',
+              avatar: room.avatar || '',
+              content: room.lastMessage,
+            },
+          }))
+        }
+      }
+      room.messages = mappedMessages
+      room.unreadCount = getUnreadCountForRoom(currentUid, room.uid, mappedMessages)
+      saveChatMessagesToStorage(currentUid, room.uid, mappedMessages)
+    }
+    saveChatRoomsToStorage(currentUid, rooms)
+    window.dispatchEvent(new CustomEvent('message-updated'))
+  } catch (error) {
+    console.error('背景同步聊天訊息失敗:', error)
+  } finally {
+    isChatSyncing.value = false
+  }
 }
 
 const saveFriendSnapshot = () => {
@@ -313,6 +450,7 @@ onMounted(() => {
   // 初始計算未讀訊息
   calculateUnreadCount()
   calculateSwipeReminder()
+  syncChatRoomsInBackground()
   // 定期檢查未讀訊息（每5秒）
   const interval = setInterval(() => {
     calculateUnreadCount()
@@ -320,6 +458,9 @@ onMounted(() => {
   }, 5000)
   // 存储interval以便清理
   window._unreadMessageInterval = interval
+  chatSyncTimer = setInterval(() => {
+    syncChatRoomsInBackground()
+  }, 6000)
 })
 onUnmounted(() => {
   window.removeEventListener('open-chat', handleOpenChat)
@@ -331,6 +472,10 @@ onUnmounted(() => {
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
+  }
+  if (chatSyncTimer) {
+    clearInterval(chatSyncTimer)
+    chatSyncTimer = null
   }
   if (incomingToastTimer) {
     clearTimeout(incomingToastTimer)
