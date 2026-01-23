@@ -295,7 +295,10 @@ const mapUserToCandidate = (user) => {
     user.nickname || user.real_name || (user.email ? user.email.split('@')[0] : '旅伴')
   const avatar =
     user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || displayName}`
+
+  // [MODIFIED] 正確讀取資料庫的欄位
   const tags = Array.isArray(user.tags) ? user.tags : []
+  const gallery = Array.isArray(user.gallery) ? user.gallery : []
 
   return {
     id: uid,
@@ -303,13 +306,13 @@ const mapUserToCandidate = (user) => {
     name: displayName,
     age: user.age || '—',
     location: user.location || '台灣',
-    spiritAnimal: user.spirit_animal || '🐾 旅伴',
+    spiritAnimal: user.spirit_animal || user.spiritAnimal || '🐾 旅伴',
     image: avatar,
     bio: user.bio || '期待一起出發的新旅伴。',
-    wishlist: tags,
-    activities: [],
+    wishlist: tags, // 這裡暫時用 tags 作為許願清單，如果後端有 wishlist 欄位請改為 user.wishlist
+    activities: tags, // 使用 tags 作為活動/風格顯示
     tags,
-    gallery: [],
+    gallery: gallery, // [FIXED] 傳入相簿
     pastTrips: [],
   }
 }
@@ -325,6 +328,8 @@ const loadCandidates = async (uid, state = swipeState.value) => {
 
     const filtered = allUsers
       .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
+      // [OPTIONAL] 如果後端支援 is_matching_enabled，這裡可以過濾掉不想被抽到的人
+      .filter((user) => user.is_matching_enabled !== false)
       .filter((user) => {
         const userId = user.uid || user.id
         if (!userId) return false
@@ -688,6 +693,4 @@ watch(
 .slide-up-leave-to {
   transform: translateY(100%);
 }
-
-/* scrollbar rules moved to src/assets/main.css */
 </style>

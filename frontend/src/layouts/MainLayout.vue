@@ -13,7 +13,7 @@ import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/shared/RightSidebarAd.vue'
 import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
-import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
+import SwipeMatchModal from '@/components/profile/card/SwipeMatchModal.vue'
 
 import {
   Plus as PlusIcon,
@@ -122,7 +122,7 @@ const calculateUnreadCount = () => {
       try {
         const rooms = JSON.parse(chatRoomsData)
         if (Array.isArray(rooms)) {
-          rooms.forEach(room => {
+          rooms.forEach((room) => {
             if (room.unreadCount) {
               totalUnread += room.unreadCount
             } else if (room.messages && Array.isArray(room.messages)) {
@@ -136,7 +136,9 @@ const calculateUnreadCount = () => {
                   const unreadInfo = JSON.parse(unreadData)
                   if (unreadInfo.lastReadTime) {
                     const lastReadTime = new Date(unreadInfo.lastReadTime).getTime()
-                    const lastMessageTime = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
+                    const lastMessageTime = new Date(
+                      lastMessage.timestamp || lastMessage.created_at,
+                    ).getTime()
                     if (lastMessageTime > lastReadTime) {
                       totalUnread += 1
                     }
@@ -210,15 +212,18 @@ onUnmounted(() => {
 })
 
 // 監聽聊天視窗打開/關閉，更新未讀計數
-watch(() => isPrivateChatOpen.value, (isOpen) => {
-  if (isOpen) {
-    // 打開聊天視窗時，延遲一下再重新計算（給時間載入資料）
-    setTimeout(calculateUnreadCount, 500)
-  } else {
-    // 關閉時也重新計算
-    calculateUnreadCount()
-  }
-})
+watch(
+  () => isPrivateChatOpen.value,
+  (isOpen) => {
+    if (isOpen) {
+      // 打開聊天視窗時，延遲一下再重新計算（給時間載入資料）
+      setTimeout(calculateUnreadCount, 500)
+    } else {
+      // 關閉時也重新計算
+      calculateUnreadCount()
+    }
+  },
+)
 const handleToggleAiChat = () => {
   isAiChatOpen.value = !isAiChatOpen.value
   isPrivateChatOpen.value = false
@@ -392,7 +397,9 @@ const handleSubmitPost = async (postData) => {
         v-if="isMobileActionMenuOpen"
         class="fixed inset-0 z-[60] flex items-end justify-center lg:hidden"
       >
-        <div class="relative w-full bg-white rounded-t-3xl p-6 pb-24 shadow-2xl border-t border-secondary-100">
+        <div
+          class="relative w-full bg-white rounded-t-3xl p-6 pb-24 shadow-2xl border-t border-secondary-100"
+        >
           <div class="flex justify-between items-center mb-6 border-b-2 border-secondary-100 pb-2">
             <h3 class="text-xl font-bold text-primary-700">快速功能</h3>
             <button
@@ -419,7 +426,10 @@ const handleSubmitPost = async (postData) => {
               </div>
               <span class="text-sm font-bold text-gray-700">抽卡</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group relative" @click="handleTogglePrivateChat">
+            <button
+              class="flex flex-col items-center gap-2 group relative"
+              @click="handleTogglePrivateChat"
+            >
               <div
                 class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
               >
@@ -456,7 +466,10 @@ const handleSubmitPost = async (postData) => {
     <PrivateChatWindow
       v-if="isPrivateChatOpen"
       :open-chat-with-user="openChatWithUser"
-      @close="isPrivateChatOpen = false; openChatWithUser = null"
+      @close="
+        isPrivateChatOpen = false
+        openChatWithUser = null
+      "
     />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
