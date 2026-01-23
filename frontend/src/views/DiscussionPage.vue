@@ -183,6 +183,9 @@ const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const postToEdit = ref(null)
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
   selectedPost.value = post
@@ -197,18 +200,30 @@ const closeDiscussionDetailModal = () => {
 }
 
 const handleEditPost = (post) => {
+  setAppLoading(true)
   postToEdit.value = post
   closeDiscussionDetailModal()
   isPostingModalOpen.value = true
+  nextTick(() => setAppLoading(false))
 }
 
 const handleCardEdit = (post) => {
+  setAppLoading(true)
   postToEdit.value = post
   isPostingModalOpen.value = true
+  nextTick(() => setAppLoading(false))
+}
+
+const handleDetailEdit = (post) => {
+  handleEditPost(post)
 }
 
 const handleCardDelete = (post) => {
   // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
+  loadDiscussionsData(false)
+}
+
+const handleDetailDeleted = () => {
   loadDiscussionsData(false)
 }
 
@@ -262,6 +277,7 @@ const tryOpenDraft = () => {
 const tryOpenSharedPost = async () => {
   const postId = route.query.postId
   if (!postId) return
+  setAppLoading(true)
   try {
     const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
     if (existing) {
@@ -278,12 +294,15 @@ const tryOpenSharedPost = async () => {
     }
   } catch (error) {
     console.error('開啟分享貼文失敗：', error)
+  } finally {
+    setAppLoading(false)
   }
 }
 
 const tryOpenEditPost = async () => {
   const postId = route.query.editPost
   if (!postId) return
+  setAppLoading(true)
   try {
     const { fetchPostById } = await import('@/api/discussions')
     const post = await fetchPostById(postId)
@@ -294,6 +313,8 @@ const tryOpenEditPost = async () => {
     }
   } catch (error) {
     console.error('開啟編輯貼文失敗：', error)
+  } finally {
+    setAppLoading(false)
   }
 }
 </script>
@@ -406,7 +427,8 @@ const tryOpenEditPost = async () => {
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
-    @edit="handleEditPost"
+    @edit="handleDetailEdit"
+    @deleted="handleDetailDeleted"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

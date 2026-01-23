@@ -16,6 +16,9 @@ const myItineraryStore = useMyItineraryStore()
 const route = useRoute()
 const router = useRouter()
 const { drafts } = storeToRefs(myItineraryStore)
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
@@ -123,6 +126,14 @@ watch([activeFilter, activeCategory], () => {
   loadTravelers(false)
 })
 
+watch(() => route.query.travelerId, (newTravelerId) => {
+  if (newTravelerId) {
+    nextTick(() => {
+      tryOpenSharedTraveler()
+    })
+  }
+})
+
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler
   shouldScrollToComments.value = focusComment
@@ -152,6 +163,7 @@ const handleTravelerUpdated = () => {
 }
 
 const handleCardEdit = async (traveler) => {
+  setAppLoading(true)
   // 編輯時改用完整資料，避免行程/打包清單遺失
   let source = traveler
   try {
@@ -162,7 +174,11 @@ const handleCardEdit = async (traveler) => {
   } catch (error) {
     console.error('取得旅伴完整資料失敗，改用列表資料：', error)
   }
+  openEditModalFromTraveler(source)
+  nextTick(() => setAppLoading(false))
+}
 
+const openEditModalFromTraveler = (source) => {
   selectedDraft.value = {
     type: 'traveler',
     data: {
@@ -182,6 +198,11 @@ const handleCardEdit = async (traveler) => {
     },
   }
   isPostingModalOpen.value = true
+}
+
+const handleDetailEdit = (traveler) => {
+  isDetailModalOpen.value = false
+  handleCardEdit(traveler)
 }
 
 const handleCardDelete = (traveler) => {
@@ -244,6 +265,42 @@ const tryOpenDraft = () => {
   }
 }
 
+const tryOpenSharedTraveler = async () => {
+  const travelerId = route.query.travelerId
+  if (!travelerId) return
+  setAppLoading(true)
+  try {
+    const response = await getTravelerById(travelerId)
+    if (response?.success && response.data) {
+      selectedTraveler.value = response.data
+      shouldScrollToComments.value = false
+      isDetailModalOpen.value = true
+      router.replace({ path: '/travelers', query: {} })
+    }
+  } catch (error) {
+    console.error('開啟分享旅伴失敗：', error)
+  } finally {
+    setAppLoading(false)
+  }
+}
+
+const tryOpenEditTraveler = async () => {
+  const travelerId = route.query.editTraveler
+  if (!travelerId) return
+  setAppLoading(true)
+  try {
+    const response = await getTravelerById(travelerId)
+    if (response?.success && response.data) {
+      openEditModalFromTraveler(response.data)
+      router.replace({ path: '/travelers', query: {} })
+    }
+  } catch (error) {
+    console.error('開啟編輯旅伴失敗：', error)
+  } finally {
+    nextTick(() => setAppLoading(false))
+  }
+}
+
 onMounted(() => {
   loadTravelers(false)
 
@@ -266,6 +323,10 @@ onMounted(() => {
 
   // 檢查是否有草稿需要打開
   tryOpenDraft()
+  // 檢查是否有分享連結需要開啟
+  tryOpenSharedTraveler()
+  // 檢查是否要直接開啟編輯
+  tryOpenEditTraveler()
 })
 
 onUnmounted(() => {
@@ -277,6 +338,14 @@ watch(() => route.query.openDraft, (newDraftId) => {
   if (newDraftId) {
     nextTick(() => {
       tryOpenDraft()
+    })
+  }
+})
+
+watch(() => route.query.editTraveler, (newTravelerId) => {
+  if (newTravelerId) {
+    nextTick(() => {
+      tryOpenEditTraveler()
     })
   }
 })
@@ -434,6 +503,7 @@ watch(() => route.query.openDraft, (newDraftId) => {
     @traveler-updated="handleTravelerUpdated"
     @open-apply="handleOpenApply"
     @open-applications="handleOpenApplications"
+    @edit="handleDetailEdit"
   />
 
   <TravelerApplyModal

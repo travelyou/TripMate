@@ -1,7 +1,9 @@
 ﻿<script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
+import { useRoute, useRouter } from 'vue-router'
+import { getItineraryById } from '@/api/itinerary'
 
 import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
@@ -9,6 +11,11 @@ import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 
 const itinerariesStore = useItineraryStore()
+const route = useRoute()
+const router = useRouter()
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 // --- 模態框狀態管理 ---
 const isDetailModalOpen = ref(false)
@@ -59,9 +66,27 @@ const closeDetailModal = () => {
   shouldScrollToComments.value = false
 }
 
+const tryOpenSharedItinerary = async () => {
+  const itineraryId = route.query.itineraryId
+  if (!itineraryId) return
+  setAppLoading(true)
+  try {
+    const response = await getItineraryById(itineraryId)
+    const itinerary = response?.data || response
+    if (itinerary) {
+      openDetailModal(itinerary, false)
+      router.replace({ path: '/featured-itinerary', query: {} })
+    }
+  } catch (error) {
+    console.error('開啟分享行程失敗：', error)
+  } finally {
+    setAppLoading(false)
+  }
+}
+
 // 處理開啟分享模態框
 const openShareModal = (itineraryId) => {
-  shareLink.value = `/itinerary/${itineraryId}`
+  shareLink.value = `${window.location.origin}/featured-itinerary?itineraryId=${itineraryId}`
   isShareModalOpen.value = true
 }
 
@@ -80,8 +105,22 @@ const handlePostSuccess = async () => {
 }
 
 const handleCardEdit = (itinerary) => {
+  setAppLoading(true)
   itineraryToEdit.value = itinerary
   isPostModalOpen.value = true
+  nextTick(() => setAppLoading(false))
+}
+
+const handleDetailEdit = (itinerary) => {
+  setAppLoading(true)
+  itineraryToEdit.value = itinerary
+  isPostModalOpen.value = true
+  isDetailModalOpen.value = false
+  nextTick(() => setAppLoading(false))
+}
+
+const handleDetailDeleted = () => {
+  itinerariesStore.fetchItineraries()
 }
 
 const handleCardDelete = (itinerary) => {
@@ -92,6 +131,15 @@ const handleCardDelete = (itinerary) => {
 // 初始化載入資料
 onMounted(() => {
   itinerariesStore.fetchItineraries()
+  tryOpenSharedItinerary()
+})
+
+watch(() => route.query.itineraryId, (newItineraryId) => {
+  if (newItineraryId) {
+    nextTick(() => {
+      tryOpenSharedItinerary()
+    })
+  }
 })
 </script>
 
@@ -211,6 +259,8 @@ onMounted(() => {
     :itinerary="selectedItinerary"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDetailModal"
+    @edit="handleDetailEdit"
+    @deleted="handleDetailDeleted"
   />
 
   <ItineraryPostModal

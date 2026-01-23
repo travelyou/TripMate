@@ -65,6 +65,7 @@ let chatSocket = null
 let chatSocketUid = null
 let chatSocketReconnectTimer = null
 const isChatSyncing = ref(false)
+const isAppLoading = ref(false)
 
 
 const getFriendIds = () => {
@@ -575,6 +576,11 @@ const handleChatSend = (event) => {
   })
 }
 
+const handleAppLoading = (event) => {
+  const detail = event.detail || {}
+  isAppLoading.value = Boolean(detail.active)
+}
+
 // 監聽訊息變化
 const handleMessageUpdate = () => {
   calculateUnreadCount()
@@ -593,6 +599,7 @@ onMounted(() => {
   window.addEventListener('friends-viewed', saveFriendSnapshot)
   window.addEventListener('incoming-message', handleIncomingMessage)
   window.addEventListener('chat-send', handleChatSend)
+  window.addEventListener('app-loading', handleAppLoading)
   // 初始計算未讀訊息
   calculateUnreadCount()
   syncChatRoomsInBackground()
@@ -617,6 +624,7 @@ onUnmounted(() => {
   window.removeEventListener('friends-viewed', saveFriendSnapshot)
   window.removeEventListener('incoming-message', handleIncomingMessage)
   window.removeEventListener('chat-send', handleChatSend)
+  window.removeEventListener('app-loading', handleAppLoading)
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
@@ -828,6 +836,17 @@ const handleSubmitPost = async (postData) => {
         <div class="min-w-0">
           <div class="text-lg font-bold truncate">{{ toast.name }}</div>
           <div class="text-base text-white/90 truncate">{{ toast.content }}</div>
+        </div>
+      </div>
+      <div
+        v-if="isAppLoading"
+        class="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center"
+      >
+        <div class="bg-white/90 rounded-2xl px-6 py-4 shadow-xl border border-primary-200">
+          <div class="flex items-center gap-3">
+            <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-600 border-t-transparent"></div>
+            <span class="text-sm font-bold text-secondary-800">載入中…</span>
+          </div>
         </div>
       </div>
     </div>

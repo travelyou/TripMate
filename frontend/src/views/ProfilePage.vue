@@ -31,6 +31,9 @@ const userStore = useUserStore()
 const personalityStore = usePersonalityStore()
 const router = useRouter()
 const route = useRoute()
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const targetUid = computed(() => {
   if (route.params.uid) {
@@ -216,10 +219,12 @@ const handleTravelerOpenApplications = (traveler) => {
 
 const handlePostEdit = (post) => {
   if (!post?.id) return
+  setAppLoading(true)
   router.push({ name: 'discussion', query: { editPost: post.id } })
 }
 
 const handleTravelerEdit = async (traveler) => {
+  setAppLoading(true)
   let source = traveler
   try {
     const response = await getTravelerById(traveler.id)
@@ -249,6 +254,7 @@ const handleTravelerEdit = async (traveler) => {
     },
   }
   isTravelerPostModalOpen.value = true
+  nextTick(() => setAppLoading(false))
 }
 
 const handleTravelerPostModalClose = () => {
@@ -1203,6 +1209,7 @@ onMounted(() => {
       :post="selectedPost"
       :scroll-to-comments="shouldScrollToComments"
       @close="isDetailModalOpen = false"
+      @edit="handlePostEdit"
     />
 
     <TravelerDetailModal
@@ -1212,6 +1219,7 @@ onMounted(() => {
       @close="isTravelerDetailModalOpen = false"
       @open-apply="handleTravelerOpenApply"
       @open-applications="handleTravelerOpenApplications"
+      @edit="handleTravelerEdit"
     />
 
     <TravelerApplyModal

@@ -7,6 +7,7 @@ import {
   MessageCircle as MessageCircleIcon,
   Bookmark as BookmarkIcon,
   FileText as FileTextIcon,
+  MoreVertical,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -16,6 +17,7 @@ import { createComment } from '@/api/comments'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
+import { deletePost } from '@/api/discussions'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -31,7 +33,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'edit', 'deleted'])
 
 const currentUserUid = ref(null)
 const isLiked = ref(false)
@@ -43,6 +45,11 @@ const contentContainerRef = ref(null)
 const activeSection = ref('content')
 const localComments = ref([])
 const localPostData = ref({ ...props.post })
+const showMenu = ref(false)
+const isAuthor = computed(() => {
+  const authorUid = localPostData.value?.author_uid || localPostData.value?.authorUid
+  return currentUserUid.value && authorUid && currentUserUid.value === authorUid
+})
 
 const normalizedComments = computed(() => {
   if (localComments.value.length > 0) return localComments.value
@@ -79,6 +86,36 @@ const processedContent = computed(() => {
 const scrollToTop = () => {
   activeSection.value = 'content'
   contentContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleCopyLink = async () => {
+  if (!localPostData.value?.id) return
+  const link = `${window.location.origin}/discussion?postId=${localPostData.value.id}`
+  try {
+    await navigator.clipboard.writeText(link)
+    showMenu.value = false
+  } catch (error) {
+    console.error('複製連結失敗：', error)
+  }
+}
+
+const handleEdit = () => {
+  showMenu.value = false
+  emit('edit', localPostData.value)
+}
+
+const handleDelete = async () => {
+  if (!localPostData.value?.id) return
+  if (!confirm('確定要刪除此貼文嗎？')) return
+  try {
+    await deletePost(localPostData.value.id)
+    showMenu.value = false
+    emit('deleted', localPostData.value)
+    emit('close')
+  } catch (error) {
+    console.error('刪除失敗：', error)
+    alert('刪除失敗，請稍後再試')
+  }
 }
 
 // 滑動到留言區
@@ -311,6 +348,47 @@ onMounted(async () => {
       <div
         class="bg-white w-full h-full flex flex-col rounded-xl border-2 border-primary overflow-hidden relative z-10"
       >
+        <div class="absolute top-4 right-16 z-20">
+          <button
+            class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
+            @click.stop="showMenu = !showMenu"
+            title="更多"
+          >
+            <MoreVertical class="w-6 h-6" />
+          </button>
+          <div
+            v-if="showMenu"
+            class="absolute right-0 mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-xl z-30"
+          >
+            <button
+              v-if="isAuthor"
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="handleEdit"
+            >
+              編輯
+            </button>
+            <button
+              v-if="isAuthor"
+              class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              @click="handleDelete"
+            >
+              刪除
+            </button>
+            <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
+            <button
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="handleCopyLink"
+            >
+              複製連結
+            </button>
+            <button
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="emit('close')"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
         <button
           class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
           @click="emit('close')"

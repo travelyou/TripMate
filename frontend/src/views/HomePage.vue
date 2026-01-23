@@ -23,6 +23,9 @@ const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore() // 使用 Store
 useUserStore()
 const router = useRouter()
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const currentUserUid = ref(null)
 let likeSyncTimer = null
@@ -143,7 +146,14 @@ const closeTravelerDetailModal = () => {
 
 const handleDiscussionEdit = (post) => {
   if (!post?.id) return
+  setAppLoading(true)
   router.push({ name: 'discussion', query: { editPost: post.id } })
+}
+
+const handleTravelerEdit = (traveler) => {
+  if (!traveler?.id) return
+  setAppLoading(true)
+  router.push({ name: 'travelers', query: { editTraveler: traveler.id } })
 }
 
 const handleTravelerOpenApply = (traveler) => {
@@ -373,6 +383,7 @@ const getFirstTag = (item) => {
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
+    @edit="handleDiscussionEdit"
   />
 
   <TravelerDetailModal
@@ -381,6 +392,7 @@ const getFirstTag = (item) => {
     @close="closeTravelerDetailModal"
     @open-apply="handleTravelerOpenApply"
     @open-applications="handleTravelerOpenApplications"
+    @edit="handleTravelerEdit"
   />
 
   <TravelerApplyModal

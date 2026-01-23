@@ -15,6 +15,7 @@ import {
   DollarSign as DollarSignIcon,
   Building as BuildingIcon,
   FileText as FileTextIcon,
+  MoreVertical,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { checkoutStore } from '@/stores/checkout'
@@ -39,7 +40,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'edit', 'deleted'])
 
 const activeTab = ref('itinerary')
 const localItineraryData = ref({ ...props.itinerary })
@@ -51,6 +52,11 @@ const likesCount = ref(props.itinerary.likes || 0)
 const isAddingToCart = ref(false)
 
 const contentContainerRef = ref(null)
+const showMenu = ref(false)
+const isAuthor = computed(() => {
+  const authorUid = localItineraryData.value?.author_uid || localItineraryData.value?.authorUid
+  return currentUserUid.value && authorUid && currentUserUid.value === authorUid
+})
 
 // 收藏用的資料格式
 const itemData = computed(() => ({
@@ -155,6 +161,38 @@ const formatPrice = (price) => {
 const scrollToTop = () => {
   activeTab.value = 'itinerary'
   contentContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleCopyLink = async () => {
+  if (!localItineraryData.value?.id) return
+  const link = `${window.location.origin}/featured-itinerary?itineraryId=${localItineraryData.value.id}`
+  try {
+    await navigator.clipboard.writeText(link)
+    showMenu.value = false
+  } catch (error) {
+    console.error('複製連結失敗：', error)
+  }
+}
+
+const handleEdit = () => {
+  showMenu.value = false
+  emit('edit', localItineraryData.value)
+}
+
+const handleDelete = async () => {
+  if (!localItineraryData.value?.id) return
+  if (!confirm('確定要刪除此行程嗎？')) return
+  try {
+    const axios = (await import('axios')).default
+    const { API_BASE_URL } = await import('@/api/config')
+    await axios.delete(`${API_BASE_URL}/itineraries/${localItineraryData.value.id}`)
+    showMenu.value = false
+    emit('deleted', localItineraryData.value)
+    emit('close')
+  } catch (error) {
+    console.error('刪除失敗：', error)
+    alert('刪除失敗，請稍後再試')
+  }
 }
 
 const jumpToComments = async () => {
@@ -263,9 +301,9 @@ onMounted(async () => {
       </button>
 
       <button
+        title="跳轉至留言區"
         class="hidden lg:inline-flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         @click="jumpToComments"
-        title="跳轉至留言區"
       >
         <MessageCircleIcon class="w-5 h-5 fill-current" />
         <span
@@ -278,6 +316,47 @@ onMounted(async () => {
       <div
         class="bg-white w-full h-full flex flex-col rounded-xl border-2 border-primary overflow-hidden relative z-10"
       >
+        <div class="absolute top-4 right-16 z-20">
+          <button
+            class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
+            title="更多"
+            @click.stop="showMenu = !showMenu"
+          >
+            <MoreVertical class="w-6 h-6" />
+          </button>
+          <div
+            v-if="showMenu"
+            class="absolute right-0 mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-xl z-30"
+          >
+            <button
+              v-if="isAuthor"
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="handleEdit"
+            >
+              編輯
+            </button>
+            <button
+              v-if="isAuthor"
+              class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              @click="handleDelete"
+            >
+              刪除
+            </button>
+            <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
+            <button
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="handleCopyLink"
+            >
+              複製連結
+            </button>
+            <button
+              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              @click="emit('close')"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
         <button
           class="absolute top-4 right-4 z-20 bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
           @click="emit('close')"
@@ -313,7 +392,7 @@ onMounted(async () => {
             </div>
 
             <div class="absolute bottom-4 left-4 text-white">
-              <div class="flex items-center space-x-2 mb-1" v-if="localItineraryData.agencyName">
+              <div v-if="localItineraryData.agencyName" class="flex items-center space-x-2 mb-1">
                 <BuildingIcon class="w-4 h-4 text-primary-300" />
                 <span class="font-bold text-primary-100 text-sm tracking-wider"
                   >由 {{ localItineraryData.agencyName }} 提供</span
@@ -405,8 +484,8 @@ onMounted(async () => {
                 </button>
                 <button
                   class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
-                  @click="handleAddToCart"
                   :disabled="isAddingToCart"
+                  @click="handleAddToCart"
                 >
                   {{ isAddingToCart ? '加入中...' : '立即預訂' }}
                 </button>
