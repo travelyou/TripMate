@@ -107,9 +107,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     return null
   }
 
-  // 批量獲取用戶資訊並更新貼文
-  // 注意：後端已經從 Neon 資料庫返回 author_avatar（Firebase Storage URL）
-  // 只有在後端沒有返回這些資料時，才從 Firestore 獲取作為備用
   const enrichPostsWithUserInfo = async (posts) => {
     console.log('[enrichPostsWithUserInfo] 開始處理，貼文數量:', posts.length)
     const uniqueUids = [...new Set(posts.map((p) => p.author_uid).filter(Boolean))]
@@ -204,25 +201,19 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }
   }
 
-  // ... (其餘 Actions: loadPostById, addPost, editPost, removePost 保持不變) ...
   const loadPostById = async (id) => {
     loading.value = true
     error.value = null
     try {
       const post = await fetchPostById(id)
-      // 從 Firestore 獲取貼文作者資訊（僅作為備用，後端已經從 Neon 返回了 author_avatar）
-      // 注意：後端已經返回 author_avatar（Firebase Storage URL），不要覆蓋
+
       if (post.author_uid) {
         const userInfo = await getUserInfoFromFirestore(post.author_uid)
         if (userInfo) {
-          // 只有在後端沒有返回時，才使用 Firestore 的資料
           if (!post.author_nickname) {
             post.author_nickname = userInfo.nickname
           }
-          // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
-          // if (!post.author_avatar) {
-          //   post.author_avatar = userInfo.avatar
-          // }
+
           if (!post.author_spirit_animal) {
             post.author_spirit_animal = userInfo.spiritAnimal
           }
@@ -259,19 +250,14 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const addPost = async (postData) => {
     try {
       const newPost = await createPost(postData)
-      // 從 Firestore 獲取作者資訊（僅作為備用，後端已經從 Neon 返回了 author_avatar）
-      // 注意：後端已經返回 author_avatar（Firebase Storage URL），不要覆蓋
+
       if (newPost.author_uid) {
         const userInfo = await getUserInfoFromFirestore(newPost.author_uid)
         if (userInfo) {
-          // 只有在後端沒有返回時，才使用 Firestore 的資料
           if (!newPost.author_nickname) {
             newPost.author_nickname = userInfo.nickname
           }
-          // author_avatar 已經從後端獲取（Firebase Storage URL），不要覆蓋
-          // if (!newPost.author_avatar) {
-          //   newPost.author_avatar = userInfo.avatar
-          // }
+
           if (!newPost.author_spirit_animal) {
             newPost.author_spirit_animal = userInfo.spiritAnimal
           }

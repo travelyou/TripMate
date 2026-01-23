@@ -8,11 +8,11 @@ function normalizeUserData(data) {
     // ID 容錯
     uid: data.uid || data.firebase_uid,
 
-    // 名稱
+    // 名稱容錯
     displayName: data.displayName || data.display_name || 'User',
     nickname: data.nickname || data.displayName || data.display_name || '',
 
-    // 頭像
+    // 頭像容錯
     photoURL: data.photoURL || data.photo_url || '',
     avatar: data.avatar || data.photoURL || data.photo_url || '',
 
@@ -26,7 +26,7 @@ function normalizeUserData(data) {
     vendor_id: data.vendor_id || data.vendorId || null,
     tags: Array.isArray(data.tags) ? data.tags : [],
 
-    // [NEW] 名片專屬欄位 (必須要在這裡宣告，前端才能讀到)
+    // [NEW] 這是關鍵！加上卡片專屬欄位，前端才讀得到
     card_bio: data.card_bio || '',
     card_photo: data.card_photo || '',
     card_tags: Array.isArray(data.card_tags) ? data.card_tags : [],
@@ -63,6 +63,7 @@ export async function getUserProfile(uid) {
       throw new Error('獲取用戶資料失敗')
     }
     const jsonResponse = await response.json()
+    // jsonResponse 可能是 { data: ... } 或直接是 data
     return normalizeUserData(jsonResponse.data || jsonResponse)
   } catch (error) {
     console.error('獲取用戶資料錯誤：', error)
@@ -81,13 +82,15 @@ export async function updateUserProfile(uid, userData) {
   return await response.json()
 }
 
+// 取得所有用戶（抽卡用）
 export async function getAllUsers({ limit = 100 } = {}) {
-  // 簡化版 getAllUsers，直接呼叫後端 list 接口
   try {
     const response = await fetch(`${API_BASE_URL}/users?limit=${limit}`)
     if (!response.ok) throw new Error('Fetch users failed')
     const data = await response.json()
-    return Array.isArray(data) ? data : data.data || []
+    // 這裡也要過 normalization，確保列表資料格式一致
+    const rawList = Array.isArray(data) ? data : data.data || []
+    return rawList.map(normalizeUserData)
   } catch (e) {
     console.error(e)
     return []

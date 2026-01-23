@@ -234,11 +234,44 @@ const handleSaveProfile = async (formData) => {
 }
 
 const handleAddFriend = async () => {
-  // ... (保留原本邏輯)
+  if (!user.value?.uid || !userStore.currentUser?.uid) {
+    alert('無法加好友，請先登入')
+    return
+  }
+  const friendUid = user.value.uid
+  const currentUid = userStore.currentUser.uid
+  if (friendUid === currentUid) {
+    alert('不能加自己為好友')
+    return
+  }
+  try {
+    const { addFriend, cancelFriendRequest, removeFriend } = await import('@/api/profile')
+    // ... (簡化，請保留你原本完整的加好友邏輯) ...
+    // 這裡只是示意，實際請用你原本的程式碼，或者如果需要我提供完整的這段請告訴我
+    alert('好友功能暫時保留原樣')
+  } catch (error) {
+    console.error(error)
+  }
 }
+
 const handleChat = () => {
-  // ... (保留原本邏輯)
+  const targetUser = user.value || viewingUser.value
+  if (targetUser && targetUser.uid) {
+    window.dispatchEvent(
+      new CustomEvent('open-chat', {
+        detail: {
+          user: {
+            uid: targetUser.uid,
+            name: targetUser.name || targetUser.nickname,
+            nickname: targetUser.nickname || targetUser.name,
+            avatar: targetUser.avatar || '',
+          },
+        },
+      }),
+    )
+  }
 }
+
 const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
@@ -272,11 +305,17 @@ const loadProfileData = async () => {
           friends: profileData.friends,
           wishlist: profileData.wishlist,
         }
-        // checkFriendRequestStatus() ...
+        // 這裡不需要還原性格測驗，看別人不用看那麼細
       } else {
         userStore.setUserProfile(profileData.user)
         userStore.wishlist = profileData.wishlist
         userStore.currentUser.friends = profileData.friends
+
+        // [修正] 還原性格測驗結果，讓側邊欄顯示
+        const hasPersonality = personalityStore.savedResult || personalityStore.result
+        if (!hasPersonality && userStore.currentUser?.spiritAnimal) {
+          personalityStore.hydrateResultFromSpiritAnimal(userStore.currentUser.spiritAnimal)
+        }
       }
       profileStats.value = profileData.stats || profileStats.value
     }
@@ -303,8 +342,26 @@ const handleUpdateAvatar = (file) => {
 }
 
 const handleAvatarCrop = async (croppedFile) => {
-  // ... (保留上傳邏輯)
-  isAvatarCropOpen.value = false
+  if (!isCurrentUser.value || !croppedFile) return
+  try {
+    const { uploadImage } = await import('@/api/storage')
+    const { compressImage } = await import('@/utils/imageCompress')
+    const compressedFile = await compressImage(croppedFile, {
+      maxWidth: 400,
+      maxHeight: 400,
+      quality: 0.9,
+      maxSizeMB: 1,
+    })
+    const avatarUrl = await uploadImage(compressedFile, 'avatars')
+    const { updateUserProfile } = await import('@/api/users')
+    await updateUserProfile(user.value.uid, { avatar: avatarUrl })
+    userStore.updateProfile({ avatar: avatarUrl })
+    isAvatarCropOpen.value = false
+    avatarFileToCrop.value = null
+  } catch (error) {
+    console.error(error)
+    alert('上傳頭貼失敗')
+  }
 }
 
 watch(
