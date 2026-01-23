@@ -13,12 +13,13 @@ import {
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const emit = defineEmits(['open-mobile-actions'])
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const isMobileItineraryMenuOpen = ref(false)
 
 const menuItems = [
   {
@@ -62,6 +63,13 @@ const bottomMenuItems = computed(() => {
       iconColor: 'text-primary-600',
       textColor: 'text-secondary',
     },
+    {
+      name: 'my_order',
+      label: '訂單管理',
+      icon: MapIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    },
   ]
 
   if (isVendor.value && userStore.currentUser?.uid) {
@@ -91,7 +99,7 @@ const mobileNavItems = [
   { name: 'discussion', label: '討論', icon: ForumIcon },
   { name: 'travelers', label: '找伴', icon: UsersIcon },
   { name: 'featured_itinerary', label: '精選', icon: MapIcon },
-  { name: 'my_itinerary', label: '行程', icon: CalendarIcon },
+  { name: 'itinerary_menu', label: '行程', icon: CalendarIcon },
   { name: 'menu', label: '更多', icon: MenuIcon },
 ]
 
@@ -127,10 +135,19 @@ function isActiveRoute(item) {
 
 const handleMobileNavClick = (item) => {
   if (item.name === 'menu') {
+    isMobileItineraryMenuOpen.value = false
     emit('open-mobile-actions')
+  } else if (item.name === 'itinerary_menu') {
+    isMobileItineraryMenuOpen.value = !isMobileItineraryMenuOpen.value
   } else {
+    isMobileItineraryMenuOpen.value = false
     router.push({ name: item.name })
   }
+}
+
+const handleMobileItinerarySelect = (name) => {
+  isMobileItineraryMenuOpen.value = false
+  router.push({ name })
 }
 </script>
 
@@ -196,36 +213,63 @@ const handleMobileNavClick = (item) => {
   <nav
     class="fixed bottom-0 left-0 right-0 h-16 bg-secondary-50 z-50 flex justify-between items-center px-1 lg:hidden shadow-md"
   >
-    <button
-      v-for="item in mobileNavItems"
-      :key="item.name"
-      class="flex flex-col items-center justify-center w-full h-full text-secondary-400 hover:bg-secondary-100 transition active:scale-95 px-0.5"
-      :class="
-        route.name === item.name && item.name !== 'menu'
-          ? 'bg-primary-50 border-t-4 border-t-primary-500 -mt-1'
-          : ''
-      "
-      @click="handleMobileNavClick(item)"
-    >
-      <component
-        :is="item.icon"
-        class="w-5 h-5 mb-1 transition-colors"
+    <div v-for="item in mobileNavItems" :key="item.name" class="relative w-full h-full">
+      <button
+        class="flex flex-col items-center justify-center w-full h-full text-secondary-400 hover:bg-secondary-100 transition active:scale-95 px-0.5"
         :class="
           route.name === item.name && item.name !== 'menu'
-            ? 'text-primary-600 fill-primary-100'
-            : 'text-secondary-500'
+            ? 'bg-primary-50 border-t-4 border-t-primary-500 -mt-1'
+            : ''
         "
-      />
-      <span
-        class="text-xs font-bold transition-colors whitespace-nowrap scale-95 origin-center"
-        :class="
-          route.name === item.name && item.name !== 'menu'
-            ? 'text-primary-600'
-            : 'text-secondary-500'
-        "
+        @click="handleMobileNavClick(item)"
       >
-        {{ item.label }}
-      </span>
-    </button>
+        <component
+          :is="item.icon"
+          class="w-5 h-5 mb-1 transition-colors"
+          :class="
+            route.name === item.name && item.name !== 'menu'
+              ? 'text-primary-600 fill-primary-100'
+              : 'text-secondary-500'
+          "
+        />
+        <span
+          class="text-xs font-bold transition-colors whitespace-nowrap scale-95 origin-center"
+          :class="
+            route.name === item.name && item.name !== 'menu'
+              ? 'text-primary-600'
+              : 'text-secondary-500'
+          "
+        >
+          {{ item.label }}
+        </span>
+      </button>
+      <Transition
+        v-if="item.name === 'itinerary_menu'"
+        enter-active-class="transition-all duration-200 ease"
+        enter-from-class="opacity-0 translate-y-2"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition-all duration-200 ease"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 translate-y-2"
+      >
+        <div
+          v-if="isMobileItineraryMenuOpen"
+          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg p-2 w-32 border border-secondary-100`"
+        >
+          <button
+            class="w-full px-2 py-3 rounded-lg font-bold text-secondary-600 text-center hover:bg-secondary-50"
+            @click="handleMobileItinerarySelect('my_itinerary')"
+          >
+            我的行程
+          </button>
+          <button
+            class="w-full px-2 py-3 rounded-lg font-bold text-secondary-600 text-center hover:bg-secondary-50"
+            @click="handleMobileItinerarySelect('my_order')"
+          >
+            訂單管理
+          </button>
+        </div>
+      </Transition>
+    </div>
   </nav>
 </template>

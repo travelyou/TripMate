@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { auth, db } from '@/firebase/config'
 import { useUserStore } from '@/stores/user'
 import {
@@ -14,6 +14,7 @@ import { useRouter } from 'vue-router'
 import { createOrUpdateUser, getUserProfile } from '@/api/users'
 import tripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 import loginPageImage from '@/assets/pic/loginPage-removebg.png'
+import { showAlert } from '@/utils/alert'
 
 const activeTab = ref('login')
 
@@ -36,6 +37,7 @@ const loginErrors = ref({
   password: '',
   general: '',
 })
+const isLoggingIn = ref(false)
 
 const showLoginPassword = ref(false)
 const showRegisterPassword = ref(false)
@@ -66,6 +68,8 @@ const applyUserProfileToStore = (profileData) => {
 }
 
 const handleLogin = async () => {
+  if (isLoggingIn.value) return
+  isLoggingIn.value = true
   loginForm.value.email = (loginForm.value.email || '')
     .toString()
     .trim()
@@ -425,6 +429,8 @@ const handleLogin = async () => {
     } else {
       loginErrors.value.general = '登入失敗：' + error.message
     }
+  } finally {
+    isLoggingIn.value = false
   }
 }
 
@@ -679,7 +685,7 @@ const handleForgotPassword = async () => {
       .replace(/\uFF20/g, '@')
       .replace(/[\uFF0E\u3002\uFF61]/g, '.')
     await sendPasswordResetEmail(auth, loginForm.value.email)
-    alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
+    showAlert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
     console.error('發送失敗：', error.message)
     loginErrors.value.email = '發送失敗：' + error.message
@@ -805,9 +811,10 @@ const registerErrors = ref({
             </div>
             <button
               type="submit"
-              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base"
+              :disabled="isLoggingIn"
+              class="formSubmit w-full mt-8 px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-xl hover:bg-secondary-600 transition-colors font-bold text-sm sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              登入
+              {{ isLoggingIn ? '登入中...' : '登入' }}
             </button>
             <a
               href="#"

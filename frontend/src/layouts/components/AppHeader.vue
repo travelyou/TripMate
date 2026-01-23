@@ -182,7 +182,7 @@ import {
 } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-
+import { showConfirm } from '@/utils/alert'
 const router = useRouter()
 const userStore = useUserStore()
 
@@ -263,8 +263,9 @@ const goToSearchPage = () => {
   router.push('/search')
 }
 
-const handleLogout = () => {
-  if (confirm('確定要登出嗎？')) {
+const handleLogout = async () => {
+  const confirmed = await showConfirm('確認要登出嗎？')
+  if (confirmed) {
     userStore.logout()
     closeMenu()
     router.push('/')

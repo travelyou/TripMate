@@ -160,11 +160,13 @@ export const checkoutStore = reactive({
     }
   },
 
-  async addToCart(itineraryId, persons = 1) {
+  async addToCart(itineraryId, persons = 1, options = {}) {
     try {
       this.cartError = ''
       await addCartItem({ itineraryId, persons })
-      await this.loadCartFromDb()
+      if (!options.skipReload) {
+        await this.loadCartFromDb()
+      }
     } catch (e) {
       console.error('[addToCart] failed:', e)
       this.cartError = e?.message || '加入購物車失敗'

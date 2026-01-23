@@ -5,7 +5,7 @@ import {
   Link as LinkIcon, // 保持 LinkIcon，因為你沒有提供複製連結的圖
 } from 'lucide-vue-next'
 
-// ✅ 引入你自己的圖片檔案
+// 引入你自己的圖片檔案
 import LineIconSvg from '../../assets/icons/LINE_icon.png'
 import XIconSvg from '../../assets/icons/X_icon.png'
 import InstagramIconPng from '../../assets/icons/Instagram_icon.png'
@@ -39,19 +39,19 @@ const socialPlatforms = [
   {
     name: 'Threads',
     iconPath: ThreadsIconPng,
-    color: 'bg-black',
+    color: 'bg-gradient-to-tr from-gray-900 to-gray-700',
     link: 'javascript:alert("Threads 尚未開放官方 Web 分享 API，此為模擬。")',
   },
   {
     name: 'X (Twitter)',
     iconPath: XIconSvg,
-    color: 'bg-black',
+    color: 'bg-gradient-to-tr from-gray-900 to-gray-800',
     link: `https://twitter.com/intent/tweet?url=${encodeURIComponent(props.postLink)}&text=我在 TripMate 看到這個超棒的旅遊分享！`,
   },
   {
     name: 'Line',
     iconPath: LineIconSvg,
-    color: 'bg-[#00C300]',
+    color: 'bg-gradient-to-tr from-green-500 to-green-400',
     link: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(props.postLink)}`,
   },
 ]
@@ -72,25 +72,23 @@ const copyLink = () => {
 
 <template>
   <div class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4">
-    <div
-      class="bg-white rounded-xl w-full max-w-md flex flex-col border-2 border-primary shadow-primary-sm p-6"
-    >
+    <div class="bg-white rounded-xl w-full max-w-md flex flex-col p-6">
       <header class="flex justify-between items-center pb-4 border-b border-gray-200 mb-4">
         <h3 class="text-xl font-bold text-gray-800">分享至社群平台</h3>
-        <button @click="emit('close')" class="text-gray-500 hover:text-gray-800 transition">
+        <button class="text-gray-500 hover:text-gray-800 transition" @click="emit('close')">
           <XIcon class="w-6 h-6" />
         </button>
       </header>
 
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <a
           v-for="platform in socialPlatforms"
           :key="platform.name"
           :href="platform.link"
           target="_blank"
-          @click="platform.name !== 'Line' && platform.name !== 'Facebook' && emit('close')"
-          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 border-2 border-secondary-200 shadow-primary-sm"
+          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80"
           :class="platform.color"
+          @click="platform.name !== 'Line' && platform.name !== 'Facebook' && emit('close')"
         >
           <img :src="platform.iconPath" :alt="platform.name" class="w-8 h-8 object-contain" />
 
@@ -98,8 +96,8 @@ const copyLink = () => {
         </a>
 
         <button
+          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 bg-gray-600"
           @click="copyLink"
-          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 bg-gray-600 border-2 border-secondary-200 shadow-primary-sm"
         >
           <LinkIcon class="w-8 h-8 text-white" />
           <span class="text-white font-bold text-sm mt-2">複製連結</span>

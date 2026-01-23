@@ -153,7 +153,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="fixed bottom-4 md:bottom-8 right-[80px] md:right-[96px] w-80 md:w-80 max-w-80 h-[480px] md:h-[480px] max-h-[480px] border-4 border-primary-600 shadow-primary-strong z-50 flex flex-col rounded-xl overflow-hidden animate-slide-up"
+    class="fixed inset-0 w-full h-full max-w-none max-h-none border-0 bg-white z-50 flex flex-col rounded-none overflow-hidden animate-slide-up lg:inset-auto lg:bottom-4 lg:right-[80px] lg:w-80 lg:max-w-80 lg:h-[480px] lg:max-h-[480px] lg:border-4 lg:border-primary-600 lg:shadow-primary-strong lg:rounded-xl"
   >
     <div class="bg-primary-600 text-white p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">

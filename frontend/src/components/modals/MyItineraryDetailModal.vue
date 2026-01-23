@@ -12,6 +12,7 @@ import {
   Map as MapIcon,
   FileText as FileTextIcon,
 } from 'lucide-vue-next'
+import { showConfirm } from '@/utils/alert'
 
 const props = defineProps({ itinerary: { type: Object, required: true } })
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
@@ -74,8 +75,9 @@ const addActivity = () => {
 }
 const handleSave = () => emit('save', localItinerary.value)
 const handleSaveDraft = () => emit('save-draft', localItinerary.value)
-const handleDelete = () => {
-  if (confirm('確定要刪除？')) emit('delete', localItinerary.value.id)
+const handleDelete = async () => {
+  const confirmed = await showConfirm('確定要刪除？')
+  if (confirmed) emit('delete', localItinerary.value.id)
 }
 </script>
 
@@ -85,19 +87,19 @@ const handleDelete = () => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-gray-50 w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+      class="bg-gray-50 w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-y-auto lg:overflow-hidden"
     >
-      <div class="p-4 border-b border-gray-200 flex justify-between items-start bg-white">
-        <div class="flex-1">
+      <div class="p-4 border-b border-gray-200 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start bg-white">
+        <div class="flex-1 min-w-0">
           <div class="flex items-center space-x-2 mb-2">
             <MapIcon class="w-6 h-6 text-primary-600" />
             <input
               v-model="localItinerary.title"
-              class="text-2xl font-bold text-gray-800 bg-transparent focus:outline-none w-full placeholder-gray-300"
+              class="text-xl sm:text-2xl font-bold text-gray-800 bg-transparent focus:outline-none w-full placeholder-gray-300"
               placeholder="請輸入行程標題"
             />
           </div>
-          <div class="flex items-center space-x-2 text-sm text-gray-500">
+          <div class="flex flex-wrap items-center gap-2 text-sm text-gray-500">
             <input
               v-model="localItinerary.startDate"
               type="date"
@@ -119,9 +121,9 @@ const handleDelete = () => {
         </button>
       </div>
 
-      <div class="flex-1 flex overflow-hidden">
-        <div class="w-2/3 flex flex-col border-r border-gray-200 bg-gray-50">
-          <div class="flex overflow-x-auto p-4 space-x-2 bg-white border-b border-gray-100">
+      <div class="flex-1 flex flex-col lg:flex-row overflow-visible lg:overflow-hidden">
+        <div class="w-full lg:w-2/3 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-200 bg-gray-50">
+          <div class="flex overflow-x-auto p-3 sm:p-4 space-x-2 bg-white border-b border-gray-100">
             <button
               v-for="(day, index) in localItinerary.days"
               :key="index"
@@ -143,16 +145,16 @@ const handleDelete = () => {
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-6 space-y-4">
+          <div class="flex-1 overflow-visible lg:overflow-y-auto p-4 sm:p-6 space-y-4">
             <div v-if="activeDay.activities?.length > 0">
               <div
                 v-for="(activity, index) in activeDay.activities"
                 :key="activity.id"
                 class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 relative group mb-4"
               >
-                <div class="flex gap-4">
+                <div class="flex flex-col sm:flex-row gap-4">
                   <div
-                    class="w-24 shrink-0 border-r border-gray-100 pr-4 flex flex-col justify-center"
+                    class="w-full sm:w-24 shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 pb-3 sm:pb-0 sm:pr-4 flex flex-col justify-center"
                   >
                     <input
                       v-model="activity.time"
@@ -196,7 +198,7 @@ const handleDelete = () => {
           </div>
         </div>
 
-        <div class="w-1/3 flex flex-col bg-white">
+        <div class="w-full lg:w-1/3 flex flex-col bg-white">
           <div class="p-4 border-b border-gray-100 flex justify-between items-center">
             <h3 class="font-bold text-gray-700 flex items-center">
               <CheckSquareIcon class="w-5 h-5 mr-2 text-primary-500" /> 物品清單
@@ -208,7 +210,7 @@ const handleDelete = () => {
               <PlusIcon class="w-4 h-4" />
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-4">
+          <div class="flex-1 overflow-visible lg:overflow-y-auto p-4 space-y-4">
             <div
               v-for="(cat, catIndex) in localItinerary.packingList"
               :key="catIndex"
@@ -251,21 +253,21 @@ const handleDelete = () => {
         </div>
       </div>
 
-      <div class="p-4 border-t border-gray-200 bg-white flex justify-end gap-3">
+      <div class="p-4 border-t border-gray-200 bg-white flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
         <button
-          class="px-4 py-2 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition mr-auto flex items-center"
+          class="w-full sm:w-auto px-4 py-2 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition sm:mr-auto flex items-center justify-center"
           @click="handleSaveDraft"
         >
           <FileTextIcon class="w-4 h-4 mr-2" /> 草稿
         </button>
         <button
-          class="px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-lg transition"
+          class="w-full sm:w-auto px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-lg transition"
           @click="handleDelete"
         >
           刪除
         </button>
         <button
-          class="px-6 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 shadow-md flex items-center"
+          class="w-full sm:w-auto px-6 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 shadow-md flex items-center justify-center"
           @click="handleSave"
         >
           <SaveIcon class="w-4 h-4 mr-2" /> 儲存

@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { checkoutStore } from '@/stores/checkout'
 import MainButton from './MainButton.vue'
+import { showAlert } from '@/utils/alert'
 
 const router = useRouter()
 const route = useRoute()
@@ -11,9 +12,35 @@ const orderLoading = ref(false)
 const orderError = ref('')
 const payableAmount = ref(0)
 
-const orderId = computed(() => route.query.orderId || checkoutStore.lastOrder?.id)
+const orderId = computed(() => route.query.orderId || checkoutStore.lastOrderId)
 
-onMounted(async () => {
+const orderSummaryTitle = computed(
+  () => checkoutStore.orderDetail?.itinerary?.title || checkoutStore.selectedTour?.title || '',
+)
+const formatDateOnly = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('zh-TW')
+}
+
+const orderSummaryDate = computed(() => {
+  if (checkoutStore.orderDetail?.itinerary) {
+    const { startDate, endDate } = checkoutStore.orderDetail.itinerary
+    if (startDate && endDate) return `${formatDateOnly(startDate)} - ${formatDateOnly(endDate)}`
+    return formatDateOnly(startDate || endDate)
+  }
+  return checkoutStore.selectedTour?.date || ''
+})
+
+const orderSummaryPersons = computed(() => {
+  if (checkoutStore.orderDetail?.order?.persons) {
+    return checkoutStore.orderDetail.order.persons
+  }
+  return checkoutStore.selectedTour?.persons || ''
+})
+
+const loadOrderDetail = async () => {
   if (!orderId.value) return
 
   orderLoading.value = true
@@ -27,6 +54,11 @@ onMounted(async () => {
   } finally {
     orderLoading.value = false
   }
+}
+
+onMounted(loadOrderDetail)
+watch(orderId, () => {
+  loadOrderDetail()
 })
 
 // =====================
@@ -164,10 +196,11 @@ function validateCreditForm() {
 // 付款流程
 // =====================
 const confirmPayment = async () => {
-  if (!orderId.value) return alert('找不到訂單編號 orderId')
-  if (!paymentMethod.value) return alert('請選擇付款方式')
-  if (paymentMethod.value === 'mobile' && !mobileProvider.value) return alert('請選擇行動支付方式')
-  if (!providerKey.value) return alert('付款方式設定錯誤（providerKey 空值）')
+  if (!orderId.value) return showAlert('找不到訂單編號 orderId')
+  if (!paymentMethod.value) return showAlert('請選擇付款方式')
+  if (paymentMethod.value === 'mobile' && !mobileProvider.value)
+    return showAlert('請選擇行動支付方式')
+  if (!providerKey.value) return showAlert('付款方式設定錯誤（providerKey 空值）')
 
   if (paymentMethod.value === 'credit') {
     const ok = validateCreditForm()
@@ -186,12 +219,18 @@ const confirmPayment = async () => {
       return
     }
 
+    // bank 付款：不自動完成付款，維持未付款狀態
+    if (providerKey.value === 'bank') {
+      router.push(`/checkout/step5?orderId=${orderId.value}`)
+      return
+    }
+
     // 非 redirect 的方式（先走 mock）
     await checkoutStore.mockPay(paymentId)
     router.push(`/checkout/step5?orderId=${orderId.value}`)
   } catch (err) {
     console.error(err)
-    alert(err?.message || '付款失敗')
+    showAlert(err?.message || '付款失敗')
   }
 }
 
@@ -390,17 +429,17 @@ const confirmPayment = async () => {
         <div class="space-y-4">
           <div class="mb-12 text-md">
             <p class="text-gray-500">行程名稱</p>
-            <p>{{ checkoutStore.selectedTour?.title }}</p>
+            <p>{{ orderSummaryTitle }}</p>
           </div>
 
           <div class="flex flex-col gap-2 justify-between text-sm">
             <span class="text-gray-500">行程日期</span>
-            <span>{{ checkoutStore.selectedTour?.date }}</span>
+            <span>{{ orderSummaryDate }}</span>
           </div>
 
           <div class="flex justify-between text-sm">
             <span class="text-gray-500">人數</span>
-            <span>{{ checkoutStore.selectedTour?.persons }} 人</span>
+            <span>{{ orderSummaryPersons }} 人</span>
           </div>
 
           <hr />

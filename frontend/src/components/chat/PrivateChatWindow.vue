@@ -882,23 +882,27 @@ watch(chatRoomsList, () => {
   persistChatRooms()
 }, { deep: true })
 
+const isClickInsideFriendRequests = (event) => {
+  const path = typeof event?.composedPath === 'function' ? event.composedPath() : []
+  const container = friendRequestsListContainer.value
+  if (container && path.includes(container)) return true
+  const target = event?.target instanceof Element ? event.target : null
+  if (!target) return false
+  return Boolean(target.closest('.friend-requests-popup') || target.closest('.friend-requests-list-container'))
+}
+
 // 點擊外部關閉貼圖選擇器和好友請求列表
 const handleClickOutside = (event) => {
-  if (showStickerPicker.value && !event.target.closest('.sticker-picker-container')) {
+  const target = event?.target instanceof Element ? event.target : null
+  if (showStickerPicker.value && (!target || !target.closest('.sticker-picker-container'))) {
     showStickerPicker.value = false
   }
   // 檢查是否點擊在好友請求列表容器內（包括按鈕和彈窗）
   // 如果正在開啟過程中，不處理關閉
   if (showFriendRequestsList.value && !isFriendRequestsListOpening.value) {
     const now = Date.now()
-    if (now - friendRequestsToggleAt.value < 300) return
-    const isInsideContainer = event.target.closest('.friend-requests-list-container')
-    const isInsidePopup = event.target.closest('.friend-requests-popup')
-    // 檢查點擊目標是否是按鈕本身或其子元素
-    const isButton = event.target.closest('button[title="好友邀請"]') ||
-                     event.target.closest('.friend-requests-list-container button')
-
-    if (!isInsideContainer && !isInsidePopup && !isButton) {
+    if (now - friendRequestsToggleAt.value < 600) return
+    if (!isClickInsideFriendRequests(event)) {
       showFriendRequestsList.value = false
     }
   }
@@ -1174,7 +1178,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed bottom-4 md:bottom-8 right-[80px] md:right-[96px] w-80 md:w-80 max-w-80 h-[480px] md:h-[480px] max-h-[480px] border-4 border-primary shadow-xl z-50 flex flex-col rounded-2xl overflow-hidden bg-white/90 backdrop-blur animate-slide-up"
+    class="fixed inset-0 w-full h-full max-w-none max-h-none border-0 bg-white z-50 flex flex-col rounded-none overflow-hidden animate-slide-up lg:inset-auto lg:bottom-4 lg:right-[80px] lg:w-80 lg:max-w-80 lg:h-[480px] lg:max-h-[480px] lg:border-4 lg:border-primary lg:shadow-xl lg:rounded-2xl lg:bg-white/90 lg:backdrop-blur"
   >
     <div
       class="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500 text-white p-4 flex items-center justify-between border-b border-primary-800/40"

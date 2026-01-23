@@ -6,16 +6,15 @@ import { Briefcase as BriefcaseIcon } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.vue'
 import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
-import FeaturedItineraryTab from '@/components/itinerary-tabs/FeaturedItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
+import { showAlert, showConfirm } from '@/utils/alert'
 
 const myItineraryStore = useMyItineraryStore()
 const route = useRoute()
 const router = useRouter()
 
 // 使用 storeToRefs 拿資料，這樣資料變動時畫面才會跟著變
-const { myItineraries, drafts, featuredItineraries, partnerItineraries } =
-  storeToRefs(myItineraryStore)
+const { myItineraries, drafts, partnerItineraries } = storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
 const selectedItinerary = ref(null)
@@ -23,7 +22,6 @@ const activeTab = ref('my')
 
 const tabs = [
   { id: 'my', label: '我的行程' },
-  { id: 'featured', label: '精選行程' },
   { id: 'partner', label: '找旅伴' },
 ]
 
@@ -61,7 +59,7 @@ const openDraft = (draft) => {
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
     isDetailModalOpen.value = true
   } else {
-    alert(
+    showAlert(
       `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
     )
   }
@@ -96,8 +94,9 @@ const handleSaveItinerary = (updatedItinerary) => {
   isDetailModalOpen.value = false
 }
 
-const handleDeleteItinerary = (id) => {
-  if (confirm('確定要刪除這個行程嗎？')) {
+const handleDeleteItinerary = async (id) => {
+  const confirmed = await showConfirm('確定要刪除這個行程嗎？')
+  if (confirmed) {
     myItineraryStore.deleteItinerary(id)
     isDetailModalOpen.value = false
   }
@@ -112,14 +111,6 @@ const tryOpenDraft = () => {
       router.replace({ path: '/my-itinerary', query: {} })
     }
   }
-}
-
-const handleFeaturedRate = ({ id, rating, comment }) => {
-  myItineraryStore.updateFeaturedRating({ id, rating, comment })
-}
-
-const handleFeaturedClear = (id) => {
-  myItineraryStore.clearFeaturedRating(id)
 }
 
 const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
@@ -154,7 +145,7 @@ watch(
 
       <!-- 標籤頁籤容器 -->
       <div class="p-4 space-y-4">
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-2 gap-4">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -177,12 +168,6 @@ watch(
             :itineraries="myItineraries"
             @open="openItineraryDetail"
             @add="openAddItineraryModal"
-          />
-          <FeaturedItineraryTab
-            v-if="activeTab === 'featured'"
-            :itineraries="featuredItineraries"
-            @rate="handleFeaturedRate"
-            @clear="handleFeaturedClear"
           />
           <FindPartnerTab
             v-if="activeTab === 'partner'"

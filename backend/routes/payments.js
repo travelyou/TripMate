@@ -35,6 +35,77 @@ router.get('/test', (req, res) => {
 })
 
 /**
+ * POST /api/payments/report-bank
+ * body: { orderId, last5 }
+ * 記錄銀行轉帳帳號末 5 碼到 payer_meta
+ */
+router.post('/report-bank', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const { orderId, last5 } = req.body || {}
+    const id = Number(orderId)
+    const last5Str = String(last5 || '').trim()
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ ok: false, message: 'orderId 無效' })
+    }
+    if (!/^\d{5}$/.test(last5Str)) {
+      return res.status(400).json({ ok: false, message: '末 5 碼格式錯誤' })
+    }
+
+    await client.query('BEGIN')
+
+    const p = await client.query(
+      `SELECT id, status
+      FROM commerce.payments
+      WHERE order_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1
+      FOR UPDATE`,
+      [id],
+    )
+
+    if (p.rowCount === 0) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ ok: false, message: '找不到付款紀錄' })
+    }
+
+    const paymentId = p.rows[0].id
+
+    await client.query(
+      `UPDATE commerce.payments
+      SET payer_meta = jsonb_build_object('last5', $1::text),
+          status = 'REVIEW',
+          updated_at = NOW()
+      WHERE id = $2`,
+      [last5Str, paymentId],
+    )
+
+    await client.query(
+      `UPDATE commerce.orders
+      SET status = 'REVIEW',
+          updated_at = NOW()
+      WHERE id = $1`,
+      [id],
+    )
+
+    await client.query('COMMIT')
+
+    return res.json({ ok: true, orderId: id, paymentId, last5: last5Str })
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch (rollbackErr) {
+      console.error('[POST /api/payments/report-bank] ROLLBACK failed:', rollbackErr)
+    }
+    console.error('[POST /api/payments/report-bank] error:', err)
+    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+  } finally {
+    client.release()
+  }
+})
+
+/**
  * POST /api/payments/create
  * 前端帶：orderId, paymentMethod
  * 後端回：paymentUrl（先用 mock）
@@ -90,6 +161,32 @@ router.post('/create', async (req, res) => {
     if (!paymentId) {
       await client.query('ROLLBACK')
       return res.status(500).json({ ok: false, message: '建立付款單失敗' })
+    }
+
+    // ===== BANK 轉帳：登記付款方式但維持未付款 =====
+    if (paymentMethod === 'bank') {
+      await client.query(
+        `UPDATE commerce.payments
+        SET status='PENDING', updated_at=NOW()
+        WHERE id=$1`,
+        [paymentId],
+      )
+      await client.query(
+        `UPDATE commerce.orders
+        SET status='PENDING', updated_at=NOW()
+        WHERE id=$1`,
+        [orderId],
+      )
+
+      await client.query('COMMIT')
+
+      return res.json({
+        ok: true,
+        orderId,
+        paymentId,
+        paymentMethod,
+        status: 'PENDING',
+      })
     }
 
     // ===== LINE PAY 分流 =====

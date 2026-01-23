@@ -44,6 +44,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/my-order',
+      name: 'my_order',
+      component: () => import('@/views/MyOrderPage.vue'),
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
+    },
+    {
       path: '/favorites',
       name: 'favorites',
       component: () => import('@/views/FavoritesPage.vue'),
@@ -155,6 +164,15 @@ const router = createRouter({
       },
     },
   ],
+  scrollBehavior(to, from, savedPosition) {
+    //  瀏覽器返回鍵（上一頁 / 下一頁）
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    //  一般路由切換，回到頂端
+    return { top: 0 }
+  },
 })
 
 router.beforeEach(async (to, from, next) => {

@@ -62,3 +62,19 @@ export const showConfirm = async (text, options = {}) => {
   })
   return result.isConfirmed
 }
+
+export const showPrompt = async (text, options = {}) => {
+  const result = await swal.fire({
+    html: toHtml(text),
+    input: 'text',
+    inputValue: options.inputValue ?? '',
+    inputPlaceholder: options.inputPlaceholder ?? '',
+    showCancelButton: true,
+    confirmButtonText: '確定',
+    cancelButtonText: '取消',
+    reverseButtons: true,
+    ...options,
+  })
+  if (!result.isConfirmed) return null
+  return result.value
+}

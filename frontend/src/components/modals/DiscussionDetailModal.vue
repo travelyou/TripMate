@@ -40,15 +40,10 @@ const newComment = ref('')
 const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const contentContainerRef = ref(null)
+const activeSection = ref('content')
 const localComments = ref([])
 const localPostData = ref({ ...props.post })
 
-const handleAuthorClick = () => {
-  const authorUid = props.post.author_uid || props.post.author?.uid
-  if (authorUid) {
-    router.push(`/profile/${authorUid}`)
-  }
-}
 const normalizedComments = computed(() => {
   if (localComments.value.length > 0) return localComments.value
   // 嘗試從多個可能的欄位獲取留言
@@ -82,11 +77,13 @@ const processedContent = computed(() => {
 })
 
 const scrollToTop = () => {
+  activeSection.value = 'content'
   contentContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // 滑動到留言區
 const scrollToCommentsSection = () => {
+  activeSection.value = 'comments'
   commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -121,20 +118,6 @@ const loadFullPostDetails = async () => {
     // 格式化留言資料
     if (localPostData.value.commentsData && Array.isArray(localPostData.value.commentsData)) {
       localComments.value = localPostData.value.commentsData.map(comment => {
-        const formatTime = (timestamp) => {
-          if (!timestamp) return '剛剛'
-          const now = new Date()
-          const postTime = new Date(timestamp)
-          const diffMs = now - postTime
-          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-          const diffDays = Math.floor(diffHours / 24)
-          if (diffDays > 0) return `${diffDays}天前`
-          if (diffHours > 0) return `${diffHours}小時前`
-          const diffMins = Math.floor(diffMs / (1000 * 60))
-          if (diffMins > 0) return `${diffMins}分鐘前`
-          return '剛剛'
-        }
-
         return {
           id: comment.id,
           author: comment.author_nickname || comment.author_name || comment.author_uid || '匿名用戶',
@@ -226,20 +209,6 @@ onMounted(async () => {
   } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
     // 格式化已有的留言資料
     localComments.value = props.post.commentsData.map(comment => {
-      const formatTime = (timestamp) => {
-        if (!timestamp) return '剛剛'
-        const now = new Date()
-        const postTime = new Date(timestamp)
-        const diffMs = now - postTime
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-        const diffDays = Math.floor(diffHours / 24)
-        if (diffDays > 0) return `${diffDays}天前`
-        if (diffHours > 0) return `${diffHours}小時前`
-        const diffMins = Math.floor(diffMs / (1000 * 60))
-        if (diffMins > 0) return `${diffMins}分鐘前`
-        return '剛剛'
-      }
-
       return {
         id: comment.id,
         author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
@@ -271,9 +240,32 @@ onMounted(async () => {
     @click.self="emit('close')"
   >
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
-      <!-- 桌面版左側書籤 -->
+      <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
+        <button
+          :class="[
+            'bg-tag-amber text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeSection === 'content' ? '-translate-y-1' : '',
+          ]"
+          title="回到內文"
+          @click="scrollToTop"
+        >
+          <FileTextIcon class="w-4 h-4" />
+          內文
+        </button>
+        <button
+          :class="[
+            'bg-tag-blue text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
+            activeSection === 'comments' ? '-translate-y-1' : '',
+          ]"
+          title="跳轉至留言區"
+          @click="scrollToCommentsSection"
+        >
+          <MessageCircleIcon class="w-4 h-4" />
+          留言區
+        </button>
+      </div>
       <button
-        class="hidden md:flex absolute right-full top-24 z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
@@ -286,7 +278,7 @@ onMounted(async () => {
       </button>
 
       <button
-        class="hidden md:flex absolute right-full top-40 z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 translate-x-1 hover:translate-x-0"
+        class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >
@@ -368,11 +360,12 @@ onMounted(async () => {
               </span>
             </div>
 
-            <!-- eslint-disable-next-line vue/no-v-html -->
+            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-gray-900 rich-content"
               v-html="processedContent"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
 
             <div
               class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6"

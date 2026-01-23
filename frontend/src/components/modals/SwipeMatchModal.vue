@@ -52,7 +52,8 @@ const loadSwipeState = (uid) => {
     }
 
     if (!parsed) return baseState
-    const rejections = parsed.rejections && typeof parsed.rejections === 'object' ? parsed.rejections : {}
+    const rejections =
+      parsed.rejections && typeof parsed.rejections === 'object' ? parsed.rejections : {}
     const isSameDay = parsed.date === baseState.date
 
     return {
@@ -98,7 +99,9 @@ const swipeState = ref(loadSwipeState(getCurrentUserId()))
 
 const currentIndex = ref(0)
 const currentCard = computed(() => candidates.value[currentIndex.value])
-const remainingSwipes = computed(() => Math.max(0, MAX_DAILY_SWIPES - (swipeState.value.count || 0)))
+const remainingSwipes = computed(() =>
+  Math.max(0, MAX_DAILY_SWIPES - (swipeState.value.count || 0)),
+)
 const isLimitReached = computed(() => !isLoading.value && remainingSwipes.value <= 0)
 const isOutOfCards = computed(() => !isLoading.value && !currentCard.value)
 const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
@@ -169,7 +172,8 @@ const swipeFeedback = computed(() => {
 const autoSwipeDirection = ref(null)
 
 const handleButtonClick = (direction) => {
-  if (isFinished.value || !currentCard.value || autoSwipeDirection.value || isProcessing.value) return
+  if (isFinished.value || !currentCard.value || autoSwipeDirection.value || isProcessing.value)
+    return
   isDetailOpen.value = false
   isProcessing.value = true
   autoSwipeDirection.value = direction
@@ -404,6 +408,13 @@ watch(
           <div
             class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"
           ></div>
+          <button
+            class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-secondary-600 border border-white/80 backdrop-blur-md flex items-center justify-center hover:bg-white transition shadow-sm"
+            title="停止抽卡"
+            @click="$emit('close')"
+          >
+            <XIcon class="w-5 h-5" />
+          </button>
 
           <div class="absolute top-4 left-4">
             <span
@@ -572,7 +583,9 @@ watch(
                 <div class="space-y-4">
                   <div v-for="trip in currentCard.pastTrips" :key="trip.id" class="flex gap-4">
                     <div class="flex flex-col items-center">
-                      <div class="w-3 h-3 rounded-full bg-primary-400 ring-4 ring-primary-100"></div>
+                      <div
+                        class="w-3 h-3 rounded-full bg-primary-400 ring-4 ring-primary-100"
+                      ></div>
                       <div class="w-0.5 h-full bg-gray-200 my-1"></div>
                     </div>
                     <div class="pb-2">
@@ -628,20 +641,20 @@ watch(
         </div>
         <div v-else class="w-full max-w-sm flex flex-col items-center text-center space-y-4">
           <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
-          <SparklesIcon class="w-10 h-10 text-primary-600" />
-                  </div>
+            <SparklesIcon class="w-10 h-10 text-primary-600" />
+          </div>
           <h3 class="text-xl font-bold text-gray-800 mb-2">
-          {{ isLoading ? '正在載入旅伴...' : '目前沒有可抽的旅伴' }}
-        </h3>
+            {{ isLoading ? '正在載入旅伴...' : '目前沒有可抽的旅伴' }}
+          </h3>
           <p class="text-gray-500 mb-6 text-sm">
-          {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
-        </p>
+            {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
+          </p>
           <button
-          class="px-8 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md"
-          @click="$emit('close')"
-        >
-          關閉視窗
-        </button>
+            class="px-8 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md"
+            @click="$emit('close')"
+          >
+            關閉視窗
+          </button>
         </div>
       </div>
     </div>
