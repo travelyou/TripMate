@@ -112,13 +112,11 @@ const shouldMarquee = computed(() => {
             <div class="flex-1 min-w-0">
             <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
               <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0 flex-wrap">
-                  <h1 class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1">
+                  <div class="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-0 flex-wrap">
+                  <h1 class="inline-flex text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0">
                     <span v-if="loading" class="inline-block h-4 w-24 bg-white/30 rounded animate-pulse"></span>
                     <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
                   </h1>
-                </div>
-                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <span
                     class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
                     :title="locationFull"
@@ -192,7 +190,7 @@ const shouldMarquee = computed(() => {
                 :class="[
                     'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
                   friendRequestStatus === 'accepted'
-                    ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
+                    ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
                     : friendRequestStatus === 'sent'
                     ? 'bg-orange-500/20 text-white border border-orange-500'
                     : 'bg-white text-primary-600 hover:bg-gray-100'
@@ -276,8 +274,8 @@ const shouldMarquee = computed(() => {
         </div>
 
         <div class="flex-1 text-left min-w-0 overflow-hidden">
-          <div class="flex items-center justify-start gap-2 lg:gap-3 mb-2 flex-wrap">
-            <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0 flex-1">
+          <div class="flex items-center justify-start gap-1.5 md:gap-2 mb-2 flex-wrap">
+            <h1 class="inline-flex text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white break-words min-w-0">
               <span v-if="loading" class="inline-block h-6 w-48 bg-white/30 rounded animate-pulse"></span>
               <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
             </h1>
@@ -357,7 +355,7 @@ const shouldMarquee = computed(() => {
               :class="[
                 'flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm lg:text-base font-bold shadow-lg transition whitespace-nowrap',
                 friendRequestStatus === 'accepted'
-                  ? 'bg-red-500/20 text-red-700 border border-red-500 hover:bg-red-500/30'
+                  ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
                   : friendRequestStatus === 'sent'
                   ? 'bg-white/20 text-white border border-white'
                   : 'bg-white text-primary-600 hover:bg-gray-100'

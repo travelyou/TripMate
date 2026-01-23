@@ -444,9 +444,7 @@ onUnmounted(() => {
                       : 'bg-white text-primary-700 hover:bg-white/90'
                   "
                   class="relative z-30 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
-                  @click.stop="
-                    traveler.status !== '已額滿' && $emit('open-detail', traveler)
-                  "
+                  @click.stop="traveler.status !== '已額滿' && handleApply($event)"
                 >
                   私訊報名
                 </button>
