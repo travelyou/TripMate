@@ -5,9 +5,6 @@ import {
   Heart as HeartIcon,
   MapPin as MapPinIcon,
   Sparkles as SparklesIcon,
-  Info as InfoIcon,
-  ChevronDown as ChevronDownIcon,
-  Calendar as CalendarIcon,
   Camera as CameraIcon,
   Tent as TentIcon,
 } from 'lucide-vue-next'
@@ -88,13 +85,6 @@ const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
 const isProcessing = ref(false)
 const loadSeq = ref(0)
 const isDetailOpen = ref(true)
-
-const openDetail = () => {
-  isDetailOpen.value = true
-}
-const closeDetail = () => {
-  isDetailOpen.value = false
-}
 
 const startX = ref(0)
 const currentX = ref(0)
@@ -484,7 +474,7 @@ watch(
         <Transition name="slide-up">
           <div
             v-if="isDetailOpen"
-            class="absolute inset-0 bg-white z-50 flex flex-col"
+            class="absolute inset-0 bg-white z-50 flex flex-col rounded-2xl overflow-hidden"
             @mousedown.stop
             @touchstart.stop
           >
@@ -521,16 +511,20 @@ watch(
                     <p class="text-gray-700 leading-relaxed text-base">{{ currentCard.bio }}</p>
                   </section>
 
-                  <section v-if="currentCard.wishlist && currentCard.wishlist.length">
+                  <section v-if="currentCard.gallery && currentCard.gallery.length">
                     <h3
                       class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
                     >
-                      <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
+                      <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
                     </h3>
-                    <div
-                      class="h-48 rounded-2xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
-                    >
-                      <WishBallPool :wishlist="currentCard.wishlist" />
+                    <div class="grid grid-cols-3 gap-2">
+                      <div
+                        v-for="(photo, idx) in currentCard.gallery"
+                        :key="photo || idx"
+                        class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                      >
+                        <img :src="photo" class="w-full h-full object-cover" />
+                      </div>
                     </div>
                   </section>
 
@@ -551,20 +545,16 @@ watch(
                     </div>
                   </section>
 
-                  <section v-if="currentCard.gallery && currentCard.gallery.length">
+                  <section v-if="currentCard.wishlist && currentCard.wishlist.length">
                     <h3
                       class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
                     >
-                      <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
+                      <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
                     </h3>
-                    <div class="grid grid-cols-3 gap-2">
-                      <div
-                        v-for="(photo, idx) in currentCard.gallery"
-                        :key="photo || idx"
-                        class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
-                      >
-                        <img :src="photo" class="w-full h-full object-cover" />
-                      </div>
+                    <div
+                      class="h-48 rounded-2xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
+                    >
+                      <WishBallPool :wishlist="currentCard.wishlist" />
                     </div>
                   </section>
                 </div>
@@ -578,13 +568,13 @@ watch(
                 class="action-btn-nope scale-110 shadow-md"
                 @click="handleButtonClick('left')"
               >
-                <XIcon class="w-8 h-8 pointer-events-none" />
+                <XIcon class="w-7 h-7 pointer-events-none" />
               </button>
               <button
                 class="action-btn-like scale-110 shadow-primary-sm"
                 @click="handleButtonClick('right')"
               >
-                <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
+                <HeartIcon class="w-7 h-7 fill-current pointer-events-none" />
               </button>
             </div>
           </div>
@@ -623,7 +613,7 @@ watch(
 }
 
 .action-btn-nope {
-  @apply w-14 h-14 rounded-full bg-white border-2 border-secondary-200 text-secondary-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 cursor-pointer;
+  @apply w-16 h-16 rounded-full bg-white border-2 border-secondary-200 text-secondary-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 cursor-pointer;
 }
 .action-btn-like {
   @apply w-16 h-16 rounded-full bg-primary-600 text-white shadow-primary-sm hover:bg-primary-700 hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer;
