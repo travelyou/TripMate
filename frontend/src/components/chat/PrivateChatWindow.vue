@@ -28,6 +28,20 @@ const groupChatRooms = ref([])
 
 // 載入好友列表和好友請求
 const friendRequests = ref({ received: [], sent: [] })
+const showGroupMembersModal = ref(false)
+const groupMembers = ref([])
+const groupMembersLoading = ref(false)
+const groupMembersError = ref('')
+const groupMembersOwnerUid = ref('')
+const groupMemberSearch = ref('')
+const friendCandidateSearch = ref('')
+const isEditingGroupName = ref(false)
+const groupNameDraft = ref('')
+const groupNameInputRef = ref(null)
+const groupAvatarInputRef = ref(null)
+const isSavingGroupName = ref(false)
+const isSavingGroupAvatar = ref(false)
+const memberActionLoading = ref(new Set())
 
 // 訊息列表（根據當前聊天室）
 const messages = ref([])
@@ -64,6 +78,10 @@ const maxFileSize = 10 * 1024 * 1024 // 10MB
 // 對話次數限制
 const chatInteractionCount = ref({ count: 0, remaining: 3, canSend: true, isFriend: false })
 const isGroupChat = computed(() => activeChatRoom.value?.type === 'group')
+const currentUserUid = computed(() => userStore.currentUser?.uid || userStore.currentUser?.id)
+const isGroupOwner = computed(() =>
+  Boolean(isGroupChat.value && currentUserUid.value && groupMembersOwnerUid.value === currentUserUid.value),
+)
 const isFriendChat = computed(() => {
   if (isGroupChat.value) return true
   const targetUid = activeChatRoom.value?.uid
@@ -254,6 +272,205 @@ const loadGroupChatRooms = async () => {
     }
   } catch (error) {
     console.warn('載入群組聊天室失敗:', error)
+  }
+}
+
+const updateGroupRoomLocal = (roomId, updates) => {
+  const groupRoom = groupChatRooms.value.find((room) => room.id === roomId)
+  if (groupRoom) {
+    Object.assign(groupRoom, updates)
+  }
+  if (activeChatRoom.value?.roomId === roomId) {
+    Object.assign(activeChatRoom.value, updates)
+  }
+}
+
+const setMemberActionLoading = (uid, active) => {
+  const nextSet = new Set(memberActionLoading.value)
+  if (active) nextSet.add(uid)
+  else nextSet.delete(uid)
+  memberActionLoading.value = nextSet
+}
+
+const loadGroupMembers = async (silent = false) => {
+  if (!isGroupChat.value || !activeChatRoom.value?.roomId) return
+  if (!silent) {
+    groupMembersLoading.value = true
+    groupMembersError.value = ''
+  }
+  try {
+    const { getGroupChatMembers } = await import('@/api/travelers')
+    const response = await getGroupChatMembers(activeChatRoom.value.roomId)
+    if (response?.success) {
+      const data = response.data || {}
+      groupMembersOwnerUid.value = data.created_by || ''
+      groupMembers.value = Array.isArray(data.members) ? data.members : []
+    }
+  } catch (error) {
+    console.warn('載入群組成員失敗:', error)
+    if (!silent) groupMembersError.value = '載入群組成員失敗'
+  } finally {
+    if (!silent) groupMembersLoading.value = false
+  }
+}
+
+const openGroupMembersModal = async () => {
+  if (!isGroupChat.value) return
+  showGroupMembersModal.value = true
+  await loadGroupMembers()
+}
+
+const closeGroupMembersModal = () => {
+  showGroupMembersModal.value = false
+  groupMemberSearch.value = ''
+  friendCandidateSearch.value = ''
+}
+
+const startEditGroupName = async () => {
+  if (!isGroupOwner.value || !activeChatRoom.value) return
+  groupNameDraft.value = activeChatRoom.value.name || ''
+  isEditingGroupName.value = true
+  await nextTick()
+  groupNameInputRef.value?.focus()
+}
+
+const cancelEditGroupName = () => {
+  isEditingGroupName.value = false
+  groupNameDraft.value = activeChatRoom.value?.name || ''
+}
+
+const saveGroupName = async () => {
+  if (!isGroupOwner.value || !activeChatRoom.value || isSavingGroupName.value) return
+  const nextName = groupNameDraft.value.trim()
+  if (!nextName) {
+    alert('群組名稱不可為空')
+    return
+  }
+  if (nextName === activeChatRoom.value.name) {
+    cancelEditGroupName()
+    return
+  }
+  isSavingGroupName.value = true
+  try {
+    const { updateGroupChatRoom } = await import('@/api/travelers')
+    const response = await updateGroupChatRoom(activeChatRoom.value.roomId, { name: nextName })
+    if (response?.success && response.data) {
+      updateGroupRoomLocal(activeChatRoom.value.roomId, { name: response.data.name })
+      groupNameDraft.value = response.data.name
+      isEditingGroupName.value = false
+    }
+  } catch (error) {
+    console.error('更新群組名稱失敗：', error)
+    alert('更新群組名稱失敗，請稍後再試')
+  } finally {
+    isSavingGroupName.value = false
+  }
+}
+
+const handleGroupAvatarClick = () => {
+  if (!isGroupOwner.value) return
+  groupAvatarInputRef.value?.click()
+}
+
+const handleGroupAvatarChange = async (event) => {
+  if (!isGroupOwner.value || !activeChatRoom.value?.roomId) return
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  if (!allowedFileTypes.includes(file.type)) {
+    alert('僅支援 JPG、PNG、GIF、WEBP 格式')
+    event.target.value = ''
+    return
+  }
+  if (file.size > maxFileSize) {
+    alert('檔案大小不可超過 10MB')
+    event.target.value = ''
+    return
+  }
+
+  isSavingGroupAvatar.value = true
+  try {
+    const avatarUrl = await uploadImage(file, 'group-avatars')
+    if (!avatarUrl) throw new Error('未取得圖片網址')
+    const { updateGroupChatRoom } = await import('@/api/travelers')
+    const response = await updateGroupChatRoom(activeChatRoom.value.roomId, { avatar: avatarUrl })
+    if (response?.success && response.data) {
+      updateGroupRoomLocal(activeChatRoom.value.roomId, { avatar: response.data.avatar })
+    }
+  } catch (error) {
+    console.error('更新群組頭像失敗：', error)
+    alert('更新群組頭像失敗，請稍後再試')
+  } finally {
+    isSavingGroupAvatar.value = false
+    event.target.value = ''
+  }
+}
+
+const filteredGroupMembers = computed(() => {
+  const keyword = groupMemberSearch.value.trim().toLowerCase()
+  const members = Array.isArray(groupMembers.value) ? groupMembers.value : []
+  if (!keyword) return members
+  return members.filter((member) => {
+    const name = member.name || member.nickname || member.user_uid || ''
+    return String(name).toLowerCase().includes(keyword)
+  })
+})
+
+const filteredFriendCandidates = computed(() => {
+  const friends = Array.isArray(userStore.currentUser?.friends) ? userStore.currentUser.friends : []
+  const memberUids = new Set(
+    (Array.isArray(groupMembers.value) ? groupMembers.value : []).map((member) => member.user_uid),
+  )
+  const keyword = friendCandidateSearch.value.trim().toLowerCase()
+  return friends
+    .map((friend) => ({
+      uid: friend.uid || friend.id,
+      name: friend.name || friend.nickname,
+      nickname: friend.nickname || friend.name,
+      avatar: friend.avatar || '',
+    }))
+    .filter((friend) => friend.uid && !memberUids.has(friend.uid))
+    .filter((friend) => {
+      if (!keyword) return true
+      const name = friend.name || friend.nickname || ''
+      return String(name).toLowerCase().includes(keyword)
+    })
+})
+
+const handleAddGroupMember = async (member) => {
+  if (!isGroupOwner.value || !activeChatRoom.value?.roomId || !member?.uid) return
+  if (memberActionLoading.value.has(member.uid)) return
+  setMemberActionLoading(member.uid, true)
+  try {
+    const { addGroupChatMember } = await import('@/api/travelers')
+    const response = await addGroupChatMember(activeChatRoom.value.roomId, member.uid)
+    if (response?.success && response.data) {
+      groupMembers.value = [...groupMembers.value, response.data]
+    }
+  } catch (error) {
+    console.error('新增群組成員失敗：', error)
+    alert('新增群組成員失敗，請稍後再試')
+  } finally {
+    setMemberActionLoading(member.uid, false)
+  }
+}
+
+const handleRemoveGroupMember = async (member) => {
+  if (!isGroupOwner.value || !activeChatRoom.value?.roomId || !member?.user_uid) return
+  if (member.user_uid === groupMembersOwnerUid.value) return
+  if (memberActionLoading.value.has(member.user_uid)) return
+  setMemberActionLoading(member.user_uid, true)
+  try {
+    const { removeGroupChatMember } = await import('@/api/travelers')
+    const response = await removeGroupChatMember(activeChatRoom.value.roomId, member.user_uid)
+    if (response?.success) {
+      groupMembers.value = groupMembers.value.filter((item) => item.user_uid !== member.user_uid)
+    }
+  } catch (error) {
+    console.error('移除群組成員失敗：', error)
+    alert('移除群組成員失敗，請稍後再試')
+  } finally {
+    setMemberActionLoading(member.user_uid, false)
   }
 }
 
@@ -988,9 +1205,12 @@ const handleChatRoomClick = async (room) => {
       avatar: room.avatar,
       messages: room.messages || [],
     }
+    groupNameDraft.value = room.name || ''
+    isEditingGroupName.value = false
     const roomKey = `group-${room.roomId}`
     const localMessages = loadMessagesFromStorage(roomKey)
     messages.value = localMessages
+    loadGroupMembers(true)
     await loadGroupChatHistory(room.roomId)
     startGroupMessagePolling(room.roomId)
     scrollToBottom()
@@ -1033,6 +1253,17 @@ watch(() => activeTab.value, (tab) => {
     window.dispatchEvent(new CustomEvent('friends-viewed'))
   }
 })
+
+watch(
+  () => activeChatRoom.value?.uid,
+  () => {
+    isEditingGroupName.value = false
+    showGroupMembersModal.value = false
+    groupMembersError.value = ''
+    groupMemberSearch.value = ''
+    friendCandidateSearch.value = ''
+  },
+)
 
 
 watch(chatRoomsList, () => {
@@ -1432,22 +1663,85 @@ onUnmounted(() => {
             <UserIcon class="w-5 h-5 text-white" />
           </div>
         </button>
-        <div v-else-if="activeChatRoom" class="flex-shrink-0">
+        <button
+          v-else-if="activeChatRoom && activeChatRoom.type === 'group'"
+          class="flex-shrink-0"
+          :title="isGroupOwner ? '點擊更換群組頭像' : '群組頭像'"
+          @click="handleGroupAvatarClick"
+        >
           <div
-            class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center"
+            v-if="activeChatRoom.avatar && !avatarErrors[`group-${activeChatRoom.roomId}`]"
+            class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden cursor-pointer hover:opacity-80 transition"
+          >
+            <img
+              :src="activeChatRoom.avatar"
+              :alt="activeChatRoom.name"
+              class="w-full h-full object-cover"
+              @error="avatarErrors[`group-${activeChatRoom.roomId}`] = true"
+            />
+          </div>
+          <div
+            v-else
+            class="w-10 h-10 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center cursor-pointer hover:opacity-80 transition"
           >
             <UserIcon class="w-5 h-5 text-white" />
           </div>
-        </div>
+        </button>
         <div>
-          <h3 class="font-bold text-lg">
-            {{ activeChatRoom ? activeChatRoom.name : '我的聊天' }}
+          <div v-if="isGroupChat && isEditingGroupName" class="flex items-center gap-2">
+            <input
+              ref="groupNameInputRef"
+              v-model="groupNameDraft"
+              class="bg-white/90 text-gray-800 rounded-md px-2 py-1 text-sm font-bold w-40"
+              placeholder="輸入群組名稱"
+              maxlength="30"
+              @keyup.enter="saveGroupName"
+              @keyup.esc="cancelEditGroupName"
+            />
+            <button
+              class="p-1 rounded-full bg-white/20 hover:bg-white/30 transition"
+              :disabled="isSavingGroupName"
+              @click="saveGroupName"
+            >
+              <CheckIcon class="w-4 h-4" />
+            </button>
+            <button
+              class="p-1 rounded-full bg-white/20 hover:bg-white/30 transition"
+              @click="cancelEditGroupName"
+            >
+              <XIcon class="w-4 h-4" />
+            </button>
+          </div>
+          <h3 v-else class="font-bold text-lg">
+            <span
+              v-if="isGroupChat && isGroupOwner"
+              class="cursor-pointer hover:opacity-80 transition"
+              title="點擊編輯群組名稱"
+              @click="startEditGroupName"
+            >
+              {{ activeChatRoom ? activeChatRoom.name : '我的聊天' }}
+            </span>
+            <span v-else>
+              {{ activeChatRoom ? activeChatRoom.name : '我的聊天' }}
+            </span>
           </h3>
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button
+          v-if="activeChatRoom && activeChatRoom.type === 'group'"
+          class="p-1 hover:bg-primary-600 rounded-full transition relative"
+          title="編輯群組成員"
+          @click.stop="openGroupMembersModal"
+        >
+          <UserIcon class="w-6 h-6" />
+        </button>
         <!-- 好友請求列表按鈕 -->
-        <div ref="friendRequestsListContainer" class="relative friend-requests-list-container">
+        <div
+          v-else
+          ref="friendRequestsListContainer"
+          class="relative friend-requests-list-container"
+        >
           <button
             class="p-1 hover:bg-primary-600 rounded-full transition relative"
             title="好友邀請"
@@ -1544,6 +1838,13 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
+    <input
+      ref="groupAvatarInputRef"
+      type="file"
+      accept="image/*"
+      class="hidden"
+      @change="handleGroupAvatarChange"
+    />
 
     <!-- 聊天界面 -->
     <template v-if="activeChatRoom && activeChatRoom.type === 'chat'">
@@ -1909,6 +2210,151 @@ onUnmounted(() => {
         </div>
       </div>
     </template>
+
+    <!-- 群組成員管理 -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showGroupMembersModal"
+          class="fixed inset-0 z-[9998] bg-black/60 flex items-center justify-center p-4"
+          @click="closeGroupMembersModal"
+        >
+          <div
+            class="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden border-2 border-primary-200 shadow-2xl flex flex-col"
+            @click.stop
+          >
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-primary-50">
+              <div>
+                <h3 class="font-bold text-primary-700">群組成員</h3>
+                <p class="text-xs text-gray-500">
+                  {{ isGroupOwner ? '可新增或移除成員' : '僅群組建立者可編輯成員' }}
+                </p>
+              </div>
+              <button
+                class="p-2 rounded-full hover:bg-primary-100 transition"
+                title="關閉"
+                @click="closeGroupMembersModal"
+              >
+                <XIcon class="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-bold text-sm text-gray-700">目前成員</h4>
+                  <span class="text-xs text-gray-500">{{ groupMembers.length }} 位</span>
+                </div>
+                <input
+                  v-model="groupMemberSearch"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3"
+                  placeholder="搜尋成員"
+                />
+                <div v-if="groupMembersLoading" class="text-center text-gray-400 text-sm py-6">
+                  載入中...
+                </div>
+                <div v-else-if="groupMembersError" class="text-center text-red-500 text-sm py-4">
+                  {{ groupMembersError }}
+                </div>
+                <div v-else-if="filteredGroupMembers.length === 0" class="text-center text-gray-400 text-sm py-4">
+                  找不到符合的成員
+                </div>
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="member in filteredGroupMembers"
+                    :key="member.user_uid"
+                    class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-white"
+                  >
+                    <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-100 flex-shrink-0 flex items-center justify-center">
+                      <img
+                        v-if="member.avatar && !avatarErrors[`member-${member.user_uid}`]"
+                        :src="member.avatar"
+                        :alt="member.name || member.nickname"
+                        class="w-full h-full object-cover"
+                        @error="avatarErrors[`member-${member.user_uid}`] = true"
+                      />
+                      <UserIcon v-else class="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-sm text-gray-800 truncate">
+                        {{ member.name || member.nickname || member.user_uid }}
+                      </div>
+                      <div class="text-xs text-gray-500 truncate">
+                        {{ member.user_uid === groupMembersOwnerUid ? '群組建立者' : '@' + member.user_uid }}
+                      </div>
+                    </div>
+                    <button
+                      v-if="isGroupOwner && member.user_uid !== groupMembersOwnerUid"
+                      class="px-3 py-1.5 text-xs rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+                      :disabled="memberActionLoading.has(member.user_uid)"
+                      @click.stop="handleRemoveGroupMember(member)"
+                    >
+                      移除
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-bold text-sm text-gray-700">新增好友</h4>
+                  <span class="text-xs text-gray-500">{{ filteredFriendCandidates.length }} 位</span>
+                </div>
+                <input
+                  v-model="friendCandidateSearch"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3"
+                  placeholder="搜尋好友"
+                />
+                <div v-if="filteredFriendCandidates.length === 0" class="text-center text-gray-400 text-sm py-4">
+                  沒有可加入的好友
+                </div>
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="friend in filteredFriendCandidates"
+                    :key="friend.uid"
+                    class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-white"
+                  >
+                    <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-100 flex-shrink-0 flex items-center justify-center">
+                      <img
+                        v-if="friend.avatar && !avatarErrors[`candidate-${friend.uid}`]"
+                        :src="friend.avatar"
+                        :alt="friend.name || friend.nickname"
+                        class="w-full h-full object-cover"
+                        @error="avatarErrors[`candidate-${friend.uid}`] = true"
+                      />
+                      <UserIcon v-else class="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-sm text-gray-800 truncate">
+                        {{ friend.name || friend.nickname || friend.uid }}
+                      </div>
+                      <div class="text-xs text-gray-500 truncate">
+                        @{{ friend.nickname || friend.name || friend.uid }}
+                      </div>
+                    </div>
+                    <button
+                      v-if="isGroupOwner"
+                      class="px-3 py-1.5 text-xs rounded-full bg-primary-600 text-white hover:bg-primary-700 transition disabled:opacity-50"
+                      :disabled="memberActionLoading.has(friend.uid)"
+                      @click.stop="handleAddGroupMember(friend)"
+                    >
+                      新增
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- 圖片預覽模态框 -->
     <Teleport to="body">

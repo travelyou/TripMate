@@ -193,6 +193,24 @@ const fetchFullTravelerDetails = async () => {
     if (response.success) {
       localTravelerData.value = { ...localTravelerData.value, ...response.data }
       incrementView(props.traveler.id)
+      const commentsData = response.data?.commentsData || response.data?.comments || []
+      if (Array.isArray(commentsData)) {
+        localComments.value = commentsData.map((comment) => ({
+          id: comment.id,
+          author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+          author_uid: comment.author_uid,
+          avatar:
+            comment.author_avatar ||
+            comment.avatar ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+          content: comment.content,
+          time: comment.created_at || comment.timestamp || comment.time,
+          likes: comment.likes || 0,
+          replies: comment.replies || [],
+        }))
+      } else {
+        localComments.value = []
+      }
     }
   } catch (error) {
     console.error(error)

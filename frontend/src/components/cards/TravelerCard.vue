@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -38,6 +38,7 @@ const isReported = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('info')
+const localLikes = ref(0)
 
 const handleAvatarClick = (e) => {
   e.stopPropagation()
@@ -91,6 +92,8 @@ const isExpired = computed(() => {
   return endDate < today
 })
 
+const likeCount = computed(() => localLikes.value)
+
 const isFull = computed(() => {
   const currentFromField = Number(props.traveler.current_people)
   const maxFromField = Number(props.traveler.max_people)
@@ -134,6 +137,10 @@ const isAuthor = computed(() => {
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
+const syncLocalLikes = () => {
+  localLikes.value = Number(props.traveler.likes ?? props.traveler.likes_count ?? 0)
+}
+
 const handleApply = (e) => {
   e.stopPropagation()
 
@@ -157,6 +164,13 @@ const handleViewApplications = (e) => {
 const toggleMenu = (e) => {
   e.stopPropagation()
   showMenu.value = !showMenu.value
+}
+
+const handleToggleFavorite = (e) => {
+  e.stopPropagation()
+  const wasFavorite = userStore.isFavorite(itemData.value)
+  localLikes.value = Math.max(0, localLikes.value + (wasFavorite ? -1 : 1))
+  userStore.toggleFavorite(itemData.value)
 }
 
 const closeMenu = () => {
@@ -231,12 +245,18 @@ onMounted(() => {
   if (user) {
     currentUserUid.value = user.uid
   }
+  syncLocalLikes()
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+watch(
+  () => [props.traveler.likes, props.traveler.likes_count],
+  () => syncLocalLikes(),
+)
 </script>
 
 <template>
@@ -410,12 +430,13 @@ onUnmounted(() => {
                         ? 'text-red-300'
                         : 'text-white/70 hover:text-red-300'
                     "
-                    @click.stop="userStore.toggleFavorite(itemData)"
+                    @click.stop="handleToggleFavorite"
                   >
                     <HeartIcon
                       class="mr-1 h-4 w-4 transition-transform group-active:scale-125"
                       :class="{ 'fill-current': userStore.isFavorite(itemData) }"
                     />
+                    <span>{{ likeCount }}</span>
                   </button>
 
                   <button

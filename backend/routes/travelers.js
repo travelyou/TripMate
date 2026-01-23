@@ -251,6 +251,10 @@ const ensureGroupChatRoomsTable = async () => {
     )`,
   )
   await pool.query(
+    `ALTER TABLE public.group_chat_rooms
+     ADD COLUMN IF NOT EXISTS avatar TEXT`,
+  )
+  await pool.query(
     `CREATE TABLE IF NOT EXISTS public.group_chat_members (
       id SERIAL PRIMARY KEY,
       room_id INTEGER NOT NULL REFERENCES public.group_chat_rooms(id) ON DELETE CASCADE,
@@ -558,6 +562,7 @@ router.get('/group-chat-rooms', async (req, res) => {
         r.id,
         r.traveler_id,
         r.name,
+        r.avatar,
         r.created_by,
         r.created_at,
         t.title as traveler_title
@@ -575,6 +580,124 @@ router.get('/group-chat-rooms', async (req, res) => {
   } catch (error) {
     console.error('獲取群組聊天室列表失敗:', error)
     res.status(500).json({ success: false, message: '獲取群組聊天室列表失敗', error: error.message })
+  }
+})
+
+// 更新群組聊天室資訊（僅作者）
+router.patch('/group-chat-rooms/:roomId', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+
+    const { roomId } = req.params
+    const { user_uid, name, avatar } = req.body
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+    if (name === undefined && avatar === undefined) {
+      return res.status(400).json({ success: false, message: '缺少更新內容' })
+    }
+
+    const roomIdNum = Number(roomId)
+    if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+      return res.status(400).json({ success: false, message: 'roomId 格式錯誤' })
+    }
+
+    const roomResult = await pool.query(
+      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      [roomIdNum],
+    )
+    if (roomResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到群組聊天室' })
+    }
+
+    if (roomResult.rows[0].created_by !== user_uid) {
+      return res.status(403).json({ success: false, message: '只有作者可以更新群組' })
+    }
+
+    const updates = []
+    const values = []
+    let idx = 1
+
+    if (name !== undefined) {
+      updates.push(`name = $${idx++}`)
+      values.push(name && typeof name === 'string' ? name.trim() || '旅伴群組' : '旅伴群組')
+    }
+    if (avatar !== undefined) {
+      updates.push(`avatar = $${idx++}`)
+      values.push(avatar || null)
+    }
+
+    values.push(roomIdNum)
+
+    const updateResult = await pool.query(
+      `UPDATE public.group_chat_rooms
+       SET ${updates.join(', ')}
+       WHERE id = $${idx}
+       RETURNING id, name, avatar, created_by`,
+      values,
+    )
+
+    res.json({ success: true, data: updateResult.rows[0] })
+  } catch (error) {
+    console.error('更新群組聊天室失敗：', error)
+    res.status(500).json({ success: false, message: '更新群組聊天室失敗', error: error.message })
+  }
+})
+
+// 新增群組成員（作者權限）
+router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+    await ensureUsersTable()
+
+    const { roomId } = req.params
+    const { user_uid, member_uid } = req.body
+    if (!user_uid || !member_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid或member_uid參數' })
+    }
+
+    const roomIdNum = Number(roomId)
+    if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+      return res.status(400).json({ success: false, message: 'roomId 格式錯誤' })
+    }
+
+    const roomResult = await pool.query(
+      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      [roomIdNum],
+    )
+    if (roomResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到群組聊天室' })
+    }
+
+    if (roomResult.rows[0].created_by !== user_uid) {
+      return res.status(403).json({ success: false, message: '只有作者可以新增成員' })
+    }
+
+    await pool.query(
+      `INSERT INTO public.group_chat_members (room_id, user_uid)
+       VALUES ($1, $2)
+       ON CONFLICT (room_id, user_uid) DO NOTHING`,
+      [roomIdNum, member_uid],
+    )
+
+    const memberResult = await pool.query(
+      `SELECT
+        $1::varchar AS user_uid,
+        COALESCE(u.name, u.nickname, $1) AS name,
+        u.nickname,
+        u.avatar
+       FROM users u
+       WHERE u.uid = $1`,
+      [member_uid],
+    )
+
+    res.json({
+      success: true,
+      data: memberResult.rows[0] || { user_uid: member_uid, name: member_uid, nickname: null, avatar: null },
+    })
+  } catch (error) {
+    console.error('新增群組成員失敗：', error)
+    res.status(500).json({ success: false, message: '新增群組成員失敗', error: error.message })
   }
 })
 
