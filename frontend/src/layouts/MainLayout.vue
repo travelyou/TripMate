@@ -550,7 +550,7 @@ const calculateSwipeReminder = () => {
 const handleIncomingMessage = (event) => {
   const detail = event.detail || {}
   const toastId = `${Date.now()}-${Math.random().toString(16).slice(2)}`
-  incomingMessageToasts.value.push({
+  incomingMessageToasts.value.unshift({
     id: toastId,
     avatar: detail.avatar || '',
     name: detail.name || '新訊息',
@@ -837,26 +837,24 @@ const handleSubmitPost = async (postData) => {
       <div
         v-for="(toast, idx) in incomingMessageToasts"
         :key="toast.id"
-        class="fixed right-4 z-[60] max-w-[90vw] sm:max-w-sm bg-blue-600 text-white border border-blue-700 rounded-2xl shadow-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-blue-700 transition"
-        :style="{ bottom: `${96 + idx * 76}px` }"
+        class="fixed right-4 z-[60] max-w-[90vw] sm:max-w-md bg-primary-600 text-white border-2 border-primary-700 rounded-lg shadow-xl p-5 flex items-center gap-4 cursor-pointer hover:bg-primary-700 transition"
+        :style="{ bottom: `${16 + idx * 88}px` }"
         @click="handleIncomingToastClick(toast)"
       >
-        <div
-          class="w-11 h-11 rounded-full bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0"
-        >
+        <div class="w-12 h-12 rounded-md bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
           <img
             v-if="toast.avatar"
             :src="toast.avatar"
             :alt="toast.name"
             class="w-full h-full object-cover"
           />
-          <span v-else class="text-base font-bold text-white">
+          <span v-else class="text-lg font-bold text-white">
             {{ toast.name.slice(0, 1) }}
           </span>
         </div>
         <div class="min-w-0">
-          <div class="text-base font-bold truncate">{{ toast.name }}</div>
-          <div class="text-sm text-white/90 truncate">{{ toast.content }}</div>
+          <div class="text-lg font-bold truncate">{{ toast.name }}</div>
+          <div class="text-base text-white/90 truncate">{{ toast.content }}</div>
         </div>
       </div>
     </div>
