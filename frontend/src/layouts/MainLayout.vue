@@ -57,7 +57,18 @@ const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 const unreadMessageCount = ref(0) // 未讀訊息總數
 
+const ensureLoggedIn = () => {
+  if (userStore.isLoggedIn) return true
+  alert('請先登入後才可使用')
+  return false
+}
+
 const handleOpenPosting = () => {
+  if (!ensureLoggedIn()) {
+    isPostingModalOpen.value = false
+    isMobileActionMenuOpen.value = false
+    return
+  }
   isPostingModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
@@ -68,10 +79,22 @@ const handleSelectFindTraveler = () => {
   isPostingModalOpen.value = false
 }
 const handleQuickAction = () => {
+  if (!ensureLoggedIn()) {
+    isSwipeModalOpen.value = false
+    isMobileActionMenuOpen.value = false
+    return
+  }
   isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
 const handleTogglePrivateChat = (user = null) => {
+  if (!ensureLoggedIn()) {
+    isPrivateChatOpen.value = false
+    isAiChatOpen.value = false
+    isMobileActionMenuOpen.value = false
+    openChatWithUser.value = null
+    return
+  }
   if (user) {
     openChatWithUser.value = user
   }
@@ -82,6 +105,13 @@ const handleTogglePrivateChat = (user = null) => {
 
 // 監聽全局事件來開啟聊天（從 ProfilePage 觸發）
 const handleOpenChat = (event) => {
+  if (!ensureLoggedIn()) {
+    isPrivateChatOpen.value = false
+    isAiChatOpen.value = false
+    isMobileActionMenuOpen.value = false
+    openChatWithUser.value = null
+    return
+  }
   if (event.detail && event.detail.user) {
     openChatWithUser.value = event.detail.user
     isPrivateChatOpen.value = true

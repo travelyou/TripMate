@@ -1237,40 +1237,39 @@ onUnmounted(() => {
           <!-- 好友請求列表彈窗 -->
           <div
             v-if="showFriendRequestsList"
-            class="friend-requests-popup bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-96 overflow-hidden flex flex-col"
+            class="friend-requests-popup bg-white rounded-xl shadow-2xl border-2 border-primary-200 z-[100] max-h-80 overflow-hidden flex flex-col"
             :style="{
               position: friendRequestsPopupPosition.position || 'fixed',
               top: friendRequestsPopupPosition.top || 'auto',
               bottom: friendRequestsPopupPosition.bottom || 'auto',
               left: friendRequestsPopupPosition.left || 'auto',
               right: friendRequestsPopupPosition.right || 'auto',
-              width: friendRequestsPopupPosition.width || '320px',
-              maxWidth: friendRequestsPopupPosition.maxWidth || '384px',
-              maxHeight: friendRequestsPopupPosition.maxHeight || '70vh',
-              minWidth: '280px',
+              width: friendRequestsPopupPosition.width || '280px',
+              maxWidth: friendRequestsPopupPosition.maxWidth || '320px',
+              maxHeight: friendRequestsPopupPosition.maxHeight || '55vh',
+              minWidth: '240px',
               transform: friendRequestsPopupPosition.transform || 'translate(-50%, -50%)'
             }"
             @click.stop
           >
-            <div class="p-3 sm:p-4 border-b border-gray-200 bg-primary-50 flex-shrink-0">
-              <h3 class="font-bold text-primary-700 text-sm sm:text-base">好友邀請</h3>
-              <p class="text-xs text-gray-500 mt-1 break-words whitespace-normal">
+            <div class="p-2 sm:p-3 border-b border-gray-200 bg-primary-50 flex-shrink-0">
+              <h3 class="font-bold text-primary-700 text-sm pl-4 ml-7 sm:text-base">好友邀請</h3>
+              <p class="text-xs text-gray-500 mt-1 ml-7 pl-4 break-words whitespace-normal">
                 {{ friendRequests.received && friendRequests.received.length > 0 ? `${friendRequests.received.length} 個待處理邀請` : '目前沒有邀請' }}
-              </p>
+               </p>
             </div>
-            <div class="flex-1 overflow-y-auto p-2 sm:p-3 min-h-0 custom-scrollbar">
+            <div class="flex-1 overflow-y-auto p-4 ml-4 space-y-2 min-h-0 custom-scrollbar">
               <div
                 v-if="!friendRequests.received || friendRequests.received.length === 0"
                 class="text-center text-gray-400 py-8 text-sm"
               >
-                目前沒有好友邀請
               </div>
               <div
                 v-for="request in friendRequests.received"
                 :key="request.uid"
-                class="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-lg hover:bg-gray-50 transition border border-gray-100 mb-2 last:mb-0"
+                class="flex items-center gap-3 p-3 rounded-2xl transition border border-gray-100 bg-white shadow-sm hover:bg-gray-50"
               >
-                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <div class="w-12 h-12 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
                   <img
                     v-if="request.avatar && request.avatar.trim() && !avatarErrors[`request-${request.uid}`]"
                     :src="request.avatar"
@@ -1283,8 +1282,8 @@ onUnmounted(() => {
                     class="w-5 h-5 sm:w-6 sm:h-6 text-primary-600"
                   />
                 </div>
-                <div class="flex-1 min-w-0 pr-2 sm:pr-3 overflow-hidden">
-                  <div class="font-bold text-gray-800 text-sm sm:text-base truncate break-words">
+                <div class="flex-1 min-w-0 overflow-hidden">
+                  <div class="font-bold text-gray-800 text-sm truncate break-words">
                     {{ request.name || request.nickname || '未知用戶' }}
                   </div>
                   <div class="text-xs text-gray-500 truncate break-words">
@@ -1293,18 +1292,18 @@ onUnmounted(() => {
                 </div>
                 <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                   <button
-                    class="p-1.5 sm:p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition shadow-sm flex-shrink-0 flex items-center justify-center"
+                    class="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition shadow-sm flex-shrink-0 flex items-center justify-center"
                     title="接受"
                     @click.stop="handleAcceptFriendRequest(request)"
                   >
-                    <CheckIcon class="w-4 h-4 sm:w-5 sm:h-5" />
+                    <CheckIcon class="w-4 h-4" />
                   </button>
                   <button
-                    class="p-1.5 sm:p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-sm flex-shrink-0 flex items-center justify-center"
+                    class="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-sm flex-shrink-0 flex items-center justify-center"
                     title="拒絕"
                     @click.stop="handleRejectFriendRequest(request)"
                   >
-                    <XIcon class="w-4 h-4 sm:w-5 sm:h-5" />
+                    <XIcon class="w-4 h-4" />
                   </button>
                 </div>
               </div>
