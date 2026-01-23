@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { usePersonalityStore } from '@/stores/personality'
-import { getTravelers } from '@/api/travelers'
+import { getTravelers, getTravelerById } from '@/api/travelers'
 import { auth, db } from '@/firebase/config'
 import { updateProfile } from 'firebase/auth'
 import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
@@ -12,6 +12,7 @@ import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
 import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
+import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -97,8 +98,10 @@ const isDetailModalOpen = ref(false)
 const isTravelerDetailModalOpen = ref(false)
 const isTravelerApplyModalOpen = ref(false)
 const isTravelerApplicationsModalOpen = ref(false)
+const isTravelerPostModalOpen = ref(false)
 const selectedPost = ref(null)
 const selectedTraveler = ref(null)
+const selectedTravelerDraft = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
@@ -130,6 +133,8 @@ const activeTabsData = computed(() => {
         spiritAnimal: traveler.spiritAnimal,
         location: traveler.location,
         date: traveler.date,
+        start_date: traveler.start_date,
+        end_date: traveler.end_date,
         status: traveler.status,
         people: traveler.people,
         comments: traveler.comments || 0,
@@ -207,6 +212,52 @@ const handleTravelerOpenApply = (traveler) => {
 const handleTravelerOpenApplications = (traveler) => {
   selectedTraveler.value = traveler
   isTravelerApplicationsModalOpen.value = true
+}
+
+const handleTravelerEdit = async (traveler) => {
+  let source = traveler
+  try {
+    const response = await getTravelerById(traveler.id)
+    if (response?.success && response.data) {
+      source = response.data
+    }
+  } catch (error) {
+    console.error('取得旅伴完整資料失敗，改用列表資料：', error)
+  }
+
+  selectedTravelerDraft.value = {
+    type: 'traveler',
+    data: {
+      category: source.category || '',
+      title: source.title || '',
+      content: source.content || '',
+      location: source.location || '',
+      start_date: source.start_date || '',
+      end_date: source.end_date || '',
+      max_people: source.max_people || source.people?.split('/')[1] || 2,
+      tags: source.tags || [],
+      banner_image: source.image || source.banner_image || '',
+      banner_position_y: source.banner_position_y,
+      itinerary: source.itinerary || { days: [] },
+      packingList: source.packingList || [],
+      status: source.status || '招募中',
+    },
+  }
+  isTravelerPostModalOpen.value = true
+}
+
+const handleTravelerPostModalClose = () => {
+  isTravelerPostModalOpen.value = false
+  selectedTravelerDraft.value = null
+}
+
+const handleTravelerPostSuccess = () => {
+  isTravelerPostModalOpen.value = false
+  selectedTravelerDraft.value = null
+  // 重新載入旅伴資料
+  if (targetUid.value) {
+    loadHostedTravelers(targetUid.value)
+  }
 }
 
 const handleOpenFriendProfile = (friend) => {
@@ -1095,6 +1146,7 @@ onMounted(() => {
               v-if="activeTab === 'hosted_trips'"
               :trips="activeTabsData.hostedTrips"
               @open-detail="openDetail($event, false)"
+              @edit="handleTravelerEdit"
             />
 
             <TabPosts
@@ -1166,6 +1218,14 @@ onMounted(() => {
       v-if="isTravelerApplicationsModalOpen"
       :traveler="selectedTraveler"
       @close="isTravelerApplicationsModalOpen = false"
+      @application-updated="loadHostedTravelers(targetUid)"
+    />
+
+    <TravelerPostModal
+      v-if="isTravelerPostModalOpen"
+      :draft-data="selectedTravelerDraft"
+      @close="handleTravelerPostModalClose"
+      @success="handleTravelerPostSuccess"
     />
 
     <PersonalityResultModal

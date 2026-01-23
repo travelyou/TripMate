@@ -179,6 +179,29 @@ export const sendGroupChatMessage = async (roomId, content) => {
   return response.data
 }
 
+export const getGroupChatMembers = async (roomId) => {
+  const userStore = useUserStore()
+  if (!userStore.currentUser?.uid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.get(`${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/members`, {
+    params: { user_uid: userStore.currentUser.uid },
+  })
+  return response.data
+}
+
+export const removeGroupChatMember = async (roomId, memberUid) => {
+  const userStore = useUserStore()
+  if (!userStore.currentUser?.uid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.post(
+    `${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/members/${memberUid}/remove`,
+    { user_uid: userStore.currentUser.uid },
+  )
+  return response.data
+}
+
 export const rejectApplication = async (travelerId, applicationId) => {
   try {
     const { auth } = await import('@/firebase/config')

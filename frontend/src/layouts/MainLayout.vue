@@ -58,7 +58,6 @@ const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
 const unreadMessageCount = ref(0) // 未讀訊息總數
-const swipeReminderActive = ref(false)
 const incomingMessageToasts = ref([])
 let incomingToastTimer = null
 let chatSyncTimer = null
@@ -67,8 +66,6 @@ let chatSocketUid = null
 let chatSocketReconnectTimer = null
 const isChatSyncing = ref(false)
 
-const getTodayKey = () => new Date().toISOString().slice(0, 10)
-const getSwipeOpenedKey = (uid) => `swipe_opened_${uid}`
 
 const getFriendIds = () => {
   const friends = userStore.currentUser?.friends || []
@@ -384,16 +381,6 @@ const handleQuickAction = () => {
     isMobileActionMenuOpen.value = false
     return
   }
-  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-  if (currentUid) {
-    try {
-      localStorage.setItem(getSwipeOpenedKey(currentUid), getTodayKey())
-    } catch (error) {
-      console.warn('保存抽卡開啟記錄失敗:', error)
-    }
-    swipeReminderActive.value = false
-    window.dispatchEvent(new CustomEvent('swipe-opened'))
-  }
   isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
@@ -536,16 +523,6 @@ const calculateUnreadCount = () => {
   }
 }
 
-const calculateSwipeReminder = () => {
-  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-  if (!currentUid) {
-    swipeReminderActive.value = false
-    return
-  }
-  const openedKey = getSwipeOpenedKey(currentUid)
-  const lastOpened = localStorage.getItem(openedKey)
-  swipeReminderActive.value = lastOpened !== getTodayKey()
-}
 
 const handleIncomingMessage = (event) => {
   const detail = event.detail || {}
@@ -614,12 +591,10 @@ onMounted(() => {
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
   window.addEventListener('friends-viewed', saveFriendSnapshot)
-  window.addEventListener('swipe-opened', calculateSwipeReminder)
   window.addEventListener('incoming-message', handleIncomingMessage)
   window.addEventListener('chat-send', handleChatSend)
   // 初始計算未讀訊息
   calculateUnreadCount()
-  calculateSwipeReminder()
   syncChatRoomsInBackground()
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (currentUid) {
@@ -628,7 +603,6 @@ onMounted(() => {
   // 定期檢查未讀訊息（每5秒）
   const interval = setInterval(() => {
     calculateUnreadCount()
-    calculateSwipeReminder()
   }, 5000)
   // 存储interval以便清理
   window._unreadMessageInterval = interval
@@ -641,7 +615,6 @@ onUnmounted(() => {
   window.removeEventListener('message-updated', handleMessageUpdate)
   window.removeEventListener('new-chat-room', handleNewChatRoom)
   window.removeEventListener('friends-viewed', saveFriendSnapshot)
-  window.removeEventListener('swipe-opened', calculateSwipeReminder)
   window.removeEventListener('incoming-message', handleIncomingMessage)
   window.removeEventListener('chat-send', handleChatSend)
   if (window._unreadMessageInterval) {
@@ -901,12 +874,6 @@ const handleSubmitPost = async (postData) => {
                 class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition relative"
               >
                 <SparklesIcon class="w-8 h-8 text-white" />
-                <span
-                  v-if="swipeReminderActive"
-                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow-lg"
-                >
-                  !
-                </span>
               </div>
               <span class="text-sm font-bold text-gray-700">抽卡</span>
             </button>

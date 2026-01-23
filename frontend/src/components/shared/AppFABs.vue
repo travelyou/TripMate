@@ -10,10 +10,7 @@ import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 const unreadMessageCount = ref(0)
-const swipeReminderActive = ref(false)
 
-const getTodayKey = () => new Date().toISOString().slice(0, 10)
-const getSwipeOpenedKey = (uid) => `swipe_opened_${uid}`
 
 const getFriendIds = () => {
   const friends = userStore.currentUser?.friends || []
@@ -146,27 +143,14 @@ const handleNewChatRoom = () => {
   calculateUnreadCount()
 }
 
-const calculateSwipeReminder = () => {
-  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-  if (!currentUid) {
-    swipeReminderActive.value = false
-    return
-  }
-  const openedKey = getSwipeOpenedKey(currentUid)
-  const lastOpened = localStorage.getItem(openedKey)
-  swipeReminderActive.value = lastOpened !== getTodayKey()
-}
 
 onMounted(() => {
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
   window.addEventListener('friends-viewed', saveFriendSnapshot)
-  window.addEventListener('swipe-opened', calculateSwipeReminder)
   calculateUnreadCount()
-  calculateSwipeReminder()
   const interval = setInterval(() => {
     calculateUnreadCount()
-    calculateSwipeReminder()
   }, 5000)
   window._unreadMessageInterval = interval
 })
@@ -175,7 +159,6 @@ onUnmounted(() => {
   window.removeEventListener('message-updated', handleMessageUpdate)
   window.removeEventListener('new-chat-room', handleNewChatRoom)
   window.removeEventListener('friends-viewed', saveFriendSnapshot)
-  window.removeEventListener('swipe-opened', calculateSwipeReminder)
   if (window._unreadMessageInterval) {
     clearInterval(window._unreadMessageInterval)
     delete window._unreadMessageInterval
@@ -185,7 +168,6 @@ onUnmounted(() => {
 // 監聽用戶登入狀態
 watch(() => userStore.currentUser, () => {
   calculateUnreadCount()
-  calculateSwipeReminder()
 }, { deep: true })
 
 defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-chat'])
@@ -209,12 +191,6 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
       @click="$emit('quick-action')"
     >
       <ZapIcon class="w-6 h-6 md:w-7 md:h-7" />
-      <span
-        v-if="swipeReminderActive"
-        class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow-lg"
-      >
-        !
-      </span>
     </button>
 
     <button

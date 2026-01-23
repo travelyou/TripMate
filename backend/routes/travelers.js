@@ -287,6 +287,18 @@ const ensureGroupChatMessagesTable = async () => {
   )
 }
 
+const ensureUsersTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      uid VARCHAR(255) UNIQUE NOT NULL,
+      name VARCHAR(255),
+      nickname VARCHAR(255),
+      avatar TEXT
+    )`,
+  )
+}
+
 // 提交报名
 router.post('/:id/applications', async (req, res) => {
   try {
@@ -603,6 +615,116 @@ router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
   } catch (error) {
     console.error('獲取群組聊天記錄失敗：', error)
     res.status(500).json({ success: false, message: '獲取群組聊天記錄失敗', error: error.message })
+  }
+})
+
+// 獲取群組成員清單
+router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+    await ensureUsersTable()
+
+    const { roomId } = req.params
+    const { user_uid } = req.query
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+
+    const roomIdNum = Number(roomId)
+    if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+      return res.status(400).json({ success: false, message: 'roomId 格式錯誤' })
+    }
+
+    const roomResult = await pool.query(
+      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      [roomIdNum],
+    )
+    if (roomResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到群組聊天室' })
+    }
+
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM public.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
+      [roomIdNum, user_uid],
+    )
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ success: false, message: '非群組成員，無法查看成員' })
+    }
+
+    const membersResult = await pool.query(
+      `SELECT
+        m.user_uid,
+        COALESCE(u.name, u.nickname, m.user_uid) AS name,
+        u.nickname,
+        u.avatar
+       FROM public.group_chat_members m
+       LEFT JOIN users u ON u.uid = m.user_uid
+       WHERE m.room_id = $1
+       ORDER BY m.joined_at ASC`,
+      [roomIdNum],
+    )
+
+    res.json({
+      success: true,
+      data: {
+        room_id: roomIdNum,
+        created_by: roomResult.rows[0].created_by,
+        members: membersResult.rows,
+      },
+    })
+  } catch (error) {
+    console.error('獲取群組成員失敗：', error)
+    res.status(500).json({ success: false, message: '獲取群組成員失敗', error: error.message })
+  }
+})
+
+// 移除群組成員（作者權限）
+router.post('/group-chat-rooms/:roomId/members/:memberUid/remove', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+
+    const { roomId, memberUid } = req.params
+    const { user_uid } = req.body
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+
+    const roomIdNum = Number(roomId)
+    if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+      return res.status(400).json({ success: false, message: 'roomId 格式錯誤' })
+    }
+
+    const roomResult = await pool.query(
+      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      [roomIdNum],
+    )
+    if (roomResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '找不到群組聊天室' })
+    }
+
+    const createdBy = roomResult.rows[0].created_by
+    if (user_uid !== createdBy) {
+      return res.status(403).json({ success: false, message: '只有作者可以移除成員' })
+    }
+    if (memberUid === createdBy) {
+      return res.status(400).json({ success: false, message: '不可移除作者' })
+    }
+
+    const deleteResult = await pool.query(
+      `DELETE FROM public.group_chat_members
+       WHERE room_id = $1 AND user_uid = $2
+       RETURNING user_uid`,
+      [roomIdNum, memberUid],
+    )
+
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '成員不存在' })
+    }
+
+    res.json({ success: true, data: { user_uid: memberUid } })
+  } catch (error) {
+    console.error('移除群組成員失敗：', error)
+    res.status(500).json({ success: false, message: '移除群組成員失敗', error: error.message })
   }
 })
 
