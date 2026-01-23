@@ -62,6 +62,14 @@ const maxFileSize = 10 * 1024 * 1024 // 10MB
 
 // 對話次數限制
 const chatInteractionCount = ref({ count: 0, remaining: 3, canSend: true, isFriend: false })
+const isFriendChat = computed(() => {
+  const targetUid = activeChatRoom.value?.uid
+  if (!targetUid) return false
+  const friendList = userStore.currentUser?.friends || []
+  const inFriendList = friendList.some(friend => (friend.uid || friend.id) === targetUid)
+  return inFriendList || chatInteractionCount.value.isFriend
+})
+const canSendMessage = computed(() => chatInteractionCount.value.canSend && isFriendChat.value)
 
 const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = '') => {
   try {
@@ -185,24 +193,12 @@ const loadMessagesFromStorage = (friendUid) => {
   }
 }
 
-// 聊天室列表（包含好友請求和動態創建的聊天室）
+// 聊天室列表（動態創建的聊天室）
 const chatRooms = computed(() => {
   const rooms = []
 
-  // 只添加收到的好友請求（不顯示已發送的）
-  friendRequests.value.received.forEach(request => {
-    rooms.push({
-      id: `request-received-${request.uid}`,
-      type: 'friend-request-received',
-      uid: request.uid,
-      name: request.name || request.nickname || '未知用戶',
-      avatar: request.avatar || '',
-      lastMessage: '好友請求待處理',
-      lastMessageTime: '',
-      unreadCount: 1,
-      request: request
-    })
-  })
+  const friendList = userStore.currentUser?.friends || []
+  const isFriendUid = (uid) => friendList.some(friend => (friend.uid || friend.id) === uid)
 
   // 添加動態創建的聊天室
   chatRoomsList.value.forEach(room => {
@@ -215,6 +211,7 @@ const chatRooms = computed(() => {
       lastMessage: room.lastMessage || '開始聊天',
       lastMessageTime: room.lastMessageTime || '',
       unreadCount: 0,
+      isStranger: !isFriendUid(room.uid),
       messages: room.messages || []
     })
   })
@@ -547,6 +544,10 @@ const downloadImage = async (imageUrl, fileName = 'image') => {
 
 // 打開文件選擇器
 const openFilePicker = () => {
+  if (!isFriendChat.value) {
+    alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
+    return
+  }
   if (!chatInteractionCount.value.canSend) {
     alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
     return
@@ -582,6 +583,12 @@ const handleFileSelect = async (event) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !activeChatRoom.value) {
     alert('❌ 無法取得用戶資訊或聊天室資訊\n\n請重新整理頁面後再試。')
+    event.target.value = ''
+    return
+  }
+
+  if (!isFriendChat.value) {
+    alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
     event.target.value = ''
     return
   }
@@ -700,6 +707,11 @@ const sendMessage = async () => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !activeChatRoom.value) return
 
+  if (!isFriendChat.value) {
+    alert('⚠️ 目前不是好友，無法傳送訊息。')
+    return
+  }
+
   // 檢查對話次數（在發送前檢查）
   if (!chatInteractionCount.value.canSend) {
     alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
@@ -805,35 +817,7 @@ const stopMessagePolling = () => {
 
 // 處理點擊聊天室
 const handleChatRoomClick = async (room) => {
-  if (room.type === 'friend-request-received') {
-    const accept = confirm(`是否接受 ${room.name} 的好友請求？`)
-    if (accept) {
-      try {
-        const { acceptFriendRequest } = await import('@/api/profile')
-        const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-        await acceptFriendRequest(currentUid, room.uid)
-        await loadFriends()
-        alert('已接受好友請求')
-      } catch (error) {
-        console.error('接受好友請求失敗：', error)
-        alert('接受好友請求失敗：' + (error.message || '未知錯誤'))
-      }
-    } else {
-      // 拒絕好友請求：只是刪除記錄，不發送回應
-      try {
-        const { rejectFriendRequest } = await import('@/api/profile')
-        const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-        await rejectFriendRequest(currentUid, room.uid)
-        await loadFriends()
-        // 重新載入好友請求列表
-        const { getFriendRequests } = await import('@/api/profile')
-        const requests = await getFriendRequests(currentUid)
-        friendRequests.value = requests || { received: [], sent: [] }
-      } catch (error) {
-        console.error('拒絕好友請求失敗：', error)
-      }
-    }
-  } else if (room.type === 'chat') {
+  if (room.type === 'chat') {
     // 打開聊天室
     activeChatRoom.value = {
       type: 'chat',
@@ -1252,7 +1236,7 @@ onUnmounted(() => {
               maxWidth: friendRequestsPopupPosition.maxWidth || '320px',
               maxHeight: friendRequestsPopupPosition.maxHeight || '55vh',
               minWidth: '240px',
-              transform: friendRequestsPopupPosition.transform || 'translate(-50%, -50%)'
+              transform: friendRequestsPopupPosition.transform || 'translate(-50%, 0%)'
             }"
             @click.stop
           >
@@ -1395,7 +1379,13 @@ onUnmounted(() => {
         </div>
 
         <div
-          v-if="!chatInteractionCount.canSend"
+          v-if="!isFriendChat"
+          class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+        >
+          ⚠️ 目前不是好友，無法傳送訊息
+        </div>
+        <div
+          v-else-if="!chatInteractionCount.canSend"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
           ⚠️ 已達到對話次數上限（3次），等待對方同意好友請求後才能繼續
@@ -1409,21 +1399,21 @@ onUnmounted(() => {
             <input
               v-model="messageInput"
               type="text"
-              :disabled="!chatInteractionCount.canSend"
+              :disabled="!canSendMessage"
               placeholder="輸入訊息..."
               class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
             <!-- 貼圖選擇器 -->
             <div
               v-if="showStickerPicker"
-              class="absolute bottom-full left-0 mb-2 w-80 h-64 bg-white border-2 border-primary-200 rounded-xl shadow-xl overflow-y-auto z-50 p-4 grid grid-cols-8 gap-2"
+              class="absolute bottom-full left-0 mb-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] max-h-[50vh] bg-white border-2 border-primary-200 rounded-xl shadow-xl overflow-y-auto overflow-x-hidden z-50 p-3 sm:p-4 grid grid-cols-6 sm:grid-cols-8 gap-2"
               style="scrollbar-width: none; -ms-overflow-style: none;"
             >
               <button
                 v-for="sticker in stickers"
                 :key="sticker"
                 type="button"
-                class="text-2xl hover:bg-primary-50 rounded-lg p-2 transition"
+                class="text-xl sm:text-2xl hover:bg-primary-50 rounded-lg p-2 transition"
                 @click="selectSticker(sticker)"
               >
                 {{ sticker }}
@@ -1432,7 +1422,7 @@ onUnmounted(() => {
           </div>
           <button
             type="submit"
-            :disabled="!chatInteractionCount.canSend || isUploadingFile"
+            :disabled="!canSendMessage || isUploadingFile"
             class="p-2.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition border border-primary-700/70 shadow-md active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <SendIcon class="w-5 h-5" />
@@ -1449,7 +1439,7 @@ onUnmounted(() => {
         <div class="flex items-center justify-start gap-4 mt-1.5">
           <button
             type="button"
-            :disabled="!chatInteractionCount.canSend || isUploadingFile"
+            :disabled="!canSendMessage || isUploadingFile"
             class="p-0 text-primary-600 hover:text-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-0 shadow-none"
             :title="isUploadingFile ? `上傳中... ${uploadProgress}%` : '上傳圖片'"
             @click.stop="openFilePicker"
@@ -1459,7 +1449,7 @@ onUnmounted(() => {
           </button>
           <button
             type="button"
-            :disabled="!chatInteractionCount.canSend || isUploadingFile"
+            :disabled="!canSendMessage || isUploadingFile"
             class="p-0 text-primary-600 hover:text-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-0 shadow-none"
             title="表情符號"
             @click.stop="toggleStickerPicker"
@@ -1510,10 +1500,7 @@ onUnmounted(() => {
           <div
             v-for="room in chatRooms"
             :key="room.id"
-            class="flex items-center gap-3 p-3 rounded-2xl transition cursor-pointer border bg-white shadow-sm"
-            :class="room.type === 'friend-request-received'
-              ? 'border-yellow-400 bg-yellow-50 hover:border-yellow-500'
-              : 'border-transparent hover:border-primary-200'"
+            class="flex items-center gap-3 p-3 rounded-2xl transition cursor-pointer border bg-white shadow-sm border-transparent hover:border-primary-200"
             @click="handleChatRoomClick(room)"
           >
             <div class="w-12 h-12 rounded-full bg-gray-200 border-2 border-primary-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
@@ -1533,7 +1520,7 @@ onUnmounted(() => {
               <div class="flex items-center justify-between mb-1">
                 <div class="font-bold text-gray-800 text-sm truncate">
                   {{ room.name }}
-                  <span v-if="room.type === 'friend-request-received'" class="text-yellow-600">（好友請求）</span>
+                  <span v-if="room.isStranger" class="text-yellow-600">（申請邀請的好友）</span>
                 </div>
                 <div v-if="room.lastMessageTime" class="text-xs text-gray-500 ml-2 flex-shrink-0">{{ room.lastMessageTime }}</div>
               </div>
