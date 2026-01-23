@@ -117,7 +117,6 @@ onMounted(async () => {
       const entry = entries[0]
       // 如果看到底部元素 && 還有更多資料 && 目前沒有在載入中
       if (entry.isIntersecting && hasMore.value && !discussionsStore.loading) {
-        console.log('👀 看到底部了，載入更多...')
         loadDiscussionsData(true) // 載入更多
       }
     },

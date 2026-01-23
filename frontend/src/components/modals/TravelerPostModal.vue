@@ -331,11 +331,12 @@ const handleEditorImageSelect = async (event) => {
     const compressedFile = await compressImage(file, {
       maxWidth: 1200,
       maxHeight: 1200,
-      quality: 0.8,
+      quality: 0.75,
+      maxSizeMB: 1,
+      outputType: 'image/webp',
+      alwaysResize: true,
     })
-    const imageUrl = await uploadImage(compressedFile, 'travelers', (progress) =>
-      console.log(`內文圖片: ${progress}%`),
-    )
+    const imageUrl = await uploadImage(compressedFile, 'travelers', () => {})
     if (imageUrl && editor.value) editor.value.chain().focus().setImage({ src: imageUrl }).run()
   } catch (error) {
     await showAlert('圖片插入失敗：' + error.message)
@@ -525,10 +526,12 @@ const handleBannerSelect = async (event) => {
     bannerPositionY.value = 50
 
     const compressedFile = await compressImage(file, {
-      maxWidth: 1920,
-      maxHeight: 1920,
-      quality: 0.8,
-      maxSizeMB: 2,
+      maxWidth: 1400,
+      maxHeight: 1400,
+      quality: 0.75,
+      maxSizeMB: 1,
+      outputType: 'image/webp',
+      alwaysResize: true,
     })
     bannerFile.value = compressedFile
     const reader = new FileReader()
@@ -694,7 +697,6 @@ const getDirections = async (origin, destination, mode) => {
   // 確保 setOptions 只設置一次，並且使用相同的配置
   if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
     try {
-      console.log('[Google Maps] getDirections: 設定 API Key')
       setOptions({
         apiKey: apiKey,
         version: 'weekly',
@@ -702,7 +704,6 @@ const getDirections = async (origin, destination, mode) => {
         language: 'zh-TW',
       })
       window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
-      console.log('[Google Maps] getDirections: setOptions 設定成功')
     } catch (error) {
       console.error('[Google Maps] getDirections: setOptions 失敗:', error)
       return null
@@ -927,14 +928,12 @@ const handleTimeSelect = (val, activity) => {
 
   if (oldH === newH) {
     // 小時相同，代表是在選分鐘，或是確認
-    console.log('[TimePicker] Selected minute, updating time:', newTimeStr)
     // 使用 nextTick 確保數值已更新後再關閉，避免被還原
     nextTick(() => {
       activity.isOpen = false
     })
   } else {
     // 小時不同，更新 prevTime，等待下一次（選分鐘）
-    console.log('[TimePicker] Selected hour:', newH)
     activity.prevTime = newTimeStr
   }
 }
@@ -1191,10 +1190,7 @@ const handleGlobalEnter = (e) => {
 }
 
 const handleSaveDraft = () => {
-  console.log('[DraftDebug] handleSaveDraft triggered')
-
   if (!postData.value.title.trim()) {
-    console.warn('[DraftDebug] Title empty, aborting save')
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
@@ -1209,15 +1205,8 @@ const handleSaveDraft = () => {
     data: JSON.parse(JSON.stringify(postData.value)),
   }
 
-  console.log('[DraftDebug] Preparing to save draft:', draftData)
-
   try {
-    console.log('[DraftDebug] Calling store.addDraft...')
     myItineraryStore.addDraft(draftData)
-    console.log(
-      '[DraftDebug] store.addDraft success. Current drafts count:',
-      myItineraryStore.drafts.length,
-    )
   } catch (err) {
     console.error('[DraftDebug] Store addDraft failed:', err)
   }
@@ -1644,6 +1633,10 @@ const jumpToStep = (targetStep) => {
                 :src="bannerPreview"
                 class="w-full h-full object-cover pointer-events-none"
                 :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                alt="Banner 預覽"
+                width="1024"
+                height="384"
+                decoding="async"
               />
               <div
                 class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
@@ -2326,6 +2319,11 @@ const jumpToStep = (targetStep) => {
               :src="bannerPreview || 'https://picsum.photos/1200/400'"
               class="w-full h-full object-cover"
               :style="{ objectPosition: `center ${bannerPositionY}%` }"
+              alt="旅伴封面"
+              width="1200"
+              height="400"
+              loading="lazy"
+              decoding="async"
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
             <div
@@ -2345,6 +2343,11 @@ const jumpToStep = (targetStep) => {
                     'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                   "
                   class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
+                  alt="作者頭像"
+                  width="48"
+                  height="48"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div>
                   <div class="flex items-center space-x-2 flex-wrap gap-2">

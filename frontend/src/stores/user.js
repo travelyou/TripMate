@@ -432,7 +432,6 @@ export const useUserStore = defineStore('user', () => {
                 uid: uid,
                 avatar: avatar
               })
-              console.log('已將 localStorage 中的頭貼同步到資料庫')
             } catch (e) {
               console.warn('同步頭貼到資料庫失敗:', e)
             }
@@ -493,7 +492,6 @@ export const useUserStore = defineStore('user', () => {
               uid: uid,
               avatar: avatar
             })
-            console.log('已將 localStorage 中的頭貼同步到資料庫')
           } catch (e) {
             console.warn('同步頭貼到資料庫失敗:', e)
           }
@@ -518,7 +516,6 @@ export const useUserStore = defineStore('user', () => {
                 uid: uid,
                 avatar: savedAvatar
               })
-              console.log('已將 localStorage 中的頭貼同步到資料庫')
             } catch (e) {
               console.warn('同步頭貼到資料庫失敗:', e)
             }

@@ -78,7 +78,6 @@ const currentCategoryName = computed(() => {
 })
 
 const handleCardClick = (item) => {
-  console.log('查看收藏內容:', item.title)
 }
 
 // 統一橘色系樣式

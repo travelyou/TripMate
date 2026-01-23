@@ -116,7 +116,6 @@ export async function updateUserProfile(uid, userData) {
   if (auth.currentUser) {
     try {
       token = await auth.currentUser.getIdToken()
-      console.log('✅ 已獲取認證 token')
     } catch (tokenError) {
       console.warn('⚠️ 獲取 token 失敗:', tokenError)
     }
@@ -129,26 +128,10 @@ export async function updateUserProfile(uid, userData) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  console.log('📤 發送更新請求:', {
-    url,
-    method: 'PUT',
-    uid,
-    userData,
-    hasToken: !!token,
-    headers
-  })
-
   const response = await fetch(url, {
     method: 'PUT',
     headers: headers,
     body: JSON.stringify(userData),
-  })
-
-  console.log('📥 收到回應:', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok,
-    headers: Object.fromEntries(response.headers.entries())
   })
 
   if (!response.ok) {
@@ -166,7 +149,6 @@ export async function updateUserProfile(uid, userData) {
   let data
   try {
     data = await response.json()
-    console.log('✅ API 成功回應:', data)
   } catch (e) {
     console.warn('⚠️ 無法解析成功回應:', e)
     data = { success: true }

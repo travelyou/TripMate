@@ -247,7 +247,10 @@ const handleEditorImageSelect = async (event) => {
     const compressedFile = await compressImage(file, {
       maxWidth: 1200,
       maxHeight: 1200,
-      quality: 0.8,
+      quality: 0.75,
+      maxSizeMB: 1,
+      outputType: 'image/webp',
+      alwaysResize: true,
     })
 
     const imageUrl = await uploadImage(compressedFile, 'discussions')
@@ -459,10 +462,12 @@ const handleImageSelect = async (event) => {
 
       submitStatus.value = `正在處理圖片 ${i + 1}/${validFiles.length}...`
       const compressedFile = await compressImage(file, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        quality: 0.8,
-        maxSizeMB: 2,
+        maxWidth: 1400,
+        maxHeight: 1400,
+        quality: 0.75,
+        maxSizeMB: 1,
+        outputType: 'image/webp',
+        alwaysResize: true,
       })
 
       const reader = new FileReader()
@@ -586,7 +591,6 @@ const handleSaveDraft = async () => {
   }
 
   myItineraryStore.addDraft(draftData)
-  console.log('[草稿儲存] 草稿儲存成功，ID:', draftData.id)
   await showSuccess('已儲存至「個人檔案」草稿夾！')
   emit('close')
 }
@@ -934,6 +938,9 @@ onMounted(() => {
                   alt="預覽"
                   class="w-full h-full object-cover pointer-events-none"
                   :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                  width="1024"
+                  height="384"
+                  decoding="async"
                 />
                 <div
                   class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none"
@@ -1240,6 +1247,11 @@ onMounted(() => {
                     'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                   "
                   class="w-10 h-10 rounded-full object-cover border-2 border-secondary-200"
+                  alt="作者頭像"
+                  width="40"
+                  height="40"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div>
                   <span class="font-bold text-secondary-800">{{
@@ -1259,6 +1271,11 @@ onMounted(() => {
                   :src="imagePreviews[0]"
                   class="w-full h-full object-cover"
                   :style="{ objectPosition: `center ${bannerPositionY}%` }"
+                  alt="討論封面"
+                  width="1200"
+                  height="500"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>

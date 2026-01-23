@@ -7,7 +7,14 @@
     >
       <div class="cursor-pointer flex" @click="router.push('/')">
         <div class="shrink-0">
-          <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain" />
+          <img
+            :src="TripMateIcon"
+            alt="TripMate Logo"
+            class="h-10 md:h-12 w-auto object-contain"
+            width="1029"
+            height="347"
+            decoding="async"
+          />
         </div>
       </div>
 
@@ -71,6 +78,10 @@
               :src="userStore.userProfile.avatar"
               class="w-full h-full object-cover"
               alt="User Avatar"
+              width="40"
+              height="40"
+              loading="lazy"
+              decoding="async"
             />
             <UserIcon v-else class="w-6 h-6 text-gray-400" />
           </button>

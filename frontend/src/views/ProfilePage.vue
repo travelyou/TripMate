@@ -593,8 +593,6 @@ const handleUpdateAvatar = (file) => {
 }
 
 const handleAvatarCrop = async (croppedFile) => {
-  console.log('🔄 開始上傳頭貼流程...')
-
   if (!isCurrentUser.value || !croppedFile) {
     console.error('❌ 無法上傳頭貼：缺少必要資訊', { isCurrentUser: isCurrentUser.value, croppedFile: !!croppedFile })
     alert('❌ 無法上傳頭貼：缺少必要資訊')
@@ -607,8 +605,6 @@ const handleAvatarCrop = async (croppedFile) => {
     return
   }
 
-  console.log('✅ 驗證通過，用戶 ID:', user.value.uid)
-
   try {
     const { uploadImage } = await import('@/api/storage')
     const { compressImage } = await import('@/utils/imageCompress')
@@ -616,14 +612,14 @@ const handleAvatarCrop = async (croppedFile) => {
     // 壓縮圖片
     let compressedFile
     try {
-      console.log('📦 開始壓縮圖片...')
       compressedFile = await compressImage(croppedFile, {
-        maxWidth: 400,
-        maxHeight: 400,
-        quality: 0.9,
-        maxSizeMB: 1
+        maxWidth: 256,
+        maxHeight: 256,
+        quality: 0.82,
+        maxSizeMB: 0.3,
+        outputType: 'image/webp',
+        alwaysResize: true,
       })
-      console.log('✅ 圖片壓縮成功，檔案大小:', compressedFile.size, 'bytes')
     } catch (compressError) {
       console.error('❌ 圖片壓縮失敗：', compressError)
       throw new Error('圖片壓縮失敗：' + (compressError.message || '未知錯誤'))
@@ -632,39 +628,24 @@ const handleAvatarCrop = async (croppedFile) => {
     // 上傳到 Firebase Storage
     let avatarUrl
     try {
-      console.log('☁️ 開始上傳圖片到 Firebase Storage...')
       avatarUrl = await uploadImage(compressedFile, 'avatars')
       if (!avatarUrl || avatarUrl.trim() === '') {
         throw new Error('上傳成功但未取得圖片網址')
       }
-      console.log('✅ 圖片上傳成功，URL:', avatarUrl)
     } catch (uploadError) {
       console.error('❌ 上傳圖片失敗：', uploadError)
       throw new Error('上傳圖片失敗：' + (uploadError.message || '請檢查網路連線'))
     }
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('📋 開始更新 Firebase 服務...')
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-
     // 更新 Firebase Auth 個人資料
     try {
-      console.log('🔥 開始更新 Firebase Auth 個人資料...')
       const currentUser = auth.currentUser
-      console.log('👤 當前用戶狀態:', {
-        exists: !!currentUser,
-        uid: currentUser?.uid,
-        email: currentUser?.email
-      })
       if (currentUser) {
-        console.log('📝 準備更新 Firebase Auth photoURL:', avatarUrl)
         await updateProfile(currentUser, {
           photoURL: avatarUrl
         })
-        console.log('✅ Firebase Auth 個人資料更新成功')
         // 驗證更新
         const updatedUser = auth.currentUser
-        console.log('✅ 驗證 Firebase Auth 更新結果 - photoURL:', updatedUser?.photoURL)
       } else {
         console.warn('⚠️ 沒有當前登入用戶，跳過 Firebase Auth 更新')
       }
@@ -681,42 +662,29 @@ const handleAvatarCrop = async (croppedFile) => {
 
     // 更新 Firebase Firestore 個人資料
     try {
-      console.log('🔥 開始更新 Firebase Firestore 個人資料...')
       const currentUser = auth.currentUser
-      console.log('👤 Firestore 更新 - 當前用戶狀態:', {
-        exists: !!currentUser,
-        uid: currentUser?.uid,
-        email: currentUser?.email
-      })
       if (currentUser) {
         const userDocRef = doc(db, 'users', currentUser.uid)
-        console.log('📄 Firestore 文檔引用:', userDocRef.path)
-        console.log('📄 Firestore 文檔 ID:', userDocRef.id)
 
         const userDoc = await getDoc(userDocRef)
-        console.log('📄 文檔存在狀態:', userDoc.exists())
 
         if (userDoc.exists()) {
           // 如果文檔存在，更新 avatar 字段
-          console.log('📝 準備更新現有文檔，avatar URL:', avatarUrl)
           await updateDoc(userDocRef, {
             avatar: avatarUrl,
             updatedAt: serverTimestamp()
           })
-          console.log('✅ Firebase Firestore 個人資料更新成功')
 
           // 驗證更新是否成功
           const updatedDoc = await getDoc(userDocRef)
           if (updatedDoc.exists()) {
             const updatedData = updatedDoc.data()
-            console.log('✅ 驗證更新結果 - avatar:', updatedData.avatar)
             if (updatedData.avatar !== avatarUrl) {
               console.warn('⚠️ 警告：更新後的 avatar 與預期不符')
             }
           }
         } else {
           // 如果文檔不存在，創建新文檔
-          console.log('📝 準備創建新文檔，avatar URL:', avatarUrl)
           await setDoc(userDocRef, {
             uid: currentUser.uid,
             email: currentUser.email,
@@ -727,13 +695,11 @@ const handleAvatarCrop = async (croppedFile) => {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           })
-          console.log('✅ Firebase Firestore 個人資料創建成功')
 
           // 驗證創建是否成功
           const createdDoc = await getDoc(userDocRef)
           if (createdDoc.exists()) {
             const createdData = createdDoc.data()
-            console.log('✅ 驗證創建結果 - avatar:', createdData.avatar)
           }
         }
       } else {
@@ -757,18 +723,14 @@ const handleAvatarCrop = async (croppedFile) => {
 
     // 更新資料庫
     try {
-      console.log('💾 開始更新資料庫...', { uid: user.value.uid, avatarUrl })
       const { updateUserProfile } = await import('@/api/users')
       const result = await updateUserProfile(user.value.uid, {
         avatar: avatarUrl
       })
 
-      console.log('📥 資料庫回應:', result)
-
       if (!result) {
         throw new Error('更新資料庫失敗：未收到回應')
       }
-      console.log('✅ 資料庫更新成功')
     } catch (updateError) {
       console.error('❌ 更新資料庫失敗：', updateError)
       console.error('錯誤詳情:', {
@@ -782,15 +744,12 @@ const handleAvatarCrop = async (croppedFile) => {
 
     // 更新本地狀態
     try {
-      console.log('🔄 更新本地狀態...')
       userStore.updateProfile({ avatar: avatarUrl })
-      console.log('✅ 本地狀態更新成功')
 
       // 保存到 localStorage
       if (user.value.uid) {
         try {
           localStorage.setItem(`user_avatar_${user.value.uid}`, avatarUrl)
-          console.log('✅ 已保存到 localStorage')
         } catch (e) {
           console.warn('⚠️ 保存頭貼到 localStorage 失敗:', e)
         }
@@ -806,7 +765,6 @@ const handleAvatarCrop = async (croppedFile) => {
       const discussionsStore = useDiscussionsStore()
       if (discussionsStore && discussionsStore.clearUserCache) {
         discussionsStore.clearUserCache(user.value.uid)
-        console.log('✅ 已清除討論區緩存')
       }
     } catch (cacheError) {
       console.warn('⚠️ 清除緩存失敗：', cacheError)
@@ -814,13 +772,9 @@ const handleAvatarCrop = async (croppedFile) => {
     }
 
     // 成功提示
-    console.log('🎉 頭貼上傳流程完成！')
-
     // 重新載入個人檔案資料以確保界面更新
     try {
-      console.log('🔄 重新載入個人檔案資料...')
       await loadProfileData()
-      console.log('✅ 個人檔案資料已重新載入')
     } catch (reloadError) {
       console.warn('⚠️ 重新載入個人檔案資料失敗:', reloadError)
       // 即使重新載入失敗，也顯示成功訊息

@@ -30,7 +30,6 @@ const filteredItems = computed(() => {
 
 // --- 事件處理 ---
 const handleCardClick = (item) => {
-  console.log('點擊了卡片:', item.title)
 }
 </script>
 

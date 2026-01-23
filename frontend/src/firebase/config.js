@@ -23,16 +23,6 @@ if (import.meta.env.DEV) {
   if (missingFields.length > 0) {
     console.warn('Firebase 配置缺失：', missingFields.join(', '))
     console.warn('請檢查 .env 文件中的環境變數設置')
-  } else {
-    console.log('Firebase 配置已載入')
-    console.log('Project ID:', firebaseConfig.projectId)
-    // 只顯示 API Key 的前後部分，保護敏感信息
-    if (firebaseConfig.apiKey) {
-      const key = firebaseConfig.apiKey
-      const maskedKey =
-        key.length > 14 ? key.substring(0, 10) + '...' + key.substring(key.length - 4) : key
-      console.log('API Key:', maskedKey)
-    }
   }
 }
 

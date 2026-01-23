@@ -40,7 +40,6 @@ if (apiKey) {
     chat = model.startChat({
       history: TRIPMATE_SYSTEM_PROMPT,
     })
-    console.log('✅ AI 初始化成功，模型:', GEMINI_MODEL_NAME)
   } catch (error) {
     console.error('❌ AI 初始化失敗:', error)
     if (error.message?.includes('API key') || error.message?.includes('API_KEY')) {

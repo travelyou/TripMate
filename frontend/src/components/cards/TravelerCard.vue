@@ -286,6 +286,7 @@ watch(
       >
         <button
           class="rounded-full bg-black/20 p-2 text-white backdrop-blur-sm transition hover:bg-white/80 hover:text-gray-700"
+          aria-label="旅伴選單"
           @click="toggleMenu"
         >
           <MoreVertical class="w-5 h-5" />
@@ -361,6 +362,10 @@ watch(
             :alt="traveler.title"
             class="w-full h-full object-cover"
             :style="{ objectPosition: `center ${traveler.banner_position_y || 50}%` }"
+            width="480"
+            height="640"
+            loading="lazy"
+            decoding="async"
           />
 
           <div
@@ -370,7 +375,12 @@ watch(
               <div class="flex items-center space-x-2 sm:space-x-3 mb-2 min-w-0">
                 <img
                   :src="traveler.avatar"
+                  :alt="`${traveler.author || '使用者'}頭像`"
                   class="h-7 w-7 sm:h-8 sm:w-8 cursor-pointer rounded-full border-2 border-white/80 object-cover transition hover:ring-2 hover:ring-primary-500 shrink-0"
+                  width="32"
+                  height="32"
+                  loading="lazy"
+                  decoding="async"
                   @click.stop="handleAvatarClick"
                 />
                 <div class="flex-1 min-w-0">

@@ -236,6 +236,7 @@ onUnmounted(() => {
     <div v-if="showMenuButton" class="absolute top-2 right-2 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
+        aria-label="行程選單"
         @click="toggleMenu"
       >
         <MoreVertical class="w-5 h-5" />
@@ -316,6 +317,10 @@ onUnmounted(() => {
         :alt="props.itinerary.title"
         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         :style="{ objectPosition: `center ${props.itinerary.banner_position_y || 50}%` }"
+        width="640"
+        height="480"
+        loading="lazy"
+        decoding="async"
       />
       <div
         v-else

@@ -1,13 +1,20 @@
 export function compressImage(file, options = {}) {
   return new Promise((resolve, reject) => {
-    const { maxWidth = 1920, maxHeight = 1920, quality = 0.8, maxSizeMB = 2 } = options
+    const {
+      maxWidth = 1920,
+      maxHeight = 1920,
+      quality = 0.8,
+      maxSizeMB = 2,
+      outputType = null,
+      alwaysResize = false,
+    } = options
 
     if (!file.type.startsWith('image/')) {
       resolve(file)
       return
     }
 
-    if (file.size <= maxSizeMB * 1024 * 1024) {
+    if (!alwaysResize && file.size <= maxSizeMB * 1024 * 1024) {
       resolve(file)
       return
     }
@@ -32,8 +39,18 @@ export function compressImage(file, options = {}) {
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0, width, height)
 
-        canvas.toBlob(
-          (blob) => {
+        const targetType = outputType || file.type
+        const toBlobAsync = (type, q) =>
+          new Promise((resolveBlob) => {
+            canvas.toBlob((blob) => resolveBlob(blob), type, q)
+          })
+
+        toBlobAsync(targetType, quality)
+          .then(async (blob) => {
+            if (!blob && targetType !== file.type) {
+              blob = await toBlobAsync(file.type, quality)
+            }
+
             if (!blob) {
               reject(new Error('圖片壓縮失敗'))
               return
@@ -45,26 +62,28 @@ export function compressImage(file, options = {}) {
                 maxHeight,
                 quality: quality - 0.1,
                 maxSizeMB,
+                outputType,
+                alwaysResize,
               })
                 .then(resolve)
                 .catch(reject)
               return
             }
 
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
+            const finalType = blob.type || targetType || file.type
+            const nextName =
+              finalType === 'image/webp'
+                ? (file.name.includes('.') ? file.name.replace(/\.[^.]+$/, '') : file.name) + '.webp'
+                : file.name
+
+            const compressedFile = new File([blob], nextName, {
+              type: finalType,
               lastModified: Date.now(),
             })
 
-            console.log(
-              `📦 [圖片壓縮] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${((1 - compressedFile.size / file.size) * 100).toFixed(1)}% 減少)`,
-            )
-
             resolve(compressedFile)
-          },
-          file.type,
-          quality,
-        )
+          })
+          .catch(reject)
       }
 
       img.onerror = () => {

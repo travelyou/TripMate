@@ -59,7 +59,6 @@ const attachedItinerary = ref(null)
 
 // 🟢 1. 行程規劃彈窗 -> 按下「儲存」 (變成正式行程)
 const handleItinerarySave = (itineraryData) => {
-  console.log('收到行程資料，準備存檔:', itineraryData)
 
   // 呼叫 Store 存入行程列表
   itineraryStore.saveItinerary(itineraryData)
@@ -244,7 +243,6 @@ const prevStep = () => {
 }
 
 const handleFinalSubmit = () => {
-  console.log('🔵 最終發布資料:', postData.value)
 
   // 基本驗證
   if (!postData.value.title || !postData.value.title.trim()) {
@@ -262,7 +260,6 @@ const handleFinalSubmit = () => {
     return
   }
 
-  console.log('✅ 驗證通過，提交發文...')
   emit('submit-post', {
     ...postData.value,
     imageFiles: imageFiles.value, // 傳遞圖片文件

@@ -140,12 +140,10 @@ const handleLogin = async () => {
         const neonUser = await getUserProfile(userCredential.user.uid)
         neonUserExists = neonUser && neonUser.uid
       } catch (checkError) {
-        console.log('檢查 Neon 用戶時出錯（可能不存在）：', checkError)
       }
 
       // 如果Neon中不存在，嘗試創建/更新
       if (!neonUserExists) {
-        console.log('檢測到 Neon 資料庫中沒有用戶資料，正在自動修復...')
         try {
           await createOrUpdateUser({
             uid: userCredential.user.uid,
@@ -158,7 +156,6 @@ const handleLogin = async () => {
             role: userRole,
             vendor_id: vendorId,
           })
-          console.log('✅ 自動修復成功：Neon 資料庫已同步')
         } catch (syncError) {
           console.error('⚠️ 自動修復失敗（但不影響登入）：', syncError)
           // 不阻止登入，但記錄錯誤
@@ -194,19 +191,16 @@ const handleLogin = async () => {
         // 1. 優先使用 Neon 資料庫中的頭貼（排除 dicebear 默認頭貼）
         if (neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')) {
           avatar = neonUserData.avatar
-          console.log('✅ 使用 Neon 資料庫中的頭貼')
         }
         
         // 2. 如果沒有，嘗試使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
         if (!avatar && userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
-          console.log('✅ 使用 Firebase Auth 的 photoURL')
         }
         
         // 3. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
         if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
           avatar = userData.avatar
-          console.log('✅ 使用 Firestore 的頭貼')
         }
         
         // 4. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
@@ -217,7 +211,6 @@ const handleLogin = async () => {
             if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
               avatar = savedAvatar
               avatarFromLocalStorage = true
-              console.log('✅ 使用 localStorage 中的頭貼')
             }
           } catch (e) {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
@@ -227,7 +220,6 @@ const handleLogin = async () => {
         // 5. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
         if (!avatar) {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
         }
 
         // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
@@ -235,7 +227,6 @@ const handleLogin = async () => {
           // 保存到 localStorage
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-            console.log('✅ 已保存頭貼到 localStorage')
           } catch (e) {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
@@ -247,7 +238,6 @@ const handleLogin = async () => {
                 uid: userCredential.user.uid,
                 avatar: avatar
               })
-              console.log('✅ 已將頭貼同步到 Neon 資料庫')
             } catch (e) {
               console.warn('同步頭貼到資料庫失敗:', e)
             }
@@ -260,7 +250,6 @@ const handleLogin = async () => {
               await updateProfile(userCredential.user, {
                 photoURL: avatar
               })
-              console.log('✅ 已更新 Firebase Auth 的 photoURL')
             } catch (e) {
               console.warn('更新 Firebase Auth photoURL 失敗:', e)
             }
@@ -284,13 +273,11 @@ const handleLogin = async () => {
         // 1. 優先使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
         if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
-          console.log('✅ 使用 Firebase Auth 的 photoURL')
         }
         
         // 2. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
         if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
           avatar = userData.avatar
-          console.log('✅ 使用 Firestore 的頭貼')
         }
         
         // 3. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
@@ -299,7 +286,6 @@ const handleLogin = async () => {
             const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
             if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
               avatar = savedAvatar
-              console.log('✅ 使用 localStorage 中的頭貼')
             }
           } catch (e) {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
@@ -309,7 +295,6 @@ const handleLogin = async () => {
         // 4. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
         if (!avatar) {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
         }
 
         // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
@@ -317,7 +302,6 @@ const handleLogin = async () => {
           // 保存到 localStorage
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-            console.log('✅ 已保存頭貼到 localStorage')
           } catch (e) {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
@@ -328,7 +312,6 @@ const handleLogin = async () => {
               uid: userCredential.user.uid,
               avatar: avatar
             })
-            console.log('✅ 已將頭貼同步到 Neon 資料庫')
           } catch (e) {
             console.warn('同步頭貼到資料庫失敗:', e)
           }
@@ -340,7 +323,6 @@ const handleLogin = async () => {
               await updateProfile(userCredential.user, {
                 photoURL: avatar
               })
-              console.log('✅ 已更新 Firebase Auth 的 photoURL')
             } catch (e) {
               console.warn('更新 Firebase Auth photoURL 失敗:', e)
             }
@@ -401,7 +383,6 @@ const handleLogin = async () => {
             uid: userCredential.user.uid,
             avatar: avatar
           })
-          console.log('已將 localStorage 中的頭貼同步到資料庫')
         } catch (e) {
           console.warn('同步頭貼到資料庫失敗:', e)
         }
@@ -417,7 +398,6 @@ const handleLogin = async () => {
     }
 
     userStore.login()
-    console.log('🚀 正在跳轉到首頁...')
     router.push('/')
   } catch (error) {
     console.error('登入失敗：', error.code, error.message)
@@ -709,7 +689,14 @@ const registerErrors = ref({
       title="返回首頁"
       @click="router.push('/')"
     >
-      <img :src="tripMateIcon" alt="TripMate Logo" class="h-8 sm:h-10 md:h-12 w-auto" />
+      <img
+        :src="tripMateIcon"
+        alt="TripMate Logo"
+        class="h-8 sm:h-10 md:h-12 w-auto"
+        width="1029"
+        height="347"
+        decoding="async"
+      />
     </button>
 
     <div class="flex flex-col lg:flex-row items-center lg:gap-12 flex-1">
@@ -718,6 +705,11 @@ const registerErrors = ref({
           :src="loginPageImage"
           alt="loginPage"
           class="w-full max-w-60 md:max-w-md lg:max-w-lg xl:max-w-xl"
+          width="341"
+          height="209"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
         />
       </div>
 

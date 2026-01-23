@@ -215,16 +215,15 @@ onUnmounted(() => {
     class="p-5 bg-white transition relative cursor-pointer shadow-md hover:shadow-lg rounded-xl border-2 border-secondary-200"
     @click="$emit('click', post)"
   >
-    <!-- 三点菜单按钮 -->
     <div class="absolute top-4 right-4 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-gray-700"
+        aria-label="貼文選單"
         @click="toggleMenu"
       >
         <MoreVertical class="w-5 h-5" />
       </button>
 
-      <!-- 菜单下拉 -->
       <div
         v-if="showMenu"
         class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
@@ -268,6 +267,10 @@ onUnmounted(() => {
         :src="post.avatar"
         class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
         alt="作者頭像"
+        width="40"
+        height="40"
+        loading="lazy"
+        decoding="async"
         @click="handleAvatarClick"
       />
       <div>
@@ -310,6 +313,10 @@ onUnmounted(() => {
         :src="post.banner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
         alt="討論封面"
+        width="1024"
+        height="512"
+        loading="lazy"
+        decoding="async"
       />
     </div>
 
@@ -333,6 +340,10 @@ onUnmounted(() => {
           :src="url"
           class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
           :alt="`圖片 ${idx + 1}`"
+          width="256"
+          height="128"
+          loading="lazy"
+          decoding="async"
         />
       </div>
     </div>
@@ -389,6 +400,7 @@ onUnmounted(() => {
 
       <button
         class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
+        aria-label="分享貼文"
         @click.stop="$emit('share', post.id)"
       >
         <Repeat2 class="w-4 h-4" />

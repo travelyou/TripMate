@@ -3,19 +3,14 @@ import { auth } from '@/firebase/config'
 
 // 按讚/取消按讚
 export async function toggleLike(postId, authorUid, board = 'discussion') {
-  console.log('[Likes API] toggleLike 開始')
-  console.log('[Likes API] 參數:', { postId, authorUid, board })
-
   try {
     const url = `${API_BASE_URL}/likes`
-    console.log('[Likes API] 請求 URL:', url)
 
     // 獲取 Firebase 認證 token
     let token = null
     if (auth.currentUser) {
       try {
         token = await auth.currentUser.getIdToken()
-        console.log('[Likes API] 已獲取認證 token')
       } catch (tokenError) {
         console.warn('[Likes API] 獲取 token 失敗:', tokenError)
       }
@@ -26,8 +21,6 @@ export async function toggleLike(postId, authorUid, board = 'discussion') {
       author_uid: authorUid,
       board: board,
     }
-    console.log('[Likes API] Payload:', payload)
-
     const headers = {
       'Content-Type': 'application/json',
     }
@@ -41,8 +34,6 @@ export async function toggleLike(postId, authorUid, board = 'discussion') {
       body: JSON.stringify(payload),
     })
 
-    console.log('[Likes API] HTTP 狀態:', response.status, response.statusText)
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
       console.error('[Likes API] 錯誤響應:', errorData)
@@ -50,7 +41,6 @@ export async function toggleLike(postId, authorUid, board = 'discussion') {
     }
 
     const data = await response.json()
-    console.log('[Likes API] 成功響應:', data)
     return data
   } catch (error) {
     console.error('[Likes API] 錯誤:', error)
@@ -63,9 +53,6 @@ export async function toggleLike(postId, authorUid, board = 'discussion') {
 
 // 獲取貼文的按讚資訊
 export async function getLikesInfo(postId, authorUid = null, board = 'discussion') {
-  console.log('[Likes API] getLikesInfo 開始')
-  console.log('[Likes API] 參數:', { postId, authorUid, board })
-
   try {
     let url = `${API_BASE_URL}/likes/${postId}?board=${board}`
 
@@ -73,14 +60,11 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
       url += `&author_uid=${authorUid}`
     }
 
-    console.log('[Likes API] 請求 URL:', url)
-
     // 獲取 Firebase 認證 token
     let token = null
     if (auth.currentUser) {
       try {
         token = await auth.currentUser.getIdToken()
-        console.log('[Likes API] 已獲取認證 token')
       } catch (tokenError) {
         console.warn('[Likes API] 獲取 token 失敗:', tokenError)
       }
@@ -95,7 +79,6 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
       method: 'GET',
       headers: headers,
     })
-    console.log('[Likes API] HTTP 狀態:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
@@ -104,7 +87,6 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
     }
 
     const data = await response.json()
-    console.log('[Likes API] 成功響應:', data)
     return data
   } catch (error) {
     if (

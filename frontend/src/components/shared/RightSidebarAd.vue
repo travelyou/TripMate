@@ -230,6 +230,10 @@ watch(
           :src="selectedLargeAd.image"
           alt="廣告圖片"
           class="absolute inset-0 w-full h-full object-cover opacity-80"
+          loading="lazy"
+          decoding="async"
+          width="300"
+          height="500"
         />
         <div
           class="absolute inset-0 bg-black bg-opacity-30 flex flex-col items-center justify-center text-white p-4"
@@ -259,6 +263,10 @@ watch(
           :src="selectedSquareAd.image"
           alt="廣告圖片"
           class="absolute inset-0 w-full h-full object-cover opacity-80"
+          loading="lazy"
+          decoding="async"
+          width="300"
+          height="300"
         />
         <div
           class="absolute inset-0 bg-black bg-opacity-30 flex flex-col items-center justify-center text-white p-4"

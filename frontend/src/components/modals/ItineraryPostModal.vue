@@ -222,11 +222,12 @@ const handleEditorImageSelect = async (event) => {
     const compressedFile = await compressImage(file, {
       maxWidth: 1200,
       maxHeight: 1200,
-      quality: 0.8,
+      quality: 0.75,
+      maxSizeMB: 1,
+      outputType: 'image/webp',
+      alwaysResize: true,
     })
-    const imageUrl = await uploadImage(compressedFile, 'itineraries', (progress) =>
-      console.log(`內文圖片: ${progress}%`),
-    )
+    const imageUrl = await uploadImage(compressedFile, 'itineraries', () => {})
     if (imageUrl && editor.value) editor.value.chain().focus().setImage({ src: imageUrl }).run()
   } catch (error) {
     alert('圖片插入失敗：' + error.message)
@@ -262,10 +263,12 @@ const handleBannerSelect = async (event) => {
   try {
     isUploading.value = true
     const compressedFile = await compressImage(file, {
-      maxWidth: 1920,
-      maxHeight: 1920,
-      quality: 0.8,
-      maxSizeMB: 2,
+      maxWidth: 1400,
+      maxHeight: 1400,
+      quality: 0.75,
+      maxSizeMB: 1,
+      outputType: 'image/webp',
+      alwaysResize: true,
     })
     bannerFile.value = compressedFile
     const reader = new FileReader()
@@ -1023,6 +1026,11 @@ if (postData.value.itinerary.days.length === 0) {
               :src="bannerPreview || 'https://picsum.photos/1200/400'"
               class="w-full h-full object-cover"
               :style="{ objectPosition: `center ${bannerPositionY}%` }"
+              alt="行程封面"
+              width="1200"
+              height="400"
+              loading="lazy"
+              decoding="async"
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
             <div
@@ -1042,6 +1050,11 @@ if (postData.value.itinerary.days.length === 0) {
                   'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                 "
                 class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
+              alt="作者頭像"
+              width="48"
+              height="48"
+              loading="lazy"
+              decoding="async"
               />
               <div>
                 <div class="font-bold text-secondary-900">

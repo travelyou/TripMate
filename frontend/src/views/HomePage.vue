@@ -1,9 +1,5 @@
 <script setup>
-import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
-import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
-import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
-import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
-import ShareModal from '@/components/modals/ShareModal.vue'
+import { defineAsyncComponent, ref, onMounted, onBeforeUnmount } from 'vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers' // 引入 Store
@@ -16,8 +12,21 @@ import {
   Users as UsersIcon,
   Loader2 as Loader2Icon, // [新增] 引入 Loading Icon
 } from 'lucide-vue-next'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+
+const DiscussionDetailModal = defineAsyncComponent(() =>
+  import('@/components/modals/DiscussionDetailModal.vue'),
+)
+const TravelerDetailModal = defineAsyncComponent(() =>
+  import('@/components/modals/TravelerDetailModal.vue'),
+)
+const TravelerApplyModal = defineAsyncComponent(() =>
+  import('@/components/modals/TravelerApplyModal.vue'),
+)
+const TravelerApplicationsModal = defineAsyncComponent(() =>
+  import('@/components/modals/TravelerApplicationsModal.vue'),
+)
+const ShareModal = defineAsyncComponent(() => import('@/components/modals/ShareModal.vue'))
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore() // 使用 Store
@@ -268,7 +277,7 @@ const getFirstTag = (item) => {
           </div>
 
           <div
-            v-for="item in travelersStore.recommendations"
+            v-for="(item, index) in travelersStore.recommendations"
             :key="item.id"
             class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl p-4 shadow-primary-tall cursor-pointer hover:-translate-y-1 transition relative overflow-hidden group/card bg-gray-800 snap-start"
             @click="openTravelerDetailModal(item)"
@@ -276,6 +285,12 @@ const getFirstTag = (item) => {
             <img
               :src="item.image"
               class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover/card:scale-110 opacity-90"
+              :alt="item.title || '旅伴圖片'"
+              :loading="index === 0 ? 'eager' : 'lazy'"
+              :fetchpriority="index === 0 ? 'high' : 'auto'"
+              decoding="async"
+              width="224"
+              height="192"
             />
             <div
               class="absolute inset-0 bg-primary/50 group-hover/card:bg-primary/60 transition"

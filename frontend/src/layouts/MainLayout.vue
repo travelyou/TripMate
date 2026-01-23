@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -10,12 +10,20 @@ import { API_BASE_URL } from '@/api/config'
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppFABs from '@/components/shared/AppFABs.vue'
-import PostingChoiceCard from '@/components/cards/PostingChoiceCard.vue'
-import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
-import AIChatWindow from '@/components/chat/AIChatWindow.vue'
+const PostingChoiceCard = defineAsyncComponent(() =>
+  import('@/components/cards/PostingChoiceCard.vue'),
+)
+const PrivateChatWindow = defineAsyncComponent(() =>
+  import('@/components/chat/PrivateChatWindow.vue'),
+)
+const AIChatWindow = defineAsyncComponent(() => import('@/components/chat/AIChatWindow.vue'))
 import RightSidebarAd from '@/components/shared/RightSidebarAd.vue'
-import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
-import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
+const AddToCollectionModal = defineAsyncComponent(() =>
+  import('@/components/modals/AddToCollectionModal.vue'),
+)
+const SwipeMatchModal = defineAsyncComponent(() =>
+  import('@/components/modals/SwipeMatchModal.vue'),
+)
 
 import {
   Plus as PlusIcon,
@@ -671,8 +679,6 @@ const handleToggleAiChat = () => {
 // 處理發文提交
 const handleSubmitPost = async (postData) => {
   try {
-    console.log('MainLayout 收到發文請求:', postData)
-
     // 檢查用戶是否已登入
     const firebaseUser = auth.currentUser
     const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
@@ -685,16 +691,12 @@ const handleSubmitPost = async (postData) => {
       return
     }
 
-    console.log('⏳ 準備發布貼文，用戶 UID：', uid)
-
     // 如果有圖片，先上傳圖片到 Firebase Storage
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
       try {
         const { uploadMultipleImages } = await import('@/api/storage')
-        console.log('開始上傳圖片...')
         imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
-        console.log('圖片上傳成功:', imageUrls)
       } catch (error) {
         console.error('圖片上傳失敗：', error)
         // 詢問用戶是否要繼續發布（不帶圖片）
@@ -717,20 +719,8 @@ const handleSubmitPost = async (postData) => {
       image_urls: imageUrls,
     }
 
-    console.log('提交貼文資料：', {
-      author_uid: submitData.author_uid,
-      board: submitData.board,
-      title: submitData.title?.substring(0, 50),
-      contentLength: submitData.content?.length,
-      tagsCount: submitData.tags?.length,
-      imageUrlsCount: submitData.image_urls?.length,
-    })
-
     // 調用 API 創建貼文
-    console.log('調用 addPost API...')
     const newPost = await discussionsStore.addPost(submitData)
-
-    console.log('貼文發布成功：', newPost)
 
     // 關閉模態框
     isPostingModalOpen.value = false
