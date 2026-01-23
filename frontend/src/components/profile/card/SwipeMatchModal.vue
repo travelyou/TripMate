@@ -87,7 +87,7 @@ const isOutOfCards = computed(() => !isLoading.value && !currentCard.value)
 const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
 const isProcessing = ref(false)
 const loadSeq = ref(0)
-const isDetailOpen = ref(false)
+const isDetailOpen = ref(true)
 
 const openDetail = () => {
   isDetailOpen.value = true
@@ -350,6 +350,13 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => currentCard.value,
+  (card) => {
+    if (card) isDetailOpen.value = true
+  },
+)
 </script>
 
 <template>
@@ -467,12 +474,6 @@ watch(
           <div class="flex justify-center items-center gap-6 mt-4" @touchstart.stop @mousedown.stop>
             <button class="action-btn-nope" @click.stop="handleButtonClick('left')">
               <XIcon class="w-8 h-8 pointer-events-none" />
-            </button>
-            <button
-              class="w-10 h-10 rounded-full bg-secondary-100 text-secondary-500 border border-secondary-200 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition cursor-pointer"
-              @click.stop="openDetail"
-            >
-              <InfoIcon class="w-5 h-5" />
             </button>
             <button class="action-btn-like" @click.stop="handleButtonClick('right')">
               <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
