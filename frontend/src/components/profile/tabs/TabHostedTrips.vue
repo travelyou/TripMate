@@ -8,7 +8,7 @@ defineProps({
   }
 })
 
-defineEmits(['open-detail'])
+defineEmits(['open-detail', 'edit'])
 </script>
 
 <template>
@@ -19,6 +19,7 @@ defineEmits(['open-detail'])
         :key="trip.id"
         :traveler="trip"
         @click="$emit('open-detail', trip)"
+        @edit="$emit('edit', trip)"
       />
     </div>
     <div v-else class="text-center py-20 text-secondary-400">

@@ -155,7 +155,7 @@ onMounted(() => {
   <div
     class="fixed inset-0 w-full h-full max-w-none max-h-none border-0 bg-white z-50 flex flex-col rounded-none overflow-hidden animate-slide-up lg:inset-auto lg:bottom-4 lg:right-[80px] lg:w-80 lg:max-w-80 lg:h-[480px] lg:max-h-[480px] lg:border-4 lg:border-primary-600 lg:shadow-primary-strong lg:rounded-xl"
   >
-    <div class="bg-primary text-secondary-50 p-4 flex items-center justify-between">
+    <div class="bg-primary-600 text-white p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <BotIcon class="w-6 h-6" />
         <div>
@@ -193,6 +193,7 @@ onMounted(() => {
               : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border-2 border-secondary-100 markdown-body',
           ]"
         >
+          <!-- eslint-disable-next-line vue/no-v-html -->
           <div v-if="msg.type === 'bot'" v-html="msg.content"></div>
           <div v-else>{{ msg.content }}</div>
         </div>

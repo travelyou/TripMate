@@ -1,14 +1,18 @@
 ﻿<script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useDiscussionsStore } from '@/stores/discussions'
-import { useItineraryStore } from '@/stores/itinerary'
 import { usePersonalityStore } from '@/stores/personality'
-import { getTravelers } from '@/api/travelers'
+import { getTravelers, getTravelerById } from '@/api/travelers'
+import { auth, db } from '@/firebase/config'
+import { updateProfile } from 'firebase/auth'
+import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 
 // Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
+import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
+import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
@@ -24,11 +28,12 @@ import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const userStore = useUserStore()
-const discussionsStore = useDiscussionsStore()
-const itineraryStore = useItineraryStore()
 const personalityStore = usePersonalityStore()
 const router = useRouter()
 const route = useRoute()
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const targetUid = computed(() => {
   if (route.params.uid) {
@@ -94,8 +99,12 @@ const tabs = computed(() => {
 
 const isDetailModalOpen = ref(false)
 const isTravelerDetailModalOpen = ref(false)
+const isTravelerApplyModalOpen = ref(false)
+const isTravelerApplicationsModalOpen = ref(false)
+const isTravelerPostModalOpen = ref(false)
 const selectedPost = ref(null)
 const selectedTraveler = ref(null)
+const selectedTravelerDraft = ref(null)
 const shouldScrollToComments = ref(false)
 const isEditingProfile = ref(false)
 const isFriendModalOpen = ref(false)
@@ -127,6 +136,8 @@ const activeTabsData = computed(() => {
         spiritAnimal: traveler.spiritAnimal,
         location: traveler.location,
         date: traveler.date,
+        start_date: traveler.start_date,
+        end_date: traveler.end_date,
         status: traveler.status,
         people: traveler.people,
         comments: traveler.comments || 0,
@@ -196,6 +207,70 @@ const handleFriendChat = (friend) => {
   }
 }
 
+const handleTravelerOpenApply = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplyModalOpen.value = true
+}
+
+const handleTravelerOpenApplications = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplicationsModalOpen.value = true
+}
+
+const handlePostEdit = (post) => {
+  if (!post?.id) return
+  setAppLoading(true)
+  router.push({ name: 'discussion', query: { editPost: post.id } })
+}
+
+const handleTravelerEdit = async (traveler) => {
+  setAppLoading(true)
+  let source = traveler
+  try {
+    const response = await getTravelerById(traveler.id)
+    if (response?.success && response.data) {
+      source = response.data
+    }
+  } catch (error) {
+    console.error('取得旅伴完整資料失敗，改用列表資料：', error)
+  }
+
+  selectedTravelerDraft.value = {
+    type: 'traveler',
+    data: {
+      category: source.category || '',
+      title: source.title || '',
+      content: source.content || '',
+      location: source.location || '',
+      start_date: source.start_date || '',
+      end_date: source.end_date || '',
+      max_people: source.max_people || source.people?.split('/')[1] || 2,
+      tags: source.tags || [],
+      banner_image: source.image || source.banner_image || '',
+      banner_position_y: source.banner_position_y,
+      itinerary: source.itinerary || { days: [] },
+      packingList: source.packingList || [],
+      status: source.status || '招募中',
+    },
+  }
+  isTravelerPostModalOpen.value = true
+  nextTick(() => setAppLoading(false))
+}
+
+const handleTravelerPostModalClose = () => {
+  isTravelerPostModalOpen.value = false
+  selectedTravelerDraft.value = null
+}
+
+const handleTravelerPostSuccess = () => {
+  isTravelerPostModalOpen.value = false
+  selectedTravelerDraft.value = null
+  // 重新載入旅伴資料
+  if (targetUid.value) {
+    loadHostedTravelers(targetUid.value)
+  }
+}
+
 const handleOpenFriendProfile = (friend) => {
   if (!friend) return
   const friendUid = friend.uid || friend.id
@@ -250,18 +325,6 @@ const checkFriendRequestStatus = async () => {
   } catch (error) {
     console.error('檢查好友請求狀態失敗：', error)
     friendRequestStatus.value = 'none'
-  }
-}
-
-const clearPendingFriendRequests = async (currentUid, friendUid) => {
-  try {
-    const { cancelFriendRequest, rejectFriendRequest } = await import('@/api/profile')
-    await Promise.allSettled([
-      cancelFriendRequest(currentUid, friendUid),
-      rejectFriendRequest(currentUid, friendUid),
-    ])
-  } catch (error) {
-    console.error('清除好友邀請失敗：', error)
   }
 }
 
@@ -343,18 +406,6 @@ const handleAddFriend = async () => {
       alert('操作失敗：' + (error.message || '未知錯誤'))
     }
   }
-}
-
-const handleChatWithFriend = (friend) => {
-  console.log('Chat with friend:', friend.name)
-  // Future: 導向聊天頁面
-}
-
-const handleChatWithUser = () => {
-  const targetUserId = route.params.uid || user.value.uid
-  console.log('開始與使用者聊天:', targetUserId)
-  // TODO: 導向聊天頁面
-  alert('聊天功能開發中，即將導向聊天頁面')
 }
 
 const openDetail = (item, focusComment = false) => {
@@ -542,44 +593,254 @@ const handleUpdateAvatar = (file) => {
 }
 
 const handleAvatarCrop = async (croppedFile) => {
-  if (!isCurrentUser.value || !croppedFile) return
+  console.log('🔄 開始上傳頭貼流程...')
+
+  if (!isCurrentUser.value || !croppedFile) {
+    console.error('❌ 無法上傳頭貼：缺少必要資訊', { isCurrentUser: isCurrentUser.value, croppedFile: !!croppedFile })
+    alert('❌ 無法上傳頭貼：缺少必要資訊')
+    return
+  }
+
+  if (!user.value || !user.value.uid) {
+    console.error('❌ 無法上傳頭貼：無法取得用戶 ID', { user: user.value })
+    alert('❌ 無法上傳頭貼：無法取得用戶 ID')
+    return
+  }
+
+  console.log('✅ 驗證通過，用戶 ID:', user.value.uid)
 
   try {
     const { uploadImage } = await import('@/api/storage')
     const { compressImage } = await import('@/utils/imageCompress')
 
-    const compressedFile = await compressImage(croppedFile, {
-      maxWidth: 400,
-      maxHeight: 400,
-      quality: 0.9,
-      maxSizeMB: 1
-    })
+    // 壓縮圖片
+    let compressedFile
+    try {
+      console.log('📦 開始壓縮圖片...')
+      compressedFile = await compressImage(croppedFile, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.9,
+        maxSizeMB: 1
+      })
+      console.log('✅ 圖片壓縮成功，檔案大小:', compressedFile.size, 'bytes')
+    } catch (compressError) {
+      console.error('❌ 圖片壓縮失敗：', compressError)
+      throw new Error('圖片壓縮失敗：' + (compressError.message || '未知錯誤'))
+    }
 
-    const avatarUrl = await uploadImage(compressedFile, 'avatars')
+    // 上傳到 Firebase Storage
+    let avatarUrl
+    try {
+      console.log('☁️ 開始上傳圖片到 Firebase Storage...')
+      avatarUrl = await uploadImage(compressedFile, 'avatars')
+      if (!avatarUrl || avatarUrl.trim() === '') {
+        throw new Error('上傳成功但未取得圖片網址')
+      }
+      console.log('✅ 圖片上傳成功，URL:', avatarUrl)
+    } catch (uploadError) {
+      console.error('❌ 上傳圖片失敗：', uploadError)
+      throw new Error('上傳圖片失敗：' + (uploadError.message || '請檢查網路連線'))
+    }
 
-    const { updateUserProfile } = await import('@/api/users')
-    await updateUserProfile(user.value.uid, {
-      avatar: avatarUrl
-    })
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📋 開始更新 Firebase 服務...')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
-    userStore.updateProfile({ avatar: avatarUrl })
+    // 更新 Firebase Auth 個人資料
+    try {
+      console.log('🔥 開始更新 Firebase Auth 個人資料...')
+      const currentUser = auth.currentUser
+      console.log('👤 當前用戶狀態:', {
+        exists: !!currentUser,
+        uid: currentUser?.uid,
+        email: currentUser?.email
+      })
+      if (currentUser) {
+        console.log('📝 準備更新 Firebase Auth photoURL:', avatarUrl)
+        await updateProfile(currentUser, {
+          photoURL: avatarUrl
+        })
+        console.log('✅ Firebase Auth 個人資料更新成功')
+        // 驗證更新
+        const updatedUser = auth.currentUser
+        console.log('✅ 驗證 Firebase Auth 更新結果 - photoURL:', updatedUser?.photoURL)
+      } else {
+        console.warn('⚠️ 沒有當前登入用戶，跳過 Firebase Auth 更新')
+      }
+    } catch (firebaseError) {
+      console.error('❌ 更新 Firebase Auth 個人資料失敗：', firebaseError)
+      console.error('❌ Firebase Auth 錯誤詳情:', {
+        code: firebaseError.code,
+        message: firebaseError.message,
+        stack: firebaseError.stack
+      })
+      // Firebase 更新失敗不影響整體流程，繼續執行
+      console.warn('⚠️ 將繼續更新 Firestore 和 Neon 資料庫')
+    }
+
+    // 更新 Firebase Firestore 個人資料
+    try {
+      console.log('🔥 開始更新 Firebase Firestore 個人資料...')
+      const currentUser = auth.currentUser
+      console.log('👤 Firestore 更新 - 當前用戶狀態:', {
+        exists: !!currentUser,
+        uid: currentUser?.uid,
+        email: currentUser?.email
+      })
+      if (currentUser) {
+        const userDocRef = doc(db, 'users', currentUser.uid)
+        console.log('📄 Firestore 文檔引用:', userDocRef.path)
+        console.log('📄 Firestore 文檔 ID:', userDocRef.id)
+
+        const userDoc = await getDoc(userDocRef)
+        console.log('📄 文檔存在狀態:', userDoc.exists())
+
+        if (userDoc.exists()) {
+          // 如果文檔存在，更新 avatar 字段
+          console.log('📝 準備更新現有文檔，avatar URL:', avatarUrl)
+          await updateDoc(userDocRef, {
+            avatar: avatarUrl,
+            updatedAt: serverTimestamp()
+          })
+          console.log('✅ Firebase Firestore 個人資料更新成功')
+
+          // 驗證更新是否成功
+          const updatedDoc = await getDoc(userDocRef)
+          if (updatedDoc.exists()) {
+            const updatedData = updatedDoc.data()
+            console.log('✅ 驗證更新結果 - avatar:', updatedData.avatar)
+            if (updatedData.avatar !== avatarUrl) {
+              console.warn('⚠️ 警告：更新後的 avatar 與預期不符')
+            }
+          }
+        } else {
+          // 如果文檔不存在，創建新文檔
+          console.log('📝 準備創建新文檔，avatar URL:', avatarUrl)
+          await setDoc(userDocRef, {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            nickname: currentUser.displayName || currentUser.email?.split('@')[0] || '用戶',
+            avatar: avatarUrl,
+            bio: '',
+            spiritAnimal: '',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          })
+          console.log('✅ Firebase Firestore 個人資料創建成功')
+
+          // 驗證創建是否成功
+          const createdDoc = await getDoc(userDocRef)
+          if (createdDoc.exists()) {
+            const createdData = createdDoc.data()
+            console.log('✅ 驗證創建結果 - avatar:', createdData.avatar)
+          }
+        }
+      } else {
+        console.warn('⚠️ 沒有當前登入用戶，跳過 Firebase Firestore 更新')
+        throw new Error('沒有當前登入用戶，無法更新 Firestore')
+      }
+    } catch (firestoreError) {
+      console.error('❌ 更新 Firebase Firestore 個人資料失敗：', firestoreError)
+      console.error('❌ 錯誤詳情:', {
+        code: firestoreError.code,
+        message: firestoreError.message,
+        stack: firestoreError.stack,
+        uid: auth.currentUser?.uid,
+        avatarUrl: avatarUrl
+      })
+      // Firestore 更新失敗不影響整體流程，繼續執行
+      console.warn('⚠️ 將繼續更新 Neon 資料庫')
+      // 但仍然要讓用戶知道 Firestore 更新失敗
+      alert(`⚠️ 警告：Firebase Firestore 更新失敗，但會繼續更新其他資料庫。\n錯誤：${firestoreError.message || '未知錯誤'}`)
+    }
+
+    // 更新資料庫
+    try {
+      console.log('💾 開始更新資料庫...', { uid: user.value.uid, avatarUrl })
+      const { updateUserProfile } = await import('@/api/users')
+      const result = await updateUserProfile(user.value.uid, {
+        avatar: avatarUrl
+      })
+
+      console.log('📥 資料庫回應:', result)
+
+      if (!result) {
+        throw new Error('更新資料庫失敗：未收到回應')
+      }
+      console.log('✅ 資料庫更新成功')
+    } catch (updateError) {
+      console.error('❌ 更新資料庫失敗：', updateError)
+      console.error('錯誤詳情:', {
+        message: updateError.message,
+        stack: updateError.stack,
+        uid: user.value.uid,
+        avatarUrl: avatarUrl
+      })
+      throw new Error('更新資料庫失敗：' + (updateError.message || '請稍後再試'))
+    }
+
+    // 更新本地狀態
+    try {
+      console.log('🔄 更新本地狀態...')
+      userStore.updateProfile({ avatar: avatarUrl })
+      console.log('✅ 本地狀態更新成功')
+
+      // 保存到 localStorage
+      if (user.value.uid) {
+        try {
+          localStorage.setItem(`user_avatar_${user.value.uid}`, avatarUrl)
+          console.log('✅ 已保存到 localStorage')
+        } catch (e) {
+          console.warn('⚠️ 保存頭貼到 localStorage 失敗:', e)
+        }
+      }
+    } catch (storeError) {
+      console.error('❌ 更新本地狀態失敗：', storeError)
+      // 即使本地更新失敗，也繼續執行
+    }
 
     // 清除討論區的用戶資訊緩存，確保頭貼更新
-    const { useDiscussionsStore } = await import('@/stores/discussions')
-    const discussionsStore = useDiscussionsStore()
-    if (discussionsStore && discussionsStore.clearUserCache) {
-      discussionsStore.clearUserCache(user.value.uid)
+    try {
+      const { useDiscussionsStore } = await import('@/stores/discussions')
+      const discussionsStore = useDiscussionsStore()
+      if (discussionsStore && discussionsStore.clearUserCache) {
+        discussionsStore.clearUserCache(user.value.uid)
+        console.log('✅ 已清除討論區緩存')
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ 清除緩存失敗：', cacheError)
+      // 緩存清除失敗不影響上傳成功
     }
 
-    isAvatarCropOpen.value = false
-    avatarFileToCrop.value = null
-    if (avatarCropModalRef.value) {
+    // 成功提示
+    console.log('🎉 頭貼上傳流程完成！')
+
+    // 重新載入個人檔案資料以確保界面更新
+    try {
+      console.log('🔄 重新載入個人檔案資料...')
+      await loadProfileData()
+      console.log('✅ 個人檔案資料已重新載入')
+    } catch (reloadError) {
+      console.warn('⚠️ 重新載入個人檔案資料失敗:', reloadError)
+      // 即使重新載入失敗，也顯示成功訊息
+    }
+
+    alert('✅ 頭貼更新成功！')
+
+    // 重置状态
+    if (avatarCropModalRef.value && avatarCropModalRef.value.resetUploadState) {
       avatarCropModalRef.value.resetUploadState()
     }
+    isAvatarCropOpen.value = false
+    avatarFileToCrop.value = null
   } catch (error) {
     console.error('上傳頭貼失敗：', error)
-    alert('上傳頭貼失敗，請重試')
-    if (avatarCropModalRef.value) {
+    const errorMessage = error.message || '未知錯誤'
+    alert(`❌ 上傳頭貼失敗：${errorMessage}\n\n請檢查：\n• 網路連線是否正常\n• 圖片格式是否正確\n• 檔案大小是否過大\n\n如問題持續，請稍後再試。`)
+
+    // 重置状态
+    if (avatarCropModalRef.value && avatarCropModalRef.value.resetUploadState) {
       avatarCropModalRef.value.resetUploadState()
     }
   }
@@ -896,6 +1157,7 @@ onMounted(() => {
               v-if="activeTab === 'hosted_trips'"
               :trips="activeTabsData.hostedTrips"
               @open-detail="openDetail($event, false)"
+              @edit="handleTravelerEdit"
             />
 
             <TabPosts
@@ -903,6 +1165,7 @@ onMounted(() => {
               :posts="activeTabsData.posts"
               @open-detail="openDetail($event, false)"
               @open-comment="openDetail($event, true)"
+              @edit="handlePostEdit"
             />
 
             <TabReviews
@@ -946,6 +1209,7 @@ onMounted(() => {
       :post="selectedPost"
       :scroll-to-comments="shouldScrollToComments"
       @close="isDetailModalOpen = false"
+      @edit="handlePostEdit"
     />
 
     <TravelerDetailModal
@@ -953,6 +1217,29 @@ onMounted(() => {
       :traveler="selectedTraveler"
       :scroll-to-comments="shouldScrollToComments"
       @close="isTravelerDetailModalOpen = false"
+      @open-apply="handleTravelerOpenApply"
+      @open-applications="handleTravelerOpenApplications"
+      @edit="handleTravelerEdit"
+    />
+
+    <TravelerApplyModal
+      v-if="isTravelerApplyModalOpen"
+      :traveler="selectedTraveler"
+      @close="isTravelerApplyModalOpen = false"
+    />
+
+    <TravelerApplicationsModal
+      v-if="isTravelerApplicationsModalOpen"
+      :traveler="selectedTraveler"
+      @close="isTravelerApplicationsModalOpen = false"
+      @application-updated="loadHostedTravelers(targetUid)"
+    />
+
+    <TravelerPostModal
+      v-if="isTravelerPostModalOpen"
+      :draft-data="selectedTravelerDraft"
+      @close="handleTravelerPostModalClose"
+      @success="handleTravelerPostSuccess"
     />
 
     <PersonalityResultModal

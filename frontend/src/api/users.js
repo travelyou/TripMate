@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config'
+import { auth } from '@/firebase/config'
 
 // 輔助函數：統一將資料轉為前端元件需要的格式
 // 這樣無論後端給 display_name 還是 displayName，前端都能拿到 displayName
@@ -108,18 +109,69 @@ export async function getUserProfile(uid) {
 
 // 更新用戶資料 (PUT)
 export async function updateUserProfile(uid, userData) {
-  const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
+  const url = `${API_BASE_URL}/users/${uid}`
+
+  // 獲取 Firebase 認證 token
+  let token = null
+  if (auth.currentUser) {
+    try {
+      token = await auth.currentUser.getIdToken()
+      console.log('✅ 已獲取認證 token')
+    } catch (tokenError) {
+      console.warn('⚠️ 獲取 token 失敗:', tokenError)
+    }
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  console.log('📤 發送更新請求:', {
+    url,
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    uid,
+    userData,
+    hasToken: !!token,
+    headers
+  })
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: headers,
     body: JSON.stringify(userData),
   })
+
+  console.log('📥 收到回應:', {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
+    headers: Object.fromEntries(response.headers.entries())
+  })
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
+    let errorData
+    try {
+      errorData = await response.json()
+      console.error('❌ API 錯誤回應:', errorData)
+    } catch (e) {
+      errorData = { error: '未知錯誤' }
+      console.error('❌ 無法解析錯誤回應:', e)
+    }
     throw new Error(errorData.error || errorData.message || errorData.details || '更新用戶資料失敗')
   }
-  const data = await response.json()
+
+  let data
+  try {
+    data = await response.json()
+    console.log('✅ API 成功回應:', data)
+  } catch (e) {
+    console.warn('⚠️ 無法解析成功回應:', e)
+    data = { success: true }
+  }
+
   return data
 }
 

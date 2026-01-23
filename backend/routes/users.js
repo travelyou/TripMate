@@ -387,6 +387,16 @@ router.put('/:uid', async (req, res) => {
     const { uid } = req.params
     let { nickname, location, avatar, bio, spirit_animal, tags, email } = req.body
 
+    console.log(`[PUT /users/${uid}] 收到更新請求:`, {
+      nickname,
+      location,
+      avatar: avatar ? `${avatar.substring(0, 50)}...` : avatar,
+      bio,
+      spirit_animal,
+      tags,
+      email
+    })
+
     if (bio === '') bio = null
     if (spirit_animal === '') spirit_animal = null
 
@@ -421,8 +431,17 @@ router.put('/:uid', async (req, res) => {
     params.push(location)
     paramIndex++
 
-    setClauses.push(`avatar = COALESCE($${paramIndex}, avatar)`)
-    params.push(avatar)
+    // 確保 avatar 能正確更新（如果提供了值，即使是空字符串也要更新）
+    if (avatar !== undefined) {
+      // 如果 avatar 是空字符串，轉為 null
+      const avatarValue = (avatar === '' || avatar === null) ? null : avatar
+      setClauses.push(`avatar = $${paramIndex}`)
+      params.push(avatarValue)
+      console.log(`[PUT /users/${uid}] 更新 avatar:`, avatarValue ? `${avatarValue.substring(0, 50)}...` : 'null')
+    } else {
+      // 如果沒有提供 avatar，保持原值
+      setClauses.push(`avatar = avatar`)
+    }
     paramIndex++
 
     setClauses.push(`bio = COALESCE($${paramIndex}, bio)`)
@@ -448,7 +467,17 @@ router.put('/:uid', async (req, res) => {
     `
     const queryParams = params
 
+    console.log(`[PUT /users/${uid}] 執行 SQL 更新:`, {
+      query: updateQuery.substring(0, 200) + '...',
+      paramsCount: queryParams.length
+    })
+
     const result = await pool.query(updateQuery, queryParams)
+
+    console.log(`[PUT /users/${uid}] 更新結果:`, {
+      rowsAffected: result.rows.length,
+      updatedAvatar: result.rows[0]?.avatar ? `${result.rows[0].avatar.substring(0, 50)}...` : result.rows[0]?.avatar
+    })
 
     if (result.rows.length === 0) {
       if (!email) {

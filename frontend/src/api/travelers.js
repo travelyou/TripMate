@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 import { API_BASE_URL } from './config'
 
@@ -139,18 +140,97 @@ export const acceptApplication = async (travelerId, applicationId) => {
 // 獲取用戶的群組聊天室列表
 export const getGroupChatRooms = async () => {
   const userStore = useUserStore()
-  if (!userStore.currentUser?.uid) {
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
     throw new Error('User not logged in.')
   }
   try {
     const response = await axios.get(`${API_BASE_URL}/travelers/group-chat-rooms`, {
-      params: { user_uid: userStore.currentUser.uid },
+      params: { user_uid: currentUid },
     })
     return response.data
   } catch (error) {
     console.error('獲取群組聊天室列表失敗：', error)
     throw error
   }
+}
+
+export const getGroupChatMessages = async (roomId) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.get(`${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/messages`, {
+    params: { user_uid: currentUid },
+  })
+  return response.data
+}
+
+export const sendGroupChatMessage = async (roomId, content) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.post(`${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/messages`, {
+    user_uid: currentUid,
+    sender_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
+    sender_avatar: userStore.currentUser?.avatar || null,
+    content,
+  })
+  return response.data
+}
+
+export const getGroupChatMembers = async (roomId) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.get(`${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/members`, {
+    params: { user_uid: currentUid },
+  })
+  return response.data
+}
+
+export const removeGroupChatMember = async (roomId, memberUid) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.post(
+    `${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/members/${memberUid}/remove`,
+    { user_uid: currentUid },
+  )
+  return response.data
+}
+
+export const addGroupChatMember = async (roomId, memberUid) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.post(
+    `${API_BASE_URL}/travelers/group-chat-rooms/${roomId}/members`,
+    { user_uid: currentUid, member_uid: memberUid },
+  )
+  return response.data
+}
+
+export const updateGroupChatRoom = async (roomId, payload = {}) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  const response = await axios.patch(
+    `${API_BASE_URL}/travelers/group-chat-rooms/${roomId}`,
+    { user_uid: currentUid, ...payload },
+  )
+  return response.data
 }
 
 export const rejectApplication = async (travelerId, applicationId) => {

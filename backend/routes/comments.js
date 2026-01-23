@@ -68,7 +68,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
     if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' })
     }
-    const { author_uid, content, board, author_name, author_avatar } = req.body
+    const { author_uid, content, board, author_name, author_avatar, parent_comment_id } = req.body
 
     // 驗證必填欄位
     if (!author_uid || !content) {
@@ -108,8 +108,17 @@ router.post('/posts/:postId/comments', async (req, res) => {
 
     // 插入留言（包含所有必需字段）
     const insertCommentQuery = `
-      INSERT INTO public.comments (post_id, post_type, author_uid, author_name, author_avatar, content, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+      INSERT INTO public.comments (
+        post_id,
+        post_type,
+        author_uid,
+        author_name,
+        author_avatar,
+        content,
+        parent_comment_id,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
       RETURNING *
     `
 
@@ -120,6 +129,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
       author_name || '匿名用戶',
       author_avatar || null,
       content,
+      parent_comment_id || null,
     ])
     const newComment = result.rows[0]
 

@@ -8,7 +8,7 @@ defineProps({
   }
 })
 
-defineEmits(['open-detail', 'open-comment'])
+defineEmits(['open-detail', 'open-comment', 'edit'])
 </script>
 
 <template>
@@ -20,6 +20,7 @@ defineEmits(['open-detail', 'open-comment'])
         :post="post"
         @click="$emit('open-detail', post)"
         @comment="$emit('open-comment', post)"
+        @edit="$emit('edit', post)"
       />
     </div>
     <div v-else class="text-center py-20 text-secondary-400">

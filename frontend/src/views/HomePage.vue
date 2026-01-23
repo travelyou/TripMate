@@ -1,6 +1,8 @@
 <script setup>
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
+import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -21,6 +23,9 @@ const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore() // 使用 Store
 useUserStore()
 const router = useRouter()
+const setAppLoading = (active) => {
+  window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
+}
 
 const currentUserUid = ref(null)
 let likeSyncTimer = null
@@ -88,6 +93,8 @@ const shouldScrollToComments = ref(false)
 
 // --- 旅伴 Modal 狀態 ---
 const isTravelerModalOpen = ref(false)
+const isTravelerApplyModalOpen = ref(false)
+const isTravelerApplicationsModalOpen = ref(false)
 const selectedTraveler = ref(null)
 
 const scroll = (direction) => {
@@ -137,11 +144,33 @@ const closeTravelerDetailModal = () => {
   selectedTraveler.value = null
 }
 
+const handleDiscussionEdit = (post) => {
+  if (!post?.id) return
+  setAppLoading(true)
+  router.push({ name: 'discussion', query: { editPost: post.id } })
+}
+
+const handleTravelerEdit = (traveler) => {
+  if (!traveler?.id) return
+  setAppLoading(true)
+  router.push({ name: 'travelers', query: { editTraveler: traveler.id } })
+}
+
+const handleTravelerOpenApply = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplyModalOpen.value = true
+}
+
+const handleTravelerOpenApplications = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplicationsModalOpen.value = true
+}
+
 const isShareModalOpen = ref(false)
 const shareLink = ref('')
 
 const openShareModal = (postId) => {
-  shareLink.value = `https://tripmate.com/post/${postId}`
+  shareLink.value = `${window.location.origin}/discussion?postId=${postId}`
   isShareModalOpen.value = true
 }
 
@@ -342,6 +371,7 @@ const getFirstTag = (item) => {
             @click="openDiscussionDetailModal(post, false)"
             @comment="openDiscussionDetailModal(post, true)"
             @share="openShareModal(post.id)"
+            @edit="handleDiscussionEdit"
           />
         </div>
       </div>
@@ -353,12 +383,28 @@ const getFirstTag = (item) => {
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
+    @edit="handleDiscussionEdit"
   />
 
   <TravelerDetailModal
     v-if="isTravelerModalOpen"
     :traveler="selectedTraveler"
     @close="closeTravelerDetailModal"
+    @open-apply="handleTravelerOpenApply"
+    @open-applications="handleTravelerOpenApplications"
+    @edit="handleTravelerEdit"
+  />
+
+  <TravelerApplyModal
+    v-if="isTravelerApplyModalOpen"
+    :traveler="selectedTraveler"
+    @close="isTravelerApplyModalOpen = false"
+  />
+
+  <TravelerApplicationsModal
+    v-if="isTravelerApplicationsModalOpen"
+    :traveler="selectedTraveler"
+    @close="isTravelerApplicationsModalOpen = false"
   />
 
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
