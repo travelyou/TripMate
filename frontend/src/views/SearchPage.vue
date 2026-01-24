@@ -247,6 +247,7 @@ import { useTravelersStore } from '@/stores/travelers'
 import { useItineraryStore } from '@/stores/itinerary'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import { getAllUsers } from '@/api/users'
+import { isValidHttpImageUrl as isValidImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
@@ -661,14 +662,6 @@ const closeDiscussionDetailModal = () => {
 // 頭像錯誤處理
 const handleAvatarError = (key) => {
   avatarErrors.value[key] = true
-}
-
-// 檢查是否為有效的圖片 URL
-const isValidImageUrl = (url) => {
-  if (!url || typeof url !== 'string') return false
-  const trimmedUrl = url.trim()
-  if (trimmedUrl.startsWith('blob:') || trimmedUrl.startsWith('data:')) return false
-  return trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')
 }
 </script>
 

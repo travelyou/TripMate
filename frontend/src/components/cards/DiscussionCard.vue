@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/user'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { deletePost } from '@/api/discussions'
 import { auth } from '@/firebase/config'
+import { isValidImageUrl } from '@/utils/image'
 
 const router = useRouter()
 
@@ -40,14 +41,6 @@ const isReported = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('info') // 'info' for share, 'success' for report
-
-// 檢查 URL 是否有效（過濾掉 blob URL 和 data URL）
-const isValidImageUrl = (url) => {
-  if (!url || typeof url !== 'string') return false
-  // 過濾掉 blob URL 和 data URL
-  if (url.startsWith('blob:') || url.startsWith('data:')) return false
-  return true
-}
 
 // 過濾掉無效的圖片 URL
 const validBanner = computed(() => {
