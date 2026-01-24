@@ -296,9 +296,22 @@ const tryOpenSharedTraveler = async () => {
       selectedTraveler.value = response.data
       shouldScrollToComments.value = shouldScroll
       isDetailModalOpen.value = true
+    } else {
+      // API 回應格式不正確或無資料
+      console.error('旅伴資料格式錯誤：', response)
+      await router.replace({ path: '/travelers', query: {}, hash: '' })
+      alert('無法找到該找旅伴貼文')
     }
   } catch (error) {
     console.error('開啟分享旅伴失敗：', error)
+    // 清除 URL 參數
+    await router.replace({ path: '/travelers', query: {}, hash: '' }).catch(() => {})
+    
+    // 根據錯誤類型給予不同提示
+    const errorMessage = error.response?.status === 404 
+      ? '找旅伴貼文不存在或已被刪除'
+      : '開啟找旅伴貼文時發生錯誤，請稍後再試'
+    alert(errorMessage)
   } finally {
     setAppLoading(false)
   }
@@ -538,5 +551,6 @@ watch(() => route.query.editTraveler, (newTravelerId) => {
     :traveler="selectedTraveler"
     @close="isApplicationsModalOpen = false"
     @application-updated="handleApplicationUpdated"
+    @traveler-updated="handleTravelerUpdated"
   />
 </template>

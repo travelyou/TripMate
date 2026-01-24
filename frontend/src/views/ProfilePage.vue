@@ -612,6 +612,7 @@ onMounted(() => {
       :traveler="selectedTraveler"
       @close="isTravelerApplicationsModalOpen = false"
       @application-updated="loadHostedTravelers(targetUid)"
+      @traveler-updated="loadHostedTravelers(targetUid)"
     />
 
     <TravelerPostModal

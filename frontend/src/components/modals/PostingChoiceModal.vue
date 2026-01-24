@@ -65,6 +65,7 @@ const handleItinerarySave = (itineraryData) => {
   itineraryStore.saveItinerary(itineraryData)
 
   showItineraryModal.value = false
+  cleanupPreviews() // 清理 blob URL
   emit('close')
   router.push({ name: 'my_itinerary' }) // 跳轉去看結果
 }
@@ -82,6 +83,7 @@ const handleItineraryDraftSave = (itineraryData) => {
 
   alert('✨ 行程已存入草稿夾！')
   showItineraryModal.value = false
+  cleanupPreviews() // 清理 blob URL
   emit('close')
   router.push({ name: 'my_itinerary' })
 } // 🔥 注意這裡！這個大括號是用來結束 handleItineraryDraftSave 的
@@ -102,6 +104,7 @@ const handleSaveDraft = () => {
   })
 
   alert('✨ 文章已存入草稿夾！')
+  cleanupPreviews() // 清理 blob URL
   emit('close')
   router.push({ name: 'my_itinerary' })
 }
@@ -139,6 +142,7 @@ const startPosting = (initialBoard = '') => {
 }
 
 const openItineraryDirectly = () => {
+  cleanupPreviews() // 清理 blob URL
   emit('close')
   router.push({ path: '/my-itinerary' })
 }
@@ -267,12 +271,30 @@ const handleFinalSubmit = () => {
     ...postData.value,
     imageFiles: imageFiles.value, // 傳遞圖片文件
   })
+  cleanupPreviews() // 清理 blob URL
+  emit('close')
+}
+
+// 清理所有預覽 URL
+const cleanupPreviews = () => {
+  imagePreviews.value.forEach((url) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url)
+    }
+  })
+  imagePreviews.value = []
+  imageFiles.value = []
+}
+
+// 處理關閉 Modal（包含清理）
+const handleClose = () => {
+  cleanupPreviews()
   emit('close')
 }
 
 // 清理預覽 URL（組件卸載時）
 onUnmounted(() => {
-  imagePreviews.value.forEach((url) => URL.revokeObjectURL(url))
+  cleanupPreviews()
 })
 
 const filteredTags = computed(() => {
@@ -284,7 +306,7 @@ const filteredTags = computed(() => {
 <template>
   <div
     class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-    @click.self="$emit('close')"
+    @click.self="handleClose"
   >
     <div
       class="w-full max-w-md bg-white relative animate-pop-in flex flex-col max-h-[90vh] border-2 border-primary shadow-primary-sm"
@@ -329,7 +351,7 @@ const filteredTags = computed(() => {
 
         <button
           class="mt-6 w-full py-2 text-sm text-gray-600 bg-gray-200 font-bold border-2 border-primary shadow-primary-sm"
-          @click="$emit('close')"
+          @click="handleClose"
         >
           取消
         </button>

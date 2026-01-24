@@ -166,6 +166,11 @@ const handleTravelerOpenApplications = (traveler) => {
   isTravelerApplicationsModalOpen.value = true
 }
 
+const handleTravelerUpdated = () => {
+  // 重新載入旅伴推薦列表
+  travelersStore.loadRecommendations(false)
+}
+
 const isShareModalOpen = ref(false)
 const shareLink = ref('')
 
@@ -390,6 +395,7 @@ const getFirstTag = (item) => {
     v-if="isTravelerModalOpen"
     :traveler="selectedTraveler"
     @close="closeTravelerDetailModal"
+    @traveler-updated="handleTravelerUpdated"
     @open-apply="handleTravelerOpenApply"
     @open-applications="handleTravelerOpenApplications"
     @edit="handleTravelerEdit"
@@ -405,6 +411,8 @@ const getFirstTag = (item) => {
     v-if="isTravelerApplicationsModalOpen"
     :traveler="selectedTraveler"
     @close="isTravelerApplicationsModalOpen = false"
+    @application-updated="handleTravelerUpdated"
+    @traveler-updated="handleTravelerUpdated"
   />
 
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />

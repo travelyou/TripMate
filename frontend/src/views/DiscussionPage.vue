@@ -302,7 +302,15 @@ const tryOpenSharedPost = async () => {
       postToOpen = existing
     } else {
       const { fetchPostById } = await import('@/api/discussions')
-      postToOpen = await fetchPostById(postId)
+      try {
+        postToOpen = await fetchPostById(postId)
+      } catch (apiError) {
+        console.error('API 獲取貼文失敗：', apiError)
+        // 清除 URL 參數
+        await router.replace({ path: '/discussion', query: {}, hash: '' })
+        alert('無法找到該貼文，可能已被刪除或不存在')
+        return
+      }
     }
     
     if (postToOpen) {
@@ -313,9 +321,16 @@ const tryOpenSharedPost = async () => {
       await nextTick()
       
       openDiscussionDetailModal(postToOpen, shouldScroll)
+    } else {
+      // 清除 URL 參數
+      await router.replace({ path: '/discussion', query: {}, hash: '' })
+      alert('無法找到該貼文')
     }
   } catch (error) {
     console.error('開啟分享貼文失敗：', error)
+    // 清除 URL 參數
+    await router.replace({ path: '/discussion', query: {}, hash: '' }).catch(() => {})
+    alert('開啟貼文時發生錯誤，請稍後再試')
   } finally {
     setAppLoading(false)
   }

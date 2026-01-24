@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { getProfile } from '@/api/profile'
 import { uploadImage } from '@/api/storage'
 import { useRouter } from 'vue-router'
+import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
 const emit = defineEmits(['close', 'open-chat-room'])
@@ -42,6 +43,8 @@ const groupAvatarInputRef = ref(null)
 const isSavingGroupName = ref(false)
 const isSavingGroupAvatar = ref(false)
 const memberActionLoading = ref(new Set())
+const isGroupAvatarCropOpen = ref(false)
+const groupAvatarFileToCrop = ref(null)
 
 // 訊息列表（根據當前聊天室）
 const messages = ref([])
@@ -400,7 +403,7 @@ const handleGroupAvatarClick = () => {
   groupAvatarInputRef.value?.click()
 }
 
-const handleGroupAvatarChange = async (event) => {
+const handleGroupAvatarChange = (event) => {
   if (!isGroupOwner.value || !activeChatRoom.value?.roomId) return
   const file = event.target.files?.[0]
   if (!file) return
@@ -416,21 +419,31 @@ const handleGroupAvatarChange = async (event) => {
     return
   }
 
+  // 開啟裁切 Modal
+  groupAvatarFileToCrop.value = file
+  isGroupAvatarCropOpen.value = true
+  event.target.value = ''
+}
+
+const handleGroupAvatarCrop = async (croppedFile) => {
+  if (!isGroupOwner.value || !activeChatRoom.value?.roomId || !croppedFile) return
+
   isSavingGroupAvatar.value = true
   try {
-    const avatarUrl = await uploadImage(file, 'group-avatars')
+    const avatarUrl = await uploadImage(croppedFile, 'group-avatars')
     if (!avatarUrl) throw new Error('未取得圖片網址')
     const { updateGroupChatRoom } = await import('@/api/travelers')
     const response = await updateGroupChatRoom(activeChatRoom.value.roomId, { avatar: avatarUrl })
     if (response?.success && response.data) {
       updateGroupRoomLocal(activeChatRoom.value.roomId, { avatar: response.data.avatar })
+      isGroupAvatarCropOpen.value = false
+      groupAvatarFileToCrop.value = null
     }
   } catch (error) {
     console.error('更新群組頭像失敗：', error)
     alert('更新群組頭像失敗，請稍後再試')
   } finally {
     isSavingGroupAvatar.value = false
-    event.target.value = ''
   }
 }
 
@@ -2487,6 +2500,14 @@ onUnmounted(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 群組頭貼裁切 Modal -->
+    <AvatarCropModal
+      :is-open="isGroupAvatarCropOpen"
+      :image-file="groupAvatarFileToCrop"
+      @close="isGroupAvatarCropOpen = false"
+      @crop="handleGroupAvatarCrop"
+    />
   </div>
 </template>
 

@@ -346,7 +346,8 @@ const handleAcceptApplication = async (application) => {
   try {
     await acceptApplication(localTravelerData.value.id, application.id)
     await loadApplications()
-    emit('application-updated')
+    await fetchFullTravelerDetails() // 重新載入旅伴資料，更新人數和狀態
+    emit('traveler-updated') // 通知父組件更新
   } catch (error) {
     console.error('接受報名失敗:', error)
     alert('接受報名失敗，請稍後再試')

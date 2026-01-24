@@ -328,6 +328,75 @@ if (itineraryStore.itineraries) {
    - 切換子篩選時，應保持在當前主分類，只改變篩選結果
    - 分頁應在切換篩選時重置為第 1 頁
 
+6. **接受報名更新測試**：
+   - 在找旅伴頁面點擊某個招募中的貼文
+   - 以作者身份登入，檢視報名列表
+   - 接受一個報名申請
+   - 確認頁面上顯示的人數立即更新（例如從 1/4 變成 2/4）
+   - 確認當人數達到上限時，狀態自動更新為「已額滿」
+   - 在首頁、找旅伴頁面、個人資料頁面分別測試，確保所有頁面都正常更新
+
+7. **群組頭貼裁切測試**：
+   - 以群組擁有者身份登入
+   - 進入群組聊天室
+   - 點擊群組頭貼（應顯示游標手型提示）
+   - 選擇一張圖片檔案
+   - 確認自動開啟裁切 Modal
+   - 測試拖動裁切框移動位置
+   - 測試拖動角落白色方塊調整大小
+   - 確認裁切框保持圓形和等比例
+   - 點擊「確定變更」按鈕
+   - 確認顯示上傳中狀態
+   - 確認群組頭貼更新成功
+   - 確認裁切後的頭貼清晰度良好
+   - 測試點擊「取消」或關閉按鈕能正常關閉 Modal
+
+8. **通知跳轉錯誤處理測試**：
+   - **測試貼文不存在情況**：
+     - 手動在 URL 輸入 `/discussion?postId=99999`（不存在的 ID）
+     - 確認顯示「無法找到該貼文，可能已被刪除或不存在」提示
+     - 確認 URL 參數被清除（變回 `/discussion`）
+   - **測試旅伴貼文不存在情況**：
+     - 手動在 URL 輸入 `/travelers?travelerId=99999`
+     - 確認顯示「找旅伴貼文不存在或已被刪除」提示
+     - 確認 URL 參數被清除（變回 `/travelers`）
+   - **測試通知跳轉**：
+     - 創建一個討論區貼文，獲得留言通知
+     - 刪除該貼文
+     - 點擊通知嘗試跳轉
+     - 確認顯示錯誤提示而不是空白頁面
+   - **測試 URL 參數清除**：
+     - 在錯誤發生後重新整理頁面
+     - 確認不會再次嘗試載入失敗的貼文
+     - 確認頁面正常顯示列表
+
+9. **blob URL 清理測試**：
+   - **測試基本清理**：
+     - 打開發文 Modal
+     - 選擇圖片（創建 blob URL）
+     - 點擊背景或取消按鈕關閉 Modal
+     - 打開開發者工具 Console
+     - 切換到其他頁面
+     - 確認沒有出現 `blob:` 相關的 `ERR_FILE_NOT_FOUND` 錯誤
+   - **測試提交發文後清理**：
+     - 打開發文 Modal
+     - 選擇圖片
+     - 填寫標題和內容
+     - 提交發文
+     - 切換頁面
+     - 確認沒有 blob URL 錯誤
+   - **測試儲存草稿後清理**：
+     - 打開發文 Modal
+     - 選擇圖片
+     - 點擊「存入草稿」
+     - 切換頁面
+     - 確認沒有 blob URL 錯誤
+   - **測試移除圖片**：
+     - 選擇多張圖片
+     - 移除其中一張
+     - 關閉 Modal
+     - 確認所有 blob URL 都被正確清理
+
 ---
 
 #### 修改 6：新增使用者搜尋功能
@@ -516,10 +585,315 @@ const getCategoryStyle = (type) => {
 
 ---
 
+## 6. 修正接受報名後人數未更新問題
+
+### (1) 問題
+- 找旅伴接受報名後，顯示的人數沒有更新
+- 導致已有人報名成功，但頁面仍顯示「招募中」且人數不變
+- 根本原因：前端接受報名後沒有重新載入旅伴資料
+
+### (2) 解決方式
+- **修正 TravelerDetailModal**：
+  - 在 `handleAcceptApplication` 中添加 `await fetchFullTravelerDetails()` 調用
+  - 修改 emit 事件從 `application-updated` 改為 `traveler-updated`
+  - 確保接受報名後重新載入完整的旅伴資料（包含更新後的 `current_people` 和 `status`）
+
+- **修正 TravelerApplicationsModal**：
+  - 在 `handleAccept` 中添加 `emit('traveler-updated')` 調用
+  - 通知父組件重新載入旅伴資料
+
+- **修正各頁面的事件監聽**：
+  - **TravelerPage**：添加 `@traveler-updated` 監聽器到 `TravelerApplicationsModal`
+  - **ProfilePage**：添加 `@traveler-updated` 監聽器到 `TravelerApplicationsModal`
+  - **HomePage**：
+    - 新增 `handleTravelerUpdated` 函數，調用 `travelersStore.loadRecommendations(false)`
+    - 在 `TravelerDetailModal` 和 `TravelerApplicationsModal` 上添加 `@traveler-updated` 監聽器
+
+### (3) 改了哪些檔案
+- `frontend/src/components/modals/TravelerDetailModal.vue`
+- `frontend/src/components/modals/TravelerApplicationsModal.vue`
+- `frontend/src/views/TravelerPage.vue`
+- `frontend/src/views/ProfilePage.vue`
+- `frontend/src/views/HomePage.vue`
+
+### (4) 後端邏輯驗證
+後端在 `backend/routes/travelers.js` 中的接受報名邏輯是正確的：
+```javascript
+// 計算已接受的報名數量
+const acceptedCount = acceptedCountResult.rows[0]?.count || 0
+const currentPeople = Math.max(1, acceptedCount + 1) // +1 是作者本人
+const shouldFull = currentPeople >= maxPeopleNum
+
+// 更新旅伴資料
+await client.query(
+  `UPDATE travelers.travelers
+   SET current_people = $1,
+       status = CASE WHEN $2 THEN '已額滿' ELSE status END,
+       updated_at = NOW()
+   WHERE id = $3 AND deleted_at IS NULL`,
+  [currentPeople, shouldFull, id],
+)
+```
+
+問題只出在前端沒有重新獲取更新後的資料。
+
+---
+
+## 7. 新增群組頭貼裁切功能
+
+### (1) 問題
+- 群組聊天室更換頭貼時，無法裁切圖片
+- 直接上傳原圖可能尺寸不合適或比例不正確
+- 用戶體驗不佳，無法自由調整頭貼顯示區域
+
+### (2) 解決方式
+- **整合現有的 ImageCrop 元件**：
+  - 使用已存在的 `AvatarCropModal.vue` 元件
+  - 支援圓形裁切框（適合頭貼）
+  - 支援拖動和縮放裁切區域
+  - 輸出固定尺寸 400x400px 的頭貼圖片
+
+- **修改群組頭貼上傳流程**：
+  - 選擇圖片後不直接上傳，而是先開啟裁切 Modal
+  - 用戶可以拖動裁切框移動位置
+  - 用戶可以拖動角落調整裁切大小
+  - 確認裁切後才上傳到伺服器
+
+- **新增狀態管理**：
+  - `isGroupAvatarCropOpen` - 控制裁切 Modal 顯示
+  - `groupAvatarFileToCrop` - 暫存待裁切的圖片檔案
+  - `handleGroupAvatarCrop` - 處理裁切完成後的上傳邏輯
+
+### (3) 改了哪些檔案
+- `frontend/src/components/chat/PrivateChatWindow.vue`
+
+### (4) 裁切功能特點
+- ✅ 圓形裁切框，適合頭貼顯示
+- ✅ 拖動裁切框移動位置
+- ✅ 拖動角落白色方塊調整大小
+- ✅ 保持 1:1 等比例（正方形）
+- ✅ 輸出 400x400px 高品質圖片
+- ✅ 支援 JPG、PNG、GIF、WEBP 格式
+- ✅ 檔案大小限制 10MB
+- ✅ 載入和處理狀態提示
+
+### (5) 使用流程
+1. 群組擁有者點擊群組頭貼
+2. 選擇要上傳的圖片檔案
+3. 自動開啟裁切 Modal
+4. 調整裁切區域和大小
+5. 點擊「確定變更」按鈕
+6. 自動上傳並更新群組頭貼
+
+---
+
+## 8. 修正通知跳轉失敗時無提示問題
+
+### (1) 問題
+- 點擊通知跳轉到貼文時，如果貼文不存在或 API 失敗
+- 頁面只會在 console 顯示錯誤，但不會給用戶任何提示
+- 用戶會看到空白頁面或停留在列表頁，不知道發生什麼事
+- URL 參數不會被清除，導致重新整理後會再次嘗試載入
+
+### (2) 解決方式
+
+#### 討論區頁面 (DiscussionPage.vue)
+- **改進 API 錯誤處理**：
+  - 在 `tryOpenSharedPost` 中添加 try-catch 包裹 `fetchPostById`
+  - API 失敗時清除 URL 參數並顯示提示訊息
+  - 區分不同錯誤情況（貼文不存在 vs 其他錯誤）
+
+- **改進用戶體驗**：
+  - 貼文不存在：顯示「無法找到該貼文，可能已被刪除或不存在」
+  - 其他錯誤：顯示「開啟貼文時發生錯誤，請稍後再試」
+  - 所有錯誤情況都會清除 URL 參數，避免重複嘗試
+
+#### 找旅伴頁面 (TravelerPage.vue)
+- **改進 API 錯誤處理**：
+  - 在 `tryOpenSharedTraveler` 中添加完整錯誤處理
+  - 檢查 API 回應格式是否正確（`response?.success && response.data`）
+  - 根據 HTTP 狀態碼給予不同提示
+
+- **改進用戶體驗**：
+  - 404 錯誤：顯示「找旅伴貼文不存在或已被刪除」
+  - 其他錯誤：顯示「開啟找旅伴貼文時發生錯誤，請稍後再試」
+  - 資料格式錯誤：顯示「無法找到該找旅伴貼文」
+  - 所有錯誤情況都會清除 URL 參數
+
+### (3) 改了哪些檔案
+- `frontend/src/views/DiscussionPage.vue`
+- `frontend/src/views/TravelerPage.vue`
+
+### (4) 錯誤處理流程
+
+```javascript
+// 討論區範例
+try {
+  const existing = discussionsStore.discussions.find(...)
+  let postToOpen = null
+  
+  if (existing) {
+    postToOpen = existing
+  } else {
+    try {
+      postToOpen = await fetchPostById(postId)
+    } catch (apiError) {
+      // ✅ API 失敗時的處理
+      await router.replace({ path: '/discussion', query: {}, hash: '' })
+      alert('無法找到該貼文，可能已被刪除或不存在')
+      return
+    }
+  }
+  
+  if (postToOpen) {
+    // 正常開啟貼文
+  } else {
+    // ✅ 資料為空時的處理
+    await router.replace({ path: '/discussion', query: {}, hash: '' })
+    alert('無法找到該貼文')
+  }
+} catch (error) {
+  // ✅ 其他錯誤的處理
+  await router.replace({ path: '/discussion', query: {}, hash: '' })
+  alert('開啟貼文時發生錯誤，請稍後再試')
+}
+```
+
+### (5) 改進前後對比
+
+| 情況 | 改進前 | 改進後 |
+|------|--------|--------|
+| **貼文不存在** | 只有 console.error，用戶看到空白 | 顯示提示訊息，清除 URL 參數 |
+| **API 失敗** | 只有 console.error，用戶不知道發生什麼 | 顯示錯誤訊息，清除 URL 參數 |
+| **資料格式錯誤** | 靜默失敗，不顯示任何內容 | 顯示提示訊息，清除 URL 參數 |
+| **URL 參數** | 錯誤後仍保留，重新整理會再次失敗 | 錯誤後立即清除，避免重複嘗試 |
+
+---
+
+## 9. 修正切換頁面時 blob URL 錯誤問題
+
+### (1) 問題
+- 每次切換到其他板塊會跳出錯誤通知
+- 錯誤訊息：`GET blob:https://tripmate-mayoyo.com/[id] net::ERR_FILE_NOT_FOUND`
+- 原因：`PostingChoiceModal` 選擇圖片後創建了 blob URL，但切換頁面時沒有正確清理
+- blob URL 是臨時的，頁面切換後仍嘗試載入已釋放的 URL 導致錯誤
+
+### (2) 解決方式
+
+#### 問題分析
+```javascript
+// 原本的代碼
+const handleImageSelect = (event) => {
+  // 創建預覽 URL
+  const previewUrl = URL.createObjectURL(file)
+  imagePreviews.value.push(previewUrl)
+}
+
+// 只在組件卸載時清理
+onUnmounted(() => {
+  imagePreviews.value.forEach((url) => URL.revokeObjectURL(url))
+})
+```
+
+**問題點**：
+- 當 Modal 關閉時，組件可能還沒完全卸載
+- blob URL 可能被保存到某個地方（如草稿）
+- 頁面切換時嘗試載入已失效的 blob URL
+
+#### 修正方案
+1. **創建統一的清理函數**：
+```javascript
+const cleanupPreviews = () => {
+  imagePreviews.value.forEach((url) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url)
+    }
+  })
+  imagePreviews.value = []
+  imageFiles.value = []
+}
+```
+
+2. **創建處理關閉的函數**：
+```javascript
+const handleClose = () => {
+  cleanupPreviews()
+  emit('close')
+}
+```
+
+3. **在所有關閉 Modal 的地方調用清理**：
+   - `handleItinerarySave` - 儲存行程後
+   - `handleItineraryDraftSave` - 儲存行程草稿後
+   - `handleSaveDraft` - 儲存文章草稿後
+   - `openItineraryDirectly` - 直接打開行程前
+   - `handleFinalSubmit` - 提交發文後
+   - `handleClose` - 點擊背景或取消按鈕時
+
+4. **修改 template 綁定**：
+```vue
+<!-- 改進前 -->
+<div @click.self="$emit('close')">
+<button @click="$emit('close')">取消</button>
+
+<!-- 改進後 -->
+<div @click.self="handleClose">
+<button @click="handleClose">取消</button>
+```
+
+### (3) 改了哪些檔案
+- `frontend/src/components/modals/PostingChoiceModal.vue`
+
+### (4) 修正前後對比
+
+| 情況 | 修正前 | 修正後 |
+|------|--------|--------|
+| **關閉 Modal** | 只 emit close，不清理 blob URL | 先清理 blob URL，再 emit close |
+| **提交發文** | blob URL 未清理 | 立即清理所有 blob URL |
+| **儲存草稿** | blob URL 未清理 | 立即清理所有 blob URL |
+| **切換頁面** | 出現 ERR_FILE_NOT_FOUND 錯誤 | 不會出現錯誤 |
+| **組件卸載** | 在 onUnmounted 時清理 | 在關閉時立即清理 + onUnmounted 備份清理 |
+
+### (5) 清理時機
+
+```javascript
+// 1. 關閉時立即清理（主要清理時機）
+handleClose() → cleanupPreviews()
+
+// 2. 各種操作完成後清理
+handleItinerarySave() → cleanupPreviews()
+handleSaveDraft() → cleanupPreviews()
+handleFinalSubmit() → cleanupPreviews()
+
+// 3. 組件卸載時清理（備份清理）
+onUnmounted() → cleanupPreviews()
+```
+
+### (6) 錯誤預防機制
+
+```javascript
+// 安全的清理函數
+const cleanupPreviews = () => {
+  imagePreviews.value.forEach((url) => {
+    // ✅ 檢查 URL 是否有效且是 blob URL
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url)
+    }
+  })
+  // ✅ 清空陣列，防止重複釋放
+  imagePreviews.value = []
+  imageFiles.value = []
+}
+```
+
+---
+
 ## 備註
 
 - 所有修改都已通過 linter 檢查，無錯誤
 - 篩選邏輯基於現有資料結構，如後端資料結構變更，可能需要調整
 - 建議在測試時確認後端回傳的資料包含必要欄位（`status`、`created_at`、`tags`、`vendor_id` 等）
 - 已清理所有非必要的除錯代碼，只保留錯誤處理相關的 console
+- 通知跳轉失敗時會給予明確的用戶提示，提升使用體驗
+- blob URL 現在會在 Modal 關閉時立即清理，避免切換頁面時出現錯誤
 

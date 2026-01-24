@@ -12,7 +12,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'application-updated'])
+const emit = defineEmits(['close', 'application-updated', 'traveler-updated'])
 const userStore = useUserStore()
 
 const applications = ref([])
@@ -41,6 +41,7 @@ const handleAccept = async (application) => {
     await acceptApplication(props.traveler.id, application.id)
     await loadApplications()
     emit('application-updated')
+    emit('traveler-updated') // 通知父組件更新旅伴資料
   } catch (error) {
     console.error('接受報名失敗:', error)
     alert('接受報名失敗，請稍後再試')
