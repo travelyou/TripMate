@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
 import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useRoute, useRouter } from 'vue-router'
@@ -25,6 +25,7 @@ const isPostModalOpen = ref(false)
 const selectedItinerary = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
+const itineraryToEdit = ref(null)
 
 const filterOptions = ref([
   '全部',
@@ -39,10 +40,89 @@ const filterOptions = ref([
 ])
 const activeFilter = ref('全部')
 
+// --- ★ 分頁與捲動狀態 [新增] ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null)
+let observer = null
+
 const filteredItineraries = computed(() => {
   const itineraries = itinerariesStore.itineraries || []
   if (activeFilter.value === '全部') return itineraries
   return itineraries.filter((item) => (item.category || '其他') === activeFilter.value)
+})
+
+// [修正] 核心載入邏輯：支援 15 則分頁載入
+const loadItinerariesData = async (isLoadMore = false) => {
+  if (itinerariesStore.loading) return
+
+  // 1. 單篇顯示模式 (網址帶 ID)
+  if (route.params.id && !isLoadMore) {
+    setAppLoading(true)
+    try {
+      const response = await getItineraryById(route.params.id)
+      const item = response?.data || response
+      if (item) {
+        itinerariesStore.itineraries = [item] // 背景只留一張
+        selectedItinerary.value = item
+        isDetailModalOpen.value = true
+        hasMore.value = false // 關閉無限捲動
+      }
+    } catch (error) {
+      console.error('抓取行程失敗:', error)
+    } finally {
+      setAppLoading(false)
+    }
+    return
+  }
+
+  // 2. 正常列表分頁模式
+  try {
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+    }
+
+    const params = {
+      page: currentPage.value,
+      limit: 15, // ★ 每次載入 15 則
+      category: activeFilter.value !== '全部' ? activeFilter.value : null,
+    }
+
+    // 呼叫 Store Action，傳入分頁參數
+    const newData = await itinerariesStore.fetchItineraries(params, isLoadMore)
+
+    // 判斷是否還有資料
+    if (newData && newData.length < 15) {
+      hasMore.value = false
+    }
+
+    if (isLoadMore) {
+      currentPage.value++
+    } else {
+      if (hasMore.value) currentPage.value = 2
+    }
+  } catch (error) {
+    console.error('載入行程失敗:', error)
+  }
+}
+
+// 監聽網址參數：處理 Modal 開啟與列表刷新
+watch(
+  () => route.params.id,
+  () => {
+    loadItinerariesData(false)
+  },
+  { immediate: true },
+)
+
+// 監聽篩選條件：切換時若在單篇模式則回到列表
+watch(activeFilter, () => {
+  if (route.params.id) {
+    router.push('/featured-itinerary')
+  } else {
+    loadItinerariesData(false)
+  }
 })
 
 const openDetailModal = (itinerary, focusComment = false) => {
@@ -56,39 +136,9 @@ const closeDetailModal = () => {
   isDetailModalOpen.value = false
   selectedItinerary.value = null
   shouldScrollToComments.value = false
-  router.push('/featured-itinerary')
+  router.push('/featured-itinerary') // 網址重置會自動觸發 watch 載入列表
 }
 
-const loadItinerariesData = async () => {
-  if (route.params.id) {
-    setAppLoading(true)
-    try {
-      const response = await getItineraryById(route.params.id)
-      const item = response?.data || response
-      if (item) {
-        itinerariesStore.itineraries = [item]
-        selectedItinerary.value = item
-        isDetailModalOpen.value = true
-      }
-    } catch (error) {
-      console.error('抓取失敗:', error)
-    } finally {
-      setAppLoading(false)
-    }
-    return
-  }
-  await itinerariesStore.fetchItineraries()
-}
-
-watch(
-  () => route.params.id,
-  () => {
-    loadItinerariesData()
-  },
-  { immediate: true },
-)
-
-// [修正] 移除 demo 網址，使用正確的路徑格式
 const openShareModal = (itineraryId) => {
   shareLink.value = `${window.location.origin}/featured-itinerary/${itineraryId}`
   isShareModalOpen.value = true
@@ -99,12 +149,10 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-const itineraryToEdit = ref(null)
-
 const handlePostSuccess = async () => {
-  await itinerariesStore.fetchItineraries()
   isPostModalOpen.value = false
   itineraryToEdit.value = null
+  loadItinerariesData(false)
 }
 
 const handleCardEdit = (itinerary) => {
@@ -122,19 +170,34 @@ const handleDetailEdit = (itinerary) => {
   nextTick(() => setAppLoading(false))
 }
 
-const handleDetailDeleted = () => {
-  itinerariesStore.fetchItineraries()
-}
-
-const handleCardDelete = (itinerary) => {
-  itinerariesStore.fetchItineraries()
+const handleCardDelete = () => {
+  loadItinerariesData(false)
 }
 
 onMounted(() => {
-  // 舊式 query 轉發
+  // 設定無限捲動偵測器
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMore.value && !itinerariesStore.loading) {
+        loadItinerariesData(true) // 下載更多 15 則
+      }
+    },
+    { rootMargin: '200px' },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
+
+  // 舊式查詢參數導航兼容處理
   if (route.query.itineraryId) {
     router.replace(`/featured-itinerary/${route.query.itineraryId}`)
   }
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
 })
 </script>
 
@@ -170,7 +233,7 @@ onMounted(() => {
       </div>
 
       <div
-        v-if="itinerariesStore.loading"
+        v-if="itinerariesStore.loading && itinerariesStore.itineraries.length === 0"
         class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
       >
         <div
@@ -200,6 +263,20 @@ onMounted(() => {
           @delete="handleCardDelete"
         />
       </div>
+
+      <div ref="loadMoreTrigger" class="py-10 text-center w-full">
+        <div v-if="itinerariesStore.loading" class="flex justify-center">
+          <div
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+          ></div>
+        </div>
+        <div
+          v-else-if="!hasMore && filteredItineraries.length > 0 && !route.params.id"
+          class="text-gray-400 text-sm"
+        >
+          已經到底囉，看更多精選行程 🏝️
+        </div>
+      </div>
     </div>
   </div>
 
@@ -209,7 +286,7 @@ onMounted(() => {
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDetailModal"
     @edit="handleDetailEdit"
-    @deleted="handleDetailDeleted"
+    @deleted="handleCardDelete"
   />
   <ItineraryPostModal
     v-if="isPostModalOpen"
@@ -222,6 +299,5 @@ onMounted(() => {
     "
     @success="handlePostSuccess"
   />
-
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>
