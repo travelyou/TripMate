@@ -321,10 +321,22 @@ const loadGroupMembers = async (silent = false) => {
       const data = response.data || {}
       groupMembersOwnerUid.value = data.created_by || ''
       groupMembers.value = Array.isArray(data.members) ? data.members : []
+    } else {
+      console.error('載入群組成員失敗 - API 回應:', response)
+      if (!silent) groupMembersError.value = response?.message || '載入群組成員失敗'
     }
   } catch (error) {
-    console.warn('載入群組成員失敗:', error)
-    if (!silent) groupMembersError.value = '載入群組成員失敗'
+    console.error('載入群組成員失敗 - 錯誤:', error)
+    console.error('錯誤詳情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      roomId: activeChatRoom.value?.roomId,
+    })
+    if (!silent) {
+      const errorMsg = error.response?.data?.message || error.message || '載入群組成員失敗'
+      groupMembersError.value = errorMsg
+    }
   } finally {
     if (!silent) groupMembersLoading.value = false
   }

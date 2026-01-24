@@ -126,22 +126,13 @@ watch([activeFilter, activeCategory], () => {
   loadTravelers(false)
 })
 
-watch(() => route.query.travelerId, (newTravelerId) => {
+// 監聽 query 參數變化，處理通知跳轉等情況
+watch(() => route.query.travelerId, async (newTravelerId) => {
   if (newTravelerId) {
-    nextTick(() => {
-      tryOpenSharedTraveler()
-    })
+    await nextTick()
+    tryOpenSharedTraveler()
   }
-}, { immediate: false })
-
-// 監聽整個 query 的變化，確保能夠捕獲參數更新
-watch(() => route.query, (newQuery) => {
-  if (newQuery.travelerId) {
-    nextTick(() => {
-      tryOpenSharedTraveler()
-    })
-  }
-}, { deep: true })
+})
 
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler
@@ -284,6 +275,11 @@ const tryOpenSharedTraveler = async () => {
   }
   if (!travelerId) return
   
+  // 防止重複打開
+  if (isDetailModalOpen.value && String(selectedTraveler.value?.id) === String(travelerId)) {
+    return
+  }
+  
   // 檢查是否需要滾動到留言區
   const shouldScroll = route.query.scrollToComments === 'true'
   
@@ -291,10 +287,15 @@ const tryOpenSharedTraveler = async () => {
   try {
     const response = await getTravelerById(travelerId)
     if (response?.success && response.data) {
+      // 先清除 URL 參數，避免重複觸發
+      await router.replace({ path: '/travelers', query: {}, hash: '' })
+      
+      // 確保 URL 更新後再打開模態框
+      await nextTick()
+      
       selectedTraveler.value = response.data
       shouldScrollToComments.value = shouldScroll
       isDetailModalOpen.value = true
-      router.replace({ path: '/travelers', query: {}, hash: '' })
     }
   } catch (error) {
     console.error('開啟分享旅伴失敗：', error)

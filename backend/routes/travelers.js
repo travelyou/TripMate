@@ -25,7 +25,6 @@ const checkBannerPositionYAvailable = async () => {
 
 router.get('/', async (req, res) => {
   try {
-    console.log('收到獲取旅伴列表請求')
     const { status, location, category, author_uid, limit = 20, offset = 0 } = req.query
 
     // ★ 修改：加上別名 t
@@ -87,12 +86,7 @@ router.get('/', async (req, res) => {
     query += ` ORDER BY t.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
     params.push(parseInt(limit), parseInt(offset))
 
-    console.log('執行查詢:', query)
-    console.log('查詢參數:', params)
-
     const result = await pool.query(query, params)
-
-    console.log('查詢成功，找到', result.rows.length, '筆資料')
 
     const formattedData = result.rows.map((row) => {
       const startDate = new Date(row.start_date)
@@ -731,7 +725,7 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
     const memberResult = await pool.query(
       `SELECT
         $1::varchar AS user_uid,
-        COALESCE(u.name, u.nickname, $1) AS name,
+        COALESCE(u.nickname, $1) AS name,
         u.nickname,
         u.avatar
        FROM public.users u
@@ -825,7 +819,7 @@ router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
     const membersResult = await pool.query(
       `SELECT
         m.user_uid,
-        COALESCE(u.name, u.nickname, m.user_uid) AS name,
+        COALESCE(u.nickname, m.user_uid) AS name,
         u.nickname,
         u.avatar
        FROM public.group_chat_members m
@@ -995,8 +989,6 @@ router.get('/:id', async (req, res) => {
       })
     }
 
-    console.log('獲取旅伴詳情，ID:', idNum)
-
     const hasBannerPos = await checkBannerPositionYAvailable()
     const bannerPosSelect = hasBannerPos ? 't.banner_position_y AS "banner_position_y",' : ''
 
@@ -1035,7 +1027,6 @@ router.get('/:id', async (req, res) => {
     const travelerResult = await pool.query(travelerQuery, [idNum])
 
     if (travelerResult.rows.length === 0) {
-      console.log('找不到旅伴 ID:', idNum)
       return res.status(404).json({
         success: false,
         message: '找不到此旅伴貼文',
@@ -1043,7 +1034,6 @@ router.get('/:id', async (req, res) => {
     }
 
     const traveler = travelerResult.rows[0]
-    console.log('找到旅伴:', traveler.title)
 
     const itineraryResult = await pool.query(
       'SELECT day_number, date, activities FROM travelers.traveler_itineraries WHERE traveler_id = $1 ORDER BY day_number',
@@ -1127,8 +1117,6 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    console.log('[Backend Travelers POST] ========== 開始 ==========')
-
     const {
       title,
       content,
@@ -1149,7 +1137,6 @@ router.post('/', async (req, res) => {
     } = req.body
 
     if (!title || !content || !location || !start_date || !end_date || !author_uid || !category) {
-      console.log('[Backend Travelers POST] 缺少必填欄位')
       return res.status(400).json({
         success: false,
         message: '缺少必填欄位',
@@ -1223,7 +1210,6 @@ router.post('/', async (req, res) => {
       )
 
       const travelerId = travelerResult.rows[0].id
-      console.log('[Backend Travelers POST] 主表插入成功，ID:', travelerId)
 
       if (itinerary && itinerary.days && Array.isArray(itinerary.days)) {
         for (let i = 0; i < itinerary.days.length; i++) {
@@ -1233,12 +1219,6 @@ router.post('/', async (req, res) => {
           const dayActivities = Array.isArray(day.activities)
             ? JSON.stringify(day.activities)
             : '[]'
-
-          console.log(`[Backend Travelers POST] 行程第 ${i + 1} 天:`, {
-            dayNumber,
-            date: dayDate,
-            activitiesCount: Array.isArray(day.activities) ? day.activities.length : 0,
-          })
 
           if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 365) {
             throw new Error(

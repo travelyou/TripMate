@@ -151,22 +151,13 @@ watch(
   },
 )
 
-watch(() => route.query.postId, (newPostId) => {
+// 監聽 query 參數變化，處理通知跳轉等情況
+watch(() => route.query.postId, async (newPostId) => {
   if (newPostId) {
-    nextTick(() => {
-      tryOpenSharedPost()
-    })
+    await nextTick()
+    tryOpenSharedPost()
   }
-}, { immediate: false })
-
-// 監聽整個 query 的變化，確保能夠捕獲參數更新
-watch(() => route.query, (newQuery) => {
-  if (newQuery.postId) {
-    nextTick(() => {
-      tryOpenSharedPost()
-    })
-  }
-}, { deep: true })
+})
 
 watch(() => route.query.editPost, (newPostId) => {
   if (newPostId) {
@@ -294,23 +285,34 @@ const tryOpenSharedPost = async () => {
   }
   if (!postId) return
   
+  // 防止重複打開
+  if (isDetailModalOpen.value && String(selectedPost.value?.id) === String(postId)) {
+    return
+  }
+  
   // 檢查是否需要滾動到留言區
   const shouldScroll = route.query.scrollToComments === 'true'
   
   setAppLoading(true)
   try {
     const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
+    let postToOpen = null
+    
     if (existing) {
-      openDiscussionDetailModal(existing, shouldScroll)
-      router.replace({ path: '/discussion', query: {}, hash: '' })
-      return
+      postToOpen = existing
+    } else {
+      const { fetchPostById } = await import('@/api/discussions')
+      postToOpen = await fetchPostById(postId)
     }
-
-    const { fetchPostById } = await import('@/api/discussions')
-    const post = await fetchPostById(postId)
-    if (post) {
-      openDiscussionDetailModal(post, shouldScroll)
-      router.replace({ path: '/discussion', query: {}, hash: '' })
+    
+    if (postToOpen) {
+      // 先清除 URL 參數，避免重複觸發
+      await router.replace({ path: '/discussion', query: {}, hash: '' })
+      
+      // 確保 URL 更新後再打開模態框
+      await nextTick()
+      
+      openDiscussionDetailModal(postToOpen, shouldScroll)
     }
   } catch (error) {
     console.error('開啟分享貼文失敗：', error)

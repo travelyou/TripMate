@@ -65,11 +65,7 @@ const handleNotificationClick = async (notification) => {
     
     // 跳轉到對應頁面
     if (notification.link) {
-      // 如果已經在目標頁面，先跳轉到根路徑再跳回來以觸發 watch
-      if (router.currentRoute.value.path === notification.link.split('?')[0]) {
-        await router.push('/')
-        await new Promise(resolve => setTimeout(resolve, 50))
-      }
+      // 直接跳轉，不需要先跳到根路徑
       await router.push(notification.link)
     } else {
       // 根據類型生成默認連結
@@ -103,12 +99,7 @@ const handleNotificationClick = async (notification) => {
       }
       
       if (targetPath) {
-        // 如果已經在目標頁面，先跳轉到根路徑再跳回來以觸發 watch
-        const targetBasePath = targetPath.split('?')[0]
-        if (router.currentRoute.value.path === targetBasePath) {
-          await router.push('/')
-          await new Promise(resolve => setTimeout(resolve, 50))
-        }
+        // 直接跳轉到目標路徑
         await router.push(targetPath)
       }
     }
@@ -118,7 +109,7 @@ const handleNotificationClick = async (notification) => {
     // 延遲重置狀態，確保頁面已完全跳轉
     setTimeout(() => {
       isNavigating.value = false
-    }, 1000)
+    }, 500)
   }
 }
 
