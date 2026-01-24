@@ -3,6 +3,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createLikeNotification } = require('../utils/notifications')
 
 // POST /api/likes - 按讚/取消按讚
 router.post('/', async (req, res) => {
@@ -145,6 +146,83 @@ router.post('/', async (req, res) => {
     `
     const countResult = await pool.query(countQuery, [postIdNum, board])
     likesCount = parseInt(countResult.rows[0].count) || 0
+
+    // 如果按讚成功，創建通知（不給自己發通知）
+    if (liked) {
+      try {
+        // 獲取貼文作者和標題
+        let postQuery = ''
+        if (board === 'discussion') {
+          postQuery = `SELECT author_uid, title FROM discussion.discussion WHERE id = $1`
+        } else if (board === 'traveler') {
+          postQuery = `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`
+        }
+        
+        if (postQuery) {
+          const postResult = await pool.query(postQuery, [postIdNum])
+          if (postResult.rows.length > 0) {
+            const postAuthor = postResult.rows[0].author_uid
+            const postTitle = postResult.rows[0].title
+            
+            // 只有當按讚者不是貼文作者時才發送通知
+            if (postAuthor && postAuthor !== author_uid) {
+              // 獲取按讚者資訊（嘗試從 users 表，如果沒有則使用默認值）
+              let likerName = author_uid
+              let likerAvatar = null
+              
+              try {
+                const likerResult = await pool.query(
+                  `SELECT uid, nickname, name, avatar FROM users WHERE uid = $1`,
+                  [author_uid]
+                )
+                
+                if (likerResult.rows.length > 0) {
+                  const liker = likerResult.rows[0]
+                  likerName = liker.nickname || liker.name || liker.uid || author_uid
+                  likerAvatar = liker.avatar
+                } else {
+                  // 如果 users 表中沒有，嘗試從貼文作者資訊中獲取（如果是討論區貼文）
+                  if (board === 'discussion') {
+                    const postInfo = await pool.query(
+                      `SELECT author_name, author_avatar FROM discussion.discussion WHERE id = $1 AND author_uid = $2`,
+                      [postIdNum, author_uid]
+                    )
+                    if (postInfo.rows.length > 0) {
+                      likerName = postInfo.rows[0].author_name || author_uid
+                      likerAvatar = postInfo.rows[0].author_avatar
+                    }
+                  } else if (board === 'traveler') {
+                    const postInfo = await pool.query(
+                      `SELECT author_name, author_avatar FROM travelers.travelers WHERE id = $1 AND author_uid = $2`,
+                      [postIdNum, author_uid]
+                    )
+                    if (postInfo.rows.length > 0) {
+                      likerName = postInfo.rows[0].author_name || author_uid
+                      likerAvatar = postInfo.rows[0].author_avatar
+                    }
+                  }
+                }
+              } catch (userQueryError) {
+                console.warn('查詢按讚者資訊失敗，使用默認值：', userQueryError.message)
+              }
+              
+              // 無論如何都創建通知
+              await createLikeNotification({
+                user_uid: postAuthor,
+                post_id: postIdNum,
+                board,
+                liker_uid: author_uid,
+                liker_name: likerName,
+                liker_avatar: likerAvatar,
+                post_title: postTitle,
+              })
+            }
+          }
+        }
+      } catch (notifError) {
+        console.error('創建按讚通知失敗（不影響主流程）：', notifError)
+      }
+    }
 
     console.log('✅ [Backend Likes POST] 成功，liked:', liked, 'count:', likesCount)
 

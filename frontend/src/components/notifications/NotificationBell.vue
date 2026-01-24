@@ -1,0 +1,326 @@
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { useNotificationsStore } from '@/stores/notifications'
+import { Bell as BellIcon, X as XIcon, Check as CheckIcon } from 'lucide-vue-next'
+import { formatTime } from '@/utils/time'
+
+const router = useRouter()
+const userStore = useUserStore()
+const notificationsStore = useNotificationsStore()
+
+const isOpen = ref(false)
+const notificationRef = ref(null)
+let refreshInterval = null
+
+// 獲取當前用戶UID
+const currentUid = computed(() => {
+  return userStore.currentUser?.uid || userStore.currentUser?.id
+})
+
+// 未讀通知數量（最多顯示99）
+const unreadCount = computed(() => notificationsStore.displayCount)
+
+// 通知列表
+const notifications = computed(() => notificationsStore.notifications)
+
+// 未讀通知
+const unreadNotifications = computed(() => notificationsStore.unreadNotifications)
+
+// 已讀通知
+const readNotifications = computed(() => notificationsStore.readNotifications)
+
+// 切換通知面板
+const toggleNotifications = () => {
+  isOpen.value = !isOpen.value
+  if (isOpen.value && currentUid.value) {
+    notificationsStore.fetchNotifications(currentUid.value)
+  }
+}
+
+// 關閉通知面板
+const closeNotifications = () => {
+  isOpen.value = false
+}
+
+// 點擊通知處理
+const handleNotificationClick = async (notification) => {
+  // 標記為已讀
+  if (!notification.is_read) {
+    await notificationsStore.markAsRead(notification.id)
+  }
+  
+  // 關閉通知面板
+  closeNotifications()
+  
+  // 跳轉到對應頁面
+  if (notification.link) {
+    router.push(notification.link)
+  } else {
+    // 根據類型生成默認連結
+    switch (notification.type) {
+      case 'like':
+      case 'comment':
+        if (notification.related_type === 'discussion') {
+          router.push(`/discussion?postId=${notification.related_id}`)
+        } else if (notification.related_type === 'traveler') {
+          router.push(`/travelers?postId=${notification.related_id}`)
+        }
+        break
+      case 'friend_request':
+        router.push('/profile?tab=friends')
+        break
+      case 'traveler_application':
+        router.push(`/travelers?postId=${notification.related_id}`)
+        break
+    }
+  }
+}
+
+// 標記所有為已讀
+const handleMarkAllAsRead = async () => {
+  if (currentUid.value) {
+    await notificationsStore.markAllAsRead(currentUid.value)
+  }
+}
+
+// 刪除通知
+const handleDeleteNotification = async (notificationId, event) => {
+  event.stopPropagation()
+  await notificationsStore.deleteNotification(notificationId)
+}
+
+// 獲取通知類型圖標和顏色
+const getNotificationTypeInfo = (type) => {
+  switch (type) {
+    case 'like':
+      return { icon: '👍', color: 'text-red-500' }
+    case 'comment':
+      return { icon: '💬', color: 'text-blue-500' }
+    case 'friend_request':
+      return { icon: '👤', color: 'text-green-500' }
+    case 'traveler_application':
+      return { icon: '✈️', color: 'text-purple-500' }
+    case 'traveler_reminder':
+      return { icon: '⏰', color: 'text-orange-500' }
+    default:
+      return { icon: '🔔', color: 'text-gray-500' }
+  }
+}
+
+// 點擊外部關閉
+const handleClickOutside = (event) => {
+  if (notificationRef.value && !notificationRef.value.contains(event.target)) {
+    closeNotifications()
+  }
+}
+
+// 監聽用戶登入狀態
+watch(
+  () => currentUid.value,
+  (uid) => {
+    if (uid) {
+      // 載入通知
+      notificationsStore.refreshNotifications(uid)
+      // 設置定時刷新（每30秒）
+      if (refreshInterval) clearInterval(refreshInterval)
+      refreshInterval = setInterval(() => {
+        notificationsStore.refreshNotifications(uid)
+      }, 30000)
+    } else {
+      if (refreshInterval) {
+        clearInterval(refreshInterval)
+        refreshInterval = null
+      }
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  if (currentUid.value) {
+    notificationsStore.refreshNotifications(currentUid.value)
+  }
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
+  document.removeEventListener('click', handleClickOutside)
+})
+</script>
+
+<template>
+  <div ref="notificationRef" class="relative">
+    <!-- 通知鈴鐺按鈕 -->
+    <button
+      class="relative p-2 hover:bg-primary-600 rounded-full transition text-secondary-50"
+      @click="toggleNotifications"
+    >
+      <BellIcon class="w-6 h-6" />
+      <!-- 未讀通知徽章 -->
+      <span
+        v-if="unreadCount > 0"
+        class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full border-2 border-primary-700"
+      >
+        {{ unreadCount > 99 ? '99+' : unreadCount }}
+      </span>
+    </button>
+
+    <!-- 通知面板 -->
+    <Transition
+      enter-active-class="transition-all duration-200"
+      enter-from-class="opacity-0 translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-2"
+    >
+      <div
+        v-if="isOpen"
+        class="absolute right-0 top-full mt-2 w-80 md:w-96 bg-white rounded-xl shadow-xl border border-secondary-100 overflow-hidden z-50 max-h-[600px] flex flex-col"
+      >
+        <!-- 標題欄 -->
+        <div class="p-4 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
+          <h3 class="text-lg font-bold text-secondary-900">通知</h3>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="unreadCount > 0"
+              class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              @click="handleMarkAllAsRead"
+            >
+              全部標記為已讀
+            </button>
+            <button
+              class="p-1 hover:bg-secondary-100 rounded-full transition"
+              @click="closeNotifications"
+            >
+              <XIcon class="w-4 h-4 text-secondary-600" />
+            </button>
+          </div>
+        </div>
+
+        <!-- 通知列表 -->
+        <div class="flex-1 overflow-y-auto">
+          <div v-if="notifications.length === 0" class="p-8 text-center text-secondary-500">
+            <BellIcon class="w-12 h-12 mx-auto mb-2 text-secondary-300" />
+            <p>暫無通知</p>
+          </div>
+
+          <div v-else>
+            <!-- 未讀通知 -->
+            <div v-if="unreadNotifications.length > 0" class="border-b border-secondary-100">
+              <div
+                v-for="notification in unreadNotifications"
+                :key="notification.id"
+                class="p-4 hover:bg-secondary-50 cursor-pointer border-l-4 border-primary-500 transition"
+                @click="handleNotificationClick(notification)"
+              >
+                <div class="flex items-start gap-3">
+                  <!-- 發送者頭像 -->
+                  <div class="shrink-0">
+                    <img
+                      v-if="notification.sender_avatar"
+                      :src="notification.sender_avatar"
+                      class="w-10 h-10 rounded-full object-cover"
+                      alt=""
+                    />
+                    <div
+                      v-else
+                      class="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center"
+                    >
+                      <span class="text-lg">{{ getNotificationTypeInfo(notification.type).icon }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 通知內容 -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-secondary-900 mb-1">
+                      {{ notification.title }}
+                    </p>
+                    <p v-if="notification.content" class="text-xs text-secondary-600 mb-2 line-clamp-2">
+                      {{ notification.content }}
+                    </p>
+                    <p class="text-xs text-secondary-400">
+                      {{ formatTime(notification.created_at) }}
+                    </p>
+                  </div>
+
+                  <!-- 操作按鈕 -->
+                  <button
+                    class="shrink-0 p-1 hover:bg-secondary-200 rounded transition"
+                    @click.stop="handleDeleteNotification(notification.id, $event)"
+                  >
+                    <XIcon class="w-4 h-4 text-secondary-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 已讀通知 -->
+            <div v-if="readNotifications.length > 0">
+              <div
+                v-for="notification in readNotifications"
+                :key="notification.id"
+                class="p-4 hover:bg-secondary-50 cursor-pointer transition opacity-75"
+                @click="handleNotificationClick(notification)"
+              >
+                <div class="flex items-start gap-3">
+                  <!-- 發送者頭像 -->
+                  <div class="shrink-0">
+                    <img
+                      v-if="notification.sender_avatar"
+                      :src="notification.sender_avatar"
+                      class="w-10 h-10 rounded-full object-cover"
+                      alt=""
+                    />
+                    <div
+                      v-else
+                      class="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center"
+                    >
+                      <span class="text-lg">{{ getNotificationTypeInfo(notification.type).icon }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 通知內容 -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-secondary-700 mb-1">
+                      {{ notification.title }}
+                    </p>
+                    <p v-if="notification.content" class="text-xs text-secondary-500 mb-2 line-clamp-2">
+                      {{ notification.content }}
+                    </p>
+                    <p class="text-xs text-secondary-400">
+                      {{ formatTime(notification.created_at) }}
+                    </p>
+                  </div>
+
+                  <!-- 操作按鈕 -->
+                  <button
+                    class="shrink-0 p-1 hover:bg-secondary-200 rounded transition"
+                    @click.stop="handleDeleteNotification(notification.id, $event)"
+                  >
+                    <XIcon class="w-4 h-4 text-secondary-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
+

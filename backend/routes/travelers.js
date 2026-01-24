@@ -2,6 +2,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createTravelerApplicationNotification } = require('../utils/notifications')
 
 let bannerPositionYAvailable = null
 const checkBannerPositionYAvailable = async () => {
@@ -356,6 +357,34 @@ router.post('/:id/applications', async (req, res) => {
        RETURNING *`,
       [id, author_uid, author_name || '匿名用戶', author_avatar, message]
     )
+
+    // 創建找旅伴申請通知
+    try {
+      // 獲取旅伴招募貼文作者和標題
+      const travelerResult = await pool.query(
+        `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`,
+        [id]
+      )
+      
+      if (travelerResult.rows.length > 0) {
+        const travelerAuthor = travelerResult.rows[0].author_uid
+        const travelerTitle = travelerResult.rows[0].title
+        
+        // 只有當申請者不是貼文作者時才發送通知
+        if (travelerAuthor && travelerAuthor !== author_uid) {
+          await createTravelerApplicationNotification({
+            user_uid: travelerAuthor,
+            traveler_id: id,
+            applicant_uid: author_uid,
+            applicant_name: author_name || '匿名用戶',
+            applicant_avatar: author_avatar,
+            traveler_title: travelerTitle,
+          })
+        }
+      }
+    } catch (notifError) {
+      console.error('創建找旅伴申請通知失敗（不影響主流程）：', notifError)
+    }
 
     res.json({ success: true, data: result.rows[0] })
   } catch (error) {

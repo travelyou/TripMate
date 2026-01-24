@@ -37,7 +37,12 @@
           <SearchIcon class="w-6 h-6" />
         </button>
 
-        <button class="p-2 hover:bg-primary-600 rounded-full transition text-secondary-50">
+        <NotificationBell v-if="userStore.isLoggedIn" />
+        <button
+          v-else
+          class="p-2 hover:bg-primary-600 rounded-full transition text-secondary-50"
+          @click="goToLogin"
+        >
           <BellIcon class="w-6 h-6" />
         </button>
 
@@ -168,6 +173,7 @@
 import TripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 import { useUserStore } from '@/stores/user'
 import { checkoutStore } from '@/stores/checkout'
+import NotificationBell from '@/components/notifications/NotificationBell.vue'
 import {
   Bell as BellIcon,
   LogOut as LogOutIcon,

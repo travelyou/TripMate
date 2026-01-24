@@ -3,6 +3,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createFriendRequestNotification } = require('../utils/notifications')
 
 const ensureFriendsTable = async () => {
   await pool.query(
@@ -330,6 +331,27 @@ router.post('/:uid/friends', async (req, res) => {
          RETURNING *`,
         [uid, friend_uid],
       )
+    }
+
+    // 創建好友申請通知
+    try {
+      // 獲取申請者資訊
+      const requesterResult = await pool.query(
+        `SELECT uid, nickname, avatar FROM users WHERE uid = $1`,
+        [uid]
+      )
+      
+      if (requesterResult.rows.length > 0) {
+        const requester = requesterResult.rows[0]
+        await createFriendRequestNotification({
+          user_uid: friend_uid,
+          requester_uid: uid,
+          requester_name: requester.nickname || requester.uid,
+          requester_avatar: requester.avatar,
+        })
+      }
+    } catch (notifError) {
+      console.error('創建好友申請通知失敗（不影響主流程）：', notifError)
     }
 
     res.status(201).json({

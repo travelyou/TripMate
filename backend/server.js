@@ -145,6 +145,7 @@ app.use('/api/cart', cartRouter)
 app.use('/api/swipes', swipesRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
+app.use('/api/notifications', require('./routes/notifications'))
 
 // 全域錯誤處理
 // eslint-disable-next-line no-unused-vars
@@ -200,3 +201,38 @@ if (!process.env.VERCEL) {
 
 // 3. 修改：匯出 app 供 Vercel Serverless Function 使用
 module.exports = app
+
+// 4. 設置定時任務：檢查找旅伴到期提醒（僅在非 Vercel 環境運行）
+if (!process.env.VERCEL) {
+  const { checkAndSendTravelerReminders } = require('./utils/travelerReminders')
+  
+  // 每天凌晨 1 點執行一次
+  const scheduleReminderCheck = () => {
+    const now = new Date()
+    const nextCheck = new Date()
+    nextCheck.setHours(1, 0, 0, 0)
+    if (nextCheck <= now) {
+      nextCheck.setDate(nextCheck.getDate() + 1)
+    }
+    
+    const msUntilNext = nextCheck - now
+    
+    setTimeout(() => {
+      checkAndSendTravelerReminders()
+      // 設置每天執行一次
+      setInterval(checkAndSendTravelerReminders, 24 * 60 * 60 * 1000)
+    }, msUntilNext)
+    
+    console.log(`[Scheduler] 找旅伴到期提醒將在 ${nextCheck.toLocaleString('zh-TW')} 開始執行`)
+  }
+  
+  // 立即執行一次（用於測試）
+  if (process.env.NODE_ENV === 'development') {
+    setTimeout(() => {
+      checkAndSendTravelerReminders()
+    }, 5000) // 5秒後執行，確保資料庫連接已建立
+  }
+  
+  // 設置定時任務
+  scheduleReminderCheck()
+}
