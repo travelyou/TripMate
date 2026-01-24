@@ -25,11 +25,13 @@ const tabs = [
   { id: 'partner', label: '找旅伴行程規劃' },
 ]
 
+// 打開現有行程詳情
 const openItineraryDetail = (itinerary) => {
   selectedItinerary.value = JSON.parse(JSON.stringify(itinerary))
   isDetailModalOpen.value = true
 }
 
+// 開啟新增行程視窗
 const openAddItineraryModal = () => {
   selectedItinerary.value = {
     id: Date.now(),

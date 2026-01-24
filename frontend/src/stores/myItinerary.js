@@ -1,5 +1,6 @@
 ﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import dayjs from 'dayjs' // 確保已安裝並引入 dayjs
 import {
   createMyItinerary,
   getPersonalItineraries,
@@ -13,38 +14,45 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   const partnerItineraries = ref([])
   const drafts = ref(JSON.parse(localStorage.getItem('itinerary_drafts') || '[]'))
 
-  // [Action] 載入個人行程並轉換格式 (Snake -> Camel)
+  // [Action] 載入個人行程並強制轉換日期格式 (Snake -> Camel + Format Date)
   const loadPersonalData = async (uid) => {
     if (!uid) return
-    const res = await getPersonalItineraries(uid)
-    if (res.success) {
-      myItineraries.value = res.data.map((item) => {
-        const { start_date, end_date, itinerary, packing_list, ...rest } = item
-        return {
-          ...rest,
-          startDate: start_date,
-          endDate: end_date,
-          days: itinerary || [],
-          packingList: packing_list || [],
-        }
-      })
+    try {
+      const res = await getPersonalItineraries(uid)
+      if (res.success) {
+        myItineraries.value = res.data.map((item) => {
+          const { start_date, end_date, itinerary, packing_list, ...rest } = item
+          return {
+            ...rest,
+            // [修正] 僅保留日期，不顯示時間
+            startDate: start_date ? dayjs(start_date).format('YYYY-MM-DD') : '',
+            endDate: end_date ? dayjs(end_date).format('YYYY-MM-DD') : '',
+            days: itinerary || [],
+            packingList: packing_list || [],
+          }
+        })
+      }
+    } catch (error) {
+      console.error('載入個人行程失敗:', error)
     }
   }
 
-  // [Action] 載入參加的行程
   const loadJoinedData = async (uid) => {
     if (!uid) return
-    const res = await getJoinedItineraries(uid)
-    if (res.success) {
-      partnerItineraries.value = res.data.map((item) => ({
-        ...item,
-        startDate: item.start_date,
-        endDate: item.end_date,
-      }))
+    try {
+      const res = await getJoinedItineraries(uid)
+      if (res.success) {
+        partnerItineraries.value = res.data.map((item) => ({
+          ...item,
+          startDate: item.start_date ? dayjs(item.start_date).format('YYYY-MM-DD') : '',
+          endDate: item.end_date ? dayjs(item.end_date).format('YYYY-MM-DD') : '',
+        }))
+      }
+    } catch (error) {
+      console.error('載入參加行程失敗:', error)
     }
   }
 
-  // [Action] 儲存行程至資料庫 (Camel -> Snake)
   const saveItinerary = async (itineraryData, uid) => {
     if (!uid) return { success: false, message: '使用者未登入' }
     const payload = {
@@ -56,7 +64,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       itinerary: itineraryData.days,
       packing_list: itineraryData.packingList,
     }
-
     try {
       const res = await createMyItinerary(payload)
       if (res.success) {
@@ -69,12 +76,12 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     }
   }
 
-  // [Action] 刪除行程
   const deleteItinerary = async (id) => {
     try {
       const res = await deleteMyItinerary(id)
       if (res.success) {
-        myItineraries.value = myItineraries.value.filter((item) => item.id !== id)
+        const uid = auth.currentUser?.uid
+        if (uid) await loadPersonalData(uid)
         return { success: true }
       }
       return { success: false }
@@ -83,7 +90,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
     }
   }
 
-  // [Action] 草稿管理 (包含唯一 ID 修復)
   const addDraft = (draftData) => {
     const newDraft = {
       id: Date.now() + Math.random(),
