@@ -145,6 +145,7 @@ app.use('/api/cart', cartRouter)
 app.use('/api/swipes', swipesRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
+app.use('/api/my-itinerary', require('./routes/myItinerary'))
 
 // 全域錯誤處理
 // eslint-disable-next-line no-unused-vars
