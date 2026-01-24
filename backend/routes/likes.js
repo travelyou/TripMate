@@ -4,6 +4,7 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 const { createLikeNotification } = require('../utils/notifications')
+const { getUserInfo } = require('../utils/userInfo')
 
 // POST /api/likes - 按讚/取消按讚
 router.post('/', async (req, res) => {
@@ -166,75 +167,22 @@ router.post('/', async (req, res) => {
             
             // 只有當按讚者不是貼文作者時才發送通知
             if (postAuthor && postAuthor !== author_uid) {
-              // 獲取按讚者資訊（優先從 users 表獲取 nickname）
-              let likerName = author_uid // 默認值
-              let likerAvatar = null
-              
-              try {
-                // 優先從 users 表獲取 nickname
-                const likerResult = await pool.query(
-                  `SELECT uid, nickname, name, avatar FROM users WHERE uid = $1`,
-                  [author_uid]
-                )
-                
-                if (likerResult.rows.length > 0) {
-                  const liker = likerResult.rows[0]
-                  // 優先使用 nickname，如果沒有則使用 name，最後使用 uid
-                  likerName = liker.nickname || liker.name || liker.uid || author_uid
-                  likerAvatar = liker.avatar
-                } else {
-                  // 如果 users 表中沒有，嘗試從貼文作者資訊中獲取（如果是討論區貼文）
-                  // 但即使從貼文表獲取，也要再次嘗試從 users 表獲取 nickname（可能用戶剛註冊）
-                  if (board === 'discussion') {
-                    const postInfo = await pool.query(
-                      `SELECT author_name, author_avatar FROM discussion.discussion WHERE id = $1 AND author_uid = $2`,
-                      [postIdNum, author_uid]
-                    )
-                    if (postInfo.rows.length > 0) {
-                      likerName = postInfo.rows[0].author_name || author_uid
-                      likerAvatar = postInfo.rows[0].author_avatar
-                    }
-                  } else if (board === 'traveler') {
-                    const postInfo = await pool.query(
-                      `SELECT author_name, author_avatar FROM travelers.travelers WHERE id = $1 AND author_uid = $2`,
-                      [postIdNum, author_uid]
-                    )
-                    if (postInfo.rows.length > 0) {
-                      likerName = postInfo.rows[0].author_name || author_uid
-                      likerAvatar = postInfo.rows[0].author_avatar
-                    }
-                  }
-                  
-                  // 再次嘗試從 users 表獲取（可能用戶剛註冊，現在有資料了）
-                  try {
-                    const retryResult = await pool.query(
-                      `SELECT nickname, name FROM users WHERE uid = $1`,
-                      [author_uid]
-                    )
-                    if (retryResult.rows.length > 0 && retryResult.rows[0].nickname) {
-                      likerName = retryResult.rows[0].nickname || retryResult.rows[0].name || likerName
-                    }
-                  } catch (retryError) {
-                    // 忽略重試錯誤
-                  }
-                }
-              } catch (userQueryError) {
-                console.warn('查詢按讚者資訊失敗，使用默認值：', userQueryError.message)
-              }
-              
+              // 使用共用函式獲取按讚者資訊
+              const likerInfo = await getUserInfo(author_uid)
+
               // 確保不會使用 uid 作為名稱（除非真的沒有其他選擇）
-              if (likerName === author_uid) {
+              if (likerInfo.name === author_uid) {
                 console.warn(`[通知] 按讚者 ${author_uid} 沒有找到 nickname 或 name，使用 uid 作為名稱`)
               }
-              
-              // 無論如何都創建通知
+
+              // 創建通知
               await createLikeNotification({
                 user_uid: postAuthor,
                 post_id: postIdNum,
                 board,
                 liker_uid: author_uid,
-                liker_name: likerName,
-                liker_avatar: likerAvatar,
+                liker_name: likerInfo.name,
+                liker_avatar: likerInfo.avatar,
                 post_title: postTitle,
               })
             }

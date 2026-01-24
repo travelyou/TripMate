@@ -3,6 +3,7 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 const { createTravelerApplicationNotification } = require('../utils/notifications')
+const { getUserInfo } = require('../utils/userInfo')
 
 let bannerPositionYAvailable = null
 const checkBannerPositionYAvailable = async () => {
@@ -371,32 +372,17 @@ router.post('/:id/applications', async (req, res) => {
         
         // 只有當申請者不是貼文作者時才發送通知
         if (travelerAuthor && travelerAuthor !== author_uid) {
-          // 嘗試從 users 表獲取申請者的 nickname
-          let applicantName = author_name || '匿名用戶'
-          let applicantAvatar = author_avatar
+          // 使用共用函式獲取申請者資訊
+          const applicantInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
           
-          try {
-            const applicantResult = await pool.query(
-              `SELECT nickname, name, avatar FROM public.users WHERE uid = $1`,
-              [author_uid]
-            )
-            if (applicantResult.rows.length > 0) {
-              const applicant = applicantResult.rows[0]
-              // 優先使用 nickname，如果沒有則使用 name
-              applicantName = applicant.nickname || applicant.name || author_name || author_uid
-              if (applicant.avatar) {
-                applicantAvatar = applicant.avatar
-              }
-            }
-          } catch (userQueryError) {
-            console.warn('查詢申請者資訊失敗，使用提供的值：', userQueryError.message)
-          }
+          // 優先使用 users 表的頭像，如果沒有則使用傳入的 author_avatar
+          const applicantAvatar = applicantInfo.avatar || author_avatar
           
           await createTravelerApplicationNotification({
             user_uid: travelerAuthor,
             traveler_id: id,
             applicant_uid: author_uid,
-            applicant_name: applicantName,
+            applicant_name: applicantInfo.name,
             applicant_avatar: applicantAvatar,
             traveler_title: travelerTitle,
           })
