@@ -328,6 +328,8 @@ router.get('/', async (req, res) => {
       persons: Number(row.persons),
       itineraryId: row.itinerary_id,
       createdAt: row.created_at,
+      contact: row.contact_json || null,
+      emergencyContact: row.emergency_contact_json || null,
       itinerary: {
         id: row.itinerary_id,
         title: row.title,
