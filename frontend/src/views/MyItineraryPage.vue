@@ -13,7 +13,6 @@ const myItineraryStore = useMyItineraryStore()
 const route = useRoute()
 const router = useRouter()
 
-// 使用 storeToRefs 拿資料，這樣資料變動時畫面才會跟著變
 const { myItineraries, drafts, partnerItineraries } = storeToRefs(myItineraryStore)
 
 const isDetailModalOpen = ref(false)
@@ -21,8 +20,8 @@ const selectedItinerary = ref(null)
 const activeTab = ref('my')
 
 const tabs = [
-  { id: 'my', label: '我的行程' },
-  { id: 'partner', label: '找旅伴' },
+  { id: 'my', label: '我的行程規劃' },
+  { id: 'partner', label: '找旅伴行程規劃' },
 ]
 
 const openItineraryDetail = (itinerary) => {
@@ -30,14 +29,15 @@ const openItineraryDetail = (itinerary) => {
   isDetailModalOpen.value = true
 }
 
+// 修正：移除日期預設值
 const openAddItineraryModal = () => {
   selectedItinerary.value = {
     id: Date.now(),
     title: '',
-    startDate: '',
-    endDate: '',
+    startDate: '', // 設為空，不預設日期
+    endDate: '', // 設為空，不預設日期
     status: 'planning',
-    days: [{ day: 1, date: '', activities: [] }],
+    days: [], // 初始無天數，待日期選取後生成
     packingList: [
       { category: '證件', items: [] },
       { category: '衣物', items: [] },
@@ -47,50 +47,32 @@ const openAddItineraryModal = () => {
   isDetailModalOpen.value = true
 }
 
-// 開啟草稿
 const openDraft = (draft) => {
-  // 判斷草稿類型，如果是行程草稿就打開編輯
   if (
     (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
     (draft.data || draft.rawItinerary)
   ) {
-    // 兼容兩種草稿結構
     const dataToLoad = draft.data || draft.rawItinerary
     selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
     isDetailModalOpen.value = true
   } else {
-    showAlert(
-      `這是 ${draft.typeLabel} 的草稿，請至 ${draft.typeLabel === '找旅伴' ? '找旅伴頁面' : '討論區'} 編輯。`,
-    )
+    showAlert(`這是 ${draft.typeLabel} 的草稿，請至對應頁面編輯。`)
   }
 }
 
-// 處理「暫存草稿」
 const handleSaveDraft = (draftItinerary) => {
-  // 呼叫 Store 裡面的 addDraft
   myItineraryStore.addDraft({
     type: 'itinerary',
     typeLabel: '我的行程',
     title: draftItinerary.title || '(未命名行程)',
-    content: `日期: ${draftItinerary.startDate || '?'} ~ ${draftItinerary.endDate || '?'}`,
-    rawItinerary: draftItinerary, // 把整包資料存起來
+    data: draftItinerary,
   })
-
   isDetailModalOpen.value = false
 }
 
-// 處理儲存 (發布/更新行程)
 const handleSaveItinerary = (updatedItinerary) => {
   if (!updatedItinerary.title.trim()) updatedItinerary.title = '新旅程'
-
-  const index = myItineraryStore.myItineraries.findIndex((i) => i.id === updatedItinerary.id)
-
-  if (index !== -1) {
-    myItineraryStore.myItineraries[index] = updatedItinerary
-  } else {
-    myItineraryStore.myItineraries.unshift(updatedItinerary)
-  }
-
+  myItineraryStore.saveItinerary(updatedItinerary)
   isDetailModalOpen.value = false
 }
 
@@ -136,14 +118,13 @@ watch(
 <template>
   <div class="p-4 max-w-5xl mx-auto">
     <div class="space-y-6 pt-4">
-      <div class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center">
+      <div class="bg-primary p-5 rounded-xl shadow-primary-tall flex items-center justify-between">
         <h1 class="text-2xl font-black text-secondary-50 flex items-center gap-3">
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
           我的行程
         </h1>
       </div>
 
-      <!-- 標籤頁籤容器 -->
       <div class="p-4 space-y-4">
         <div class="grid grid-cols-2 gap-4">
           <button
@@ -152,7 +133,7 @@ watch(
             class="w-full px-4 py-3 rounded-lg font-semibold transition"
             :class="
               activeTab === tab.id
-                ? 'bg-primary text-white'
+                ? 'bg-primary text-white shadow-md'
                 : 'bg-white text-secondary-800 hover:bg-gray-300'
             "
             @click="activeTab = tab.id"
@@ -161,8 +142,7 @@ watch(
           </button>
         </div>
 
-        <div>
-          <!-- 根據 activeTab 切換顯示內容 -->
+        <div class="min-h-[400px]">
           <MyItineraryTab
             v-if="activeTab === 'my'"
             :itineraries="myItineraries"

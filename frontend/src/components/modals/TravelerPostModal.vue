@@ -29,6 +29,7 @@ import {
   Bike as BikeIcon,
   Footprints as WalkIcon,
   GripVertical as GripVerticalIcon,
+  Briefcase as BriefcaseIcon,
 } from 'lucide-vue-next'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import LocationPickerModal from './LocationPickerModal.vue'
@@ -39,6 +40,7 @@ import { createTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 import { showAlert, showConfirm, showError, showSuccess } from '@/utils/alert'
+import ImportItineraryModal from './ImportItineraryModal.vue'
 // --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { Extension } from '@tiptap/core'
@@ -60,6 +62,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const myItineraryStore = useMyItineraryStore()
+const isImportModalOpen = ref(false)
 
 const currentStep = ref('basic')
 const formError = ref('')
@@ -230,6 +233,38 @@ const filteredTags = computed(() => {
 const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, date: '', activities: [] }
 })
+
+// --- [核心匯入功能實作] ---
+const handleImportItinerary = (importedData) => {
+  if (!importedData) return
+  if (!postData.value.title) postData.value.title = importedData.title
+
+  // 以發文目前設定的日期為基準重新對齊
+  let baseDate = dayjs()
+  if (postData.value.start_date) {
+    baseDate = dayjs(postData.value.start_date)
+  } else {
+    postData.value.start_date = baseDate.format('YYYY-MM-DD')
+  }
+
+  if (importedData.days && importedData.days.length > 0) {
+    const importedDays = JSON.parse(JSON.stringify(importedData.days))
+    importedDays.forEach((day, index) => {
+      day.day = index + 1
+      day.date = baseDate.add(index, 'day').format('YYYY-MM-DD') // 自動校準日期
+    })
+    postData.value.itinerary = { days: importedDays }
+    postData.value.end_date = baseDate.add(importedDays.length - 1, 'day').format('YYYY-MM-DD')
+    activeDayIndex.value = 0
+  }
+
+  if (importedData.packingList && importedData.packingList.length > 0) {
+    postData.value.packingList = JSON.parse(JSON.stringify(importedData.packingList))
+  }
+
+  isImportModalOpen.value = false
+  showAlert(`成功匯入「${importedData.title}」！已為您自動填充日程與打包清單。`)
+}
 
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
@@ -1506,7 +1541,12 @@ const jumpToStep = (targetStep) => {
   formError.value = ''
 }
 
-// ... existing code ...
+onMounted(() => {
+  if (postData.value.itinerary.days.length === 0) addDay()
+})
+onBeforeUnmount(() => {
+  editor.value?.destroy()
+})
 </script>
 
 <template>
@@ -1615,7 +1655,7 @@ const jumpToStep = (targetStep) => {
               ref="titleInput"
               v-model="postData.title"
               type="text"
-              placeholder="例如：徵求一位女生分攤札幌住宿費"
+              placeholder="例如：徵求一位旅伴分攤台南住宿費"
               :class="[
                 'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                 fieldErrors.title ? 'border-red-500' : 'border-gray-200 focus:border-primary-500',
@@ -1891,14 +1931,24 @@ const jumpToStep = (targetStep) => {
         <div v-else-if="currentStep === 'itinerary'" class="space-y-4 sm:space-y-6">
           <div class="flex items-center justify-between">
             <h3 class="text-base sm:text-lg font-bold text-gray-800">行程安排</h3>
-            <button
-              class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary-50 text-primary-600 rounded-lg font-bold hover:bg-primary-100 flex items-center gap-1.5 sm:gap-2"
-              @click="addDay"
-            >
-              <PlusIcon class="w-3 h-3 sm:w-4 sm:h-4" />
-              <span class="hidden sm:inline">新增天數</span><span class="sm:hidden">新增</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                @click="isImportModalOpen = true"
+                type="button"
+                class="px-3 py-1.5 bg-secondary-100 text-secondary-600 rounded-lg font-bold hover:bg-secondary-200 flex items-center gap-2 text-xs sm:text-sm transition shadow-sm"
+              >
+                <BriefcaseIcon class="w-4 h-4" /> 從我的行程匯入
+              </button>
+              <button
+                @click="addDay"
+                type="button"
+                class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary-50 text-primary-600 rounded-lg font-bold hover:bg-primary-100 flex items-center gap-1.5 sm:gap-2"
+              >
+                <PlusIcon class="w-3 h-3 sm:w-4" /> <span>新增天數</span>
+              </button>
+            </div>
           </div>
+
           <div ref="dayListContainer" class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar">
             <button
               v-for="(day, index) in postData.itinerary.days"
@@ -2625,6 +2675,18 @@ const jumpToStep = (targetStep) => {
       </div>
     </div>
   </div>
+  <LocationPickerModal
+    :is-open="isLocationPickerOpen"
+    :initial-location="editingActivity?.location"
+    @close="isLocationPickerOpen = false"
+    @select="handleLocationSelect"
+  />
+
+  <ImportItineraryModal
+    v-if="isImportModalOpen"
+    @close="isImportModalOpen = false"
+    @select="handleImportItinerary"
+  />
 </template>
 
 <style scoped>

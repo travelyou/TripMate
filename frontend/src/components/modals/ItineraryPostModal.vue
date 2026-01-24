@@ -462,7 +462,7 @@ const handleFinalSubmit = async () => {
     }
 
     submitProgress.value = 70
-      submitStatus.value = '正在提交中...'
+    submitStatus.value = '正在提交中...'
 
     const res = await createItinerary(payload)
 
@@ -780,7 +780,10 @@ if (postData.value.itinerary.days.length === 0) {
                   @change="handleEditorImageSelect"
                 />
               </div>
-              <editor-content :editor="editor" class="min-h-[300px] cursor-text bg-white rounded-b-xl" />
+              <editor-content
+                :editor="editor"
+                class="min-h-[300px] cursor-text bg-white rounded-b-xl"
+              />
             </div>
           </div>
 
