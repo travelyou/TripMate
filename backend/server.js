@@ -27,7 +27,9 @@ const allowedOrigins = [
   'https://tripmate-backend.zeabur.app',
   'https://tripmate-mayoyo.com',
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'https://trip-mate-xi.vercel.app', // 新增你的 Vercel 前端網址
   process.env.ALLOWED_ORIGIN, // 預留給環境變數設定
 ].filter(Boolean) // 過濾掉空值
