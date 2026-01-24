@@ -89,6 +89,14 @@ router.get('/', async (req, res) => {
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
 
+    // 🔧 輔助函數：過濾無效的圖片 URL（blob 和 data URL）
+    const isValidImageUrl = (url) => {
+      if (!url || typeof url !== 'string') return false
+      // 過濾掉 blob URL 和 data URL
+      if (url.startsWith('blob:') || url.startsWith('data:')) return false
+      return true
+    }
+
     // 處理結果
     // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
     const discussions = discussionsResult.rows.map((discussion) => {
@@ -110,9 +118,15 @@ router.get('/', async (req, res) => {
         console.log(`  - author_avatar: ${discussion.author_avatar || 'NULL'}`)
         console.log(`  - author_name: ${discussion.author_name || 'NULL'}`)
         console.log(`  - author_spirit_animal: ${discussion.author_spirit_animal || 'NULL'}`)
-        console.log(`  - old_author_avatar: ${discussion.old_author_avatar || 'NULL'}`)
+        console.log(`  - old_author_avatar: ${discussion.old_avatar || 'NULL'}`)
         console.log(`  - 所有欄位:`, Object.keys(discussion))
       }
+
+      // 🔧 過濾掉無效的圖片 URL
+      const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
+      const cleanImageUrls = Array.isArray(discussion.image_urls) 
+        ? discussion.image_urls.filter(url => isValidImageUrl(url))
+        : []
 
       return {
         ...discussion,
@@ -122,8 +136,8 @@ router.get('/', async (req, res) => {
         author_spirit_animal: discussion.author_spirit_animal || null,
         likes_count: parseInt(discussion.likes_count) || 0,
         comments_count: parseInt(discussion.comments_count) || 0,
-        banner: discussion.banner || null,
-        image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+        banner: cleanBanner,
+        image_urls: cleanImageUrls,
         tags: Array.isArray(discussion.tags) ? discussion.tags : [],
       }
     })
@@ -302,13 +316,25 @@ router.get('/:id', async (req, res) => {
       [idNum],
     )
 
+    // 🔧 過濾無效的圖片 URL（blob 和 data URL）
+    const isValidImageUrl = (url) => {
+      if (!url || typeof url !== 'string') return false
+      if (url.startsWith('blob:') || url.startsWith('data:')) return false
+      return true
+    }
+
+    const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
+    const cleanImageUrls = Array.isArray(discussion.image_urls)
+      ? discussion.image_urls.filter(url => isValidImageUrl(url))
+      : []
+
     const detailedDiscussion = {
       ...discussion,
       commentsData: commentsResult.rows,
       comments_count: parseInt(discussion.comments_count) || 0,
       likes_count: parseInt(discussion.likes_count) || 0,
-      banner: discussion.banner || null,
-      image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+      banner: cleanBanner,
+      image_urls: cleanImageUrls,
       tags: Array.isArray(discussion.tags) ? discussion.tags : [],
     }
 

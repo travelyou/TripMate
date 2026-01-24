@@ -715,10 +715,10 @@ const executeSubmit = async () => {
       } else {
         await showSuccess(props.postToEdit ? '更新成功！' : '發文成功！')
       }
-      
+
       // 清理圖片預覽
       cleanupImagePreviews()
-      
+
       // 使用 emit 通知父組件，讓父組件處理重新載入
       emit('success')
     }

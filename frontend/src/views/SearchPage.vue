@@ -623,8 +623,8 @@ const handleResultClick = (item) => {
     router.push(`/profile/${item.id}`)
   } else {
     // 其他類型打開 modal
-    selectedPost.value = item.originalData
-    isModalOpen.value = true
+  selectedPost.value = item.originalData
+  isModalOpen.value = true
   }
 }
 

@@ -303,7 +303,7 @@ const tryOpenSharedPost = async () => {
     } else {
       const { fetchPostById } = await import('@/api/discussions')
       try {
-        postToOpen = await fetchPostById(postId)
+      postToOpen = await fetchPostById(postId)
       } catch (apiError) {
         console.error('API 獲取貼文失敗：', apiError)
         // 清除 URL 參數

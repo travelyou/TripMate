@@ -47,3 +47,6 @@ __screenshots__/
 
 # 後端環境變數
 backend/.env
+
+# PR 文檔（僅供本地使用）
+發 PR 要整理的文本.md
