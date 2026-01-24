@@ -1,5 +1,5 @@
-﻿<script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+<script setup>
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -25,7 +25,7 @@ import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment, toggleCommentLike as toggleCommentLikeApi } from '@/api/comments'
-import { toggleLike, getLikesInfo } from '@/api/likes'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import {
   getTravelerById,
   incrementView,
@@ -179,20 +179,34 @@ onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
   if (props.traveler?.id && previousUid !== currentUserUid.value) {
-    if (currentUserUid.value) await loadLikesInfo()
-    else isLiked.value = false
+    if (currentUserUid.value) {
+      seedLikeState(props.traveler.id, currentUserUid.value, 'traveler', {
+        liked: !!props.traveler?.isLiked,
+        likesCount: Number(likesCount.value ?? 0),
+      })
+      await loadLikesInfo()
+    } else isLiked.value = false
   }
 })
 
 const loadLikesInfo = async () => {
   if (!props.traveler?.id || !currentUserUid.value) return
   try {
-    const info = await getLikesInfo(props.traveler.id, currentUserUid.value)
+    const info = await getLikesInfo(props.traveler.id, currentUserUid.value, 'traveler')
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
   } catch (error) {
     console.error(error)
   }
+}
+
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.traveler.id, currentUserUid.value, 'traveler')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
 }
 
 const fetchFullTravelerDetails = async () => {
@@ -236,7 +250,10 @@ const handleLike = async () => {
     return
   }
   try {
-    const result = await toggleLike(props.traveler.id, currentUserUid.value, 'traveler')
+    const result = await toggleLike(props.traveler.id, currentUserUid.value, 'traveler', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -488,6 +505,12 @@ onMounted(async () => {
   if (props.traveler) {
     likesCount.value = props.traveler.likes || 0
     localComments.value = props.traveler.commentsData || []
+    if (currentUserUid.value && props.traveler?.id) {
+      seedLikeState(props.traveler.id, currentUserUid.value, 'traveler', {
+        liked: !!props.traveler.isLiked,
+        likesCount: Number(likesCount.value ?? 0),
+      })
+    }
     await fetchFullTravelerDetails()
     if (currentUserUid.value) {
       await loadLikesInfo()
@@ -499,6 +522,11 @@ onMounted(async () => {
   if (props.scrollToComments) {
     jumpToComments()
   }
+  window.addEventListener('likes-updated', handleLikesUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
 </script>
 

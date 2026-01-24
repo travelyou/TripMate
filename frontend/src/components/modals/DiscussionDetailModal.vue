@@ -1,5 +1,5 @@
-﻿<script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+<script setup>
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -15,7 +15,7 @@ import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment, toggleCommentLike as toggleCommentLikeApi } from '@/api/comments'
-import { toggleLike, getLikesInfo } from '@/api/likes'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
 import { deletePost } from '@/api/discussions'
@@ -59,6 +59,7 @@ const isAuthor = computed(() => {
 
 const normalizedComments = computed(() => {
   if (Array.isArray(localComments.value) && localComments.value.length > 0)
+
     return localComments.value
   if (Array.isArray(localPostData.value.commentsData)) return localPostData.value.commentsData
   if (Array.isArray(localPostData.value.comments)) return localPostData.value.comments
@@ -185,6 +186,16 @@ const loadLikesInfo = async () => {
   }
 }
 
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.post.id, currentUserUid.value, 'discussion')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
+}
+
+
 const loadFullPostDetails = async () => {
   if (!props.post?.id) return
 
@@ -214,7 +225,10 @@ const handleLike = async () => {
     return
   }
   try {
-    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -293,6 +307,10 @@ onAuthStateChanged(auth, async (user) => {
 
   if (props.post?.id && previousUid !== currentUserUid.value) {
     if (currentUserUid.value) {
+      seedLikeState(props.post.id, currentUserUid.value, 'discussion', {
+        liked: !!props.post?.isLiked,
+        likesCount: Number(likesCount.value ?? 0),
+      })
       await loadLikesInfo()
     } else {
       isLiked.value = false
@@ -310,25 +328,39 @@ onMounted(async () => {
   likesCount.value = Number(props.post.likes_count ?? props.post.likes ?? 0)
   const initialIsLiked = typeof props.post.isLiked === 'boolean' ? props.post.isLiked : false
   isLiked.value = initialIsLiked
+  if (currentUserUid.value) {
+    seedLikeState(props.post.id, currentUserUid.value, 'discussion', {
+      liked: initialIsLiked,
+      likesCount: Number(likesCount.value ?? 0),
+    })
+  }
 
   const hasCommentsData =
     Array.isArray(props.post.commentsData) && props.post.commentsData.length > 0
   if (!hasCommentsData && props.post.id) {
     await loadFullPostDetails()
   } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
-    localComments.value = props.post.commentsData.map((comment) => {
+    localComments.value = props.post.commentsData.map(((comment)) => {
       return {
         id: comment.id,
         author:
+
           comment.author_nickname ||
+
           comment.author_name ||
+
           comment.author ||
+
           comment.author_uid ||
+
           '匿名用戶',
         author_uid: comment.author_uid,
         avatar:
+
           comment.author_avatar ||
+
           comment.avatar ||
+
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
         content: comment.content,
         time: comment.created_at || comment.timestamp || comment.time,
@@ -345,11 +377,17 @@ onMounted(async () => {
     await loadLikesInfo()
   }
 
+  window.addEventListener('likes-updated', handleLikesUpdated)
+
   if (props.scrollToComments) {
     await nextTick()
     commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     commentInputRef.value?.focus()
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
 </script>
 

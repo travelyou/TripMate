@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'vue-router'
 
 import { useUserStore } from '@/stores/user'
-import { toggleLike, getLikesInfo } from '@/api/likes'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import { deletePost } from '@/api/discussions'
 import { auth } from '@/firebase/config'
 
@@ -93,13 +93,25 @@ const loadLikesInfo = async () => {
   }
 }
 
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.post.id, currentUserUid.value, 'discussion')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
+}
+
 const handlePostLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
     return
   }
   try {
-    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
     isLiked.value = result.liked
     likesCount.value = result.likesCount
     emit('like', {
@@ -116,6 +128,10 @@ const handlePostLike = async () => {
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
   if (currentUserUid.value && props.post?.id) {
+    seedLikeState(props.post.id, currentUserUid.value, 'discussion', {
+      liked: !!props.post.isLiked,
+      likesCount: Number(props.post.likes ?? 0),
+    })
     await loadLikesInfo()
   } else {
     isLiked.value = false
@@ -195,13 +211,19 @@ onMounted(async () => {
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
     currentUserUid.value = firebaseUser.uid
+    seedLikeState(props.post.id, currentUserUid.value, 'discussion', {
+      liked: !!props.post.isLiked,
+      likesCount: Number(props.post.likes ?? 0),
+    })
     await loadLikesInfo()
   }
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('likes-updated', handleLikesUpdated)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
 </script>
 

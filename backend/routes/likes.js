@@ -196,11 +196,15 @@ router.get('/user/:uid', async (req, res) => {
         SELECT
           d.*,
           'discussion' as type,
+          u.nickname as nickname,
+          u.avatar as avatar,
+          u.spirit_animal as spirit_animal,
           l.created_at as liked_at,
           (SELECT COUNT(*) FROM public.likes WHERE post_id = d.id AND board = 'discussion') as likes_count,
           (SELECT COUNT(*) FROM public.comments WHERE post_id = d.id AND post_type = 'discussion') as comments_count
         FROM public.likes l
         JOIN discussion.discussion d ON l.post_id = d.id
+        LEFT JOIN users u ON d.author_uid = u.uid
         WHERE l.author_uid = $1 AND l.board = 'discussion' AND d.deleted_at IS NULL
         ORDER BY l.created_at DESC
       `
@@ -209,11 +213,15 @@ router.get('/user/:uid', async (req, res) => {
         SELECT
           t.*,
           'traveler' as type,
+          u.nickname as nickname,
+          u.avatar as avatar,
+          u.spirit_animal as spirit_animal,
           l.created_at as liked_at,
           (SELECT COUNT(*) FROM public.likes WHERE post_id = t.id AND board = 'traveler') as likes_count,
           (SELECT COUNT(*) FROM public.comments WHERE post_id = t.id AND post_type = 'traveler') as comments_count
         FROM public.likes l
         JOIN travelers.travelers t ON l.post_id = t.id
+        LEFT JOIN users u ON t.author_uid = u.uid
         WHERE l.author_uid = $1 AND l.board = 'traveler' AND t.deleted_at IS NULL
         ORDER BY l.created_at DESC
       `
@@ -247,11 +255,13 @@ router.get('/user/:uid', async (req, res) => {
         tags: row.tags || [],
         likes: parseInt(row.likes_count) || 0,
         comments: parseInt(row.comments_count) || 0,
-        author: row.author_uid || row.author_uid,
+        author: row.nickname || row.author_nickname || '匿名用戶',
         time: new Date(row.created_at).toLocaleDateString(),
         avatar:
+          row.avatar ||
           row.author_avatar ||
           'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
+        spiritAnimal: row.spirit_animal || row.author_spirit_animal || null,
       }
 
       if (row.type === 'traveler') {

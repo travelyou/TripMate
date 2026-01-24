@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { watch } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { flushPendingLikesNow } from '@/api/likes'
 import HomePage from '@/views/HomePage.vue'
 
 const router = createRouter({
@@ -176,6 +177,11 @@ const router = createRouter({
     //  一般路由切換，回到頂端
     return { top: 0 }
   },
+})
+
+router.beforeEach((to, from, next) => {
+  flushPendingLikesNow({ keepalive: true })
+  next()
 })
 
 router.beforeEach(async (to, from, next) => {
