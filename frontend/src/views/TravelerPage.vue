@@ -274,12 +274,16 @@ const tryOpenSharedTraveler = async () => {
     }
   }
   if (!travelerId) return
+  
+  // 檢查是否需要滾動到留言區
+  const shouldScroll = route.query.scrollToComments === 'true'
+  
   setAppLoading(true)
   try {
     const response = await getTravelerById(travelerId)
     if (response?.success && response.data) {
       selectedTraveler.value = response.data
-      shouldScrollToComments.value = false
+      shouldScrollToComments.value = shouldScroll
       isDetailModalOpen.value = true
       router.replace({ path: '/travelers', query: {}, hash: '' })
     }

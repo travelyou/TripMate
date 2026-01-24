@@ -158,13 +158,22 @@ const scrollToTop = () => {
 }
 
 const jumpToComments = async () => {
+  // 先切換到留言標籤
   activeTab.value = 'comments'
   await nextTick()
 
+  // 等待 tab 內容渲染完成
+  await nextTick()
+  
+  // 滾動到留言區
   const tabElement = document.getElementById('traveler-tab-nav')
   if (tabElement) {
     tabElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+  
+  // 如果有留言輸入框，聚焦它
+  await nextTick()
+  commentInputRef.value?.focus()
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -498,8 +507,18 @@ onMounted(async () => {
       }
     }
   }
+  
+  // 確保數據載入完成後再滾動到留言區
   if (props.scrollToComments) {
-    jumpToComments()
+    await nextTick()
+    // 使用較長的延遲確保 Modal 動畫完成和 DOM 完全渲染
+    setTimeout(() => {
+      jumpToComments()
+      // 再次確保聚焦到留言輸入框
+      setTimeout(() => {
+        commentInputRef.value?.focus()
+      }, 100)
+    }, 500)
   }
 })
 </script>

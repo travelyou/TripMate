@@ -12,6 +12,7 @@ const notificationsStore = useNotificationsStore()
 
 const isOpen = ref(false)
 const notificationRef = ref(null)
+const isNavigating = ref(false)
 let refreshInterval = null
 let unreadCountInterval = null
 const REFRESH_INTERVAL = 15000 // 每15秒刷新一次（可調整）
@@ -49,35 +50,59 @@ const closeNotifications = () => {
 
 // 點擊通知處理
 const handleNotificationClick = async (notification) => {
-  // 標記為已讀
-  if (!notification.is_read) {
-    await notificationsStore.markAsRead(notification.id)
-  }
+  if (isNavigating.value) return // 防止重複點擊
   
-  // 關閉通知面板
-  closeNotifications()
-  
-  // 跳轉到對應頁面
-  if (notification.link) {
-    router.push(notification.link)
-  } else {
-    // 根據類型生成默認連結
-    switch (notification.type) {
-      case 'like':
-      case 'comment':
-        if (notification.related_type === 'discussion') {
-          router.push(`/discussion?postId=${notification.related_id}`)
-        } else if (notification.related_type === 'traveler') {
-          router.push(`/travelers?postId=${notification.related_id}`)
-        }
-        break
-      case 'friend_request':
-        router.push('/profile?tab=friends')
-        break
-      case 'traveler_application':
-        router.push(`/travelers?postId=${notification.related_id}`)
-        break
+  try {
+    isNavigating.value = true
+    
+    // 標記為已讀
+    if (!notification.is_read) {
+      await notificationsStore.markAsRead(notification.id)
     }
+    
+    // 關閉通知面板
+    closeNotifications()
+    
+    // 跳轉到對應頁面
+    if (notification.link) {
+      await router.push(notification.link)
+    } else {
+      // 根據類型生成默認連結
+      switch (notification.type) {
+        case 'like':
+          // 按讚通知：跳轉到貼文但不滾動到留言
+          if (notification.related_type === 'discussion') {
+            await router.push(`/discussion?postId=${notification.related_id}`)
+          } else if (notification.related_type === 'traveler') {
+            await router.push(`/travelers?travelerId=${notification.related_id}`)
+          }
+          break
+        case 'comment':
+          // 留言通知：跳轉到貼文並滾動到留言區
+          if (notification.related_type === 'discussion') {
+            await router.push(`/discussion?postId=${notification.related_id}&scrollToComments=true`)
+          } else if (notification.related_type === 'traveler') {
+            await router.push(`/travelers?travelerId=${notification.related_id}&scrollToComments=true`)
+          }
+          break
+        case 'friend_request':
+          // 好友申請通知：跳轉到個人頁面並打開好友列表
+          await router.push('/profile?openFriends=true')
+          break
+        case 'traveler_application':
+        case 'traveler_reminder':
+          // 旅伴申請/提醒通知：跳轉到旅伴貼文
+          await router.push(`/travelers?travelerId=${notification.related_id}`)
+          break
+      }
+    }
+  } catch (error) {
+    console.error('跳轉失敗：', error)
+  } finally {
+    // 延遲重置狀態，確保頁面已完全跳轉
+    setTimeout(() => {
+      isNavigating.value = false
+    }, 1000)
   }
 }
 
@@ -239,26 +264,46 @@ onDeactivated(() => {
       </span>
     </button>
 
+    <!-- 加載動畫遮罩 -->
+    <Transition
+      enter-active-class="transition-opacity duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-200"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="isNavigating"
+        class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[100]"
+      >
+        <div class="bg-white rounded-lg p-6 shadow-2xl flex flex-col items-center gap-3">
+          <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+          <p class="text-secondary-700 font-medium">跳轉中...</p>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 通知面板 -->
     <Transition
       enter-active-class="transition-all duration-200"
-      enter-from-class="opacity-0 translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
+      enter-from-class="opacity-0 translate-x-4"
+      enter-to-class="opacity-100 translate-x-0"
       leave-active-class="transition-all duration-200"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-2"
+      leave-from-class="opacity-100 translate-x-0"
+      leave-to-class="opacity-0 translate-x-4"
     >
       <div
         v-if="isOpen"
-        class="absolute right-0 top-full mt-2 w-80 md:w-96 bg-white rounded-xl shadow-xl border border-secondary-100 overflow-hidden z-50 max-h-[600px] flex flex-col"
+        class="fixed right-4 top-16 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-secondary-100 overflow-hidden z-50 max-h-[calc(100vh-5rem)] flex flex-col"
       >
         <!-- 標題欄 -->
         <div class="p-4 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
-          <h3 class="text-lg font-bold text-secondary-900">通知</h3>
+          <h3 class="text-lg font-bold text-secondary-900 leading-none">通知</h3>
           <div class="flex items-center gap-2">
             <button
               v-if="unreadCount > 0"
-              class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              class="text-sm text-primary-600 hover:text-primary-700 font-medium leading-none"
               @click="handleMarkAllAsRead"
             >
               全部標記為已讀
@@ -285,7 +330,8 @@ onDeactivated(() => {
               <div
                 v-for="notification in unreadNotifications"
                 :key="notification.id"
-                class="p-4 hover:bg-secondary-50 cursor-pointer border-l-4 border-primary-500 transition"
+                class="p-4 hover:bg-secondary-50 cursor-pointer border-l-4 border-primary-500 transition relative"
+                :class="{ 'pointer-events-none opacity-50': isNavigating }"
                 @click="handleNotificationClick(notification)"
               >
                 <div class="flex items-start gap-3">
@@ -343,7 +389,8 @@ onDeactivated(() => {
               <div
                 v-for="notification in readNotifications"
                 :key="notification.id"
-                class="p-4 hover:bg-secondary-50 cursor-pointer transition opacity-75"
+                class="p-4 hover:bg-secondary-50 cursor-pointer transition opacity-75 relative"
+                :class="{ 'pointer-events-none opacity-50': isNavigating }"
                 @click="handleNotificationClick(notification)"
               >
                 <div class="flex items-start gap-3">

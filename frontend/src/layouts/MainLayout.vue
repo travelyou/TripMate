@@ -234,10 +234,12 @@ const connectChatSocket = (uid) => {
       }, 2000)
     }
   }
-  chatSocket.onerror = () => {
+  chatSocket.onerror = (error) => {
+    console.warn('WebSocket 連接錯誤:', error)
     chatSocketFailureCount += 1
     if (!chatSocketHasConnected && chatSocketFailureCount >= 3) {
       chatSocketBlockedUntil = Date.now() + 30000
+      console.warn('WebSocket 連接失敗次數過多，暫停重連 30 秒')
       if (chatSocketReconnectTimer) {
         clearTimeout(chatSocketReconnectTimer)
         chatSocketReconnectTimer = null

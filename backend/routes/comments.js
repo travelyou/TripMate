@@ -191,6 +191,20 @@ router.post('/posts/:postId/comments', async (req, res) => {
               console.warn(`[通知] 回覆者 ${author_uid} 沒有找到 nickname 或 name，使用匿名用戶`)
             }
             
+            // 獲取作者的 nickname（用於檢查是否被 tag）
+            let authorNickname = null
+            try {
+              const authorResult = await pool.query(
+                `SELECT nickname, name FROM public.users WHERE uid = $1`,
+                [postAuthor]
+              )
+              if (authorResult.rows.length > 0) {
+                authorNickname = authorResult.rows[0].nickname || authorResult.rows[0].name
+              }
+            } catch (authorError) {
+              console.error('獲取作者資訊失敗：', authorError)
+            }
+            
             await createCommentNotification({
               user_uid: postAuthor,
               post_id: postIdNum,
@@ -200,6 +214,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
               commenter_avatar: commenterAvatar,
               comment_content: content,
               post_title: postTitle,
+              author_name: authorNickname, // 傳入作者名稱用於檢查是否被 tag
             })
           }
         }

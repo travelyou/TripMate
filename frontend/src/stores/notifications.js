@@ -31,10 +31,7 @@ export const useNotificationsStore = defineStore('notifications', {
   actions: {
     async fetchNotifications(uid, limit = 50, offset = 0) {
       if (this.isLoading) return
-      if (!uid) {
-        console.warn('獲取通知失敗：缺少 UID')
-        return
-      }
+      if (!uid) return
       
       this.isLoading = true
       try {
@@ -42,9 +39,6 @@ export const useNotificationsStore = defineStore('notifications', {
         if (response.success) {
           this.notifications = response.data || []
           this.lastFetchTime = Date.now()
-          console.log(`[通知Store] 獲取到 ${this.notifications.length} 條通知`)
-        } else {
-          console.warn('[通知Store] 獲取通知失敗：', response)
         }
       } catch (error) {
         console.error('獲取通知失敗：', error)
@@ -54,18 +48,12 @@ export const useNotificationsStore = defineStore('notifications', {
     },
 
     async fetchUnreadCount(uid) {
-      if (!uid) {
-        console.warn('獲取未讀通知數量失敗：缺少 UID')
-        return
-      }
+      if (!uid) return
       
       try {
         const response = await getUnreadCount(uid)
         if (response.success) {
           this.unreadCount = response.count || 0
-          console.log(`[通知Store] 未讀通知數量：${this.unreadCount}`)
-        } else {
-          console.warn('[通知Store] 獲取未讀通知數量失敗：', response)
         }
       } catch (error) {
         console.error('獲取未讀通知數量失敗：', error)

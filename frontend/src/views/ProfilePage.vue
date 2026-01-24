@@ -438,8 +438,26 @@ watch(
   { immediate: true },
 )
 
+// 監聽路由查詢參數變化（用於處理通知跳轉）
+watch(() => route.query.openFriends, (shouldOpen) => {
+  if (shouldOpen === 'true') {
+    nextTick(() => {
+      isFriendModalOpen.value = true
+      router.replace({ path: '/profile', query: {} })
+    })
+  }
+})
+
 onMounted(() => {
-  nextTick(() => loadProfileData())
+  nextTick(() => {
+    loadProfileData()
+    
+    // 檢查是否需要打開好友列表（來自通知）
+    if (route.query.openFriends === 'true') {
+      isFriendModalOpen.value = true
+      router.replace({ path: '/profile', query: {} })
+    }
+  })
 })
 </script>
 

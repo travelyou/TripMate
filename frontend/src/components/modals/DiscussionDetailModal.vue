@@ -155,9 +155,12 @@ const handleDelete = async () => {
 }
 
 // 滑動到留言區
-const scrollToCommentsSection = () => {
+const scrollToCommentsSection = async () => {
   activeSection.value = 'comments'
+  await nextTick()
   commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  await nextTick()
+  commentInputRef.value?.focus()
 }
 
 // 初始化載入按讚資訊
@@ -334,10 +337,19 @@ onMounted(async () => {
     await loadLikesInfo()
   }
 
+  // 確保數據載入完成後再滾動到留言區
   if (props.scrollToComments) {
     await nextTick()
-    commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    commentInputRef.value?.focus()
+    // 使用較長的延遲確保 Modal 動畫完成和 DOM 完全渲染
+    setTimeout(() => {
+      if (commentsSectionRef.value) {
+        commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        activeSection.value = 'comments'
+        setTimeout(() => {
+          commentInputRef.value?.focus()
+        }, 100)
+      }
+    }, 500)
   }
 })
 </script>
@@ -373,7 +385,7 @@ onMounted(async () => {
         </button>
       </div>
       <button
-        class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="回到內文"
         @click="scrollToTop"
       >
@@ -386,7 +398,7 @@ onMounted(async () => {
       </button>
 
       <button
-        class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >

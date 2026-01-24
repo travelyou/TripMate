@@ -284,11 +284,15 @@ const tryOpenSharedPost = async () => {
     }
   }
   if (!postId) return
+  
+  // 檢查是否需要滾動到留言區
+  const shouldScroll = route.query.scrollToComments === 'true'
+  
   setAppLoading(true)
   try {
     const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
     if (existing) {
-      openDiscussionDetailModal(existing, false)
+      openDiscussionDetailModal(existing, shouldScroll)
       router.replace({ path: '/discussion', query: {}, hash: '' })
       return
     }
@@ -296,7 +300,7 @@ const tryOpenSharedPost = async () => {
     const { fetchPostById } = await import('@/api/discussions')
     const post = await fetchPostById(postId)
     if (post) {
-      openDiscussionDetailModal(post, false)
+      openDiscussionDetailModal(post, shouldScroll)
       router.replace({ path: '/discussion', query: {}, hash: '' })
     }
   } catch (error) {

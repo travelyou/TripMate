@@ -94,7 +94,6 @@ async function updateNotification(notificationId, updateData) {
     )
 
     if (result.rows.length > 0) {
-      console.log(`[通知] 成功更新通知：id=${notificationId}, title=${title}`)
       return { success: true, data: result.rows[0] }
     }
     return null
@@ -188,7 +187,6 @@ async function createNotification(notificationData, mergeIfExists = false) {
       ],
     )
 
-    console.log(`[通知] 成功創建通知：type=${type}, user_uid=${user_uid}, title=${title}`)
     return { success: true, data: result.rows[0] }
   } catch (error) {
     console.error('創建通知失敗：', error.message)
@@ -224,18 +222,20 @@ async function createLikeNotification({ user_uid, post_id, board, liker_uid, lik
 }
 
 /**
- * 檢查評論內容是否包含 @ 提及
+ * 檢查評論內容是否 tag 了作者本人
  * @param {String} content - 評論內容
- * @returns {Boolean} 是否包含 @ 提及
+ * @param {String} authorName - 作者名稱
+ * @returns {Boolean} 是否 tag 了作者
  */
-function hasMention(content) {
-  if (!content) return false
-  // 檢查是否包含 @ 符號（簡單檢查，可以根據需要擴展）
-  return /@\w+/.test(content) || content.includes('@')
+function hasMentionAuthor(content, authorName) {
+  if (!content || !authorName) return false
+  // 檢查是否包含 @作者名稱
+  const mentionPattern = new RegExp(`@${authorName}`, 'i')
+  return mentionPattern.test(content)
 }
 
 /**
- * 創建回覆通知（會合併同一篇文章的多個回覆，除非有 @ 提及）
+ * 創建回覆通知（會合併同一篇文章的多個回覆，除非 tag 了作者本人）
  */
 async function createCommentNotification({
   user_uid,
@@ -245,13 +245,14 @@ async function createCommentNotification({
   commenter_name,
   commenter_avatar,
   comment_content,
-  post_title // eslint-disable-line no-unused-vars
+  post_title, // eslint-disable-line no-unused-vars
+  author_name // 作者名稱，用於檢查是否被 tag
 }) {
   const boardName = board === 'discussion' ? '討論' : board === 'traveler' ? '找旅伴' : '貼文'
   const contentPreview = comment_content?.substring(0, 50) || '回覆了你的貼文'
 
-  // 如果評論包含 @ 提及，則創建獨立通知（不合併）
-  const hasMentionInComment = hasMention(comment_content)
+  // 如果評論 tag 了作者本人，則創建獨立通知（不合併）
+  const mentionedAuthor = hasMentionAuthor(comment_content, author_name)
 
   return await createNotification({
     user_uid,
@@ -268,7 +269,7 @@ async function createCommentNotification({
       : board === 'traveler'
       ? `/travelers?postId=${post_id}`
       : null,
-  }, !hasMentionInComment) // 如果有 @ 提及，不合併（創建獨立通知）；否則合併
+  }, !mentionedAuthor) // 如果 tag 了作者，不合併（創建獨立通知）；否則合併
 }
 
 /**

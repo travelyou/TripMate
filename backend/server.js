@@ -193,7 +193,16 @@ app.use((req, res) => {
 
 // 2. 修改：只在非 Vercel 環境下啟動監聽 (Zeabur/Local 依然會執行這裡)
 if (!process.env.VERCEL) {
-  app.listen(PORT, HOST, () => {
+  const http = require('http')
+  const { initWebSocket } = require('./websocket')
+  
+  // 創建 HTTP 服務器
+  const server = http.createServer(app)
+  
+  // 初始化 WebSocket 服務器
+  initWebSocket(server)
+  
+  server.listen(PORT, HOST, () => {
     console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
     console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
   })
