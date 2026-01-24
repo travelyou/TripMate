@@ -197,13 +197,13 @@ app.use((req, res) => {
 if (!process.env.VERCEL) {
   const http = require('http')
   const { initWebSocket } = require('./websocket')
-  
+
   // 創建 HTTP 服務器
   const server = http.createServer(app)
-  
+
   // 初始化 WebSocket 服務器
   initWebSocket(server)
-  
+
   server.listen(PORT, HOST, () => {
     console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
     console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
@@ -216,7 +216,7 @@ module.exports = app
 // 4. 設置定時任務：檢查找旅伴到期提醒（僅在非 Vercel 環境運行）
 if (!process.env.VERCEL) {
   const { checkAndSendTravelerReminders } = require('./utils/travelerReminders')
-  
+
   // 每天凌晨 1 點執行一次
   const scheduleReminderCheck = () => {
     const now = new Date()
@@ -225,25 +225,25 @@ if (!process.env.VERCEL) {
     if (nextCheck <= now) {
       nextCheck.setDate(nextCheck.getDate() + 1)
     }
-    
+
     const msUntilNext = nextCheck - now
-    
+
     setTimeout(() => {
       checkAndSendTravelerReminders()
       // 設置每天執行一次
       setInterval(checkAndSendTravelerReminders, 24 * 60 * 60 * 1000)
     }, msUntilNext)
-    
+
     console.log(`[Scheduler] 找旅伴到期提醒將在 ${nextCheck.toLocaleString('zh-TW')} 開始執行`)
   }
-  
+
   // 立即執行一次（用於測試）
   if (process.env.NODE_ENV === 'development') {
     setTimeout(() => {
       checkAndSendTravelerReminders()
     }, 5000) // 5秒後執行，確保資料庫連接已建立
   }
-  
+
   // 設置定時任務
   scheduleReminderCheck()
 }

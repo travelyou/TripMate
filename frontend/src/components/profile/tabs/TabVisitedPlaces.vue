@@ -235,13 +235,13 @@ const tabBtnClass = (isActive) => {
           <input
             v-model="newDomesticPlace"
             placeholder="城市名稱 (如: 台南)"
-            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm text-black flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0 placeholder-gray-400"
             @keyup.enter="handleAdd('domestic')"
           />
           <input
             v-model="newDomesticDate"
             type="month"
-            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-secondary-500 bg-white"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-black bg-white"
           />
           <button
             class="p-2 bg-primary-600 rounded-xl hover:bg-primary-700 shadow-md transition transform active:scale-95 flex justify-center items-center"
@@ -279,13 +279,13 @@ const tabBtnClass = (isActive) => {
            <input
             v-model="newInternationalPlace"
             placeholder="城市名稱 (如: 東京)"
-            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm text-black flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0 placeholder-gray-400"
             @keyup.enter="handleAdd('international')"
           />
           <input
             v-model="newInternationalDate"
             type="month"
-            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-secondary-500 bg-white"
+            class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-black bg-white"
           />
           <button
             class="p-2 bg-primary-600 rounded-xl hover:bg-primary-700 shadow-md transition transform active:scale-95 flex justify-center items-center"

@@ -74,7 +74,7 @@ const handleClose = () => {
             :maxlength="maxLength"
             rows="6"
             placeholder="請簡單介紹自己，並說明為什麼想參加這次旅行..."
-            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 transition resize-none outline-none"
+            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 transition resize-none outline-none text-black placeholder-gray-400"
           ></textarea>
           <div class="flex justify-between items-center mt-2">
             <p v-if="error" class="text-sm text-red-500">{{ error }}</p>

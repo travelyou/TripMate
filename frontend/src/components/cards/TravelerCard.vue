@@ -285,7 +285,7 @@ watch(
         :style="{ top: displayStatus ? '3.5rem' : '0.5rem' }"
       >
         <button
-          class="rounded-full bg-black/20 p-2 text-white backdrop-blur-sm transition hover:bg-white/80 hover:text-gray-700"
+          class="rounded-full bg-white/90 p-2 text-primary-600 backdrop-blur-sm transition hover:bg-primary-100 hover:text-primary-700 shadow-md"
           @click="toggleMenu"
         >
           <MoreVertical class="w-5 h-5" />

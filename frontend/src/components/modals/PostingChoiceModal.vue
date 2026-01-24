@@ -397,7 +397,7 @@ const filteredTags = computed(() => {
             v-model="postData.title"
             type="text"
             placeholder="標題 (0/80)"
-            class="w-full text-lg font-bold placeholder-gray-400 border-none focus:ring-0 p-0 mb-3 bg-transparent"
+            class="w-full text-lg font-bold text-black placeholder-gray-400 border-none focus:ring-0 p-0 mb-3 bg-transparent"
             :class="errors.title ? 'border-b-2 border-red-500' : ''"
             maxlength="80"
             @input="clearError('title')"
@@ -411,7 +411,7 @@ const filteredTags = computed(() => {
           <textarea
             v-model="postData.content"
             placeholder="請輸入你的內文..."
-            class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base bg-transparent placeholder-gray-400"
+            class="w-full h-40 resize-none border-none focus:ring-0 p-0 text-base text-black bg-transparent placeholder-gray-400"
             :class="errors.content ? 'border-b-2 border-red-500' : ''"
             @input="clearError('content')"
           ></textarea>

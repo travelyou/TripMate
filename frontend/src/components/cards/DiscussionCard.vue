@@ -236,7 +236,7 @@ onUnmounted(() => {
     <!-- 三点菜单按钮 -->
     <div class="absolute top-4 right-4 post-menu-container z-30">
       <button
-        class="p-2 rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-gray-700"
+        class="p-2 rounded-full hover:bg-primary-100 transition text-primary-600 hover:text-primary-700"
         @click="toggleMenu"
       >
         <MoreVertical class="w-5 h-5" />
