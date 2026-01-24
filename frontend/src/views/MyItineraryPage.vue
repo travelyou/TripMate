@@ -151,13 +151,6 @@ watch(
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
           我的行程
         </h1>
-        <button
-          v-if="activeTab === 'my'"
-          @click="openAddItineraryModal"
-          class="bg-white text-primary-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition shadow-sm"
-        >
-          ＋ 新增行程
-        </button>
       </div>
 
       <div class="p-4 space-y-4">

@@ -140,13 +140,16 @@ onMounted(() => {
   tryOpenSharedItinerary()
 })
 
-watch(() => route.query.itineraryId, (newItineraryId) => {
-  if (newItineraryId) {
-    nextTick(() => {
-      tryOpenSharedItinerary()
-    })
-  }
-})
+watch(
+  () => route.query.itineraryId,
+  (newItineraryId) => {
+    if (newItineraryId) {
+      nextTick(() => {
+        tryOpenSharedItinerary()
+      })
+    }
+  },
+)
 </script>
 
 <template>
@@ -159,13 +162,6 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
           <MapIcon class="w-6 h-6 mr-3 text-white" />
           精選行程
         </h1>
-        <button
-          class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition shadow-md flex items-center"
-          @click="isPostModalOpen = true"
-        >
-          <PlusIcon class="w-5 h-5 mr-1" />
-          上架行程
-        </button>
       </div>
 
       <div
@@ -213,7 +209,9 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
               <div class="h-4 w-32 bg-gray-200 rounded"></div>
             </div>
 
-            <div class="flex items-center justify-between border-t border-secondary-100 pt-3 mt-auto">
+            <div
+              class="flex items-center justify-between border-t border-secondary-100 pt-3 mt-auto"
+            >
               <div class="flex items-center space-x-3">
                 <div class="h-6 w-14 bg-gray-200 rounded"></div>
                 <div class="h-6 w-14 bg-gray-200 rounded"></div>
@@ -272,7 +270,12 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
   <ItineraryPostModal
     v-if="isPostModalOpen"
     :itinerary-to-edit="itineraryToEdit"
-    @close="() => { isPostModalOpen = false; itineraryToEdit = null }"
+    @close="
+      () => {
+        isPostModalOpen = false
+        itineraryToEdit = null
+      }
+    "
     @success="handlePostSuccess"
   />
 
