@@ -100,6 +100,44 @@ onAuthStateChanged(auth, async (user) => {
   }
 })
 
+// [核心修正] 監聽路由參數 ID 變化以控制 Modal 開關
+watch(
+  () => [route.params.id, route.query.scrollTo],
+  async ([newId, scrollTo]) => {
+    if (newId) {
+      setAppLoading(true)
+      try {
+        // 1. 先從 Store 找現有的資料
+        const existing = discussionsStore.discussions.find((p) => String(p.id) === String(newId))
+        if (existing) {
+          selectedPost.value = existing
+        } else {
+          // 2. 若列表還沒載入該篇，則向 API 請求詳情
+          const { fetchPostById } = await import('@/api/discussions')
+          const post = await fetchPostById(newId)
+          if (post) {
+            selectedPost.value = post
+          }
+        }
+
+        if (selectedPost.value) {
+          shouldScrollToComments.value = scrollTo === 'comments'
+          isDetailModalOpen.value = true
+        }
+      } catch (error) {
+        console.error('網址開啟貼文失敗：', error)
+      } finally {
+        setAppLoading(false)
+      }
+    } else {
+      // 網址沒 ID 時關閉 Modal
+      isDetailModalOpen.value = false
+      selectedPost.value = null
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
   const firebaseUser = auth.currentUser
   if (firebaseUser && !currentUserUid.value) {
@@ -131,7 +169,7 @@ onMounted(async () => {
   tryOpenDraft()
   // 檢查是否需要開啟編輯
   tryOpenEditPost()
-  // 檢查是否有分享連結需要開啟
+  // 檢查是否有舊式分享連結需要開啟 (兼容舊 query)
   tryOpenSharedPost()
 })
 
@@ -139,7 +177,7 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
-// 監聽路由變化
+// 監聽路由查詢參數變化
 watch(
   () => route.query.openDraft,
   (newDraftId) => {
@@ -151,21 +189,27 @@ watch(
   },
 )
 
-watch(() => route.query.postId, (newPostId) => {
-  if (newPostId) {
-    nextTick(() => {
-      tryOpenSharedPost()
-    })
-  }
-})
+watch(
+  () => route.query.postId,
+  (newPostId) => {
+    if (newPostId) {
+      nextTick(() => {
+        tryOpenSharedPost()
+      })
+    }
+  },
+)
 
-watch(() => route.query.editPost, (newPostId) => {
-  if (newPostId) {
-    nextTick(() => {
-      tryOpenEditPost()
-    })
-  }
-})
+watch(
+  () => route.query.editPost,
+  (newPostId) => {
+    if (newPostId) {
+      nextTick(() => {
+        tryOpenEditPost()
+      })
+    }
+  },
+)
 
 // 發文成功後的回調
 const handlePostSuccess = async () => {
@@ -188,16 +232,18 @@ const setAppLoading = (active) => {
   window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
 }
 
+// [修正] 改為透過路由變更來開啟 Modal
 const openDiscussionDetailModal = (post, focusComment = false) => {
-  selectedPost.value = post
-  shouldScrollToComments.value = focusComment
-  isDetailModalOpen.value = true
+  router.push({
+    path: `/discussion/${post.id}`,
+    query: focusComment ? { scrollTo: 'comments' } : {},
+  })
 }
 
+// [修正] 關閉 Modal 時將路由設回主頁面
 const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
-  selectedPost.value = null
-  shouldScrollToComments.value = false
+  router.push('/discussion')
 }
 
 const handleEditPost = (post) => {
@@ -235,7 +281,8 @@ const handlePostModalClose = () => {
 }
 
 const openShareModal = (postId) => {
-  shareLink.value = `${window.location.origin}/discussion?postId=${postId}`
+  // 分享連結現在使用更簡潔的路徑網址
+  shareLink.value = `${window.location.origin}/discussion/${postId}`
   isShareModalOpen.value = true
 }
 
@@ -275,6 +322,7 @@ const tryOpenDraft = () => {
   }
 }
 
+// 舊式查詢參數導航處理 (postId=xxx)
 const tryOpenSharedPost = async () => {
   let postId = route.query.postId
   if (!postId && route.hash) {
@@ -284,26 +332,9 @@ const tryOpenSharedPost = async () => {
     }
   }
   if (!postId) return
-  setAppLoading(true)
-  try {
-    const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
-    if (existing) {
-      openDiscussionDetailModal(existing, false)
-      router.replace({ path: '/discussion', query: {}, hash: '' })
-      return
-    }
 
-    const { fetchPostById } = await import('@/api/discussions')
-    const post = await fetchPostById(postId)
-    if (post) {
-      openDiscussionDetailModal(post, false)
-      router.replace({ path: '/discussion', query: {}, hash: '' })
-    }
-  } catch (error) {
-    console.error('開啟分享貼文失敗：', error)
-  } finally {
-    setAppLoading(false)
-  }
+  // 舊網址轉發到新路徑網址
+  router.replace(`/discussion/${postId}`)
 }
 
 const tryOpenEditPost = async () => {

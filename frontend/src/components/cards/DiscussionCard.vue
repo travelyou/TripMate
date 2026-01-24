@@ -1,7 +1,17 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
-import { Heart, MessageCircle, Repeat2, Bookmark, MoreVertical, Edit, Trash2, Share2, Flag } from 'lucide-vue-next'
+import {
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Bookmark,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Share2,
+  Flag,
+} from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 import { useUserStore } from '@/stores/user'
@@ -168,11 +178,12 @@ const handleDelete = async (e) => {
   }
 }
 
+// [修正] 修改複製連結格式為路徑形式
 const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/discussion?postId=${props.post.id}`
+    const url = `${window.location.origin}/discussion/${props.post.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
@@ -215,7 +226,6 @@ onUnmounted(() => {
     class="p-5 bg-white transition relative cursor-pointer shadow-md hover:shadow-lg rounded-xl border-2 border-secondary-200"
     @click="$emit('click', post)"
   >
-    <!-- 三点菜单按钮 -->
     <div class="absolute top-4 right-4 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-gray-700"
@@ -224,7 +234,6 @@ onUnmounted(() => {
         <MoreVertical class="w-5 h-5" />
       </button>
 
-      <!-- 菜单下拉 -->
       <div
         v-if="showMenu"
         class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
@@ -275,7 +284,8 @@ onUnmounted(() => {
           <span
             class="font-bold text-gray-800 cursor-pointer hover:text-primary-600 transition"
             @click="handleAvatarClick"
-          >{{ post.author }}</span>
+            >{{ post.author }}</span
+          >
           <span
             v-if="post.spiritAnimal"
             class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
@@ -395,7 +405,6 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- Toast 通知 -->
     <Teleport to="body">
       <Transition
         enter-active-class="transition-all duration-300 ease-out"
@@ -409,7 +418,7 @@ onUnmounted(() => {
           v-if="showToast"
           :class="[
             'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
-            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white',
           ]"
         >
           <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>

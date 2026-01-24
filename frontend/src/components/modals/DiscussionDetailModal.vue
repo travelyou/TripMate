@@ -53,7 +53,8 @@ const isAuthor = computed(() => {
 })
 
 const normalizedComments = computed(() => {
-  if (Array.isArray(localComments.value) && localComments.value.length > 0) return localComments.value
+  if (Array.isArray(localComments.value) && localComments.value.length > 0)
+    return localComments.value
   // 嘗試從多個可能的欄位獲取留言（只接受陣列）
   if (Array.isArray(localPostData.value.commentsData)) return localPostData.value.commentsData
   if (Array.isArray(localPostData.value.comments)) return localPostData.value.comments
@@ -79,7 +80,12 @@ const buildCommentThreads = (comments = []) => {
     if (!comment) return
     map.set(comment.id, {
       id: comment.id,
-      author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+      author:
+        comment.author_nickname ||
+        comment.author_name ||
+        comment.author ||
+        comment.author_uid ||
+        '匿名用戶',
       author_uid: comment.author_uid,
       avatar:
         comment.author_avatar ||
@@ -124,9 +130,10 @@ const scrollToTop = () => {
   contentContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+// [修正] 修改複製連結格式為路徑形式
 const handleCopyLink = async () => {
   if (!localPostData.value?.id) return
-  const link = `${window.location.origin}/discussion?postId=${localPostData.value.id}`
+  const link = `${window.location.origin}/discussion/${localPostData.value.id}`
   try {
     await navigator.clipboard.writeText(link)
     showMenu.value = false
@@ -313,12 +320,20 @@ onMounted(async () => {
     await loadFullPostDetails()
   } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
     // 格式化已有的留言資料
-    localComments.value = props.post.commentsData.map(comment => {
+    localComments.value = props.post.commentsData.map((comment) => {
       return {
         id: comment.id,
-        author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+        author:
+          comment.author_nickname ||
+          comment.author_name ||
+          comment.author ||
+          comment.author_uid ||
+          '匿名用戶',
         author_uid: comment.author_uid,
-        avatar: comment.author_avatar || comment.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+        avatar:
+          comment.author_avatar ||
+          comment.avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
         content: comment.content,
         time: comment.created_at || comment.timestamp || comment.time,
         likes: comment.likes || 0,
@@ -398,7 +413,6 @@ onMounted(async () => {
         </span>
       </button>
 
-      <!-- 行動版浮動按鈕 -->
       <div class="md:hidden fixed bottom-20 right-4 z-50 flex flex-col gap-2">
         <button
           class="bg-tag-amber text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 border-2 border-tag-amber"
@@ -509,13 +523,10 @@ onMounted(async () => {
               </span>
             </div>
 
-            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-gray-900 rich-content"
               v-html="processedContent"
             ></div>
-            <!-- eslint-enable vue/no-v-html -->
-
             <div
               class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6"
             >
@@ -597,8 +608,12 @@ onMounted(async () => {
                       <img :src="reply.avatar" class="w-8 h-8 rounded-full object-cover" />
                       <div class="flex-1">
                         <div class="flex justify-between items-start mb-1">
-                          <span class="font-bold text-secondary-900 text-sm">{{ reply.author }}</span>
-                          <span class="text-xs text-secondary-400">{{ formatTime(reply.time) }}</span>
+                          <span class="font-bold text-secondary-900 text-sm">{{
+                            reply.author
+                          }}</span>
+                          <span class="text-xs text-secondary-400">{{
+                            formatTime(reply.time)
+                          }}</span>
                         </div>
                         <p class="text-secondary-700 text-xs">{{ reply.content }}</p>
                         <div class="mt-2 flex items-center gap-3 text-xs text-secondary-500">
@@ -641,7 +656,11 @@ onMounted(async () => {
               v-if="replyTarget"
               class="flex items-center justify-between rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-700"
             >
-              <span>回覆 @{{ replyTarget.author || replyTarget.author_nickname || replyTarget.author_name }}</span>
+              <span
+                >回覆 @{{
+                  replyTarget.author || replyTarget.author_nickname || replyTarget.author_name
+                }}</span
+              >
               <button
                 class="p-1 rounded-full hover:bg-primary-100 transition"
                 @click="replyTarget = null"
