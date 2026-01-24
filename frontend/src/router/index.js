@@ -20,16 +20,10 @@ const router = createRouter({
       },
     },
     {
-      path: '/discussion',
+      path: '/discussion/:id?',
       name: 'discussion',
       component: () => import('@/views/DiscussionPage.vue'),
-      children: [
-        {
-          path: ':id',
-          name: 'discussion_post',
-          component: () => import('@/views/DiscussionPage.vue'),
-        },
-      ],
+      props: true,
     },
     {
       path: '/travelers',

@@ -4,7 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import {
   Heart,
   MessageCircle,
-  Repeat2,
+  Share, // [更換] 將 Repeat2 換成 Share (箭頭圖示)
   Bookmark,
   MoreVertical,
   Edit,
@@ -64,32 +64,26 @@ const itemData = computed(() => ({
   tags: props.post.tags,
   likes: likesCount.value,
   comments: props.post.comments,
-  category: props.post.category, // ★ 新增：確保收藏時也包含分類資訊
+  category: props.post.category,
 }))
 
-// --- [最終版] 純文字清洗邏輯 ---
+// --- 純文字清洗邏輯 ---
 const previewContent = computed(() => {
   if (!props.post.content) return ''
 
   let content = props.post.content
-
-  // 1. 預處理：把會造成換行的 HTML 標籤替換成換行符號 \n
   content = content.replace(/<br\s*\/?>/gi, '\n')
   content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
 
-  // 2. 強力剝除：建立一個暫存 DOM，利用 textContent 取得純文字
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = content
   const plainText = tempDiv.textContent || tempDiv.innerText || ''
 
-  // 3. 回傳修剪後的純文字
   return plainText.trim()
 })
-// -------------------------------------
 
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
-
   try {
     const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
@@ -104,12 +98,10 @@ const handlePostLike = async () => {
     alert('請先登入後才能按讚')
     return
   }
-
   try {
     const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
-
     emit('like', {
       ...props.post,
       isLiked: result.liked,
@@ -162,15 +154,10 @@ const handleEdit = (e) => {
 const handleDelete = async (e) => {
   e.stopPropagation()
   closeMenu()
-
-  if (!confirm('確定要刪除此貼文嗎？')) {
-    return
-  }
-
+  if (!confirm('確定要刪除此貼文嗎？')) return
   try {
     await deletePost(props.post.id)
     emit('delete', props.post)
-    // 重新整理頁面或更新列表
     window.location.reload()
   } catch (error) {
     console.error('刪除失敗:', error)
@@ -178,7 +165,6 @@ const handleDelete = async (e) => {
   }
 }
 
-// [修正] 修改複製連結格式為路徑形式
 const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
@@ -197,10 +183,8 @@ const handleReport = (e) => {
   closeMenu()
   isReported.value = true
   showToastNotification('已經向管理員提出檢舉 謝謝', 'success')
-  // 这里可以添加实际的检举API调用
 }
 
-// 點擊外部關閉選單
 const handleClickOutside = (event) => {
   if (showMenu.value && !event.target.closest('.post-menu-container')) {
     closeMenu()
@@ -315,7 +299,6 @@ onUnmounted(() => {
       >
         {{ post.category }}
       </div>
-
       <img
         :src="post.banner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -338,7 +321,6 @@ onUnmounted(() => {
         >
           {{ post.category }}
         </div>
-
         <img
           :src="url"
           class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
@@ -398,10 +380,10 @@ onUnmounted(() => {
       </button>
 
       <button
-        class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
+        class="flex items-center space-x-1 hover:text-gray-600 transition"
         @click.stop="$emit('share', post.id)"
       >
-        <Repeat2 class="w-4 h-4" />
+        <Share class="w-4 h-4" />
       </button>
     </div>
 
