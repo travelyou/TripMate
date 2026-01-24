@@ -26,14 +26,16 @@ const router = createRouter({
       props: true,
     },
     {
-      path: '/travelers',
+      path: '/travelers/:id?',
       name: 'travelers',
       component: () => import('@/views/TravelerPage.vue'),
+      props: true,
     },
     {
-      path: '/featured-itinerary',
+      path: '/featured-itinerary/:id?',
       name: 'featured_itinerary',
       component: () => import('@/views/ItineraryPage.vue'),
+      props: true,
     },
     {
       path: '/my-itinerary',

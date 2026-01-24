@@ -13,6 +13,7 @@ import {
   Edit,
   Trash2,
   Share2,
+  Share,
   Flag,
   UserPlus as UserPlusIcon,
 } from 'lucide-vue-next'
@@ -29,7 +30,15 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['open-detail', 'edit', 'delete', 'open-apply', 'open-applications'])
+// [修正] 加入 'share' 到 emit 清單
+const emit = defineEmits([
+  'open-detail',
+  'edit',
+  'delete',
+  'open-apply',
+  'open-applications',
+  'share',
+])
 
 const userStore = useUserStore()
 const currentUserUid = ref(null)
@@ -77,7 +86,6 @@ const itemData = computed(() => ({
 
 const previewContent = computed(() => {
   if (!props.traveler.content) return ''
-
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = props.traveler.content
   return tempDiv.textContent || tempDiv.innerText || ''
@@ -144,16 +152,11 @@ const syncLocalLikes = () => {
 
 const handleApply = (e) => {
   e.stopPropagation()
-
-  if (displayStatus.value === '已額滿' || displayStatus.value === '已成行') {
-    return
-  }
-
+  if (displayStatus.value === '已額滿' || displayStatus.value === '已成行') return
   if (!currentUserUid.value) {
     alert('請先登入後才能報名')
     return
   }
-
   emit('open-apply', props.traveler)
 }
 
@@ -178,15 +181,6 @@ const closeMenu = () => {
   showMenu.value = false
 }
 
-const showToastNotification = (message, type = 'info') => {
-  toastMessage.value = message
-  toastType.value = type
-  showToast.value = true
-  setTimeout(() => {
-    showToast.value = false
-  }, 5000)
-}
-
 const handleEdit = (e) => {
   e.stopPropagation()
   closeMenu()
@@ -196,45 +190,37 @@ const handleEdit = (e) => {
 const handleDelete = async (e) => {
   e.stopPropagation()
   closeMenu()
-
-  if (!confirm('確定要刪除此招募嗎？')) {
-    return
-  }
-
+  if (!confirm('確定要刪除此招募嗎？')) return
   try {
     await deleteTraveler(props.traveler.id)
     emit('delete', props.traveler)
     window.location.reload()
   } catch (error) {
-    console.error('刪除失敗:', error)
-    alert('刪除失敗，請稍後再試')
+    alert('刪除失敗')
   }
 }
 
-const handleShare = async (e) => {
+// [修正] handleShare 改為發送事件給父組件開啟 Modal
+const handleShare = (e) => {
   e.stopPropagation()
   closeMenu()
-  try {
-    const url = `${window.location.origin}/travelers?travelerId=${props.traveler.id}`
-    await navigator.clipboard.writeText(url)
-    showToastNotification('已複製貼文網址', 'info')
-  } catch (error) {
-    console.error('複製失敗:', error)
-    alert('複製失敗，請稍後再試')
-  }
+  emit('share', props.traveler.id)
 }
 
 const handleReport = (e) => {
   e.stopPropagation()
   closeMenu()
   isReported.value = true
-  showToastNotification('已經向管理員提出檢舉 謝謝', 'success')
+  toastMessage.value = '已經向管理員提出檢舉 謝謝'
+  toastType.value = 'success'
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 5000)
 }
 
 const handleClickOutside = (event) => {
-  if (showMenu.value && !event.target.closest('.post-menu-container')) {
-    closeMenu()
-  }
+  if (showMenu.value && !event.target.closest('.post-menu-container')) closeMenu()
 }
 
 onAuthStateChanged(auth, (user) => {
@@ -242,10 +228,7 @@ onAuthStateChanged(auth, (user) => {
 })
 
 onMounted(() => {
-  const user = auth.currentUser
-  if (user) {
-    currentUserUid.value = user.uid
-  }
+  if (auth.currentUser) currentUserUid.value = auth.currentUser.uid
   syncLocalLikes()
   document.addEventListener('click', handleClickOutside)
 })
@@ -279,7 +262,6 @@ watch(
         {{ displayStatus }}
       </div>
 
-      <!-- 三點選單按鈕 -->
       <div
         class="absolute top-2 right-2 post-menu-container z-30"
         :style="{ top: displayStatus ? '3.5rem' : '0.5rem' }"
@@ -290,8 +272,6 @@ watch(
         >
           <MoreVertical class="w-5 h-5" />
         </button>
-
-        <!-- 選單下拉 -->
         <div
           v-if="showMenu"
           class="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-2 shadow-xl"
@@ -301,36 +281,31 @@ watch(
             class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleEdit"
           >
-            <Edit class="w-4 h-4" />
-            <span>編輯</span>
+            <Edit class="w-4 h-4" /><span>編輯</span>
           </button>
           <button
             v-if="isAuthor"
             class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
             @click="handleDelete"
           >
-            <Trash2 class="w-4 h-4" />
-            <span>刪除</span>
+            <Trash2 class="w-4 h-4" /><span>刪除</span>
           </button>
           <div v-if="isAuthor" class="my-1 border-t border-gray-200"></div>
           <button
             class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleShare"
           >
-            <Share2 class="w-4 h-4" />
-            <span>分享</span>
+            <Share2 class="w-4 h-4" /><span>分享</span>
           </button>
           <button
             class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleReport"
           >
-            <Flag class="w-4 h-4" />
-            <span>檢舉</span>
+            <Flag class="w-4 h-4" /><span>檢舉</span>
           </button>
         </div>
       </div>
 
-      <!-- Toast 通知 -->
       <Teleport to="body">
         <Transition
           enter-active-class="transition-all duration-300 ease-out"
@@ -378,15 +353,13 @@ watch(
                     <span
                       class="cursor-pointer text-xs sm:text-sm font-bold text-white transition hover:text-primary-300 truncate max-w-full"
                       @click.stop="handleAvatarClick"
+                      >{{ traveler.author }}</span
                     >
-                      {{ traveler.author }}
-                    </span>
                     <span
                       v-if="traveler.spiritAnimal && traveler.spiritAnimal.trim()"
-                      class="whitespace-nowrap rounded-full bg-white/20 px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-white/90 shrink-0"
+                      class="whitespace-nowrap rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-white/90 shrink-0"
+                      >{{ traveler.spiritAnimal }}</span
                     >
-                      {{ traveler.spiritAnimal }}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -394,7 +367,9 @@ watch(
                 <h3 class="mb-1 line-clamp-1 text-base sm:text-lg md:text-xl font-bold break-words">
                   {{ traveler.title }}
                 </h3>
-                <p class="mb-2 line-clamp-2 text-xs sm:text-sm text-white/85 sm:line-clamp-1 xl:line-clamp-2 break-words">
+                <p
+                  class="mb-2 line-clamp-2 text-xs sm:text-sm text-white/85 xl:line-clamp-2 break-words"
+                >
                   {{ previewContent }}
                 </p>
               </div>
@@ -406,40 +381,38 @@ watch(
                   v-for="tag in traveler.tags || []"
                   :key="tag"
                   class="inline-flex h-5 max-w-[6.5rem] items-center truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white/90 transition hover:bg-white/25"
+                  >#{{ tag }}</span
                 >
-                  #{{ tag }}
-                </span>
               </div>
 
               <div class="flex flex-col gap-2">
                 <div class="mt-2 flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-                  <span class="flex max-w-[8rem] sm:max-w-[10rem] items-center truncate text-xs sm:text-sm">
-                    <MapPinIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/80 shrink-0" />
-                    <span class="truncate">{{ traveler.location }}</span>
-                  </span>
-                  <span class="flex items-center text-xs sm:text-sm">
-                    <CalendarIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/70 shrink-0" />
-                    <span class="truncate">{{ traveler.date }}</span>
-                  </span>
+                  <span
+                    class="flex max-w-[8rem] sm:max-w-[10rem] items-center truncate text-xs sm:text-sm"
+                    ><MapPinIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/80 shrink-0" /><span
+                      class="truncate"
+                      >{{ traveler.location }}</span
+                    ></span
+                  >
+                  <span class="flex items-center text-xs sm:text-sm"
+                    ><CalendarIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/70 shrink-0" /><span
+                      class="truncate"
+                      >{{ traveler.date }}</span
+                    ></span
+                  >
                 </div>
 
                 <div class="mt-2 flex min-w-0 flex-wrap items-center gap-4">
                   <button
                     class="group flex items-center transition"
-                    :class="
-                      isFavorited
-                        ? 'text-red-300'
-                        : 'text-white/70 hover:text-red-300'
-                    "
+                    :class="isFavorited ? 'text-red-300' : 'text-white/70 hover:text-red-300'"
                     @click.stop="handleToggleFavorite"
                   >
                     <HeartIcon
                       class="mr-1 h-4 w-4 transition-transform group-active:scale-125"
                       :class="{ 'fill-current text-red-300': isFavorited }"
-                    />
-                    <span>{{ likeCount }}</span>
+                    /><span>{{ likeCount }}</span>
                   </button>
-
                   <button
                     class="group flex items-center space-x-1 transition"
                     :class="
@@ -456,16 +429,17 @@ watch(
                     <BookmarkIcon
                       class="h-4 w-4 transition-transform group-active:scale-125"
                       :class="{ 'fill-current': userStore.isCollected(itemData) }"
-                    />
-                    <span>{{
+                    /><span>{{
                       (traveler.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
                     }}</span>
                   </button>
 
+                  <span class="flex items-center text-white/90"
+                    ><MessageCircleIcon class="mr-1 h-4 w-4" />{{ traveler.comments || 0 }}</span
+                  >
                   <button
                     v-if="isAuthor"
                     class="group flex items-center space-x-1 text-white/70 transition hover:text-blue-300"
-                    title="查看報名清單"
                     @click.stop="handleViewApplications"
                   >
                     <UserPlusIcon class="h-4 w-4 transition-transform group-active:scale-125" />
@@ -473,16 +447,17 @@ watch(
                   <button
                     v-else
                     class="group flex items-center space-x-1 text-white/70 transition hover:text-blue-300"
-                    title="報名"
                     @click.stop="handleApply"
                   >
                     <UserPlusIcon class="h-4 w-4 transition-transform group-active:scale-125" />
                   </button>
 
-                  <span class="ml-auto flex items-center text-white/90 md:ml-0">
-                    <MessageCircleIcon class="mr-1 h-4 w-4" />
-                    {{ traveler.comments || 0 }}
-                  </span>
+                  <button
+                    class="flex items-center space-x-1 text-white/70 hover:text-gray-200 transition"
+                    @click.stop="handleShare"
+                  >
+                    <Share class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -490,11 +465,13 @@ watch(
                 class="relative z-20 flex items-end justify-between border-t border-white/20 pt-2 gap-2"
               >
                 <div class="flex items-center font-bold text-white min-w-0 flex-1">
-                  <UsersIcon class="mr-1 h-4 w-4 sm:h-5 sm:w-5 text-white/85 shrink-0" />
-                  <span class="text-xs sm:text-sm truncate">招募人數：</span>
-                  <span class="ml-1 text-base sm:text-lg text-white shrink-0">{{ traveler.people }}</span>
+                  <UsersIcon class="mr-1 h-4 w-4 sm:h-5 sm:w-5 text-white/85 shrink-0" /><span
+                    class="text-xs sm:text-sm truncate"
+                    >招募人數：</span
+                  ><span class="ml-1 text-base sm:text-lg text-white shrink-0">{{
+                    traveler.people
+                  }}</span>
                 </div>
-
                 <button
                   v-if="!isAuthor"
                   :disabled="displayStatus === '已額滿' || displayStatus === '已成行'"
@@ -503,7 +480,7 @@ watch(
                       ? 'cursor-not-allowed bg-white/20 text-white/60'
                       : 'bg-white text-primary-700 hover:bg-white/90'
                   "
-                  class="relative z-30 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
+                  class="relative z-30 rounded-full px-4 py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
                   @click.stop="
                     displayStatus !== '已額滿' && displayStatus !== '已成行' && handleApply($event)
                   "
