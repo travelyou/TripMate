@@ -237,7 +237,11 @@ const targetFPS = 60
 const frameInterval = 1000 / targetFPS
 
 const animate = (currentTime) => {
-  if (!ballContainer.value || balls.value.length === 0) {
+  // [修正] 如果容器不存在 (組件已銷毀)，直接 return，不要再 schedule 下一幀！
+  if (!ballContainer.value) return
+
+  // 如果只是沒有球，但容器還在，可以繼續跑動畫迴圈等待球出現，或者暫停
+  if (balls.value.length === 0) {
     animationFrameId.value = requestAnimationFrame(animate)
     return
   }
@@ -250,6 +254,9 @@ const animate = (currentTime) => {
   lastTime = currentTime - (deltaTime % frameInterval)
 
   const container = ballContainer.value
+  // 二次檢查確保容器還在
+  if (!container) return
+
   const rect = container.getBoundingClientRect()
   const containerWidth = rect.width
   const containerHeight = rect.height
@@ -324,7 +331,7 @@ watch(
   () => {
     initBalls()
   },
-  { deep: true }
+  { deep: true },
 )
 
 onMounted(() => {
@@ -342,7 +349,7 @@ onMounted(() => {
       } else {
         if (ballContainer.value && balls.value.length > 0) {
           const rect = ballContainer.value.getBoundingClientRect()
-          balls.value.forEach(ball => {
+          balls.value.forEach((ball) => {
             ball.x = Math.max(ball.radius, Math.min(rect.width - ball.radius, ball.x))
             ball.y = Math.max(ball.radius, Math.min(rect.height - ball.radius, ball.y))
           })
@@ -389,27 +396,26 @@ onUnmounted(() => {
       快去許願吧！
     </div>
 
-        <div
-          v-for="(item, index) in wishlist"
-          :key="index"
-          class="wish-ball absolute rounded-full flex items-center justify-center font-bold select-none z-10 text-center leading-tight break-words will-change-transform"
-          :class="{
-            'text-[8px] p-0.5': windowWidth < 640,
-            'text-[9px] p-0.5': windowWidth >= 640 && windowWidth < 768,
-            'text-[10px] p-0.5 md:p-1': windowWidth >= 768 && windowWidth < 1024,
-            'text-xs p-1': windowWidth >= 1024,
-          }"
-          :style="{
-            width: `${ballRadius * 2}px`,
-            height: `${ballRadius * 2}px`,
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-            fontWeight: '700',
-            left: '0',
-            top: '0',
-          }"
-        >
-          {{ item }}
-        </div>
+    <div
+      v-for="(item, index) in wishlist"
+      :key="index"
+      class="wish-ball absolute rounded-full flex items-center justify-center font-bold select-none z-10 text-center leading-tight break-words will-change-transform"
+      :class="{
+        'text-[8px] p-0.5': windowWidth < 640,
+        'text-[9px] p-0.5': windowWidth >= 640 && windowWidth < 768,
+        'text-[10px] p-0.5 md:p-1': windowWidth >= 768 && windowWidth < 1024,
+        'text-xs p-1': windowWidth >= 1024,
+      }"
+      :style="{
+        width: `${ballRadius * 2}px`,
+        height: `${ballRadius * 2}px`,
+        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+        fontWeight: '700',
+        left: '0',
+        top: '0',
+      }"
+    >
+      {{ item }}
+    </div>
   </div>
 </template>
-

@@ -52,8 +52,6 @@ const loadDiscussionsData = async (isLoadMore = false) => {
     if (!isLoadMore) {
       currentPage.value = 1
       hasMore.value = true
-      // 注意：這裡不手動清空 discussionsStore.discussions，交給 Store 的覆蓋邏輯處理
-      // 這樣可以避免畫面瞬間空白閃爍
     }
 
     const params = {
@@ -142,13 +140,16 @@ onUnmounted(() => {
 })
 
 // 監聽路由變化
-watch(() => route.query.openDraft, (newDraftId) => {
-  if (newDraftId) {
-    nextTick(() => {
-      tryOpenDraft()
-    })
-  }
-})
+watch(
+  () => route.query.openDraft,
+  (newDraftId) => {
+    if (newDraftId) {
+      nextTick(() => {
+        tryOpenDraft()
+      })
+    }
+  },
+)
 
 watch(() => route.query.postId, (newPostId) => {
   if (newPostId) {

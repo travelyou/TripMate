@@ -5,34 +5,25 @@ import {
   Heart as HeartIcon,
   MapPin as MapPinIcon,
   Sparkles as SparklesIcon,
-  Info as InfoIcon,
-  ChevronDown as ChevronDownIcon,
-  Calendar as CalendarIcon,
   Camera as CameraIcon,
   Tent as TentIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { getAllUsers } from '@/api/users'
+// [修正] 更新路徑
+import WishBallPool from '@/components/profile/WishBallPool.vue'
 
-// ==========================================
-// 1. 設定參數 (Configuration)
-// ==========================================
-
-const SWIPE_THRESHOLD = 100 //滑動超過 ±100px 觸發喜歡或不喜歡
-const FEEDBACK_THRESHOLD = 50 //滑動超過 ±50px 觸發喜歡或不喜歡
-const AUTO_SWIPE_DISTANCE = 1000 //自動滑動距離
-const ROTATION_FACTOR = 0.2 //旋轉角度
-const ANIMATION_DURATION = 500 //抽卡切換動畫時間
-const MAX_DAILY_SWIPES = 5 //每日最大抽卡次數
-const REAPPEAR_DAYS = 90 //拒絕後重新出現的卡-天數
-const REAPPEAR_MS = REAPPEAR_DAYS * 24 * 60 * 60 * 1000 //拒絕後重新出現的卡秒數
+// ... (參數設定省略，保持不變)
+const SWIPE_THRESHOLD = 100
+const FEEDBACK_THRESHOLD = 50
+const AUTO_SWIPE_DISTANCE = 1000
+const ROTATION_FACTOR = 0.2
+const ANIMATION_DURATION = 500
+const MAX_DAILY_SWIPES = 5
+const REAPPEAR_DAYS = 90
+const REAPPEAR_MS = REAPPEAR_DAYS * 24 * 60 * 60 * 1000
 
 defineEmits(['close'])
-
-// ==========================================
-// 2. 資料與狀態
-// ==========================================
-
 const userStore = useUserStore()
 const candidates = ref([])
 const isLoading = ref(true)
@@ -45,17 +36,11 @@ const loadSwipeState = (uid) => {
   try {
     const raw = localStorage.getItem(stateKey)
     const parsed = raw ? JSON.parse(raw) : null
-    const baseState = {
-      date: getTodayKey(),
-      count: 0,
-      rejections: {},
-    }
-
+    const baseState = { date: getTodayKey(), count: 0, rejections: {} }
     if (!parsed) return baseState
     const rejections =
       parsed.rejections && typeof parsed.rejections === 'object' ? parsed.rejections : {}
     const isSameDay = parsed.date === baseState.date
-
     return {
       date: baseState.date,
       count: isSameDay ? Number(parsed.count || 0) : 0,
@@ -63,11 +48,7 @@ const loadSwipeState = (uid) => {
     }
   } catch (error) {
     console.warn('[SwipeMatch] 讀取抽卡狀態失敗，已重置', error)
-    return {
-      date: getTodayKey(),
-      count: 0,
-      rejections: {},
-    }
+    return { date: getTodayKey(), count: 0, rejections: {} }
   }
 }
 
@@ -82,10 +63,7 @@ const pruneRejections = (rejections) => {
 
 const saveSwipeState = (uid, state) => {
   const stateKey = getStateKey(uid)
-  const payload = {
-    ...state,
-    rejections: pruneRejections(state.rejections || {}),
-  }
+  const payload = { ...state, rejections: pruneRejections(state.rejections || {}) }
   try {
     localStorage.setItem(stateKey, JSON.stringify(payload))
   } catch (error) {
@@ -94,7 +72,6 @@ const saveSwipeState = (uid, state) => {
 }
 
 const getCurrentUserId = () => userStore.currentUser?.uid || userStore.currentUser?.id
-
 const swipeState = ref(loadSwipeState(getCurrentUserId()))
 
 const currentIndex = ref(0)
@@ -107,40 +84,25 @@ const isOutOfCards = computed(() => !isLoading.value && !currentCard.value)
 const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
 const isProcessing = ref(false)
 const loadSeq = ref(0)
+const isDetailOpen = ref(true)
 
-// 詳情頁狀態
-const isDetailOpen = ref(false)
-
-const openDetail = () => {
-  isDetailOpen.value = true
-}
-const closeDetail = () => {
-  isDetailOpen.value = false
-}
-
-// 觸控拖曳邏輯變數
 const startX = ref(0)
 const currentX = ref(0)
 const isDragging = ref(false)
 const cardElement = ref(null)
 
 const cardStyle = computed(() => {
-  // 自動滑動 (按鈕觸發)
   if (autoSwipeDirection.value) {
     const rotate = autoSwipeDirection.value === 'right' ? 20 : -20
     const translateX =
       autoSwipeDirection.value === 'right' ? AUTO_SWIPE_DISTANCE : -AUTO_SWIPE_DISTANCE
-
     const durationSec = ANIMATION_DURATION / 1000
-
     return {
       transform: `translateX(${translateX}px) rotate(${rotate}deg)`,
       opacity: 0,
       transition: `transform ${durationSec}s ease-out, opacity ${durationSec}s ease-out`,
     }
   }
-
-  // 手動拖曳
   if (isDragging.value) {
     const xDiff = currentX.value - startX.value
     const rotate = xDiff * ROTATION_FACTOR
@@ -150,17 +112,11 @@ const cardStyle = computed(() => {
       cursor: 'grabbing',
     }
   }
-
-  // 靜止歸位
-  return {
-    transform: 'translateX(0) rotate(0)',
-    transition: 'transform 0.3s ease-out',
-  }
+  return { transform: 'translateX(0) rotate(0)', transition: 'transform 0.3s ease-out' }
 })
 
 const swipeFeedback = computed(() => {
   if (autoSwipeDirection.value) return autoSwipeDirection.value === 'right' ? 'like' : 'nope'
-
   if (isDragging.value) {
     const xDiff = currentX.value - startX.value
     if (xDiff > FEEDBACK_THRESHOLD) return 'like'
@@ -180,7 +136,6 @@ const handleButtonClick = (direction) => {
   finishSwipe(direction)
 }
 
-// 觸控事件
 const onTouchStart = (e) => {
   if (
     isFinished.value ||
@@ -204,9 +159,7 @@ const onTouchMove = (e) => {
 const onTouchEnd = () => {
   if (!isDragging.value) return
   isDragging.value = false
-
   const xDiff = currentX.value - startX.value
-
   if (xDiff > SWIPE_THRESHOLD) {
     handleButtonClick('right')
   } else if (xDiff < -SWIPE_THRESHOLD) {
@@ -228,10 +181,7 @@ const finishSwipe = (direction) => {
         count: (swipeState.value.count || 0) + 1,
         rejections:
           direction === 'left' && swipedCard.uid
-            ? {
-                ...(swipeState.value.rejections || {}),
-                [swipedCard.uid]: Date.now(),
-              }
+            ? { ...(swipeState.value.rejections || {}), [swipedCard.uid]: Date.now() }
             : { ...(swipeState.value.rejections || {}) },
       }
       saveSwipeState(uid, swipeState.value)
@@ -239,7 +189,6 @@ const finishSwipe = (direction) => {
         handleSwipeLike(swipedCard)
       }
     }
-
     currentIndex.value++
     autoSwipeDirection.value = null
     startX.value = 0
@@ -251,11 +200,9 @@ const finishSwipe = (direction) => {
 const handleSwipeLike = async (swipedCard) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !swipedCard?.uid) return
-
   try {
     const { likeSwipe } = await import('@/api/swipes')
     const result = await likeSwipe(currentUid, swipedCard.uid)
-
     if (result?.matched) {
       try {
         const { getProfile } = await import('@/api/profile')
@@ -266,7 +213,6 @@ const handleSwipeLike = async (swipedCard) => {
       } catch (error) {
         console.warn('[SwipeMatch] 更新好友列表失敗：', error)
       }
-
       const chatUser = {
         uid: swipedCard.uid,
         name: swipedCard.name,
@@ -293,9 +239,25 @@ const mapUserToCandidate = (user) => {
   const uid = user.uid || user.id
   const displayName =
     user.nickname || user.real_name || (user.email ? user.email.split('@')[0] : '旅伴')
-  const avatar =
-    user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || displayName}`
-  const tags = Array.isArray(user.tags) ? user.tags : []
+
+  // 1. 圖片優先使用 card_photo (方形)
+  const displayImage =
+    user.card_photo ||
+    user.avatar ||
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || displayName}`
+
+  // 2. 標籤優先使用 card_tags
+  const tags =
+    Array.isArray(user.card_tags) && user.card_tags.length > 0
+      ? user.card_tags
+      : Array.isArray(user.tags)
+        ? user.tags
+        : []
+
+  // 3. 自介只使用名片 card_bio（與名片顯示一致）
+  const bio = user.card_bio || '尚未填寫名片介紹...'
+
+  const gallery = Array.isArray(user.gallery) ? user.gallery.slice(0, 3) : []
 
   return {
     id: uid,
@@ -303,13 +265,13 @@ const mapUserToCandidate = (user) => {
     name: displayName,
     age: user.age || '—',
     location: user.location || '台灣',
-    spiritAnimal: user.spirit_animal || '🐾 旅伴',
-    image: avatar,
-    bio: user.bio || '期待一起出發的新旅伴。',
-    wishlist: tags,
+    spiritAnimal: user.spirit_animal || user.spiritAnimal || '🐾 旅伴',
+    image: displayImage,
+    bio: bio,
+    wishlist: user.wishlist || [],
     activities: [],
     tags,
-    gallery: [],
+    gallery,
     pastTrips: [],
   }
 }
@@ -322,6 +284,11 @@ const loadCandidates = async (uid, state = swipeState.value) => {
     if (seq !== loadSeq.value) return
     const rejections = state?.rejections || {}
     const cutoff = Date.now() - REAPPEAR_MS
+    const myWishlist = Array.isArray(userStore.wishlist)
+      ? userStore.wishlist
+      : Array.isArray(userStore.currentUser?.wishlist)
+        ? userStore.currentUser.wishlist
+        : []
 
     const filtered = allUsers
       .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
@@ -331,10 +298,26 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         const rejectedAt = Number(rejections[userId])
         return !rejectedAt || rejectedAt < cutoff
       })
+      .filter((user) => (user.is_matching_enabled ?? true) === true)
       .map(mapUserToCandidate)
 
     if (seq !== loadSeq.value) return
-    candidates.value = shuffle(filtered)
+    if (myWishlist.length) {
+      const preferred = []
+      const normal = []
+      filtered.forEach((card) => {
+        const overlap = (card.wishlist || []).filter((w) => myWishlist.includes(w)).length
+        if (overlap > 0) {
+          preferred.push({ card, overlap })
+        } else {
+          normal.push(card)
+        }
+      })
+      preferred.sort((a, b) => b.overlap - a.overlap)
+      candidates.value = [...preferred.map((p) => p.card), ...shuffle(normal)]
+    } else {
+      candidates.value = shuffle(filtered)
+    }
     currentIndex.value = 0
   } catch (error) {
     console.error('[SwipeMatch] 載入用戶列表失敗', error)
@@ -357,6 +340,13 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => currentCard.value,
+  (card) => {
+    if (card) isDetailOpen.value = true
+  },
+)
 </script>
 
 <template>
@@ -367,7 +357,7 @@ watch(
     ></div>
 
     <div
-      class="relative w-full max-w-sm h-[650px] max-h-[calc(100dvh-2rem)] flex flex-col perspective-1000"
+      class="relative w-full max-w-md h-[90vh] max-h-[calc(100dvh-2rem)] flex flex-col perspective-1000"
     >
       <div
         v-if="isLimitReached"
@@ -475,12 +465,6 @@ watch(
             <button class="action-btn-nope" @click.stop="handleButtonClick('left')">
               <XIcon class="w-8 h-8 pointer-events-none" />
             </button>
-            <button
-              class="w-10 h-10 rounded-full bg-secondary-100 text-secondary-500 border border-secondary-200 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition cursor-pointer"
-              @click.stop="openDetail"
-            >
-              <InfoIcon class="w-5 h-5" />
-            </button>
             <button class="action-btn-like" @click.stop="handleButtonClick('right')">
               <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
             </button>
@@ -490,114 +474,95 @@ watch(
         <Transition name="slide-up">
           <div
             v-if="isDetailOpen"
-            class="absolute inset-0 bg-white z-50 overflow-y-auto detail-scrollbar flex flex-col"
+            class="absolute inset-0 bg-white z-50 flex flex-col rounded-2xl overflow-hidden"
             @mousedown.stop
             @touchstart.stop
           >
-            <div class="relative h-[45%] shrink-0 bg-gray-100">
-              <img
-                :src="currentCard.image"
-                :alt="currentCard.name"
-                class="w-full h-full object-cover"
-              />
-              <div
-                class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"
-              ></div>
-
-              <button
-                class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white text-primary-700 border-2 border-primary backdrop-blur-md flex items-center justify-center hover:bg-primary-50 transition z-50 shadow-primary-sm"
-                @click="closeDetail"
-              >
-                <ChevronDownIcon class="w-6 h-6" />
-              </button>
-
-              <div class="absolute bottom-0 left-0 p-6 w-full">
-                <h2 class="text-3xl font-black text-secondary-900 mb-1">
-                  {{ currentCard.name }}, {{ currentCard.age }}
-                </h2>
-                <div class="flex items-center text-secondary-600 font-bold text-sm">
-                  <MapPinIcon class="w-4 h-4 mr-1" /> {{ currentCard.location }}
-                </div>
-              </div>
-            </div>
-
-            <div class="p-6 pt-2 space-y-8 pb-32">
-              <section>
-                <h3 class="section-title">關於我</h3>
-                <p class="text-gray-700 leading-relaxed font-medium">{{ currentCard.bio }}</p>
-              </section>
-
-              <section v-if="currentCard.wishlist && currentCard.wishlist.length">
-                <h3 class="section-title flex items-center">
-                  <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 也想去的地方
-                </h3>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="place in currentCard.wishlist"
-                    :key="place"
-                    class="px-4 py-2 bg-primary-50 text-primary-700 rounded-full text-sm font-bold border-2 border-primary-100 shadow-sm"
-                  >
-                    {{ place }}
-                  </span>
-                </div>
-              </section>
-
-              <section v-if="currentCard.activities && currentCard.activities.length">
-                <h3 class="section-title flex items-center">
-                  <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 喜歡的活動
-                </h3>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="act in currentCard.activities"
-                    :key="act"
-                    class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
-                  >
-                    {{ act }}
-                  </span>
-                </div>
-              </section>
-
-              <section v-if="currentCard.gallery && currentCard.gallery.length">
-                <h3 class="section-title flex items-center">
-                  <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
-                </h3>
-                <div class="grid grid-cols-2 gap-2">
+            <div class="overflow-y-auto flex-1 bg-gray-50 detail-scrollbar">
+              <div class="bg-white pb-10 min-h-full">
+                <div class="relative h-96 w-full overflow-hidden bg-gray-200">
+                  <img
+                    :src="currentCard.image"
+                    :alt="currentCard.name"
+                    class="w-full h-full object-cover"
+                  />
                   <div
-                    v-for="(photo, idx) in currentCard.gallery"
-                    :key="photo"
-                    class="aspect-square rounded-xl overflow-hidden bg-gray-200"
+                    class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
+                  ></div>
+                  <button
+                    class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-secondary-600 border border-white/80 backdrop-blur-md flex items-center justify-center hover:bg-white transition z-50 shadow-sm"
+                    @click="$emit('close')"
                   >
-                    <img
-                      :src="photo"
-                      :alt="`${currentCard.name} 的旅遊照片 ${idx + 1}`"
-                      class="w-full h-full object-cover hover:scale-110 transition duration-500"
-                    />
+                    <XIcon class="w-5 h-5" />
+                  </button>
+
+                  <div class="absolute bottom-0 left-0 p-6 text-white w-full">
+                    <h2 class="text-3xl font-black mb-1 flex items-end gap-2 drop-shadow-md">
+                      {{ currentCard.name }}
+                      <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
+                    </h2>
+                    <div class="flex items-center text-sm font-bold opacity-90">
+                      <MapPinIcon class="w-4 h-4 mr-1 text-primary-200" />
+                      {{ currentCard.location }}
+                    </div>
                   </div>
                 </div>
-              </section>
 
-              <section v-if="currentCard.pastTrips && currentCard.pastTrips.length">
-                <h3 class="section-title flex items-center">
-                  <CalendarIcon class="w-4 h-4 mr-1" /> 過往旅程
-                </h3>
-                <div class="space-y-4">
-                  <div v-for="trip in currentCard.pastTrips" :key="trip.id" class="flex gap-4">
-                    <div class="flex flex-col items-center">
-                      <div
-                        class="w-3 h-3 rounded-full bg-primary-400 ring-4 ring-primary-100"
-                      ></div>
-                      <div class="w-0.5 h-full bg-gray-200 my-1"></div>
+                <div class="p-6 space-y-8">
+                  <section>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                      關於我
+                    </h3>
+                    <p class="text-gray-700 leading-relaxed text-base">{{ currentCard.bio }}</p>
+                  </section>
+                  <section v-if="currentCard.tags && currentCard.tags.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 旅行風格
+                    </h3>
+                    <div class="flex flex-wrap gap-2">
+                      <span
+                        v-for="act in currentCard.tags"
+                        :key="act"
+                        class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
+                      >
+                        #{{ act }}
+                      </span>
                     </div>
-                    <div class="pb-2">
-                      <h4 class="font-bold text-gray-800">{{ trip.title }}</h4>
-                      <span class="text-xs text-gray-500 block mb-1">{{ trip.date }}</span>
-                      <div class="flex text-yellow-400 text-xs">
-                        <span v-for="i in trip.rating" :key="i">★</span>
+                  </section>
+
+                  <section v-if="currentCard.gallery && currentCard.gallery.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
+                    </h3>
+                    <div class="grid grid-cols-3 gap-2">
+                      <div
+                        v-for="(photo, idx) in currentCard.gallery"
+                        :key="photo || idx"
+                        class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                      >
+                        <img :src="photo" class="w-full h-full object-cover" />
                       </div>
                     </div>
-                  </div>
+                  </section>
+
+                  <section v-if="currentCard.wishlist && currentCard.wishlist.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
+                    </h3>
+                    <div
+                      class="h-48 rounded-2xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
+                    >
+                      <WishBallPool :wishlist="currentCard.wishlist" />
+                    </div>
+                  </section>
                 </div>
-              </section>
+              </div>
             </div>
 
             <div
@@ -607,13 +572,13 @@ watch(
                 class="action-btn-nope scale-110 shadow-md"
                 @click="handleButtonClick('left')"
               >
-                <XIcon class="w-8 h-8 pointer-events-none" />
+                <XIcon class="w-7 h-7 pointer-events-none" />
               </button>
               <button
                 class="action-btn-like scale-110 shadow-primary-sm"
                 @click="handleButtonClick('right')"
               >
-                <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
+                <HeartIcon class="w-7 h-7 fill-current pointer-events-none" />
               </button>
             </div>
           </div>
@@ -623,39 +588,21 @@ watch(
         v-else
         class="absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center p-8 text-center shadow-2xl border-2 border-secondary-200 z-0"
       >
-        <div v-if="isLoading" class="w-full h-full flex flex-col">
-          <div class="h-[60%] w-full bg-secondary-100 rounded-2xl animate-pulse mb-6"></div>
-          <div class="flex items-center justify-between mb-4 animate-pulse">
-            <div class="h-6 w-20 bg-secondary-100 rounded-full"></div>
-            <div class="h-6 w-16 bg-secondary-100 rounded-full"></div>
-          </div>
-          <div class="space-y-3 animate-pulse">
-            <div class="h-4 bg-secondary-100 rounded w-2/3"></div>
-            <div class="h-3 bg-secondary-100 rounded w-1/2"></div>
-            <div class="h-3 bg-secondary-100 rounded w-5/6"></div>
-          </div>
-          <div class="mt-auto pt-6 flex justify-center gap-10 animate-pulse">
-            <div class="w-14 h-14 bg-secondary-100 rounded-full"></div>
-            <div class="w-14 h-14 bg-secondary-100 rounded-full"></div>
-          </div>
+        <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+          <SparklesIcon class="w-10 h-10 text-primary-600" />
         </div>
-        <div v-else class="w-full max-w-sm flex flex-col items-center text-center space-y-4">
-          <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
-            <SparklesIcon class="w-10 h-10 text-primary-600" />
-          </div>
-          <h3 class="text-xl font-bold text-gray-800 mb-2">
-            {{ isLoading ? '正在載入旅伴...' : '目前沒有可抽的旅伴' }}
-          </h3>
-          <p class="text-gray-500 mb-6 text-sm">
-            {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
-          </p>
-          <button
-            class="px-8 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md"
-            @click="$emit('close')"
-          >
-            關閉視窗
-          </button>
-        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">
+          {{ isLoading ? '正在載入旅伴...' : '目前沒有可抽的旅伴' }}
+        </h3>
+        <p class="text-gray-500 mb-6 text-sm">
+          {{ isLoading ? '請稍候一下下' : '稍後再回來看看吧！' }}
+        </p>
+        <button
+          class="px-8 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md"
+          @click="$emit('close')"
+        >
+          關閉視窗
+        </button>
       </div>
     </div>
   </div>
@@ -670,7 +617,7 @@ watch(
 }
 
 .action-btn-nope {
-  @apply w-14 h-14 rounded-full bg-white border-2 border-secondary-200 text-secondary-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 cursor-pointer;
+  @apply w-16 h-16 rounded-full bg-white border-2 border-secondary-200 text-secondary-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 cursor-pointer;
 }
 .action-btn-like {
   @apply w-16 h-16 rounded-full bg-primary-600 text-white shadow-primary-sm hover:bg-primary-700 hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer;

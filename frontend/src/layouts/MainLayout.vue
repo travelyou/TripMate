@@ -15,7 +15,7 @@ import PrivateChatWindow from '@/components/chat/PrivateChatWindow.vue'
 import AIChatWindow from '@/components/chat/AIChatWindow.vue'
 import RightSidebarAd from '@/components/shared/RightSidebarAd.vue'
 import AddToCollectionModal from '@/components/modals/AddToCollectionModal.vue'
-import SwipeMatchModal from '@/components/modals/SwipeMatchModal.vue'
+import SwipeMatchModal from '@/components/profile/card/SwipeMatchModal.vue'
 
 import {
   Plus as PlusIcon,
@@ -64,6 +64,10 @@ let chatSyncTimer = null
 let chatSocket = null
 let chatSocketUid = null
 let chatSocketReconnectTimer = null
+let chatSocketFailureCount = 0
+let chatSocketBlockedUntil = 0
+let chatSocketHasConnected = false
+let warnedNoChatSocketBase = false
 const isChatSyncing = ref(false)
 const isAppLoading = ref(false)
 
@@ -158,7 +162,8 @@ const getUnreadCountForRoom = (currentUid, friendUid, mappedMessages) => {
 }
 
 const getChatSocketUrl = () => {
-  const base = API_BASE_URL.replace(/\/api\/?$/, '')
+  const envBase = import.meta.env.VITE_WS_BASE_URL
+  const base = (envBase || API_BASE_URL).replace(/\/api\/?$/, '')
   try {
     const url = new URL(base)
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -166,7 +171,10 @@ const getChatSocketUrl = () => {
     url.search = ''
     return url.toString()
   } catch (error) {
-    console.warn('無法解析 WS URL:', error)
+    if (!warnedNoChatSocketBase) {
+      warnedNoChatSocketBase = true
+      console.warn('無法解析 WS URL，將停用即時聊天連線:', error)
+    }
     return ''
   }
 }
@@ -185,13 +193,18 @@ const disconnectChatSocket = () => {
 
 const connectChatSocket = (uid) => {
   if (!uid) return
+  if (chatSocketBlockedUntil && Date.now() < chatSocketBlockedUntil) return
   if (chatSocket && chatSocketUid === uid) return
   disconnectChatSocket()
   const wsUrl = getChatSocketUrl()
   if (!wsUrl) return
   chatSocketUid = uid
+  chatSocketHasConnected = false
   chatSocket = new WebSocket(`${wsUrl}?uid=${encodeURIComponent(uid)}`)
   chatSocket.onopen = () => {
+    chatSocketHasConnected = true
+    chatSocketFailureCount = 0
+    chatSocketBlockedUntil = 0
     try {
       chatSocket.send(JSON.stringify({ type: 'register', uid }))
     } catch (error) {
@@ -213,12 +226,23 @@ const connectChatSocket = (uid) => {
   }
   chatSocket.onclose = () => {
     if (chatSocketUid === uid) {
+      if (chatSocketBlockedUntil && Date.now() < chatSocketBlockedUntil) {
+        return
+      }
       chatSocketReconnectTimer = setTimeout(() => {
         connectChatSocket(uid)
       }, 2000)
     }
   }
   chatSocket.onerror = () => {
+    chatSocketFailureCount += 1
+    if (!chatSocketHasConnected && chatSocketFailureCount >= 3) {
+      chatSocketBlockedUntil = Date.now() + 30000
+      if (chatSocketReconnectTimer) {
+        clearTimeout(chatSocketReconnectTimer)
+        chatSocketReconnectTimer = null
+      }
+    }
     if (chatSocket) {
       chatSocket.close()
     }
@@ -450,7 +474,7 @@ const calculateUnreadCount = () => {
       try {
         const rooms = JSON.parse(chatRoomsData)
         if (Array.isArray(rooms)) {
-          rooms.forEach(room => {
+          rooms.forEach((room) => {
             if (room.unreadCount) {
               totalUnread += room.unreadCount
             } else if (room.messages && Array.isArray(room.messages)) {
@@ -464,7 +488,9 @@ const calculateUnreadCount = () => {
                   const unreadInfo = JSON.parse(unreadData)
                   if (unreadInfo.lastReadTime) {
                     const lastReadTime = new Date(unreadInfo.lastReadTime).getTime()
-                    const lastMessageTime = new Date(lastMessage.timestamp || lastMessage.created_at).getTime()
+                    const lastMessageTime = new Date(
+                      lastMessage.timestamp || lastMessage.created_at,
+                    ).getTime()
                     if (lastMessageTime > lastReadTime) {
                       totalUnread += 1
                     }
@@ -653,15 +679,18 @@ watch(
 )
 
 // 監聽聊天視窗打開/關閉，更新未讀計數
-watch(() => isPrivateChatOpen.value, (isOpen) => {
-  if (isOpen) {
-    // 打開聊天視窗時，延遲一下再重新計算（給時間載入資料）
-    setTimeout(calculateUnreadCount, 500)
-  } else {
-    // 關閉時也重新計算
-    calculateUnreadCount()
-  }
-})
+watch(
+  () => isPrivateChatOpen.value,
+  (isOpen) => {
+    if (isOpen) {
+      // 打開聊天視窗時，延遲一下再重新計算（給時間載入資料）
+      setTimeout(calculateUnreadCount, 500)
+    } else {
+      // 關閉時也重新計算
+      calculateUnreadCount()
+    }
+  },
+)
 const handleToggleAiChat = () => {
   isAiChatOpen.value = !isAiChatOpen.value
   isPrivateChatOpen.value = false
@@ -758,6 +787,11 @@ const handleSubmitPost = async (postData) => {
     })
     alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
   }
+}
+
+const handleClosePrivateChat = () => {
+  isPrivateChatOpen.value = false
+  openChatWithUser.value = null
 }
 </script>
 
@@ -869,7 +903,9 @@ const handleSubmitPost = async (postData) => {
         v-if="isMobileActionMenuOpen"
         class="fixed inset-0 z-[60] flex items-end justify-center lg:hidden"
       >
-        <div class="relative w-full bg-white rounded-t-3xl p-6 pb-24 shadow-2xl border-t border-secondary-100">
+        <div
+          class="relative w-full bg-white rounded-t-3xl p-6 pb-24 shadow-2xl border-t border-secondary-100"
+        >
           <div class="flex justify-between items-center mb-6 border-b-2 border-secondary-100 pb-2">
             <h3 class="text-xl font-bold text-primary-700">快速功能</h3>
             <button
@@ -896,7 +932,10 @@ const handleSubmitPost = async (postData) => {
               </div>
               <span class="text-sm font-bold text-gray-700">抽卡</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group relative" @click="handleTogglePrivateChat">
+            <button
+              class="flex flex-col items-center gap-2 group relative"
+              @click="handleTogglePrivateChat"
+            >
               <div
                 class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition"
               >
@@ -933,7 +972,7 @@ const handleSubmitPost = async (postData) => {
     <PrivateChatWindow
       v-if="isPrivateChatOpen"
       :open-chat-with-user="openChatWithUser"
-      @close="isPrivateChatOpen = false; openChatWithUser = null"
+      @close="handleClosePrivateChat"
     />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
     <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />

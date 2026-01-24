@@ -14,6 +14,7 @@ export const useUserStore = defineStore('user', () => {
     name: '',
     nickname: '',
     email: '',
+    avatar: '',
     bgImage: '',
     bio: '',
     joinDate: '',
@@ -28,6 +29,11 @@ export const useUserStore = defineStore('user', () => {
     tags: [],
     reviews: [],
     friends: [],
+    card_bio: '',
+    card_tags: [],
+    card_photo: '',
+    gallery: [],
+    is_matching_enabled: true,
   })
 
   const visitedPlaces = ref({
@@ -48,12 +54,12 @@ export const useUserStore = defineStore('user', () => {
       const [discussionResponse, travelerResponse] = await Promise.all([
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
-            params: { board: 'discussion' },
+          params: { board: 'discussion' },
           })
           .catch(() => ({ data: [] })),
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
-            params: { board: 'traveler' },
+          params: { board: 'traveler' },
           })
           .catch(() => ({ data: [] })),
       ])
@@ -311,8 +317,7 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
-      // 正確處理頭貼：優先使用傳入的 avatar，如果沒有則從 localStorage 恢復
-      // 重要：如果用戶曾經換過頭貼（localStorage 中有非 dicebear 的頭貼），就不再使用默認頭貼
+      // 正確處理頭貼：只有在 avatar 為 null、undefined 或空字串時才使用默認值
       let avatarValue = profileData.avatar
 
       // 如果傳入的 avatar 有效，使用它並保存到 localStorage
@@ -375,6 +380,28 @@ export const useUserStore = defineStore('user', () => {
         spiritAnimal: profileData.spiritAnimal !== undefined ? profileData.spiritAnimal : currentUser.value.spiritAnimal,
         vendorId: profileData.vendorId || null,
         tags: profileData.tags !== undefined ? (Array.isArray(profileData.tags) ? profileData.tags : []) : (currentUser.value.tags || []),
+        card_bio:
+          profileData.card_bio !== undefined ? profileData.card_bio : currentUser.value.card_bio,
+        card_tags:
+          profileData.card_tags !== undefined
+            ? Array.isArray(profileData.card_tags)
+              ? profileData.card_tags
+              : []
+            : currentUser.value.card_tags || [],
+        card_photo:
+          profileData.card_photo !== undefined
+            ? profileData.card_photo
+            : currentUser.value.card_photo,
+        gallery:
+          profileData.gallery !== undefined
+            ? Array.isArray(profileData.gallery)
+              ? profileData.gallery
+              : []
+            : currentUser.value.gallery || [],
+        is_matching_enabled:
+          profileData.is_matching_enabled !== undefined
+            ? profileData.is_matching_enabled
+            : currentUser.value.is_matching_enabled,
       }
     }
   }
@@ -413,15 +440,21 @@ export const useUserStore = defineStore('user', () => {
             }
           }
 
-          setUserProfile({
-            uid: uid,
-            email: firebaseUser.value?.email || neonUserData.email || '',
-            nickname: neonUserData.nickname || '',
+        setUserProfile({
+          uid: uid,
+          email: firebaseUser.value?.email || neonUserData.email || '',
+          nickname: neonUserData.nickname || '',
             avatar: avatar,
-            bio: neonUserData.bio || '',
-            spiritAnimal: neonUserData.spirit_animal || '',
-            role: neonUserData.role || 'user',
-            vendorId: neonUserData.vendor_id || null,
+          bio: neonUserData.bio || '',
+          spiritAnimal: neonUserData.spirit_animal || '',
+          role: neonUserData.role || 'user',
+          vendorId: neonUserData.vendor_id || null,
+            tags: neonUserData.tags,
+            card_bio: neonUserData.card_bio,
+            card_tags: neonUserData.card_tags,
+            card_photo: neonUserData.card_photo,
+            gallery: neonUserData.gallery,
+            is_matching_enabled: neonUserData.is_matching_enabled,
           })
 
           // 如果頭貼是從 localStorage 恢復的，同步到資料庫
@@ -437,7 +470,7 @@ export const useUserStore = defineStore('user', () => {
               console.warn('同步頭貼到資料庫失敗:', e)
             }
           }
-          return
+        return
         }
       } catch (neonError) {
         const is404Error = neonError.message?.includes('404') ||
@@ -480,7 +513,10 @@ export const useUserStore = defineStore('user', () => {
           uid: uid,
           email: firebaseUser.value?.email || '',
           ...userData,
-          avatar: avatar,
+          // 確保 avatar 處理一致：如果是空字串則傳遞 undefined，讓 setUserProfile 處理
+          avatar: userData.avatar && typeof userData.avatar === 'string' && userData.avatar.trim() !== ''
+            ? userData.avatar
+            : undefined,
           role: userData.role || 'user',
           vendorId: userData.vendorId || null,
         })
@@ -555,7 +591,7 @@ export const useUserStore = defineStore('user', () => {
         } else {
           await new Promise(resolve => setTimeout(resolve, 500))
         }
-        await loadUserProfile(user.uid)
+      await loadUserProfile(user.uid)
 
         // 確保頭貼已保存到 localStorage（如果有的話）
         if (currentUser.value.avatar && currentUser.value.avatar.trim() !== '') {
@@ -566,7 +602,7 @@ export const useUserStore = defineStore('user', () => {
           }
         }
 
-        await fetchFavorites()
+      await fetchFavorites()
       } catch (error) {
         const is404Error = error.message?.includes('404') ||
                           error.message?.includes('Not Found')
