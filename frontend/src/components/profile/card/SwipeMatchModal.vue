@@ -481,7 +481,11 @@ watch(
             <div class="overflow-y-auto flex-1 bg-gray-50 detail-scrollbar">
               <div class="bg-white pb-10 min-h-full">
                 <div class="relative h-96 w-full overflow-hidden bg-gray-200">
-                  <img :src="currentCard.image" :alt="currentCard.name" class="w-full h-full object-cover" />
+                  <img
+                    :src="currentCard.image"
+                    :alt="currentCard.name"
+                    class="w-full h-full object-cover"
+                  />
                   <div
                     class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
                   ></div>
@@ -498,7 +502,8 @@ watch(
                       <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
                     </h2>
                     <div class="flex items-center text-sm font-bold opacity-90">
-                      <MapPinIcon class="w-4 h-4 mr-1 text-primary-200" /> {{ currentCard.location }}
+                      <MapPinIcon class="w-4 h-4 mr-1 text-primary-200" />
+                      {{ currentCard.location }}
                     </div>
                   </div>
                 </div>
@@ -509,6 +514,22 @@ watch(
                       關於我
                     </h3>
                     <p class="text-gray-700 leading-relaxed text-base">{{ currentCard.bio }}</p>
+                  </section>
+                  <section v-if="currentCard.tags && currentCard.tags.length">
+                    <h3
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                    >
+                      <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 旅行風格
+                    </h3>
+                    <div class="flex flex-wrap gap-2">
+                      <span
+                        v-for="act in currentCard.tags"
+                        :key="act"
+                        class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
+                      >
+                        #{{ act }}
+                      </span>
+                    </div>
                   </section>
 
                   <section v-if="currentCard.gallery && currentCard.gallery.length">
@@ -525,23 +546,6 @@ watch(
                       >
                         <img :src="photo" class="w-full h-full object-cover" />
                       </div>
-                    </div>
-                  </section>
-
-                  <section v-if="currentCard.tags && currentCard.tags.length">
-                    <h3
-                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
-                    >
-                      <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 旅行風格
-                    </h3>
-                    <div class="flex flex-wrap gap-2">
-                      <span
-                        v-for="act in currentCard.tags"
-                        :key="act"
-                        class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
-                      >
-                        #{{ act }}
-                      </span>
                     </div>
                   </section>
 
