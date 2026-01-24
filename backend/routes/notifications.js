@@ -8,7 +8,7 @@ const pool = require('../database/connection')
 const ensureNotificationsTable = async () => {
   try {
     console.log('[Notifications] 開始檢查/創建通知表...')
-    
+
     await pool.query(
       `CREATE TABLE IF NOT EXISTS public.notifications (
         id SERIAL PRIMARY KEY,
@@ -28,7 +28,7 @@ const ensureNotificationsTable = async () => {
       )`,
     )
     console.log('[Notifications] 通知表已確保存在')
-    
+
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_notifications_user_uid ON public.notifications(user_uid)`,
     )
@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO public.notifications 
+      `INSERT INTO public.notifications
        (user_uid, type, title, content, related_id, related_type, sender_uid, sender_name, sender_avatar, link)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
@@ -112,10 +112,10 @@ router.post('/', async (req, res) => {
 router.get('/:uid', async (req, res) => {
   const { uid } = req.params
   const { limit = 50, offset = 0 } = req.query
-  
+
   try {
     console.log(`[Notifications] 獲取通知列表請求 - uid: ${uid}, limit: ${limit}, offset: ${offset}`)
-    
+
     // 確保通知表存在
     try {
       await ensureNotificationsTable()
@@ -145,13 +145,13 @@ router.get('/:uid', async (req, res) => {
       hint: error.hint,
       stack: error.stack
     })
-    
+
     // 如果是表不存在的錯誤，返回空數組而不是錯誤
     if (error.code === '42P01') {
       console.log('[Notifications] 通知表不存在，返回空結果')
       return res.json({ success: true, data: [] })
     }
-    
+
     res.status(500).json({
       success: false,
       error: '獲取通知列表失敗',
@@ -164,10 +164,10 @@ router.get('/:uid', async (req, res) => {
 // 獲取未讀通知數量
 router.get('/:uid/unread-count', async (req, res) => {
   const { uid } = req.params
-  
+
   try {
     console.log(`[Notifications] 獲取未讀數量請求 - uid: ${uid}`)
-    
+
     // 確保通知表存在
     try {
       await ensureNotificationsTable()
@@ -186,13 +186,13 @@ router.get('/:uid/unread-count', async (req, res) => {
     res.json({ success: true, count: Math.min(count, 99) }) // 最多顯示99
   } catch (error) {
     console.error('[Notifications] 獲取未讀通知數量失敗：', error)
-    
+
     // 如果是表不存在的錯誤，返回 0
     if (error.code === '42P01') {
       console.log('[Notifications] 通知表不存在，返回 0')
       return res.json({ success: true, count: 0 })
     }
-    
+
     res.status(500).json({
       success: false,
       error: '獲取未讀通知數量失敗',

@@ -138,11 +138,17 @@ function handleChatMessage(senderUid, data) {
     return
   }
 
+  // 重要：不要將訊息回傳給發送者本人，避免重複顯示
+  if (receiver_uid === senderUid) {
+    console.log(`⚠️ 忽略自己發給自己的訊息：${senderUid}`)
+    return
+  }
+
   // 檢查接收者是否在線
   const receiverWs = clients.get(receiver_uid)
   
   if (receiverWs && receiverWs.readyState === receiverWs.OPEN) {
-    // 轉發訊息給接收者
+    // 只轉發訊息給接收者（不回傳給發送者）
     receiverWs.send(JSON.stringify({
       type: 'chat_message',
       sender_uid: senderUid,

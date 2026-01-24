@@ -584,25 +584,43 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
       }
     })
 
-    // 檢查是否有新訊息（比較訊息數量）
-    const hasNewMessages = mappedMessages.length > messages.value.length
-    const previousMessageCount = messages.value.length
+    // 改進：檢查是否有真正的新訊息（比較最後一條訊息的 ID 和時間戳）
+    const previousMessages = messages.value
+    const lastOldMessage = previousMessages[previousMessages.length - 1]
+    const lastNewMessage = mappedMessages[mappedMessages.length - 1]
+
+    // 更嚴格的新訊息檢查：
+    // 1. 訊息數量增加
+    // 2. 最後一條訊息的 ID 或時間戳不同
+    // 3. 內容不同
+    const hasNewMessages = mappedMessages.length > previousMessages.length &&
+      (!lastOldMessage || !lastNewMessage ||
+       lastOldMessage.id !== lastNewMessage.id ||
+       lastOldMessage.timestamp !== lastNewMessage.timestamp ||
+       lastOldMessage.content !== lastNewMessage.content)
 
     const localMessages = loadMessagesFromStorage(friendUid)
-    messages.value = mappedMessages.length > 0 ? mappedMessages : localMessages
 
-    if (mappedMessages.length > 0) {
+    // 只有在有新訊息或首次載入時才更新
+    if (mappedMessages.length > 0 && (previousMessages.length === 0 || hasNewMessages)) {
+      messages.value = mappedMessages
       saveMessagesToStorage(friendUid, mappedMessages)
 
-      // 如果有新訊息，自動滾動到底部
-      if (hasNewMessages && previousMessageCount > 0) {
+      // 如果有新訊息且不是首次載入，自動滾動到底部
+      if (hasNewMessages && previousMessages.length > 0) {
         await nextTick()
         scrollToBottom()
       }
+    } else if (mappedMessages.length === 0 && previousMessages.length === 0) {
+      // 如果資料庫沒有訊息，嘗試從本地存儲載入
+      messages.value = localMessages
+    }
+
+    if (mappedMessages.length > 0) {
 
       // 檢查是否有新訊息（未讀）
       const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-      if (currentUid) {
+      if (currentUid && hasNewMessages && previousMessages.length > 0) {
         const unreadKey = `unread_${currentUid}_${friendUid}`
         const unreadData = localStorage.getItem(unreadKey)
         let lastReadTime = null
@@ -620,23 +638,19 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
           if (!lastReadTime || lastMessageTime > new Date(lastReadTime).getTime()) {
             // 有新訊息，觸發更新事件
             window.dispatchEvent(new CustomEvent('message-updated'))
-          }
-        }
-      }
 
-      if (hasNewMessages && previousMessageCount > 0) {
-        const lastMessage = mappedMessages[mappedMessages.length - 1]
-        if (lastMessage && lastMessage.type !== 'user') {
-          const roomInfo = chatRoomsList.value.find(r => r.uid === friendUid) || activeChatRoom.value
-          const preview = lastMessage.isImage ? '傳送了圖片' : lastMessage.content
-          window.dispatchEvent(new CustomEvent('incoming-message', {
-            detail: {
-              uid: friendUid,
-              name: roomInfo?.name || '未知用戶',
-              avatar: roomInfo?.avatar || '',
-              content: preview
-            }
-          }))
+            // 只在真正有新訊息時才發送通知
+            const roomInfo = chatRoomsList.value.find(r => r.uid === friendUid) || activeChatRoom.value
+            const preview = lastMessage.isImage ? '傳送了圖片' : lastMessage.content
+            window.dispatchEvent(new CustomEvent('incoming-message', {
+              detail: {
+                uid: friendUid,
+                name: roomInfo?.name || '未知用戶',
+                avatar: roomInfo?.avatar || '',
+                content: preview
+              }
+            }))
+          }
         }
       }
     }
@@ -679,17 +693,38 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
       senderUid: msg.sender_uid,
     }))
 
-    messages.value = mappedMessages
-    saveMessagesToStorage(`group-${roomId}`, messages.value)
+    // 檢查是否有新訊息（避免重複通知）
+    const previousMessages = messages.value
+    const lastOldMessage = previousMessages[previousMessages.length - 1]
+    const lastNewMessage = mappedMessages[mappedMessages.length - 1]
 
-    const groupRoom = groupChatRooms.value.find((room) => room.id === roomId)
-    if (groupRoom) {
-      groupRoom.lastMessage = mappedMessages.length ? mappedMessages[mappedMessages.length - 1].content : ''
-      groupRoom.lastMessageTime = mappedMessages.length ? '剛剛' : groupRoom.lastMessageTime
-    }
+    // 更嚴格的新訊息檢查
+    const hasNewMessages = mappedMessages.length > previousMessages.length &&
+      (!lastOldMessage || !lastNewMessage ||
+       lastOldMessage.id !== lastNewMessage.id ||
+       lastOldMessage.timestamp !== lastNewMessage.timestamp ||
+       lastOldMessage.content !== lastNewMessage.content)
 
-    if (activeChatRoom.value) {
-      activeChatRoom.value.messages = messages.value
+    // 只有在有新訊息或首次載入時才更新
+    if (previousMessages.length === 0 || hasNewMessages) {
+      messages.value = mappedMessages
+      saveMessagesToStorage(`group-${roomId}`, messages.value)
+
+      const groupRoom = groupChatRooms.value.find((room) => room.id === roomId)
+      if (groupRoom && mappedMessages.length > 0) {
+        groupRoom.lastMessage = mappedMessages[mappedMessages.length - 1].content
+        groupRoom.lastMessageTime = '剛剛'
+      }
+
+      if (activeChatRoom.value) {
+        activeChatRoom.value.messages = messages.value
+      }
+
+      // 只在有新訊息且不是首次載入時滾動到底部
+      if (hasNewMessages && previousMessages.length > 0) {
+        await nextTick()
+        scrollToBottom()
+      }
     }
 
     if (!silent) {
@@ -1186,12 +1221,12 @@ const startMessagePolling = (uid, friendUid) => {
   // 清除現有的輪詢
   stopMessagePolling()
 
-  // 每 3 秒檢查一次新訊息
+  // 每 5 秒檢查一次新訊息（降低頻率）
   messagePollingInterval = setInterval(async () => {
     if (activeChatRoom.value && activeChatRoom.value.uid === friendUid) {
       await loadChatHistory(uid, friendUid, true) // silent = true，不輸出日誌
     }
-  }, 3000) // 3 秒輪詢一次
+  }, 5000) // 5 秒輪詢一次，降低頻率避免重複
 }
 
 const startGroupMessagePolling = (roomId) => {
@@ -1592,6 +1627,16 @@ const handleChatReceived = (event) => {
   const incomingMessage = detail.message
   if (!fromUid || !incomingMessage) return
 
+  // 防止處理發送給自己的訊息（應該由發送函數處理）
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+
+  // 忽略自己發送的訊息（這些訊息應該已經在 sendMessage 中處理過了）
+  if (fromUid === currentUid) {
+    console.log('[handleChatReceived] 忽略自己發送的訊息')
+    return
+  }
+
   const room = chatRoomsList.value.find(r => r.uid === fromUid) || {
     uid: fromUid,
     name: detail.senderName || '未知用戶',
@@ -1608,19 +1653,36 @@ const handleChatReceived = (event) => {
   }
 
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
-  const exists = roomMessages.some(msg => msg.id === incomingMessage.id && msg.timestamp === incomingMessage.timestamp)
+
+  // 改進的去重檢查：檢查 ID、內容和時間戳
+  const exists = roomMessages.some(msg => {
+    // 檢查 ID 是否相同
+    if (msg.id && incomingMessage.id && msg.id === incomingMessage.id) {
+      return true
+    }
+    // 檢查內容、時間戳和類型是否完全相同（可能是重複訊息）
+    const sameContent = msg.content === incomingMessage.content
+    const sameTimestamp = msg.timestamp === incomingMessage.timestamp
+    const sameType = msg.isImage === incomingMessage.isImage
+    return sameContent && sameTimestamp && sameType
+  })
+
   if (!exists) {
     roomMessages.push({
       ...incomingMessage,
       type: 'friend',
     })
+    console.log(`[handleChatReceived] 新增訊息：從 ${fromUid}`)
+  } else {
+    console.log(`[handleChatReceived] 忽略重複訊息：從 ${fromUid}`)
+    return // 如果是重複訊息，直接返回，不進行後續處理
   }
+
   room.messages = roomMessages
   room.lastMessage = incomingMessage.isImage ? '傳送了圖片' : (incomingMessage.content || '新訊息')
   room.lastMessageTime = '剛剛'
   room.lastMessageTimestamp = new Date(incomingMessage.timestamp || new Date().toISOString()).getTime()
 
-  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   const isActiveRoom = activeChatRoom.value?.uid === fromUid
   if (isActiveRoom) {
     messages.value = roomMessages
