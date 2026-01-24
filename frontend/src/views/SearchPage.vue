@@ -118,12 +118,21 @@
             class="bg-white p-4 rounded-xl border-2 border-secondary-100 hover:border-primary-300 hover:shadow-md transition cursor-pointer flex gap-4 group"
             @click="handleResultClick(item)"
           >
-            <div v-if="item.type === 'traveler'" class="w-16 h-16 shrink-0">
+            <!-- 使用者和找旅伴：顯示圓形頭像 -->
+            <div v-if="item.type === 'traveler' || item.type === 'user'" class="w-16 h-16 shrink-0 rounded-full bg-secondary-100 flex items-center justify-center overflow-hidden border-2 border-secondary-200 group-hover:border-primary-200 transition">
               <img
+                v-if="item.avatar && isValidImageUrl(item.avatar) && !avatarErrors[`${item.type}-${item.id}`]"
                 :src="item.avatar"
-                class="w-full h-full object-cover rounded-full border-2 border-secondary-200 group-hover:border-primary-200 transition"
+                :alt="item.title"
+                class="w-full h-full object-cover"
+                @error="handleAvatarError(`${item.type}-${item.id}`)"
+              />
+              <UserIcon
+                v-else
+                class="w-8 h-8 text-secondary-400"
               />
             </div>
+            <!-- 討論區和行程：顯示方形圖片 -->
             <div
               v-else
               class="w-24 h-24 shrink-0 bg-secondary-100 rounded-lg overflow-hidden border border-secondary-100"
@@ -230,6 +239,7 @@ import {
   ChevronRight as ChevronRightIcon,
   X as XIcon,
   Image as ImageIcon,
+  User as UserIcon,
 } from 'lucide-vue-next'
 
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -259,6 +269,7 @@ const itemsPerPage = 10
 
 const users = ref([])
 const loadingUsers = ref(false)
+const avatarErrors = ref({})
 
 const tabs = [
   { label: '全部', value: 'all' },
@@ -307,12 +318,19 @@ const allData = computed(() => {
   }
   if (travelersStore.recommendations) {
     travelersStore.recommendations.forEach((traveler) => {
+      // 過濾有效的頭像 URL
+      const avatarUrl = traveler.avatar || traveler.image
+      const validAvatar = avatarUrl && typeof avatarUrl === 'string' && 
+                         !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
+                         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
+                         ? avatarUrl : null
+      
       results.push({
         id: traveler.id,
         type: 'traveler',
         title: traveler.title,
         description: traveler.content || `地點：${traveler.location}`,
-        avatar: traveler.avatar || traveler.image,
+        avatar: validAvatar,
         date: traveler.date || traveler.created_at || '近期',
         tags: Array.isArray(traveler.tags)
           ? traveler.tags
@@ -341,12 +359,19 @@ const allData = computed(() => {
   }
   if (users.value && users.value.length > 0) {
     users.value.forEach((user) => {
+      // 過濾有效的頭像 URL
+      const avatarUrl = user.avatar || user.photoURL
+      const validAvatar = avatarUrl && typeof avatarUrl === 'string' && 
+                         !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
+                         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
+                         ? avatarUrl : null
+      
       results.push({
         id: user.uid,
         type: 'user',
         title: user.nickname || user.displayName || '使用者',
         description: user.bio || user.card_bio || `旅行夥伴 · ${user.location || '探索世界'}`,
-        avatar: user.avatar || user.photoURL,
+        avatar: validAvatar,
         date: '活躍中',
         tags: Array.isArray(user.tags)
           ? user.tags
@@ -631,6 +656,19 @@ const handleResultClick = (item) => {
 const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
+}
+
+// 頭像錯誤處理
+const handleAvatarError = (key) => {
+  avatarErrors.value[key] = true
+}
+
+// 檢查是否為有效的圖片 URL
+const isValidImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return false
+  const trimmedUrl = url.trim()
+  if (trimmedUrl.startsWith('blob:') || trimmedUrl.startsWith('data:')) return false
+  return trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')
 }
 </script>
 
