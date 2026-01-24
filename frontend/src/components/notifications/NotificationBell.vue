@@ -65,35 +65,51 @@ const handleNotificationClick = async (notification) => {
     
     // 跳轉到對應頁面
     if (notification.link) {
+      // 如果已經在目標頁面，先跳轉到根路徑再跳回來以觸發 watch
+      if (router.currentRoute.value.path === notification.link.split('?')[0]) {
+        await router.push('/')
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
       await router.push(notification.link)
     } else {
       // 根據類型生成默認連結
+      let targetPath = ''
       switch (notification.type) {
         case 'like':
           // 按讚通知：跳轉到貼文但不滾動到留言
           if (notification.related_type === 'discussion') {
-            await router.push(`/discussion?postId=${notification.related_id}`)
+            targetPath = `/discussion?postId=${notification.related_id}`
           } else if (notification.related_type === 'traveler') {
-            await router.push(`/travelers?travelerId=${notification.related_id}`)
+            targetPath = `/travelers?travelerId=${notification.related_id}`
           }
           break
         case 'comment':
           // 留言通知：跳轉到貼文並滾動到留言區
           if (notification.related_type === 'discussion') {
-            await router.push(`/discussion?postId=${notification.related_id}&scrollToComments=true`)
+            targetPath = `/discussion?postId=${notification.related_id}&scrollToComments=true`
           } else if (notification.related_type === 'traveler') {
-            await router.push(`/travelers?travelerId=${notification.related_id}&scrollToComments=true`)
+            targetPath = `/travelers?travelerId=${notification.related_id}&scrollToComments=true`
           }
           break
         case 'friend_request':
           // 好友申請通知：跳轉到個人頁面並打開好友列表
-          await router.push('/profile?openFriends=true')
+          targetPath = '/profile?openFriends=true'
           break
         case 'traveler_application':
         case 'traveler_reminder':
           // 旅伴申請/提醒通知：跳轉到旅伴貼文
-          await router.push(`/travelers?travelerId=${notification.related_id}`)
+          targetPath = `/travelers?travelerId=${notification.related_id}`
           break
+      }
+      
+      if (targetPath) {
+        // 如果已經在目標頁面，先跳轉到根路徑再跳回來以觸發 watch
+        const targetBasePath = targetPath.split('?')[0]
+        if (router.currentRoute.value.path === targetBasePath) {
+          await router.push('/')
+          await new Promise(resolve => setTimeout(resolve, 50))
+        }
+        await router.push(targetPath)
       }
     }
   } catch (error) {

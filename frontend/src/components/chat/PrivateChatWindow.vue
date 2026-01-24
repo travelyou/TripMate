@@ -89,9 +89,14 @@ const isFriendChat = computed(() => {
   const friendList = userStore.currentUser?.friends || []
   return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
-const canSendMessage = computed(() =>
-  isGroupChat.value ? true : (chatInteractionCount.value.canSend && isFriendChat.value),
-)
+const canSendMessage = computed(() => {
+  // 群組聊天：可以發送
+  if (isGroupChat.value) return true
+  // 好友聊天：可以發送
+  if (isFriendChat.value) return true
+  // 非好友：檢查剩餘次數
+  return chatInteractionCount.value.canSend && chatInteractionCount.value.remaining > 0
+})
 
 const updateUnreadCount = (friendUid, mappedMessages) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
@@ -229,7 +234,11 @@ const loadChatRoomsFromStorage = () => {
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
-      chatRoomsList.value = parsed
+      // 清理 blob URL（它們在頁面刷新後會失效）
+      chatRoomsList.value = parsed.map(room => ({
+        ...room,
+        avatar: room.avatar && room.avatar.startsWith('blob:') ? '' : room.avatar
+      }))
     }
   } catch (error) {
     console.warn('Load chat rooms failed:', error)
@@ -256,7 +265,14 @@ const loadMessagesFromStorage = (friendUid) => {
     const raw = localStorage.getItem(getChatMessagesStorageKey(currentUid, friendUid))
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    // 過濾掉包含 blob URL 的圖片訊息（它們在頁面刷新後會失效）
+    return parsed.map(msg => {
+      if (msg.isImage && msg.content && msg.content.startsWith('blob:')) {
+        return { ...msg, content: '', isImage: false }
+      }
+      return msg
+    }).filter(msg => msg.content) // 移除內容為空的訊息
   } catch (error) {
     console.warn('Load chat messages failed:', error)
     return []
@@ -844,6 +860,11 @@ const toggleStickerPicker = () => {
 
 // 打開圖片預覽
 const openImagePreview = (imageUrl, imageName = '') => {
+  // 檢查是否為 blob URL（已失效）
+  if (!imageUrl || imageUrl.startsWith('blob:')) {
+    alert('圖片已失效，無法預覽。\n請從資料庫重新載入聊天記錄。')
+    return
+  }
   previewImageUrl.value = imageUrl
   previewImageName.value = imageName
   showImagePreview.value = true
@@ -871,8 +892,8 @@ const goToFriendProfile = (friendUid) => {
 // 下載圖片
 const downloadImage = async (imageUrl, fileName = 'image') => {
   try {
-    if (!imageUrl) {
-      throw new Error('圖片網址無效')
+    if (!imageUrl || imageUrl.startsWith('blob:')) {
+      throw new Error('圖片已失效，無法下載')
     }
 
     const response = await fetch(imageUrl)
@@ -949,17 +970,13 @@ const handleFileSelect = async (event) => {
     return
   }
 
+  // 非好友：檢查對話次數
   if (!isFriendChat.value) {
-    alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
-    event.target.value = ''
-    return
-  }
-
-  // 檢查對話次數
-  if (!chatInteractionCount.value.canSend) {
-    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
-    event.target.value = ''
-    return
+    if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
+      alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
+      event.target.value = ''
+      return
+    }
   }
 
   // 確認是否傳送檔案
@@ -1084,15 +1101,12 @@ const sendMessage = async () => {
     return
   }
 
+  // 非好友：檢查對話次數
   if (!isFriendChat.value) {
-    alert('⚠️ 目前不是好友，無法傳送訊息。')
-    return
-  }
-
-  // 檢查對話次數（在發送前檢查）
-  if (!chatInteractionCount.value.canSend) {
-    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
-    return
+    if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
+      alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
+      return
+    }
   }
 
   const optimisticId = Date.now()
@@ -1605,7 +1619,45 @@ const handleChatReceived = (event) => {
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
+// 清理 localStorage 中的 blob URL
+const cleanupBlobUrls = () => {
+  try {
+    const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+    if (!currentUid) return
+
+    // 清理所有聊天訊息中的 blob URL
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(CHAT_MESSAGES_STORAGE_PREFIX)) {
+        const messagesRaw = localStorage.getItem(key)
+        if (messagesRaw) {
+          try {
+            const messages = JSON.parse(messagesRaw)
+            if (Array.isArray(messages)) {
+              const cleaned = messages.map(msg => {
+                if (msg.isImage && msg.content && msg.content.startsWith('blob:')) {
+                  return { ...msg, content: '', isImage: false }
+                }
+                return msg
+              }).filter(msg => msg.content)
+
+              // 只在有變化時才更新
+              if (JSON.stringify(cleaned) !== JSON.stringify(messages)) {
+                localStorage.setItem(key, JSON.stringify(cleaned))
+              }
+            }
+          } catch {
+            // 忽略解析錯誤
+          }
+        }
+      }
+    })
+  } catch (error) {
+    console.warn('清理 blob URL 失敗：', error)
+  }
+}
+
 onMounted(() => {
+  cleanupBlobUrls()
   loadFriends()
   loadChatRoomsFromStorage()
   loadGroupChatRooms()
@@ -1892,13 +1944,16 @@ onUnmounted(() => {
             ]"
           >
             <img
-              v-if="msg.isImage"
+              v-if="msg.isImage && msg.content && !msg.content.startsWith('blob:')"
               :src="msg.content"
               alt="傳送的圖片"
               class="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition"
               @error="(e) => { console.error('圖片載入失敗：', msg.content); e.target.style.display = 'none' }"
               @click.stop="openImagePreview(msg.content, '圖片')"
             />
+            <span v-else-if="msg.isImage && (!msg.content || msg.content.startsWith('blob:'))" class="text-gray-400 italic">
+              [圖片已失效]
+            </span>
             <span v-else>{{ msg.content }}</span>
           </div>
 
@@ -1921,13 +1976,19 @@ onUnmounted(() => {
         </div>
 
         <div
-          v-if="!isFriendChat"
+          v-if="!isFriendChat && chatInteractionCount.remaining > 0"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
-          ⚠️ 目前不是好友，無法傳送訊息
+          💬 目前不是好友，還可以發送 <span class="font-bold text-primary-600">{{ chatInteractionCount.remaining }}</span> 次訊息
         </div>
         <div
-          v-else-if="!chatInteractionCount.canSend"
+          v-else-if="!isFriendChat && chatInteractionCount.remaining <= 0"
+          class="text-center text-xs text-gray-600 py-2 px-4 bg-red-50 border border-red-200 rounded-lg"
+        >
+          ⚠️ 已達到對話次數上限，請先加對方為好友才能繼續聊天
+        </div>
+        <div
+          v-else-if="isFriendChat && !chatInteractionCount.canSend"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
           ⚠️ 已達到對話次數上限（3次），等待對方同意好友請求後才能繼續
@@ -2143,7 +2204,6 @@ onUnmounted(() => {
               <div class="flex items-center justify-between mb-1">
                 <div class="font-bold text-gray-800 text-sm truncate">
                   {{ room.name }}
-                  <span v-if="room.isStranger" class="text-yellow-600">（申請邀請的好友）</span>
                 </div>
                 <div v-if="room.lastMessageTime" class="text-xs text-gray-500 ml-2 flex-shrink-0">{{ room.lastMessageTime }}</div>
               </div>

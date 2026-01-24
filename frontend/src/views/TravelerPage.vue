@@ -132,7 +132,16 @@ watch(() => route.query.travelerId, (newTravelerId) => {
       tryOpenSharedTraveler()
     })
   }
-})
+}, { immediate: false })
+
+// 監聽整個 query 的變化，確保能夠捕獲參數更新
+watch(() => route.query, (newQuery) => {
+  if (newQuery.travelerId) {
+    nextTick(() => {
+      tryOpenSharedTraveler()
+    })
+  }
+}, { deep: true })
 
 const openTravelerDetail = (traveler, focusComment = false) => {
   selectedTraveler.value = traveler

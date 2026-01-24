@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
         t.created_at,
         t.updated_at
       FROM travelers.travelers t
-      LEFT JOIN users u ON t.author_uid = u.uid
+      LEFT JOIN public.users u ON t.author_uid = u.uid
       WHERE t.deleted_at IS NULL
     `
 
@@ -293,15 +293,13 @@ const ensureGroupChatMessagesTable = async () => {
 }
 
 const ensureUsersTable = async () => {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      uid VARCHAR(255) UNIQUE NOT NULL,
-      name VARCHAR(255),
-      nickname VARCHAR(255),
-      avatar TEXT
-    )`,
-  )
+  // users 表已經存在於主資料庫中，這裡只需要驗證
+  // 不需要創建新表，避免與現有的 users 表衝突
+  try {
+    await pool.query(`SELECT 1 FROM public.users LIMIT 1`)
+  } catch (error) {
+    console.warn('users 表不存在或無法訪問：', error.message)
+  }
 }
 
 // 提交报名
@@ -378,7 +376,7 @@ router.post('/:id/applications', async (req, res) => {
           
           try {
             const applicantResult = await pool.query(
-              `SELECT nickname, name, avatar FROM users WHERE uid = $1`,
+              `SELECT nickname, name, avatar FROM public.users WHERE uid = $1`,
               [author_uid]
             )
             if (applicantResult.rows.length > 0) {
@@ -736,7 +734,7 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
         COALESCE(u.name, u.nickname, $1) AS name,
         u.nickname,
         u.avatar
-       FROM users u
+       FROM public.users u
        WHERE u.uid = $1`,
       [member_uid],
     )
@@ -831,7 +829,7 @@ router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
         u.nickname,
         u.avatar
        FROM public.group_chat_members m
-       LEFT JOIN users u ON u.uid = m.user_uid
+       LEFT JOIN public.users u ON u.uid = m.user_uid
        WHERE m.room_id = $1
        ORDER BY m.joined_at ASC`,
       [roomIdNum],
@@ -1169,7 +1167,7 @@ router.post('/', async (req, res) => {
       let finalSpiritAnimal = spirit_animal || null
       if (!finalSpiritAnimal && author_uid) {
         try {
-          const userQuery = await client.query('SELECT spirit_animal FROM users WHERE uid = $1', [
+          const userQuery = await client.query('SELECT spirit_animal FROM public.users WHERE uid = $1', [
             author_uid,
           ])
           if (userQuery.rows.length > 0 && userQuery.rows[0].spirit_animal) {

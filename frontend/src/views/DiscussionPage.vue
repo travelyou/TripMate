@@ -157,7 +157,16 @@ watch(() => route.query.postId, (newPostId) => {
       tryOpenSharedPost()
     })
   }
-})
+}, { immediate: false })
+
+// 監聽整個 query 的變化，確保能夠捕獲參數更新
+watch(() => route.query, (newQuery) => {
+  if (newQuery.postId) {
+    nextTick(() => {
+      tryOpenSharedPost()
+    })
+  }
+}, { deep: true })
 
 watch(() => route.query.editPost, (newPostId) => {
   if (newPostId) {
