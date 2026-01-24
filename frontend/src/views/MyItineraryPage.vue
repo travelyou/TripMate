@@ -8,11 +8,9 @@ import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.v
 import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
 import { showAlert, showConfirm } from '@/utils/alert'
-import { useUserStore } from '@/stores/user'
-import { auth } from '@/firebase/config' // [修正] 引入 auth 以取得最準確的 UID
+import { auth } from '@/firebase/config' // [修正] 直接引入 auth 確保 UID 準確性
 
 const myItineraryStore = useMyItineraryStore()
-const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -50,15 +48,9 @@ const openAddItineraryModal = () => {
 }
 
 const openDraft = (draft) => {
-  if (
-    (draft.type === 'my_itinerary' || draft.type === 'itinerary') &&
-    (draft.data || draft.rawItinerary)
-  ) {
-    const dataToLoad = draft.data || draft.rawItinerary
-    selectedItinerary.value = JSON.parse(JSON.stringify(dataToLoad))
+  if (draft.type === 'itinerary' && draft.data) {
+    selectedItinerary.value = JSON.parse(JSON.stringify(draft.data))
     isDetailModalOpen.value = true
-  } else {
-    showAlert(`這是 ${draft.typeLabel} 的草稿，請至對應頁面編輯。`)
   }
 }
 
@@ -70,27 +62,24 @@ const handleSaveDraft = (draftItinerary) => {
     data: draftItinerary,
   })
   isDetailModalOpen.value = false
+  showAlert('草稿已儲存')
 }
 
-// [修正重點] 儲存邏輯：確保傳入 uid 並處理非同步結果
+// [修正] 儲存邏輯：確保從 auth 抓取 UID 並處理非同步結果
 const handleSaveItinerary = async (updatedItinerary) => {
   if (!updatedItinerary.title.trim()) updatedItinerary.title = '新旅程'
 
-  // 核心：直接從 Firebase Auth 拿當前登入者 ID
   const uid = auth.currentUser?.uid
-
   if (!uid) {
     showAlert('登入逾時，請重新登入')
     return
   }
 
   const res = await myItineraryStore.saveItinerary(updatedItinerary, uid)
-
   if (res.success) {
     isDetailModalOpen.value = false
     showAlert('行程已成功儲存至雲端！')
   } else {
-    // 這裡會顯示後端報錯的詳細原因
     showAlert('儲存失敗：' + res.message)
   }
 }
@@ -117,13 +106,8 @@ const tryOpenDraft = () => {
   }
 }
 
-const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
-  myItineraryStore.updatePartnerItinerary({ id, comment, reviewLabel })
-}
-
 onMounted(async () => {
   tryOpenDraft()
-  // 組件掛載時，若有 UID 則立即載入資料庫行程
   const uid = auth.currentUser?.uid
   if (uid) {
     await myItineraryStore.loadPersonalData(uid)
@@ -133,12 +117,8 @@ onMounted(async () => {
 
 watch(
   () => route.query.openDraft,
-  (newDraftId) => {
-    if (newDraftId) {
-      nextTick(() => {
-        tryOpenDraft()
-      })
-    }
+  (newId) => {
+    if (newId) nextTick(tryOpenDraft)
   },
 )
 </script>
@@ -177,11 +157,7 @@ watch(
             @open="openItineraryDetail"
             @add="openAddItineraryModal"
           />
-          <FindPartnerTab
-            v-if="activeTab === 'partner'"
-            :itineraries="partnerItineraries"
-            @update="handlePartnerUpdate"
-          />
+          <FindPartnerTab v-if="activeTab === 'partner'" :itineraries="partnerItineraries" />
         </div>
       </div>
     </div>

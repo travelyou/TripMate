@@ -26,14 +26,13 @@ const activeDay = computed(() => {
   return days[activeDayIndex.value] || { activities: [] }
 })
 
-// 自動生成 MM/DD 格式標籤
 const getDayLabel = (index) => {
   const startDateStr = localItinerary.value.startDate
   if (!startDateStr) return `Day ${index + 1}`
   return dayjs(startDateStr).add(index, 'day').format('MM/DD')
 }
 
-// 監聽日期變化：不早於今日 + 自動產生日程標籤
+// 監聽日期變化，自動產生日程天數
 watch(
   [() => localItinerary.value.startDate, () => localItinerary.value.endDate],
   ([newStart, newEnd]) => {
@@ -41,17 +40,14 @@ watch(
       localItinerary.value.days = []
       return
     }
-
     const start = dayjs(newStart)
     const end = dayjs(newEnd)
 
-    // 禁止選擇過去
     if (start.isBefore(dayjs(), 'day')) {
       localItinerary.value.startDate = ''
       showAlert('開始日期不能早於今天喔！')
       return
     }
-
     if (end.isBefore(start)) {
       localItinerary.value.endDate = newStart
       return
@@ -59,7 +55,6 @@ watch(
 
     const diffDays = end.diff(start, 'day') + 1
     const newDays = []
-
     for (let i = 0; i < diffDays; i++) {
       const targetDate = start.add(i, 'day').format('YYYY-MM-DD')
       const existingDay = localItinerary.value.days?.find((d) => d.date === targetDate)
@@ -70,7 +65,6 @@ watch(
       })
     }
     localItinerary.value.days = newDays
-
     if (activeDayIndex.value >= newDays.length) {
       activeDayIndex.value = Math.max(0, newDays.length - 1)
     }
@@ -81,12 +75,13 @@ watch(
 const deleteItem = (categoryIndex, itemIndex) =>
   localItinerary.value.packingList[categoryIndex].items.splice(itemIndex, 1)
 
+// 修正：使用隨機 ID 避免渲染衝突
 const addItem = (categoryIndex) => {
   if (!localItinerary.value.packingList[categoryIndex].items) {
     localItinerary.value.packingList[categoryIndex].items = []
   }
   localItinerary.value.packingList[categoryIndex].items.push({
-    id: Date.now(),
+    id: Date.now() + Math.random(),
     name: '',
     checked: false,
   })
@@ -96,39 +91,26 @@ const addCategory = () => localItinerary.value.packingList.push({ category: '', 
 const deleteCategory = (index) => localItinerary.value.packingList.splice(index, 1)
 const deleteActivity = (actIndex) => activeDay.value.activities.splice(actIndex, 1)
 
+// 修正：使用隨機 ID 避免渲染衝突
 const addActivity = () => {
   if (!activeDay.value.activities) activeDay.value.activities = []
   activeDay.value.activities.push({
-    id: Date.now(),
+    id: Date.now() + Math.random(),
     time: '09:00',
     title: '',
     desc: '',
   })
 }
 
-// 儲存前檢查：時間重疊 + 自動依時間排序
 const handleSave = () => {
   if (!localItinerary.value.title?.trim()) {
     showAlert('請輸入行程標題')
     return
   }
-
+  // 自動依時間排序
   for (const day of localItinerary.value.days) {
-    // 1. 自動排序：按時間字串進行排序
     day.activities.sort((a, b) => (a.time || '').localeCompare(b.time || ''))
-
-    const timeTracker = new Set()
-    for (const act of day.activities) {
-      if (!act.time) continue
-      if (timeTracker.has(act.time)) {
-        showAlert(`${day.date} 有重複的時間點：${act.time}，請調整後再儲存。`)
-        return
-      }
-      timeTracker.add(act.time)
-    }
   }
-
-  // 將資料送回 Page 進行資料庫存檔
   emit('save', localItinerary.value)
 }
 
@@ -203,13 +185,12 @@ const handleDelete = async () => {
               Day {{ index + 1 }} ({{ getDayLabel(index) }})
             </button>
           </div>
-
           <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
             <div v-if="activeDay.activities?.length > 0">
               <div
                 v-for="(activity, index) in activeDay.activities"
                 :key="activity.id"
-                class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 relative group mb-4"
+                class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4"
               >
                 <div class="flex flex-col gap-3">
                   <div class="flex items-center justify-between">
@@ -218,21 +199,20 @@ const handleDelete = async () => {
                       <input
                         v-model="activity.time"
                         type="time"
-                        class="text-xl bg-gray-50 px-2 py-1 rounded focus:outline-none cursor-pointer"
+                        class="text-xl bg-gray-50 px-2 py-1 rounded focus:outline-none"
                       />
                     </div>
                     <button
-                      class="text-gray-300 hover:text-red-500 transition p-1"
+                      class="text-gray-300 hover:text-red-500 p-1"
                       @click="deleteActivity(index)"
                     >
                       <TrashIcon class="w-5 h-5" />
                     </button>
                   </div>
-
                   <div class="border-t border-gray-50 pt-3 space-y-2">
                     <input
                       v-model="activity.title"
-                      class="w-full text-lg font-bold text-gray-800 focus:outline-none border-b border-transparent focus:border-primary-100"
+                      class="w-full text-lg font-bold text-gray-800 focus:outline-none"
                       placeholder="景點名稱或活動"
                     />
                     <textarea
@@ -244,9 +224,6 @@ const handleDelete = async () => {
                   </div>
                 </div>
               </div>
-            </div>
-            <div v-else class="text-center text-gray-400 py-10">
-              {{ localItinerary.startDate ? '今天還沒安排行程唷' : '請先在上方選擇日期範圍' }}
             </div>
             <button
               v-if="localItinerary.days.length > 0"
@@ -302,10 +279,7 @@ const handleDelete = async () => {
                     <XIcon class="w-3 h-3" />
                   </button>
                 </div>
-                <button
-                  class="text-xs text-primary-500 font-bold mt-2 hover:text-primary-600"
-                  @click="addItem(catIndex)"
-                >
+                <button class="text-xs text-primary-500 font-bold mt-2" @click="addItem(catIndex)">
                   + 新增物品
                 </button>
               </div>
@@ -337,13 +311,3 @@ const handleDelete = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 10px;
-}
-</style>

@@ -1880,7 +1880,7 @@ onBeforeUnmount(() => {
                 ref="locationInput"
                 v-model="postData.location"
                 type="text"
-                placeholder="例如：日本"
+                placeholder="例如：東京"
                 :class="[
                   'w-full p-3 border-2 rounded-xl focus:outline-none transition text-gray-900',
                   fieldErrors.location

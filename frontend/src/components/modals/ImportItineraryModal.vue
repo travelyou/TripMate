@@ -15,6 +15,7 @@ import { storeToRefs } from 'pinia'
 const emit = defineEmits(['close', 'select'])
 
 const myItineraryStore = useMyItineraryStore()
+// 從 Store 取得已轉換為 CamelCase 的行程列表
 const { myItineraries } = storeToRefs(myItineraryStore)
 
 const searchQuery = ref('')
@@ -31,7 +32,7 @@ const filteredItineraries = computed(() => {
     list = list.filter((item) => item.title.toLowerCase().includes(q))
   }
 
-  // 排序：最新的在前面 (假設 id 是 timestamp，或者有 updated_at)
+  // 排序：最新的在前面 (以 ID 排序)
   return list.sort((a, b) => b.id - a.id)
 })
 
@@ -45,7 +46,7 @@ const getDuration = (start, end) => {
 }
 
 const handleSelect = (itinerary) => {
-  // 深拷貝一份資料傳出去，避免後續修改影響到原始行程
+  // 關鍵：使用深拷貝傳出資料，避免子組件與父組件連動修改
   const data = JSON.parse(JSON.stringify(itinerary))
   emit('select', data)
 }
