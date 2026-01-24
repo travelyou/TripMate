@@ -3,6 +3,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { isValidImageUrl } = require('../utils/imageUtils')
 
 // GET /api/discussions - 獲取所有討論
 router.get('/', async (req, res) => {
@@ -88,14 +89,6 @@ router.get('/', async (req, res) => {
     }
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
-
-    // 🔧 輔助函數：過濾無效的圖片 URL（blob 和 data URL）
-    const isValidImageUrl = (url) => {
-      if (!url || typeof url !== 'string') return false
-      // 過濾掉 blob URL 和 data URL
-      if (url.startsWith('blob:') || url.startsWith('data:')) return false
-      return true
-    }
 
     // 處理結果
     // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
@@ -317,12 +310,6 @@ router.get('/:id', async (req, res) => {
     )
 
     // 🔧 過濾無效的圖片 URL（blob 和 data URL）
-    const isValidImageUrl = (url) => {
-      if (!url || typeof url !== 'string') return false
-      if (url.startsWith('blob:') || url.startsWith('data:')) return false
-      return true
-    }
-
     const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
     const cleanImageUrls = Array.isArray(discussion.image_urls)
       ? discussion.image_urls.filter(url => isValidImageUrl(url))
