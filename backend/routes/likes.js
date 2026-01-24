@@ -48,10 +48,17 @@ router.post('/', async (req, res) => {
       `
       const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
       postExists = postCheckResult.rows.length > 0
+    } else if (board === 'itinerary') {
+      const postCheckQuery = `
+        SELECT id FROM itinerary.itineraries
+        WHERE id = $1
+      `
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
+      postExists = postCheckResult.rows.length > 0
     } else {
       return res.status(400).json({
         error: '不支援的 board 類型',
-        details: `board 必須是 'discussion' 或 'traveler'`,
+        details: `board 必須是 'discussion'、'traveler' 或 'itinerary'`,
       })
     }
 
@@ -210,6 +217,18 @@ router.get('/user/:uid', async (req, res) => {
         WHERE l.author_uid = $1 AND l.board = 'traveler' AND t.deleted_at IS NULL
         ORDER BY l.created_at DESC
       `
+    } else if (board === 'itinerary') {
+      query = `
+        SELECT
+          i.*,
+          'itinerary' as type,
+          l.created_at as liked_at,
+          (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count
+        FROM public.likes l
+        JOIN itinerary.itineraries i ON l.post_id = i.id
+        WHERE l.author_uid = $1 AND l.board = 'itinerary'
+        ORDER BY l.created_at DESC
+      `
     } else {
       return res.json([])
     }
@@ -241,6 +260,19 @@ router.get('/user/:uid', async (req, res) => {
         baseData.end_date = row.end_date || null
         baseData.max_people = row.max_people || 0
         baseData.status = row.status || '招募中'
+      }
+
+      if (row.type === 'itinerary') {
+        baseData.coverImage = row.banner_image || row.cover_image || row.coverImage || null
+        baseData.price = row.price ?? null
+        baseData.category = row.category || null
+        baseData.destinations = row.location ? [row.location] : row.destinations || []
+        baseData.start_date = row.start_date || null
+        baseData.end_date = row.end_date || null
+        baseData.durationDays = row.duration_days || row.durationDays || null
+        baseData.agencyName = row.agency_name || row.agencyName || null
+        baseData.author_uid = row.author_uid || null
+        baseData.vendor_id = row.vendor_id || null
       }
 
       return baseData
