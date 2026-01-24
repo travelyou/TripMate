@@ -8,8 +8,11 @@ import MyItineraryDetailModal from '@/components/modals/MyItineraryDetailModal.v
 import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
 import { showAlert, showConfirm } from '@/utils/alert'
+import { useUserStore } from '@/stores/user'
+import { auth } from '@/firebase/config' // [修正] 引入 auth 以取得最準確的 UID
 
 const myItineraryStore = useMyItineraryStore()
+const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -29,15 +32,14 @@ const openItineraryDetail = (itinerary) => {
   isDetailModalOpen.value = true
 }
 
-// 修正：移除日期預設值
 const openAddItineraryModal = () => {
   selectedItinerary.value = {
     id: Date.now(),
     title: '',
-    startDate: '', // 設為空，不預設日期
-    endDate: '', // 設為空，不預設日期
+    startDate: '',
+    endDate: '',
     status: 'planning',
-    days: [], // 初始無天數，待日期選取後生成
+    days: [],
     packingList: [
       { category: '證件', items: [] },
       { category: '衣物', items: [] },
@@ -70,17 +72,37 @@ const handleSaveDraft = (draftItinerary) => {
   isDetailModalOpen.value = false
 }
 
-const handleSaveItinerary = (updatedItinerary) => {
+// [修正重點] 儲存邏輯：確保傳入 uid 並處理非同步結果
+const handleSaveItinerary = async (updatedItinerary) => {
   if (!updatedItinerary.title.trim()) updatedItinerary.title = '新旅程'
-  myItineraryStore.saveItinerary(updatedItinerary)
-  isDetailModalOpen.value = false
+
+  // 核心：直接從 Firebase Auth 拿當前登入者 ID
+  const uid = auth.currentUser?.uid
+
+  if (!uid) {
+    showAlert('登入逾時，請重新登入')
+    return
+  }
+
+  const res = await myItineraryStore.saveItinerary(updatedItinerary, uid)
+
+  if (res.success) {
+    isDetailModalOpen.value = false
+    showAlert('行程已成功儲存至雲端！')
+  } else {
+    // 這裡會顯示後端報錯的詳細原因
+    showAlert('儲存失敗：' + res.message)
+  }
 }
 
 const handleDeleteItinerary = async (id) => {
   const confirmed = await showConfirm('確定要刪除這個行程嗎？')
   if (confirmed) {
-    myItineraryStore.deleteItinerary(id)
-    isDetailModalOpen.value = false
+    const res = await myItineraryStore.deleteItinerary(id)
+    if (res.success) {
+      isDetailModalOpen.value = false
+      showAlert('行程已刪除')
+    }
   }
 }
 
@@ -99,8 +121,14 @@ const handlePartnerUpdate = ({ id, comment, reviewLabel }) => {
   myItineraryStore.updatePartnerItinerary({ id, comment, reviewLabel })
 }
 
-onMounted(() => {
+onMounted(async () => {
   tryOpenDraft()
+  // 組件掛載時，若有 UID 則立即載入資料庫行程
+  const uid = auth.currentUser?.uid
+  if (uid) {
+    await myItineraryStore.loadPersonalData(uid)
+    await myItineraryStore.loadJoinedData(uid)
+  }
 })
 
 watch(
@@ -123,6 +151,13 @@ watch(
           <BriefcaseIcon class="w-6 h-6 text-secondary-50" />
           我的行程
         </h1>
+        <button
+          v-if="activeTab === 'my'"
+          @click="openAddItineraryModal"
+          class="bg-white text-primary-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition shadow-sm"
+        >
+          ＋ 新增行程
+        </button>
       </div>
 
       <div class="p-4 space-y-4">

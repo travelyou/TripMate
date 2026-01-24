@@ -16,6 +16,7 @@ import { showConfirm, showAlert } from '@/utils/alert'
 const props = defineProps({ itinerary: { type: Object, required: true } })
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
 
+// 深拷貝一份資料進行編輯，避免直接修改 props
 const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
 const activeDayIndex = ref(0)
 const todayStr = dayjs().format('YYYY-MM-DD')
@@ -80,12 +81,16 @@ watch(
 const deleteItem = (categoryIndex, itemIndex) =>
   localItinerary.value.packingList[categoryIndex].items.splice(itemIndex, 1)
 
-const addItem = (categoryIndex) =>
+const addItem = (categoryIndex) => {
+  if (!localItinerary.value.packingList[categoryIndex].items) {
+    localItinerary.value.packingList[categoryIndex].items = []
+  }
   localItinerary.value.packingList[categoryIndex].items.push({
     id: Date.now(),
     name: '',
     checked: false,
   })
+}
 
 const addCategory = () => localItinerary.value.packingList.push({ category: '', items: [] })
 const deleteCategory = (index) => localItinerary.value.packingList.splice(index, 1)
@@ -109,7 +114,7 @@ const handleSave = () => {
   }
 
   for (const day of localItinerary.value.days) {
-    // 1. 自動排序：按時間字串 (如 "10:00") 進行排序
+    // 1. 自動排序：按時間字串進行排序
     day.activities.sort((a, b) => (a.time || '').localeCompare(b.time || ''))
 
     const timeTracker = new Set()
@@ -123,13 +128,14 @@ const handleSave = () => {
     }
   }
 
+  // 將資料送回 Page 進行資料庫存檔
   emit('save', localItinerary.value)
 }
 
 const handleSaveDraft = () => emit('save-draft', localItinerary.value)
 
 const handleDelete = async () => {
-  const confirmed = await showConfirm('確定要刪除？')
+  const confirmed = await showConfirm('確定要刪除此行程嗎？')
   if (confirmed) emit('delete', localItinerary.value.id)
 }
 </script>
@@ -180,7 +186,9 @@ const handleDelete = async () => {
 
       <div class="flex-1 flex flex-col lg:flex-row overflow-visible lg:overflow-hidden">
         <div class="w-full lg:w-2/3 flex flex-col border-r border-gray-200 bg-gray-50">
-          <div class="flex overflow-x-auto p-3 sm:p-4 space-x-2 bg-white border-b border-gray-100">
+          <div
+            class="flex overflow-x-auto p-3 sm:p-4 space-x-2 bg-white border-b border-gray-100 custom-scrollbar"
+          >
             <button
               v-for="(day, index) in localItinerary.days"
               :key="index"
@@ -206,6 +214,7 @@ const handleDelete = async () => {
                 <div class="flex flex-col gap-3">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 text-primary-600 font-black">
+                      <ClockIcon class="w-5 h-5" />
                       <input
                         v-model="activity.time"
                         type="time"
@@ -305,7 +314,7 @@ const handleDelete = async () => {
         </div>
       </div>
 
-      <div class="p-4 border-t border-gray-200 bg-white flex justify-end gap-3 shadow-lg">
+      <div class="p-4 border-t border-gray-200 bg-white flex justify-end gap-3 shadow-lg z-10">
         <button
           class="px-4 py-2 text-gray-600 font-bold bg-gray-100 rounded-lg mr-auto"
           @click="handleSaveDraft"

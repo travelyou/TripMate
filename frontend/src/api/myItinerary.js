@@ -9,3 +9,9 @@ export const getJoinedItineraries = (uid) =>
 
 export const createMyItinerary = (data) =>
   axios.post(`${API_BASE_URL}/my-itinerary`, data).then((res) => res.data)
+
+export const deleteMyItinerary = (id) =>
+  axios.delete(`${API_BASE_URL}/my-itinerary/${id}`).then((res) => res.data)
+
+export const updateMyItinerary = (id, data) =>
+  axios.put(`${API_BASE_URL}/my-itinerary/${id}`, data).then((res) => res.data)
