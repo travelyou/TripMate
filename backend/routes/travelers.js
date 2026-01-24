@@ -372,12 +372,33 @@ router.post('/:id/applications', async (req, res) => {
         
         // 只有當申請者不是貼文作者時才發送通知
         if (travelerAuthor && travelerAuthor !== author_uid) {
+          // 嘗試從 users 表獲取申請者的 nickname
+          let applicantName = author_name || '匿名用戶'
+          let applicantAvatar = author_avatar
+          
+          try {
+            const applicantResult = await pool.query(
+              `SELECT nickname, name, avatar FROM users WHERE uid = $1`,
+              [author_uid]
+            )
+            if (applicantResult.rows.length > 0) {
+              const applicant = applicantResult.rows[0]
+              // 優先使用 nickname，如果沒有則使用 name
+              applicantName = applicant.nickname || applicant.name || author_name || author_uid
+              if (applicant.avatar) {
+                applicantAvatar = applicant.avatar
+              }
+            }
+          } catch (userQueryError) {
+            console.warn('查詢申請者資訊失敗，使用提供的值：', userQueryError.message)
+          }
+          
           await createTravelerApplicationNotification({
             user_uid: travelerAuthor,
             traveler_id: id,
             applicant_uid: author_uid,
-            applicant_name: author_name || '匿名用戶',
-            applicant_avatar: author_avatar,
+            applicant_name: applicantName,
+            applicant_avatar: applicantAvatar,
             traveler_title: travelerTitle,
           })
         }

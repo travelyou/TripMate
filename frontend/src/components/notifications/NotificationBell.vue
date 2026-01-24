@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, onActivated, onDeactivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useNotificationsStore } from '@/stores/notifications'
-import { Bell as BellIcon, X as XIcon, Check as CheckIcon } from 'lucide-vue-next'
+import { Bell as BellIcon, X as XIcon } from 'lucide-vue-next'
 import { formatTime } from '@/utils/time'
 
 const router = useRouter()
@@ -13,6 +13,8 @@ const notificationsStore = useNotificationsStore()
 const isOpen = ref(false)
 const notificationRef = ref(null)
 let refreshInterval = null
+let unreadCountInterval = null
+const REFRESH_INTERVAL = 15000 // 每15秒刷新一次（可調整）
 
 // 獲取當前用戶UID
 const currentUid = computed(() => {
@@ -35,7 +37,8 @@ const readNotifications = computed(() => notificationsStore.readNotifications)
 const toggleNotifications = () => {
   isOpen.value = !isOpen.value
   if (isOpen.value && currentUid.value) {
-    notificationsStore.fetchNotifications(currentUid.value)
+    // 打開面板時立即刷新通知
+    notificationsStore.refreshNotifications(currentUid.value)
   }
 }
 
@@ -109,6 +112,24 @@ const getNotificationTypeInfo = (type) => {
   }
 }
 
+// 獲取頭像 URL（如果沒有則使用默認頭像）
+const getAvatarUrl = (notification) => {
+  if (notification.sender_avatar && notification.sender_avatar.trim() !== '') {
+    return notification.sender_avatar
+  }
+  // 如果沒有頭像，使用默認頭像（基於 sender_uid）
+  if (notification.sender_uid) {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${notification.sender_uid}`
+  }
+  // 如果連 sender_uid 都沒有，使用通知類型圖標
+  return null
+}
+
+// 獲取發送者名稱（優先使用 nickname）
+const getSenderName = (notification) => {
+  return notification.sender_name || '匿名用戶'
+}
+
 // 點擊外部關閉
 const handleClickOutside = (event) => {
   if (notificationRef.value && !notificationRef.value.contains(event.target)) {
@@ -116,40 +137,88 @@ const handleClickOutside = (event) => {
   }
 }
 
+// 清理所有定時器
+const clearAllIntervals = () => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
+  if (unreadCountInterval) {
+    clearInterval(unreadCountInterval)
+    unreadCountInterval = null
+  }
+}
+
+// 啟動自動刷新
+const startAutoRefresh = (uid) => {
+  if (!uid) return
+  
+  // 清理舊的定時器
+  clearAllIntervals()
+  
+  // 立即刷新一次
+  notificationsStore.refreshNotifications(uid)
+  
+  // 設置定時刷新（每15秒刷新完整通知，每10秒只刷新未讀數量）
+  refreshInterval = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      notificationsStore.refreshNotifications(uid)
+    }
+  }, REFRESH_INTERVAL)
+  
+  // 更頻繁地刷新未讀數量（每10秒）
+  unreadCountInterval = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      notificationsStore.fetchUnreadCount(uid)
+    }
+  }, 10000)
+}
+
 // 監聽用戶登入狀態
 watch(
   () => currentUid.value,
   (uid) => {
     if (uid) {
-      // 載入通知
-      notificationsStore.refreshNotifications(uid)
-      // 設置定時刷新（每30秒）
-      if (refreshInterval) clearInterval(refreshInterval)
-      refreshInterval = setInterval(() => {
-        notificationsStore.refreshNotifications(uid)
-      }, 30000)
+      startAutoRefresh(uid)
     } else {
-      if (refreshInterval) {
-        clearInterval(refreshInterval)
-        refreshInterval = null
-      }
+      clearAllIntervals()
     }
   },
   { immediate: true }
 )
 
-onMounted(() => {
-  if (currentUid.value) {
+// 處理頁面可見性變化
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && currentUid.value) {
+    // 頁面重新可見時立即刷新
     notificationsStore.refreshNotifications(currentUid.value)
   }
+}
+
+onMounted(() => {
+  if (currentUid.value) {
+    startAutoRefresh(currentUid.value)
+  }
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-  }
+  clearAllIntervals()
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
+
+// 當組件被激活時（使用 keep-alive 時）
+onActivated(() => {
+  if (currentUid.value) {
+    startAutoRefresh(currentUid.value)
+  }
+})
+
+// 當組件被停用時（使用 keep-alive 時）
+onDeactivated(() => {
+  clearAllIntervals()
 })
 </script>
 
@@ -223,14 +292,23 @@ onUnmounted(() => {
                   <!-- 發送者頭像 -->
                   <div class="shrink-0">
                     <img
-                      v-if="notification.sender_avatar"
-                      :src="notification.sender_avatar"
-                      class="w-10 h-10 rounded-full object-cover"
-                      alt=""
+                      v-if="getAvatarUrl(notification)"
+                      :src="getAvatarUrl(notification)"
+                      class="w-10 h-10 rounded-full object-cover border border-secondary-200"
+                      :alt="getSenderName(notification)"
+                      @error="(e) => {
+                        // 如果圖片載入失敗，使用默認頭像
+                        if (notification.sender_uid) {
+                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${notification.sender_uid}`
+                        } else {
+                          e.target.style.display = 'none'
+                          e.target.nextElementSibling.style.display = 'flex'
+                        }
+                      }"
                     />
                     <div
                       v-else
-                      class="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center"
+                      class="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center border border-secondary-200"
                     >
                       <span class="text-lg">{{ getNotificationTypeInfo(notification.type).icon }}</span>
                     </div>
@@ -272,14 +350,23 @@ onUnmounted(() => {
                   <!-- 發送者頭像 -->
                   <div class="shrink-0">
                     <img
-                      v-if="notification.sender_avatar"
-                      :src="notification.sender_avatar"
-                      class="w-10 h-10 rounded-full object-cover"
-                      alt=""
+                      v-if="getAvatarUrl(notification)"
+                      :src="getAvatarUrl(notification)"
+                      class="w-10 h-10 rounded-full object-cover border border-secondary-200"
+                      :alt="getSenderName(notification)"
+                      @error="(e) => {
+                        // 如果圖片載入失敗，使用默認頭像
+                        if (notification.sender_uid) {
+                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${notification.sender_uid}`
+                        } else {
+                          e.target.style.display = 'none'
+                          e.target.nextElementSibling.style.display = 'flex'
+                        }
+                      }"
                     />
                     <div
                       v-else
-                      class="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center"
+                      class="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center border border-secondary-200"
                     >
                       <span class="text-lg">{{ getNotificationTypeInfo(notification.type).icon }}</span>
                     </div>

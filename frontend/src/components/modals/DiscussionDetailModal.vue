@@ -264,7 +264,7 @@ const toggleCommentLike = async (item) => {
     if (typeof result?.likesCount === 'number') {
       item.likes = result.likesCount
     }
-  } catch (error) {
+  } catch {
     item.isLiked = wasLiked
     item.likes = originalLikes
     alert('留言按讚失敗，請稍後再試')
@@ -422,8 +422,8 @@ onMounted(async () => {
         <div class="absolute top-4 right-16 z-20">
           <button
             class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
-            @click.stop="showMenu = !showMenu"
             title="更多"
+            @click.stop="showMenu = !showMenu"
           >
             <MoreVertical class="w-6 h-6" />
           </button>

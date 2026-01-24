@@ -1,4 +1,5 @@
 /* eslint-env node */
+/* global require, module */
 const pool = require('../database/connection')
 
 /**
@@ -26,14 +27,93 @@ async function ensureNotificationsTable() {
 }
 
 /**
+ * 查找現有通知（用於合併）
+ * @param {Object} params - 查找參數
+ * @param {Boolean} onlyUnread - 是否只查找未讀通知（默認 false，查找所有通知）
+ * @returns {Promise<Object|null>} 現有通知或 null
+ */
+async function findExistingNotification({ user_uid, type, related_id, related_type }, onlyUnread = false) {
+  try {
+    let query = `SELECT * FROM public.notifications
+       WHERE user_uid = $1
+         AND type = $2
+         AND related_id = $3
+         AND related_type = $4`
+
+    const params = [user_uid, type, related_id, related_type]
+
+    if (onlyUnread) {
+      query += ` AND is_read = false`
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT 1`
+
+    const result = await pool.query(query, params)
+
+    return result.rows.length > 0 ? result.rows[0] : null
+  } catch (error) {
+    console.error('查找現有通知失敗：', error.message)
+    return null
+  }
+}
+
+/**
+ * 更新現有通知
+ * @param {Number} notificationId - 通知 ID
+ * @param {Object} updateData - 更新資料
+ * @returns {Promise<Object>} 更新後的通知
+ */
+async function updateNotification(notificationId, updateData) {
+  try {
+    const {
+      title,
+      content,
+      sender_uid,
+      sender_name,
+      sender_avatar,
+    } = updateData
+
+    const result = await pool.query(
+      `UPDATE public.notifications
+       SET title = $1,
+           content = COALESCE($2, content),
+           sender_uid = $3,
+           sender_name = $4,
+           sender_avatar = $5,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6
+       RETURNING *`,
+      [
+        title,
+        content || null,
+        sender_uid || null,
+        sender_name || null,
+        sender_avatar || null,
+        notificationId,
+      ],
+    )
+
+    if (result.rows.length > 0) {
+      console.log(`[通知] 成功更新通知：id=${notificationId}, title=${title}`)
+      return { success: true, data: result.rows[0] }
+    }
+    return null
+  } catch (error) {
+    console.error('更新通知失敗：', error.message)
+    return null
+  }
+}
+
+/**
  * 創建通知
  * @param {Object} notificationData - 通知資料
+ * @param {Boolean} mergeIfExists - 如果存在相同通知是否合併（默認 false）
  * @returns {Promise<Object>} 創建的通知
  */
-async function createNotification(notificationData) {
+async function createNotification(notificationData, mergeIfExists = false) {
   try {
     await ensureNotificationsTable()
-    
+
     const {
       user_uid,
       type,
@@ -52,8 +132,45 @@ async function createNotification(notificationData) {
       return null
     }
 
+    // 如果需要合併且存在相同通知，則更新現有通知
+    // 對於按讚和回覆，無論是否已讀都應該更新（onlyUnread = false）
+    if (mergeIfExists && related_id && related_type) {
+      const existingNotification = await findExistingNotification({
+        user_uid,
+        type,
+        related_id,
+        related_type,
+      }, false) // 查找所有通知，包括已讀的
+
+      if (existingNotification) {
+        // 更新現有通知（標記為未讀，因為有新活動）
+        const updateResult = await updateNotification(existingNotification.id, {
+          title,
+          content,
+          sender_uid,
+          sender_name,
+          sender_avatar,
+        })
+
+        // 如果更新成功且通知原本是已讀的，標記為未讀
+        if (updateResult?.success && existingNotification.is_read) {
+          try {
+            await pool.query(
+              `UPDATE public.notifications SET is_read = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+              [existingNotification.id]
+            )
+          } catch (error) {
+            console.error('標記通知為未讀失敗：', error.message)
+          }
+        }
+
+        return updateResult
+      }
+    }
+
+    // 創建新通知
     const result = await pool.query(
-      `INSERT INTO public.notifications 
+      `INSERT INTO public.notifications
        (user_uid, type, title, content, related_id, related_type, sender_uid, sender_name, sender_avatar, link)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
@@ -82,11 +199,12 @@ async function createNotification(notificationData) {
 }
 
 /**
- * 創建按讚通知
+ * 創建按讚通知（會合併同一篇文章的多個按讚）
  */
 async function createLikeNotification({ user_uid, post_id, board, liker_uid, liker_name, liker_avatar, post_title }) {
   const boardName = board === 'discussion' ? '討論' : board === 'traveler' ? '找旅伴' : '貼文'
-  
+
+  // 使用 mergeIfExists = true 來合併同一篇文章的多個按讚
   return await createNotification({
     user_uid,
     type: 'like',
@@ -97,30 +215,44 @@ async function createLikeNotification({ user_uid, post_id, board, liker_uid, lik
     sender_uid: liker_uid,
     sender_name: liker_name,
     sender_avatar: liker_avatar,
-    link: board === 'discussion' 
-      ? `/discussion?postId=${post_id}` 
-      : board === 'traveler' 
-      ? `/travelers?postId=${post_id}` 
+    link: board === 'discussion'
+      ? `/discussion?postId=${post_id}`
+      : board === 'traveler'
+      ? `/travelers?postId=${post_id}`
       : null,
-  })
+  }, true) // 啟用合併功能
 }
 
 /**
- * 創建回覆通知
+ * 檢查評論內容是否包含 @ 提及
+ * @param {String} content - 評論內容
+ * @returns {Boolean} 是否包含 @ 提及
  */
-async function createCommentNotification({ 
-  user_uid, 
-  post_id, 
-  board, 
-  commenter_uid, 
-  commenter_name, 
-  commenter_avatar, 
+function hasMention(content) {
+  if (!content) return false
+  // 檢查是否包含 @ 符號（簡單檢查，可以根據需要擴展）
+  return /@\w+/.test(content) || content.includes('@')
+}
+
+/**
+ * 創建回覆通知（會合併同一篇文章的多個回覆，除非有 @ 提及）
+ */
+async function createCommentNotification({
+  user_uid,
+  post_id,
+  board,
+  commenter_uid,
+  commenter_name,
+  commenter_avatar,
   comment_content,
-  post_title 
+  post_title // eslint-disable-line no-unused-vars
 }) {
   const boardName = board === 'discussion' ? '討論' : board === 'traveler' ? '找旅伴' : '貼文'
   const contentPreview = comment_content?.substring(0, 50) || '回覆了你的貼文'
-  
+
+  // 如果評論包含 @ 提及，則創建獨立通知（不合併）
+  const hasMentionInComment = hasMention(comment_content)
+
   return await createNotification({
     user_uid,
     type: 'comment',
@@ -131,22 +263,22 @@ async function createCommentNotification({
     sender_uid: commenter_uid,
     sender_name: commenter_name,
     sender_avatar: commenter_avatar,
-    link: board === 'discussion' 
-      ? `/discussion?postId=${post_id}` 
-      : board === 'traveler' 
-      ? `/travelers?postId=${post_id}` 
+    link: board === 'discussion'
+      ? `/discussion?postId=${post_id}`
+      : board === 'traveler'
+      ? `/travelers?postId=${post_id}`
       : null,
-  })
+  }, !hasMentionInComment) // 如果有 @ 提及，不合併（創建獨立通知）；否則合併
 }
 
 /**
  * 創建加好友申請通知
  */
-async function createFriendRequestNotification({ 
-  user_uid, 
-  requester_uid, 
-  requester_name, 
-  requester_avatar 
+async function createFriendRequestNotification({
+  user_uid,
+  requester_uid,
+  requester_name,
+  requester_avatar
 }) {
   return await createNotification({
     user_uid,
@@ -165,13 +297,13 @@ async function createFriendRequestNotification({
 /**
  * 創建找旅伴申請通知
  */
-async function createTravelerApplicationNotification({ 
-  user_uid, 
-  traveler_id, 
-  applicant_uid, 
-  applicant_name, 
+async function createTravelerApplicationNotification({
+  user_uid,
+  traveler_id,
+  applicant_uid,
+  applicant_name,
   applicant_avatar,
-  traveler_title 
+  traveler_title
 }) {
   return await createNotification({
     user_uid,
@@ -194,4 +326,3 @@ module.exports = {
   createFriendRequestNotification,
   createTravelerApplicationNotification,
 }
-

@@ -152,29 +152,43 @@ router.post('/posts/:postId/comments', async (req, res) => {
           
           // 只有當回覆者不是貼文作者時才發送通知
           if (postAuthor && postAuthor !== author_uid) {
-            // 確保有回覆者名稱和頭像
+            // 確保有回覆者名稱和頭像（優先使用 nickname）
             let commenterName = author_name || '匿名用戶'
             let commenterAvatar = author_avatar
             
-            // 如果沒有提供，嘗試從 users 表獲取
-            if (!author_name || !author_avatar) {
-              try {
-                const userResult = await pool.query(
-                  `SELECT nickname, name, avatar FROM users WHERE uid = $1`,
-                  [author_uid]
-                )
-                if (userResult.rows.length > 0) {
-                  const user = userResult.rows[0]
-                  if (!author_name) {
-                    commenterName = user.nickname || user.name || author_uid
-                  }
-                  if (!author_avatar) {
-                    commenterAvatar = user.avatar
-                  }
+            // 優先從 users 表獲取 nickname 和頭像
+            try {
+              const userResult = await pool.query(
+                `SELECT nickname, name, avatar FROM users WHERE uid = $1`,
+                [author_uid]
+              )
+              if (userResult.rows.length > 0) {
+                const user = userResult.rows[0]
+                // 優先使用 users 表中的 nickname，如果沒有則使用 name，最後使用 author_name
+                commenterName = user.nickname || user.name || author_name || '匿名用戶'
+                // 如果有頭像則使用，否則保持原值
+                if (user.avatar) {
+                  commenterAvatar = user.avatar
                 }
-              } catch (userQueryError) {
-                console.warn('查詢回覆者資訊失敗，使用提供的值：', userQueryError.message)
+              } else {
+                // 如果 users 表中沒有，但 author_name 存在，使用 author_name
+                // 但避免使用 uid 作為名稱
+                if (!author_name || author_name === author_uid) {
+                  commenterName = '匿名用戶'
+                }
               }
+            } catch (userQueryError) {
+              console.warn('查詢回覆者資訊失敗，使用提供的值：', userQueryError.message)
+              // 如果查詢失敗且 author_name 是 uid，使用匿名用戶
+              if (!author_name || author_name === author_uid) {
+                commenterName = '匿名用戶'
+              }
+            }
+            
+            // 確保不會使用 uid 作為名稱
+            if (commenterName === author_uid) {
+              commenterName = '匿名用戶'
+              console.warn(`[通知] 回覆者 ${author_uid} 沒有找到 nickname 或 name，使用匿名用戶`)
             }
             
             await createCommentNotification({

@@ -343,10 +343,12 @@ router.post('/:uid/friends', async (req, res) => {
       
       if (requesterResult.rows.length > 0) {
         const requester = requesterResult.rows[0]
+        // 優先使用 nickname，如果沒有則使用 name，最後使用 uid
+        const requesterName = requester.nickname || requester.name || requester.uid
         await createFriendRequestNotification({
           user_uid: friend_uid,
           requester_uid: uid,
-          requester_name: requester.nickname || requester.uid,
+          requester_name: requesterName,
           requester_avatar: requester.avatar,
         })
       }
