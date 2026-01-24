@@ -280,6 +280,7 @@ watch(
 onBeforeUnmount(() => {
   editor.value?.destroy()
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  cleanupImagePreviews() // 確保組件卸載時清理圖片預覽
 })
 
 const categories = [
@@ -579,8 +580,9 @@ const handleSaveDraft = async () => {
     data: JSON.parse(
       JSON.stringify({
         ...postData.value,
-        imagePreviews: imagePreviews.value,
-        uploadedImageUrls: uploadedImageUrls.value,
+        // ✅ 不保存 imagePreviews (data URL)，只保存已上傳的 URL
+        imagePreviews: [], // 清空，避免保存 data URL
+        uploadedImageUrls: uploadedImageUrls.value, // 只保存已上傳的 Firebase URL
       }),
     ),
   }
@@ -606,12 +608,20 @@ const hasContent = computed(() => {
   )
 })
 
+// 清理圖片預覽資源
+const cleanupImagePreviews = () => {
+  imagePreviews.value = []
+  imageFiles.value = []
+  uploadedImageUrls.value = []
+}
+
 const handleClose = async () => {
   if (isSubmitting.value || sessionStorage.getItem('is_submitting_discussion_post')) {
     const shouldClose = await showConfirm('貼文正在提交中，確定要關閉嗎？')
     if (shouldClose) {
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
+      cleanupImagePreviews() // 清理圖片預覽
       emit('close')
     }
     return
@@ -624,18 +634,26 @@ const handleClose = async () => {
     if (shouldSave) {
       if (postData.value.title.trim()) {
         await handleSaveDraft()
+        cleanupImagePreviews() // 清理圖片預覽
         return
       } else {
         await showAlert('請至少輸入標題才能儲存草稿')
         const stillClose = await showConfirm('是否仍要關閉？')
-        if (stillClose) emit('close')
+        if (stillClose) {
+          cleanupImagePreviews() // 清理圖片預覽
+          emit('close')
+        }
         return
       }
     } else {
       const confirmClose = await showConfirm('確定要關閉嗎？未儲存的內容將會遺失。')
-      if (confirmClose) emit('close')
+      if (confirmClose) {
+        cleanupImagePreviews() // 清理圖片預覽
+        emit('close')
+      }
     }
   } else {
+    cleanupImagePreviews() // 清理圖片預覽
     emit('close')
   }
 }
@@ -697,7 +715,12 @@ const executeSubmit = async () => {
       } else {
         await showSuccess(props.postToEdit ? '更新成功！' : '發文成功！')
       }
-      window.location.reload()
+      
+      // 清理圖片預覽
+      cleanupImagePreviews()
+      
+      // 使用 emit 通知父組件，讓父組件處理重新載入
+      emit('success')
     }
   } catch (error) {
     console.error('發文失敗:', error)

@@ -843,16 +843,18 @@ const handleClose = () => {
 
 ### (3) 改了哪些檔案
 - `frontend/src/components/modals/PostingChoiceModal.vue`
+- `frontend/src/components/modals/DiscussionPostModal.vue`
 
 ### (4) 修正前後對比
 
 | 情況 | 修正前 | 修正後 |
 |------|--------|--------|
-| **關閉 Modal** | 只 emit close，不清理 blob URL | 先清理 blob URL，再 emit close |
-| **提交發文** | blob URL 未清理 | 立即清理所有 blob URL |
-| **儲存草稿** | blob URL 未清理 | 立即清理所有 blob URL |
-| **切換頁面** | 出現 ERR_FILE_NOT_FOUND 錯誤 | 不會出現錯誤 |
-| **組件卸載** | 在 onUnmounted 時清理 | 在關閉時立即清理 + onUnmounted 備份清理 |
+| **關閉 Modal** | ❌ 只 emit close | ✅ 先清理圖片預覽，再 emit close |
+| **提交發文** | ❌ 圖片預覽未清理，使用 `window.location.reload()` | ✅ 清理圖片預覽，使用 `emit('success')` |
+| **儲存草稿** | ❌ 圖片預覽未清理 | ✅ 立即清理所有圖片預覽 |
+| **切換頁面** | ❌ 出現 ERR_FILE_NOT_FOUND | ✅ 不會出現錯誤 |
+| **組件卸載** | ❌ 只在 onUnmounted 清理（可能延遲）| ✅ 關閉時立即清理 + onUnmounted 備份 |
+| **發文成功** | ❌ 使用 `window.location.reload()` | ✅ 使用 `emit('success')` 通知父組件 |
 
 ### (5) 清理時機
 
@@ -872,7 +874,7 @@ onUnmounted() → cleanupPreviews()
 ### (6) 錯誤預防機制
 
 ```javascript
-// 安全的清理函數
+// PostingChoiceModal - 清理 blob URL
 const cleanupPreviews = () => {
   imagePreviews.value.forEach((url) => {
     // ✅ 檢查 URL 是否有效且是 blob URL
@@ -884,7 +886,123 @@ const cleanupPreviews = () => {
   imagePreviews.value = []
   imageFiles.value = []
 }
+
+// DiscussionPostModal - 清理圖片預覽（data URL 和 Firebase URL）
+const cleanupImagePreviews = () => {
+  imagePreviews.value = []
+  imageFiles.value = []
+  uploadedImageUrls.value = []
+}
 ```
+
+### (7) DiscussionPostModal 的問題和修正
+
+**問題**：
+1. 使用 `readAsDataURL` 創建 base64 data URL 預覽
+2. 這些 data URL 很大，可能佔用大量記憶體
+3. 發文成功後使用 `window.location.reload()`，但沒有清理這些 URL
+4. 關閉 Modal 時也沒有清理
+
+**修正**：
+1. 創建 `cleanupImagePreviews` 函數清理所有圖片預覽資料
+2. 在 `handleClose` 的所有分支都調用清理函數
+3. 在 `onBeforeUnmount` 時確保清理
+4. 發文成功後先清理再 `emit('success')`，改為由父組件處理頁面更新
+5. 移除 `window.location.reload()`，改用 `emit('success')` 通知父組件
+
+### (8) 討論區草稿保存 - 防止保存 data URL
+
+**問題**：
+1. 草稿保存時會將 `imagePreviews` (data URL) 一起保存
+2. data URL 是臨時性的 base64 字串，不應該被持久化
+3. 載入草稿時會嘗試顯示這些無效的 data URL
+
+**修正 - DiscussionPostModal.vue**：
+
+```javascript
+const draftData = {
+  id: Date.now(),
+  type: 'discussion',
+  typeLabel: '討論區',
+  title: postData.value.title,
+  content: postData.value.content || '無內容',
+  saveTime: new Date().toISOString(),
+  data: JSON.parse(
+    JSON.stringify({
+      ...postData.value,
+      // ✅ 不保存 imagePreviews (data URL)，只保存已上傳的 URL
+      imagePreviews: [], // 清空，避免保存 data URL
+      uploadedImageUrls: uploadedImageUrls.value, // 只保存已上傳的 Firebase URL
+    }),
+  ),
+}
+```
+
+### (9) 討論區卡片顯示 - 過濾無效圖片 URL
+
+**問題**：
+1. 如果資料中包含 blob URL 或 data URL，會導致圖片載入失敗
+2. 瀏覽器嘗試載入已失效的 blob URL，產生 `ERR_FILE_NOT_FOUND` 錯誤
+
+**修正 - DiscussionCard.vue**：
+
+```javascript
+// 檢查 URL 是否有效（過濾掉 blob URL 和 data URL）
+const isValidImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return false
+  // 過濾掉 blob URL 和 data URL
+  if (url.startsWith('blob:') || url.startsWith('data:')) return false
+  return true
+}
+
+// 過濾掉無效的圖片 URL
+const validBanner = computed(() => {
+  return isValidImageUrl(props.post.banner) ? props.post.banner : null
+})
+
+const validImageUrls = computed(() => {
+  if (!Array.isArray(props.post.image_urls)) return []
+  return props.post.image_urls.filter(url => isValidImageUrl(url))
+})
+```
+
+在模板中使用過濾後的 URL：
+
+```vue
+<!-- 只顯示有效的 banner -->
+<div v-if="validBanner" class="...">
+  <img :src="validBanner" alt="討論封面" />
+</div>
+
+<!-- 只顯示有效的圖片 URL -->
+<div v-if="validImageUrls.length > 0" class="...">
+  <div v-for="(url, idx) in validImageUrls.slice(0, 4)" :key="idx">
+    <img :src="url" :alt="`圖片 ${idx + 1}`" />
+  </div>
+</div>
+```
+
+**效果**：
+- ✅ blob URL 和 data URL 不會被渲染
+- ✅ 不會產生 `ERR_FILE_NOT_FOUND` 錯誤
+- ✅ 只顯示有效的 Firebase Storage URL 或其他合法 URL
+
+---
+
+## 清理舊數據（如果出現 blob URL 錯誤）
+
+如果部署後仍出現 `blob:https://... net::ERR_FILE_NOT_FOUND` 錯誤，這是因為**瀏覽器緩存中存有舊的 blob/data URL**。
+
+### 解決方法：清除瀏覽器數據
+
+開啟開發者工具 (F12) → Console，執行：
+```javascript
+localStorage.clear()
+sessionStorage.clear()
+location.reload()
+```
+
+或使用：Application → Storage → **Clear site data**
 
 ---
 
@@ -896,4 +1014,7 @@ const cleanupPreviews = () => {
 - 已清理所有非必要的除錯代碼，只保留錯誤處理相關的 console
 - 通知跳轉失敗時會給予明確的用戶提示，提升使用體驗
 - blob URL 現在會在 Modal 關閉時立即清理，避免切換頁面時出現錯誤
+- 草稿保存現在只保存已上傳的 Firebase URL，不保存臨時的 data URL
+- 討論區卡片會自動過濾掉無效的 blob URL 和 data URL，只顯示有效圖片
+- **如果出現 blob URL 錯誤，請清除瀏覽器 localStorage 即可解決**
 
