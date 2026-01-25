@@ -20,7 +20,7 @@ import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
 import { deletePost } from '@/api/discussions'
 import DOMPurify from 'dompurify'
-import ShareModal from './ShareModal.vue' // [新增]
+import ShareModal from './ShareModal.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -50,7 +50,7 @@ const localComments = ref([])
 const replyTarget = ref(null)
 const localPostData = ref({ ...props.post })
 const showMenu = ref(false)
-const showShareModal = ref(false) // [新增]
+const showShareModal = ref(false)
 
 const isAuthor = computed(() => {
   const authorUid = localPostData.value?.author_uid || localPostData.value?.authorUid

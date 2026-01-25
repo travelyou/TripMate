@@ -16,7 +16,7 @@ import {
   Building as BuildingIcon,
   FileText as FileTextIcon,
   MoreVertical,
-  Share as ShareIcon, // [新增]
+  Share as ShareIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { checkoutStore } from '@/stores/checkout'
@@ -27,7 +27,7 @@ import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/lik
 import { updateCartItemPersons } from '@/api/cart'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
-import ShareModal from './ShareModal.vue' // [新增]
+import ShareModal from './ShareModal.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -56,7 +56,7 @@ const isAddingToCart = ref(false)
 
 const contentContainerRef = ref(null)
 const showMenu = ref(false)
-const showShareModal = ref(false) // [新增]
+const showShareModal = ref(false)
 
 const isAuthor = computed(() => {
   const authorUid = localItineraryData.value?.author_uid || localItineraryData.value?.authorUid

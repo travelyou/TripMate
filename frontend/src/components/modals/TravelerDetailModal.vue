@@ -36,7 +36,7 @@ import {
 } from '@/api/travelers'
 import { deleteTraveler } from '@/api/travelers'
 import { formatTime } from '@/utils/time'
-import ShareModal from './ShareModal.vue' // [新增]
+import ShareModal from './ShareModal.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -71,7 +71,7 @@ const isSubmittingApplication = ref(false)
 const applicationError = ref('')
 const myApplication = ref(null)
 const showMenu = ref(false)
-const showShareModal = ref(false) // [新增]
+const showShareModal = ref(false)
 
 // 建立一個本地變數來存「完整資料」
 const localTravelerData = ref({ ...props.traveler })
