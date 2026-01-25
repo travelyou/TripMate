@@ -59,7 +59,6 @@ const isAuthor = computed(() => {
 
 const normalizedComments = computed(() => {
   if (Array.isArray(localComments.value) && localComments.value.length > 0)
-
     return localComments.value
   if (Array.isArray(localPostData.value.commentsData)) return localPostData.value.commentsData
   if (Array.isArray(localPostData.value.comments)) return localPostData.value.comments
@@ -194,7 +193,6 @@ const handleLikesUpdated = (event) => {
   isLiked.value = detail.liked
   likesCount.value = detail.likesCount
 }
-
 
 const loadFullPostDetails = async () => {
   if (!props.post?.id) return
@@ -340,27 +338,19 @@ onMounted(async () => {
   if (!hasCommentsData && props.post.id) {
     await loadFullPostDetails()
   } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
-    localComments.value = props.post.commentsData.map(((comment)) => {
+    localComments.value = props.post.commentsData.map((comment) => {
       return {
         id: comment.id,
         author:
-
           comment.author_nickname ||
-
           comment.author_name ||
-
           comment.author ||
-
           comment.author_uid ||
-
           '匿名用戶',
         author_uid: comment.author_uid,
         avatar:
-
           comment.author_avatar ||
-
           comment.avatar ||
-
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
         content: comment.content,
         time: comment.created_at || comment.timestamp || comment.time,
