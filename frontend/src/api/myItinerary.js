@@ -1,17 +1,33 @@
 import axios from 'axios'
-import { API_BASE_URL } from './config'
+import { API_BASE_URL } from '@/api/config'
 
-export const getPersonalItineraries = (uid) =>
-  axios.get(`${API_BASE_URL}/my-itinerary/personal/${uid}`).then((res) => res.data)
+// [GET] 取得個人規劃行程
+// [修正] 改名為 getPersonalItineraries 以符合 Store 的 import
+export const getPersonalItineraries = async (uid) => {
+  const response = await axios.get(`${API_BASE_URL}/my-itinerary/personal/${uid}`)
+  return response.data
+}
 
-export const getJoinedItineraries = (uid) =>
-  axios.get(`${API_BASE_URL}/my-itinerary/joined/${uid}`).then((res) => res.data)
+// [GET] 取得已參加並通過的找旅伴行程
+export const getJoinedItineraries = async (uid) => {
+  const response = await axios.get(`${API_BASE_URL}/my-itinerary/joined/${uid}`)
+  return response.data
+}
 
-export const createMyItinerary = (data) =>
-  axios.post(`${API_BASE_URL}/my-itinerary`, data).then((res) => res.data)
+// [POST] 新增個人行程
+export const createMyItinerary = async (data) => {
+  const response = await axios.post(`${API_BASE_URL}/my-itinerary`, data)
+  return response.data
+}
 
-export const deleteMyItinerary = (id) =>
-  axios.delete(`${API_BASE_URL}/my-itinerary/${id}`).then((res) => res.data)
+// [PUT] 更新個人行程
+export const updateMyItinerary = async (id, data) => {
+  const response = await axios.put(`${API_BASE_URL}/my-itinerary/${id}`, data)
+  return response.data
+}
 
-export const updateMyItinerary = (id, data) =>
-  axios.put(`${API_BASE_URL}/my-itinerary/${id}`, data).then((res) => res.data)
+// [DELETE] 刪除個人行程
+export const deleteMyItinerary = async (id) => {
+  const response = await axios.delete(`${API_BASE_URL}/my-itinerary/${id}`)
+  return response.data
+}
