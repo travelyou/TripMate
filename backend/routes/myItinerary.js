@@ -2,75 +2,19 @@ const express = require('express')
 const router = express.Router()
 const db = require('../database/connection')
 
-// [POST] 新增個人行程 (使用 Transaction 確保資料完整性)
-router.post('/', async (req, res) => {
-  const { user_uid, title, location, start_date, end_date, itinerary, packing_list } = req.body
-
-  if (!user_uid) {
-    return res.status(400).json({ success: false, message: '儲存失敗：缺失使用者 UID' })
-  }
-
-  const client = await db.connect() // 取得專用連線
-
-  try {
-    await client.query('BEGIN') // 開始交易
-    await client.query('SET search_path TO my_itineraries, public') // 設定 Schema
-
-    // 1. 插入主表
-    const mainResult = await client.query(
-      `INSERT INTO itineraries (user_uid, title, location, start_date, end_date)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [user_uid, title, location, start_date, end_date],
-    )
-    const newId = mainResult.rows[0].id
-
-    // 2. 插入每日行程點
-    if (itinerary && itinerary.length > 0) {
-      for (const day of itinerary) {
-        await client.query(
-          `INSERT INTO days (itinerary_id, day_number, date, activities)
-           VALUES ($1, $2, $3, $4)`,
-          [newId, day.day, day.date, JSON.stringify(day.activities)],
-        )
-      }
-    }
-
-    // 3. 插入打包清單
-    if (packing_list && packing_list.length > 0) {
-      for (const cat of packing_list) {
-        await client.query(
-          `INSERT INTO packing_lists (itinerary_id, category, items)
-           VALUES ($1, $2, $3)`,
-          [newId, cat.category, JSON.stringify(cat.items)],
-        )
-      }
-    }
-
-    await client.query('COMMIT') // 提交交易
-    res.json({ success: true, data: { id: newId, title } })
-  } catch (err) {
-    await client.query('ROLLBACK') // 發生錯誤則回滾
-    console.error('Create itinerary error:', err) // 後端記錄詳細錯誤
-    res.status(500).json({ success: false, message: '新增行程失敗' }) // 回傳通用訊息
-  } finally {
-    client.release() // 釋放連線
-  }
-})
-
-// [GET] 取得個人規劃行程列表
+// [GET] 取得個人規劃行程
 router.get('/personal/:uid', async (req, res) => {
   const { uid } = req.params
   try {
+    // [驗證] 根據 JSON，這張表在 public 下，名稱正確
     const result = await db.query(
-      `SELECT * FROM my_itineraries.itineraries
-       WHERE user_uid = $1
-       ORDER BY created_at DESC`,
+      'SELECT * FROM public.my_itineraries WHERE user_uid = $1 ORDER BY created_at DESC',
       [uid],
     )
     res.json({ success: true, data: result.rows })
   } catch (err) {
-    console.error('取得行程列表失敗:', err)
-    res.status(500).json({ success: false, message: '資料庫查詢失敗' })
+    console.error('❌ Personal Error:', err)
+    res.status(500).json({ success: false, message: '讀取個人行程失敗', error: err.message })
   }
 })
 
@@ -78,17 +22,72 @@ router.get('/personal/:uid', async (req, res) => {
 router.get('/joined/:uid', async (req, res) => {
   const { uid } = req.params
   try {
+    // [驗證] 根據您的 JSON 與截圖：
+    // 1. 貼文表在 travelers schema 下，叫做 travelers
+    // 2. 申請表在 travelers schema 下，叫做 traveler_applications (不是 applications!)
     const query = `
-      SELECT t.* FROM public.travelers t
-      JOIN public.applications a ON t.id = a.traveler_id
-      WHERE a.applicant_uid = $1 AND a.status = 'accepted'
+      SELECT t.* FROM travelers.travelers t
+      JOIN travelers.traveler_applications a ON t.id = a.traveler_id
+      WHERE a.author_uid = $1 AND a.status = 'accepted'
       ORDER BY t.start_date ASC;
     `
     const result = await db.query(query, [uid])
     res.json({ success: true, data: result.rows })
   } catch (err) {
-    console.error('Get joined itineraries error:', err) // 後端記錄詳細錯誤
-    res.status(500).json({ success: false, message: '資料庫查詢失敗' })
+    console.error('❌ Joined Error:', err)
+    res.status(500).json({ success: false, message: '讀取參加行程失敗', error: err.message })
+  }
+})
+
+// [POST] 新增個人行程
+router.post('/', async (req, res) => {
+  const { user_uid, title, location, start_date, end_date, itinerary, packing_list } = req.body
+  try {
+    const result = await db.query(
+      `INSERT INTO public.my_itineraries (user_uid, title, location, start_date, end_date, itinerary, packing_list)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        user_uid,
+        title,
+        location,
+        start_date,
+        end_date,
+        JSON.stringify(itinerary),
+        JSON.stringify(packing_list),
+      ],
+    )
+    res.json({ success: true, data: result.rows[0] })
+  } catch (err) {
+    console.error('❌ Create Error:', err)
+    res.status(500).json({ success: false, message: '新增失敗', error: err.message })
+  }
+})
+
+// [PUT] 更新個人行程
+router.put('/:id', async (req, res) => {
+  const { id } = req.params
+  const { title, location, start_date, end_date, itinerary, packing_list } = req.body
+  try {
+    const result = await db.query(
+      `UPDATE public.my_itineraries
+       SET title = $1, location = $2, start_date = $3, end_date = $4, itinerary = $5, packing_list = $6
+       WHERE id = $7 RETURNING *`,
+      [
+        title,
+        location,
+        start_date,
+        end_date,
+        JSON.stringify(itinerary),
+        JSON.stringify(packing_list),
+        id,
+      ],
+    )
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: '找不到該行程' })
+    res.json({ success: true, data: result.rows[0] })
+  } catch (err) {
+    console.error('❌ Update Error:', err)
+    res.status(500).json({ success: false, message: '更新失敗', error: err.message })
   }
 })
 
@@ -96,11 +95,15 @@ router.get('/joined/:uid', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params
   try {
-    await db.query('DELETE FROM my_itineraries.itineraries WHERE id = $1', [id])
+    const result = await db.query('DELETE FROM public.my_itineraries WHERE id = $1 RETURNING id', [
+      id,
+    ])
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: '找不到該行程' })
     res.json({ success: true, message: '行程已刪除' })
   } catch (err) {
-    console.error('Delete error:', err)
-    res.status(500).json({ success: false, message: '資料庫刪除失敗' })
+    console.error('❌ Delete Error:', err)
+    res.status(500).json({ success: false, message: '刪除失敗', error: err.message })
   }
 })
 
