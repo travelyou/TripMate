@@ -26,6 +26,7 @@ const allowedOrigins = [
   'https://tripmate.zeabur.app',
   'https://tripmate-backend.zeabur.app',
   'https://tripmate-mayoyo.com',
+  'https://tripmate.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
