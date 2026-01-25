@@ -228,12 +228,29 @@ router.get('/user/:uid', async (req, res) => {
     } else if (board === 'itinerary') {
       query = `
         SELECT
-          i.*,
+          i.id,
+          i.title,
+          i.content,
+          i.banner_image AS cover_image,
+          i.price,
+          i.category,
+          i.location,
+          i.destinations,
+          i.start_date,
+          i.end_date,
+          i.duration_days,
+          i.agency_name,
+          i.author_uid,
+          i.vendor_id,
           'itinerary' as type,
+          u.nickname,
+          u.avatar,
+          u.spirit_animal,
           l.created_at as liked_at,
           (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count
         FROM public.likes l
         JOIN itinerary.itineraries i ON l.post_id = i.id
+        LEFT JOIN users u ON i.author_uid = u.uid
         WHERE l.author_uid = $1 AND l.board = 'itinerary'
         ORDER BY l.created_at DESC
       `
@@ -273,14 +290,14 @@ router.get('/user/:uid', async (req, res) => {
       }
 
       if (row.type === 'itinerary') {
-        baseData.coverImage = row.banner_image || row.cover_image || row.coverImage || null
+        baseData.coverImage = row.cover_image || null
         baseData.price = row.price ?? null
         baseData.category = row.category || null
         baseData.destinations = row.location ? [row.location] : row.destinations || []
         baseData.start_date = row.start_date || null
         baseData.end_date = row.end_date || null
-        baseData.durationDays = row.duration_days || row.durationDays || null
-        baseData.agencyName = row.agency_name || row.agencyName || null
+        baseData.durationDays = row.duration_days || null
+        baseData.agencyName = row.agency_name || null
         baseData.author_uid = row.author_uid || null
         baseData.vendor_id = row.vendor_id || null
       }

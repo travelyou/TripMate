@@ -46,15 +46,6 @@ const handleLikesUpdated = (event) => {
   const key = detail.key || ''
   const [board, postId] = key.split(':')
 
-  items.forEach((item) => {
-    if (!item?.id || !item?.type) return
-    const idMatch = String(item.id) === String(postId)
-    const typeMatch = item.type === board
-    if (!idMatch || !typeMatch) return
-    item.likes = detail.likesCount
-    item.isLiked = detail.liked
-  })
-
   if (currentUserUid.value) {
     items.forEach((item) => {
       if (!item?.id || !item?.type) return
