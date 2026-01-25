@@ -1,5 +1,5 @@
-﻿<script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+<script setup>
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -15,12 +15,12 @@ import { useRouter } from 'vue-router'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { createComment, toggleCommentLike as toggleCommentLikeApi } from '@/api/comments'
-import { toggleLike, getLikesInfo } from '@/api/likes'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
 import { deletePost } from '@/api/discussions'
 import DOMPurify from 'dompurify'
-import ShareModal from './ShareModal.vue' // [新增]
+import ShareModal from './ShareModal.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -50,7 +50,7 @@ const localComments = ref([])
 const replyTarget = ref(null)
 const localPostData = ref({ ...props.post })
 const showMenu = ref(false)
-const showShareModal = ref(false) // [新增]
+const showShareModal = ref(false)
 
 const isAuthor = computed(() => {
   const authorUid = localPostData.value?.author_uid || localPostData.value?.authorUid
@@ -189,6 +189,15 @@ const loadLikesInfo = async () => {
   }
 }
 
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.post.id, currentUserUid.value, 'discussion')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
+}
+
 const loadFullPostDetails = async () => {
   if (!props.post?.id) return
 
@@ -218,7 +227,10 @@ const handleLike = async () => {
     return
   }
   try {
-    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
+    const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -297,6 +309,10 @@ onAuthStateChanged(auth, async (user) => {
 
   if (props.post?.id && previousUid !== currentUserUid.value) {
     if (currentUserUid.value) {
+      seedLikeState(props.post.id, currentUserUid.value, 'discussion', {
+        liked: !!props.post?.isLiked,
+        likesCount: Number(likesCount.value ?? 0),
+      })
       await loadLikesInfo()
     } else {
       isLiked.value = false
@@ -314,6 +330,12 @@ onMounted(async () => {
   likesCount.value = Number(props.post.likes_count ?? props.post.likes ?? 0)
   const initialIsLiked = typeof props.post.isLiked === 'boolean' ? props.post.isLiked : false
   isLiked.value = initialIsLiked
+  if (currentUserUid.value) {
+    seedLikeState(props.post.id, currentUserUid.value, 'discussion', {
+      liked: initialIsLiked,
+      likesCount: Number(likesCount.value ?? 0),
+    })
+  }
 
   const hasCommentsData =
     Array.isArray(props.post.commentsData) && props.post.commentsData.length > 0
@@ -349,7 +371,8 @@ onMounted(async () => {
     await loadLikesInfo()
   }
 
-  // 確保數據載入完成後再滾動到留言區
+  window.addEventListener('likes-updated', handleLikesUpdated)
+
   if (props.scrollToComments) {
     await nextTick()
     // 使用較長的延遲確保 Modal 動畫完成和 DOM 完全渲染
@@ -363,6 +386,10 @@ onMounted(async () => {
       }
     }, 500)
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
 </script>
 

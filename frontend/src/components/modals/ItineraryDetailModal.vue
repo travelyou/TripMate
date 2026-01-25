@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   X as XIcon,
   Heart as HeartIcon,
@@ -16,18 +16,18 @@ import {
   Building as BuildingIcon,
   FileText as FileTextIcon,
   MoreVertical,
-  Share as ShareIcon, // [新增]
+  Share as ShareIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { checkoutStore } from '@/stores/checkout'
 import { useRouter } from 'vue-router'
 import { showAlert, showConfirm, showError } from '@/utils/alert'
 import { getItineraryById } from '@/api/itinerary'
-import { toggleLike, getLikesInfo } from '@/api/likes'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import { updateCartItemPersons } from '@/api/cart'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
-import ShareModal from './ShareModal.vue' // [新增]
+import ShareModal from './ShareModal.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -56,7 +56,7 @@ const isAddingToCart = ref(false)
 
 const contentContainerRef = ref(null)
 const showMenu = ref(false)
-const showShareModal = ref(false) // [新增]
+const showShareModal = ref(false)
 
 const isAuthor = computed(() => {
   const authorUid = localItineraryData.value?.author_uid || localItineraryData.value?.authorUid
@@ -137,13 +137,25 @@ const loadLikesInfo = async () => {
   }
 }
 
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.itinerary.id, currentUserUid.value, 'itinerary')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
+}
+
 const handleLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
     return
   }
   try {
-    const result = await toggleLike(props.itinerary.id, currentUserUid.value, 'itinerary')
+    const result = await toggleLike(props.itinerary.id, currentUserUid.value, 'itinerary', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -302,20 +314,34 @@ const handleAddToCart = async () => {
 
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
-  if (currentUserUid.value) await loadLikesInfo()
-  else isLiked.value = false
+  if (currentUserUid.value) {
+    seedLikeState(props.itinerary.id, currentUserUid.value, 'itinerary', {
+      liked: !!props.itinerary.isLiked,
+      likesCount: Number(props.itinerary.likes ?? 0),
+    })
+    await loadLikesInfo()
+  } else isLiked.value = false
 })
 
 onMounted(async () => {
   const user = auth.currentUser
   if (user) {
     currentUserUid.value = user.uid
+    seedLikeState(props.itinerary.id, currentUserUid.value, 'itinerary', {
+      liked: !!props.itinerary.isLiked,
+      likesCount: Number(props.itinerary.likes ?? 0),
+    })
     await loadLikesInfo()
   }
   await fetchFullItineraryDetails()
   if (props.scrollToComments) {
     jumpToComments()
   }
+  window.addEventListener('likes-updated', handleLikesUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
 </script>
 

@@ -1,7 +1,9 @@
-﻿<script setup>
-import { ref, computed } from 'vue'
+<script setup>
+import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useUserStore } from '@/stores/user' // 1. 引入 Store
 import { Heart, MessageCircle, Users, Map } from 'lucide-vue-next'
+import { buildLikeKey, flushPendingLikesNow } from '@/api/likes'
+import { onBeforeRouteUpdate } from 'vue-router'
 
 // 引入你的卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
@@ -11,8 +13,11 @@ import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 // 2. 初始化 Store
 const userStore = useUserStore()
 
+const currentUserUid = computed(() => userStore.currentUser?.uid || userStore.currentUser?.id)
+
 // --- 篩選邏輯 ---
 const activeTab = ref('all')
+const isLoadingFavorites = ref(true)
 
 const tabs = [
   { id: 'all', label: '全部內容', icon: Heart },
@@ -32,6 +37,64 @@ const filteredItems = computed(() => {
 const handleCardClick = (item) => {
   console.log('點擊了卡片:', item.title)
 }
+
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail) return
+
+  const items = userStore.favorites || []
+  const key = detail.key || ''
+  const [board, postId] = key.split(':')
+
+  if (currentUserUid.value) {
+    items.forEach((item) => {
+      if (!item?.id || !item?.type) return
+      const userKey = buildLikeKey(item.id, currentUserUid.value, item.type)
+      if (detail.key !== userKey) return
+      item.likes = detail.likesCount
+      item.isLiked = detail.liked
+    })
+
+    if (detail.key && detail.key.includes(`:${currentUserUid.value}`) && detail.liked === false) {
+      const removeIndex = items.findIndex(
+        (item) =>
+          item?.id && item?.type && String(item.id) === String(postId) && item.type === board,
+      )
+      if (removeIndex > -1) items.splice(removeIndex, 1)
+    }
+  }
+}
+
+const refreshFavorites = async () => {
+  isLoadingFavorites.value = true
+  try {
+    flushPendingLikesNow({ keepalive: true })
+    if (currentUserUid.value) {
+      await userStore.loadUserProfile(currentUserUid.value)
+      await userStore.fetchFavorites()
+    }
+  } finally {
+    isLoadingFavorites.value = false
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('likes-updated', handleLikesUpdated)
+  await refreshFavorites()
+})
+
+onActivated(async () => {
+  await refreshFavorites()
+})
+
+onBeforeRouteUpdate(async (to, from, next) => {
+  await refreshFavorites()
+  next()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('likes-updated', handleLikesUpdated)
+})
 </script>
 
 <template>
@@ -70,13 +133,13 @@ const handleCardClick = (item) => {
       <button
         v-for="tab in tabs"
         :key="tab.id"
-        @click="activeTab = tab.id"
         class="flex-1 min-w-24 py-3 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2"
         :class="
           activeTab === tab.id
             ? 'bg-primary-50 text-primary-600 shadow-sm ring-2 ring-primary-100'
             : 'text-secondary-500 hover:bg-secondary-50 hover:text-secondary-700'
         "
+        @click="activeTab = tab.id"
       >
         <component :is="tab.icon" class="w-4 h-4" :class="{ 'fill-current': tab.id === 'all' }" />
         {{ tab.label }}
@@ -85,7 +148,15 @@ const handleCardClick = (item) => {
 
     <div class="space-y-6 min-h-[400px]">
       <div
-        v-if="filteredItems.length === 0"
+        v-if="isLoadingFavorites"
+        class="text-center py-20 text-secondary-400 bg-white/90 rounded-3xl border-2 border-dashed border-secondary-200"
+      >
+        <p class="font-bold text-lg">載入中...</p>
+        <p class="text-sm">正在同步你的收藏資料</p>
+      </div>
+
+      <div
+        v-else-if="filteredItems.length === 0"
         class="text-center py-20 text-secondary-400 bg-white/90 rounded-3xl border-2 border-dashed border-secondary-200"
       >
         <Heart class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
@@ -93,7 +164,7 @@ const handleCardClick = (item) => {
         <p class="text-sm">快去探索並點擊愛心收藏吧！</p>
       </div>
 
-      <TransitionGroup name="list">
+      <TransitionGroup v-else name="list">
         <div v-for="item in filteredItems" :key="item.id">
           <TravelerCard
             v-if="item.type === 'traveler'"

@@ -50,10 +50,17 @@ router.post('/', async (req, res) => {
       `
       const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
       postExists = postCheckResult.rows.length > 0
+    } else if (board === 'itinerary') {
+      const postCheckQuery = `
+        SELECT id FROM itinerary.itineraries
+        WHERE id = $1
+      `
+      const postCheckResult = await pool.query(postCheckQuery, [postIdNum])
+      postExists = postCheckResult.rows.length > 0
     } else {
       return res.status(400).json({
         error: '不支援的 board 類型',
-        details: `board 必須是 'discussion' 或 'traveler'`,
+        details: `board 必須是 'discussion'、'traveler' 或 'itinerary'`,
       })
     }
 
@@ -236,11 +243,15 @@ router.get('/user/:uid', async (req, res) => {
         SELECT
           d.*,
           'discussion' as type,
+          u.nickname as nickname,
+          u.avatar as avatar,
+          u.spirit_animal as spirit_animal,
           l.created_at as liked_at,
           (SELECT COUNT(*) FROM public.likes WHERE post_id = d.id AND board = 'discussion') as likes_count,
           (SELECT COUNT(*) FROM public.comments WHERE post_id = d.id AND post_type = 'discussion') as comments_count
         FROM public.likes l
         JOIN discussion.discussion d ON l.post_id = d.id
+        LEFT JOIN users u ON d.author_uid = u.uid
         WHERE l.author_uid = $1 AND l.board = 'discussion' AND d.deleted_at IS NULL
         ORDER BY l.created_at DESC
       `
@@ -249,12 +260,45 @@ router.get('/user/:uid', async (req, res) => {
         SELECT
           t.*,
           'traveler' as type,
+          u.nickname as nickname,
+          u.avatar as avatar,
+          u.spirit_animal as spirit_animal,
           l.created_at as liked_at,
           (SELECT COUNT(*) FROM public.likes WHERE post_id = t.id AND board = 'traveler') as likes_count,
           (SELECT COUNT(*) FROM public.comments WHERE post_id = t.id AND post_type = 'traveler') as comments_count
         FROM public.likes l
         JOIN travelers.travelers t ON l.post_id = t.id
+        LEFT JOIN users u ON t.author_uid = u.uid
         WHERE l.author_uid = $1 AND l.board = 'traveler' AND t.deleted_at IS NULL
+        ORDER BY l.created_at DESC
+      `
+    } else if (board === 'itinerary') {
+      query = `
+        SELECT
+          i.id,
+          i.title,
+          i.content,
+          i.banner_image AS cover_image,
+          i.price,
+          i.category,
+          i.location,
+          i.destinations,
+          i.start_date,
+          i.end_date,
+          i.duration_days,
+          i.agency_name,
+          i.author_uid,
+          i.vendor_id,
+          'itinerary' as type,
+          u.nickname,
+          u.avatar,
+          u.spirit_animal,
+          l.created_at as liked_at,
+          (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count
+        FROM public.likes l
+        JOIN itinerary.itineraries i ON l.post_id = i.id
+        LEFT JOIN users u ON i.author_uid = u.uid
+        WHERE l.author_uid = $1 AND l.board = 'itinerary'
         ORDER BY l.created_at DESC
       `
     } else {
@@ -275,11 +319,13 @@ router.get('/user/:uid', async (req, res) => {
         tags: row.tags || [],
         likes: parseInt(row.likes_count) || 0,
         comments: parseInt(row.comments_count) || 0,
-        author: row.author_uid || row.author_uid,
+        author: row.nickname || row.author_nickname || '匿名用戶',
         time: new Date(row.created_at).toLocaleDateString(),
         avatar:
+          row.avatar ||
           row.author_avatar ||
           'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
+        spiritAnimal: row.spirit_animal || row.author_spirit_animal || null,
       }
 
       if (row.type === 'traveler') {
@@ -288,6 +334,19 @@ router.get('/user/:uid', async (req, res) => {
         baseData.end_date = row.end_date || null
         baseData.max_people = row.max_people || 0
         baseData.status = row.status || '招募中'
+      }
+
+      if (row.type === 'itinerary') {
+        baseData.coverImage = row.cover_image || null
+        baseData.price = row.price ?? null
+        baseData.category = row.category || null
+        baseData.destinations = row.location ? [row.location] : row.destinations || []
+        baseData.start_date = row.start_date || null
+        baseData.end_date = row.end_date || null
+        baseData.durationDays = row.duration_days || null
+        baseData.agencyName = row.agency_name || null
+        baseData.author_uid = row.author_uid || null
+        baseData.vendor_id = row.vendor_id || null
       }
 
       return baseData

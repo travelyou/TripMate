@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { watch } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { flushPendingLikesNow } from '@/api/likes'
 import HomePage from '@/views/HomePage.vue'
 
 const router = createRouter({
@@ -179,6 +180,9 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // 在路由切換時刷新按讚狀態
+  flushPendingLikesNow({ keepalive: true })
+
   const userStore = useUserStore()
 
   if (!userStore.authReady) {

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
@@ -17,7 +17,7 @@ import {
   Share2,
   Flag,
 } from 'lucide-vue-next'
-import { toggleLike, getLikesInfo } from '@/api/likes'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 
@@ -115,13 +115,25 @@ const loadLikesInfo = async () => {
   }
 }
 
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.itinerary.id, currentUserUid.value, 'itinerary')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
+}
+
 const handleLike = async () => {
   if (!currentUserUid.value) {
     alert('請先登入後才能按讚')
     return
   }
   try {
-    const result = await toggleLike(props.itinerary.id, currentUserUid.value, 'itinerary')
+    const result = await toggleLike(props.itinerary.id, currentUserUid.value, 'itinerary', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
@@ -131,8 +143,13 @@ const handleLike = async () => {
 
 onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
-  if (currentUserUid.value) await loadLikesInfo()
-  else isLiked.value = false
+  if (currentUserUid.value) {
+    seedLikeState(props.itinerary.id, currentUserUid.value, 'itinerary', {
+      liked: !!props.itinerary.isLiked,
+      likesCount: Number(props.itinerary.likes ?? 0),
+    })
+    await loadLikesInfo()
+  } else isLiked.value = false
 })
 
 const isAuthor = computed(() => {
@@ -215,13 +232,19 @@ onMounted(async () => {
   const user = auth.currentUser
   if (user) {
     currentUserUid.value = user.uid
+    seedLikeState(props.itinerary.id, currentUserUid.value, 'itinerary', {
+      liked: !!props.itinerary.isLiked,
+      likesCount: Number(props.itinerary.likes ?? 0),
+    })
     await loadLikesInfo()
   }
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('likes-updated', handleLikesUpdated)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
 </script>
 
@@ -237,6 +260,8 @@ onUnmounted(() => {
       >
         <MoreVertical class="w-5 h-5" />
       </button>
+
+      <!-- 菜单下拉 -->
 
       <div
         v-if="showMenu"
