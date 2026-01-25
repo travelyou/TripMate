@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { reportBankTransfer } from '@/api/payments'
 import { Calendar as CalendarIcon, Star as StarIcon } from 'lucide-vue-next'
 
@@ -24,6 +24,8 @@ const reportAccountLast5 = ref('')
 const reportWarning = ref('')
 const reportedTransfers = ref({})
 const isReportSubmitting = ref(false)
+const isDetailOpen = ref(false)
+const detailTarget = ref(null)
 
 const openRatingModal = (item) => {
   ratingTarget.value = item
@@ -108,6 +110,16 @@ const closeBankInfo = () => {
   isBankInfoOpen.value = false
 }
 
+const openDetailModal = (item) => {
+  detailTarget.value = item
+  isDetailOpen.value = true
+}
+
+const closeDetailModal = () => {
+  isDetailOpen.value = false
+  detailTarget.value = null
+}
+
 const statusLabels = {
   PENDING: '待付款',
   PAID: '已付款',
@@ -169,6 +181,27 @@ const formatTaiwanDate = (value, { showSeconds = false } = {}) => {
   const time = showSeconds ? `${hour}:${minute}:${second}` : `${hour}:${minute}`
   return `${year}/${month}/${day} ${dayPeriod} ${time}`
 }
+
+// 檢查是否有聯絡人資訊
+const hasContactInfo = (target) => {
+  const c = target?.contact
+  return !!(c && (c.name || c.phone || c.email || c.note))
+}
+
+// 檢查是否有緊急聯絡人資訊
+const hasEmergencyContactInfo = (target) => {
+  const ec = target?.emergencyContact
+  return !!(ec && (ec.name || ec.phone))
+}
+
+watch(isDetailOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
+// 確保元件卸載時還原 body 的滾動狀態
+onUnmounted(() => {
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
@@ -189,7 +222,8 @@ const formatTaiwanDate = (value, { showSeconds = false } = {}) => {
       <div
         v-for="item in itineraries"
         :key="item.id"
-        class="border-2 border-secondary-200 rounded-lg p-4 hover:shadow-md transition"
+        class="border-2 border-secondary-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
+        @click="openDetailModal(item)"
       >
         <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
           <div class="flex-1">
@@ -444,13 +478,172 @@ const formatTaiwanDate = (value, { showSeconds = false } = {}) => {
           <button
             type="button"
             class="px-4 py-2 rounded-lg border border-primary bg-primary text-white hover:bg-primary-700 transition disabled:opacity-60"
-            @click="submitReport"
             :disabled="isReportSubmitting"
+            @click="submitReport"
           >
             {{ isReportSubmitting ? '送出中...' : '送出回報' }}
           </button>
         </div>
       </div>
     </div>
+
+    <div v-if="isDetailOpen" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-secondary-900/40" @click="closeDetailModal" />
+      <div
+        class="relative bg-white w-full max-w-2xl mx-4 rounded-xl border-2 border-primary shadow-primary-tall max-h-[80vh] overflow-y-auto modal-scroll"
+        @wheel.stop
+      >
+        <div
+          class="sticky top-0 bg-white z-10 px-6 pt-6 pb-4 flex justify-between items-start border-b border-secondary-100"
+        >
+          <div class="text-2xl font-bold text-secondary-800">詳細資訊</div>
+          <button
+            type="button"
+            class="text-secondary-400 hover:text-secondary-600 transition-colors flex-shrink-0 ml-4"
+            @click="closeDetailModal"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+        <div v-if="detailTarget" class="space-y-6 p-6">
+          <div>
+            <h3 class="mb-4 text-lg font-bold text-secondary-800">訂單資訊</h3>
+            <div class="bg-white p-5 rounded-xl border border-secondary-100">
+              <div class="flex flex-col gap-5">
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">行程名稱</p>
+                  <p class="text-secondary-800 font-medium">{{ detailTarget.title }}</p>
+                </div>
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">行程日期</p>
+                  <p class="text-secondary-800">
+                    {{ formatTaiwanDate(detailTarget.startDate) || '未定' }} -
+                    {{ formatTaiwanDate(detailTarget.endDate) || '未定' }}
+                  </p>
+                </div>
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">訂單編號</p>
+                  <p class="text-secondary-800">{{ detailTarget.orderNumber || '—' }}</p>
+                </div>
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">訂單日期</p>
+                  <p class="text-secondary-800">
+                    {{ formatTaiwanDate(detailTarget.orderDate, { showSeconds: true }) || '—' }}
+                  </p>
+                </div>
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">付款方式</p>
+                  <p class="text-secondary-800">
+                    {{ getPaymentLabel(detailTarget.paymentMethod) }}
+                  </p>
+                </div>
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">訂單狀態</p>
+                  <div
+                    class="inline-block items-center px-2 py-1 rounded text-xs font-semibold"
+                    :class="getStatusClass(getDisplayStatus(detailTarget))"
+                  >
+                    {{ getStatusLabel(getDisplayStatus(detailTarget)) }}
+                  </div>
+                </div>
+                <div class="flex md:flex-row justify-between flex-col">
+                  <p class="text-gray-500">出行狀態</p>
+                  <p class="text-secondary-800">{{ detailTarget.travelStatus || '—' }}</p>
+                </div>
+                <div
+                  v-if="detailTarget.paymentMeta?.last5"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">匯款帳號末5碼</p>
+                  <p class="text-secondary-800">{{ detailTarget.paymentMeta.last5 }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="hasContactInfo(detailTarget)">
+            <h3 class="mb-4 text-lg font-bold text-secondary-800">訂購人資訊</h3>
+            <div class="bg-white p-5 rounded-xl border border-secondary-100">
+              <div class="flex flex-col gap-5">
+                <div
+                  v-if="detailTarget.contact.name"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">姓名</p>
+                  <p class="text-secondary-800">{{ detailTarget.contact.name }}</p>
+                </div>
+                <div
+                  v-if="detailTarget.contact.phone"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">手機</p>
+                  <p class="text-secondary-800">{{ detailTarget.contact.phone }}</p>
+                </div>
+                <div
+                  v-if="detailTarget.contact.email"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">電子郵件</p>
+                  <p class="text-secondary-800">{{ detailTarget.contact.email }}</p>
+                </div>
+                <div
+                  v-if="detailTarget.contact.note"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">備註</p>
+                  <p class="text-secondary-800">{{ detailTarget.contact.note }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="hasEmergencyContactInfo(detailTarget)">
+            <h3 class="mb-4 text-lg font-bold text-secondary-800">緊急聯絡人</h3>
+            <div class="bg-white p-5 rounded-xl border border-secondary-100">
+              <div class="flex flex-col gap-5">
+                <div
+                  v-if="detailTarget.emergencyContact.name"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">姓名</p>
+                  <p class="text-secondary-800">{{ detailTarget.emergencyContact.name }}</p>
+                </div>
+                <div
+                  v-if="detailTarget.emergencyContact.phone"
+                  class="flex md:flex-row justify-between flex-col"
+                >
+                  <p class="text-gray-500">手機</p>
+                  <p class="text-secondary-800">{{ detailTarget.emergencyContact.phone }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+.modal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+}
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+</style>

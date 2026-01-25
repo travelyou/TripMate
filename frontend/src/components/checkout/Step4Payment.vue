@@ -233,12 +233,11 @@ const confirmPayment = async () => {
     showAlert(err?.message || '付款失敗')
   }
 }
-
 </script>
 
 <template>
   <section class="max-w-5xl mx-auto">
-    <div class="flex flex-col gap-10 lg:flex-row">
+    <div class="flex flex-col gap-10 xl:flex-row">
       <!-- 左側：付款方式 -->
       <div class="flex-1 space-y-6">
         <!-- 安全提示 -->
@@ -423,7 +422,7 @@ const confirmPayment = async () => {
       </div>
 
       <!-- 右側：訂單摘要 -->
-      <div class="min-w-64 bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5">
+      <div class="min-w-64 bg-white p-6 rounded-xl max-h-[500px] flex flex-col gap-5 xl:max-w-80">
         <h3 class="text-xl font-bold">訂單摘要</h3>
 
         <div class="space-y-4">

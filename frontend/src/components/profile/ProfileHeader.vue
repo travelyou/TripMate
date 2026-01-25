@@ -133,33 +133,36 @@ const shouldMarquee = computed(() => {
 
           <div class="flex-1 min-w-0 flex flex-col justify-between">
             <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0">
-                  <h1
-                    class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1"
-                  >
-                    <span
-                      v-if="loading"
-                      class="inline-block h-4 w-24 bg-white/30 rounded animate-pulse"
-                    ></span>
-                    <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
-                  </h1>
-                  <span
-                    class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
-                    :title="locationFull"
-                  >
-                    <span
-                      v-if="loading"
-                      class="inline-block h-2 w-16 bg-white/30 rounded animate-pulse"
-                    ></span>
-                    <span v-else-if="!shouldMarquee" class="inline-block truncate"
-                      >@{{ locationFull }}</span
+              <div class="flex items-start justify-between mb-1 gap-1.5 sm:gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-0">
+                    <h1
+                      class="text-base sm:text-xl font-bold tracking-tight text-white break-words min-w-0 flex-1"
                     >
-                    <span v-else class="location-marquee-container inline-block whitespace-nowrap">
-                      <span class="location-marquee-text">@{{ locationFull }}</span>
+                      <span
+                        v-if="loading"
+                        class="inline-block h-4 w-24 bg-white/30 rounded animate-pulse"
+                      ></span>
+                      <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
+                    </h1>
+                    <span
+                      class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
+                      :title="locationFull"
+                    >
+                      <span
+                        v-if="loading"
+                        class="inline-block h-2 w-16 bg-white/30 rounded animate-pulse"
+                      ></span>
+                      <span v-else-if="!shouldMarquee" class="inline-block truncate"
+                        >@{{ locationFull }}</span
+                      >
+                      <span
+                        v-else
+                        class="location-marquee-container inline-block whitespace-nowrap"
+                      >
+                        <span class="location-marquee-text">@{{ locationFull }}</span>
+                      </span>
                     </span>
-                  </span>
                   </div>
                 </div>
               </div>
@@ -175,7 +178,9 @@ const shouldMarquee = computed(() => {
                 >
                   好友
                 </div>
-                <div class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition">
+                <div
+                  class="text-sm sm:text-base font-bold text-white leading-tight group-hover:text-white transition"
+                >
                   <span
                     v-if="loading"
                     class="inline-block h-3 w-6 bg-white/30 rounded animate-pulse"
@@ -248,7 +253,7 @@ const shouldMarquee = computed(() => {
             <div v-else-if="!loading" class="flex gap-2 self-end mt-1">
               <button
                 :class="[
-                    'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
+                  'flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg transition whitespace-nowrap',
                   friendRequestStatus === 'accepted'
                     ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
                     : friendRequestStatus === 'sent'
@@ -383,7 +388,10 @@ const shouldMarquee = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-col items-end gap-3 shrink-0" :class="{ 'pb-16 md:pb-20': !isCurrentUser }">
+        <div
+          class="flex flex-col items-end gap-3 shrink-0"
+          :class="{ 'pb-16 md:pb-20': !isCurrentUser }"
+        >
           <div
             class="flex gap-3 md:gap-4 lg:gap-6 bg-white/10 rounded-2xl p-3 md:p-4 lg:p-6 border border-white/20"
           >
@@ -397,7 +405,9 @@ const shouldMarquee = computed(() => {
               >
                 好友
               </div>
-              <div class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition">
+              <div
+                class="text-2xl lg:text-3xl font-bold text-white leading-none group-hover:text-white transition"
+              >
                 <span
                   v-if="loading"
                   class="inline-block h-6 w-10 bg-white/30 rounded animate-pulse"
@@ -444,7 +454,7 @@ const shouldMarquee = computed(() => {
               @click="$emit('open-card-settings')"
             >
               <IdCard class="w-4 h-4 md:w-5 md:h-5" />
-              <span class="text-sm font-bold">名片</span>
+              <span class="text-sm font-bold">旅伴名片</span>
             </button>
             <button
               class="p-1.5 md:p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition"

@@ -11,9 +11,7 @@ const errorMessage = ref('')
 const router = useRouter()
 
 const handleFeaturedRate = ({ id, rating, comment }) => {
-  orders.value = orders.value.map((item) =>
-    item.id === id ? { ...item, rating, comment } : item,
-  )
+  orders.value = orders.value.map((item) => (item.id === id ? { ...item, rating, comment } : item))
 }
 
 const handleFeaturedClear = (id) => {
@@ -25,7 +23,6 @@ const handleFeaturedClear = (id) => {
 const handlePayOrder = (id) => {
   router.push({ name: 'CheckoutStep4', query: { orderId: id } })
 }
-
 
 const mapOrderToCard = (order) => ({
   id: order.id,
@@ -41,6 +38,8 @@ const mapOrderToCard = (order) => ({
   reviewable: getTravelStatus(order.itinerary?.endDate) === '已結束' && order.status === 'PAID',
   rating: order.rating || null,
   comment: order.comment || '',
+  contact: order.contact || null,
+  emergencyContact: order.emergencyContact || null,
 })
 
 const getTravelStatus = (endDate) => {

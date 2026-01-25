@@ -5,6 +5,24 @@ const { authenticate } = require('../middleware/auth')
 
 router.use(authenticate)
 
+/**
+ * 輔助函式：安全地解析 JSON 字串
+ * @param {string|object} jsonString - 要解析的 JSON 字串或已解析的物件
+ * @param {string} fieldName - 欄位名稱（用於日誌）
+ * @returns {object|null} - 解析後的物件或 null
+ */
+function parseJSON(jsonString, fieldName) {
+  if (typeof jsonString !== 'string') {
+    return jsonString || null
+  }
+  try {
+    return JSON.parse(jsonString)
+  } catch (error) {
+    console.error(`Failed to parse ${fieldName}:`, error.message)
+    return null
+  }
+}
+
 function generateOrderNo() {
   const now = new Date()
   const date = now.toISOString().slice(0, 10).replace(/-/g, '') // YYYYMMDD
@@ -288,6 +306,8 @@ router.get('/', async (req, res) => {
         o.unit_price,
         o.persons,
         o.itinerary_id,
+        o.contact_json,
+        o.emergency_contact_json,
         o.created_at,
         i.title,
         i.start_date,
@@ -326,6 +346,8 @@ router.get('/', async (req, res) => {
       persons: Number(row.persons),
       itineraryId: row.itinerary_id,
       createdAt: row.created_at,
+      contact: parseJSON(row.contact_json, 'contact_json'),
+      emergencyContact: parseJSON(row.emergency_contact_json, 'emergency_contact_json'),
       itinerary: {
         id: row.itinerary_id,
         title: row.title,
@@ -383,6 +405,8 @@ router.get('/:id', async (req, res) => {
     }
 
     const row = q.rows[0]
+    const contact = parseJSON(row.contact_json, 'contact_json')
+    const emergencyContact = parseJSON(row.emergency_contact_json, 'emergency_contact_json')
 
     // （可選）把付款狀態也帶回來：取最新一筆 payment
     const p = await pool.query(
@@ -409,6 +433,8 @@ router.get('/:id', async (req, res) => {
         unitPrice: Number(row.unit_price),
         persons: Number(row.persons),
         itineraryId: row.itinerary_id,
+        contact,
+        emergencyContact,
         createdAt: row.created_at,
       },
       itinerary: {
@@ -437,4 +463,3 @@ router.get('/:id', async (req, res) => {
 })
 
 module.exports = router
-

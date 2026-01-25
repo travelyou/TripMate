@@ -70,6 +70,18 @@ const tourForBlock = computed(() => {
 
 const payableAmount = computed(() => Number(order.value?.amount ?? 0))
 const orderNoText = computed(() => order.value?.orderNo || '')
+const contactInfo = computed(() => order.value?.contact || checkoutStore.contact || null)
+const emergencyInfo = computed(
+  () => order.value?.emergencyContact || checkoutStore.emergencyContact || null,
+)
+const hasContactInfo = computed(() => {
+  const c = contactInfo.value || {}
+  return Boolean(c.name || c.phone || c.email || c.note)
+})
+const hasEmergencyInfo = computed(() => {
+  const c = emergencyInfo.value || {}
+  return Boolean(c.name || c.phone)
+})
 
 onMounted(async () => {
   // Step5 必須靠 query 的 orderId（重整也不怕）
@@ -101,29 +113,77 @@ function goHome() {
 </script>
 
 <template>
-  <section class="max-w-4xl mx-auto text-center bg-white p-10 rounded-xl">
+  <section class="max-w-4xl mx-auto text-center bg-white p-5 rounded-xl">
     <h2 class="text-3xl font-bold mb-4">✔️ 訂單完成</h2>
     <p class="text-gray-500 mb-8">感謝您的訂購，以下是您的訂單資訊</p>
 
     <div v-if="loading">載入中…</div>
-    <div v-else class="text-left space-y-4 mb-8">
+    <div v-else class="text-left mb-8">
       <div v-if="error" class="text-red-500">{{ error }}</div>
       <TourInfoBlock v-if="tourForBlock" :tour="tourForBlock" :price="payableAmount" />
 
       <!-- 訂單編號顯示 -->
-      <div>
-        <p class="text-gray-500 text-lg">訂單編號</p>
-        <p>{{ orderNoText }}</p>
-      </div>
 
-      <div>
-        <p class="text-gray-500 text-lg">付款方式</p>
-        <p>{{ paymentMethodText }}</p>
-      </div>
+      <div class="space-y-10">
+        <div>
+          <h1 class="mb-4 ml-2 text-xl font-bold">訂單資訊</h1>
+          <div class="bg-white p-5 rounded-xl border border-secondary-100">
+            <div class="flex flex-col gap-5">
+              <div class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">訂單編號</p>
+                <p>{{ orderNoText }}</p>
+              </div>
+              <div class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">付款方式</p>
+                <p>{{ paymentMethodText }}</p>
+              </div>
+              <div class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">付款狀態</p>
+                <p>{{ paymentStatusText }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <div>
-        <p class="text-gray-500 text-lg">付款狀態</p>
-        <p>{{ paymentStatusText }}</p>
+        <div v-if="hasContactInfo">
+          <h1 class="mb-4 ml-2 text-xl font-bold">訂購人資訊</h1>
+          <div class="bg-white p-5 rounded-xl border border-secondary-100">
+            <div class="flex flex-col gap-5">
+              <div v-if="contactInfo?.name" class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">姓名</p>
+                <p>{{ contactInfo.name }}</p>
+              </div>
+              <div v-if="contactInfo?.phone" class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">手機</p>
+                <p>{{ contactInfo.phone }}</p>
+              </div>
+              <div v-if="contactInfo?.email" class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">電子郵件</p>
+                <p>{{ contactInfo.email }}</p>
+              </div>
+              <div v-if="contactInfo?.note" class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">備註</p>
+                <p>{{ contactInfo.note }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="hasEmergencyInfo">
+          <h1 class="mb-4 ml-2 text-xl font-bold">緊急聯絡人</h1>
+          <div class="bg-white p-5 rounded-xl border border-secondary-100">
+            <div class="flex flex-col gap-5">
+              <div v-if="emergencyInfo?.name" class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">姓名</p>
+                <p>{{ emergencyInfo.name }}</p>
+              </div>
+              <div v-if="emergencyInfo?.phone" class="flex md:flex-row justify-between flex-col">
+                <p class="text-gray-500">手機</p>
+                <p>{{ emergencyInfo.phone }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -11,9 +11,13 @@ import {
   PenLine as PenLineIcon,
   Upload as UploadIcon,
   Loader2 as LoaderIcon,
+  Plus as PlusIcon,
+  Trash2 as TrashIcon,
+  Check as CheckIcon,
 } from 'lucide-vue-next'
 
-import WishBallPool from '@/components/profile/WishBallPool.vue'
+// [修正] 移除 WishBallPool，改用靜態顯示
+// import WishBallPool from '@/components/profile/WishBallPool.vue'
 import { uploadImage } from '@/api/storage'
 
 const props = defineProps({
@@ -39,7 +43,7 @@ const isGalleryUploading = ref(false)
 const formData = ref({
   card_bio: '',
   card_tags: [],
-  card_photo: '', // 獨立的名片照片
+  card_photo: '',
   gallery: [],
 })
 
@@ -63,19 +67,33 @@ const PREDEFINED_TAGS = [
   '文青之旅',
 ]
 
+// [NEW] 靜態許願球樣式
+const STATIC_BALL_STYLES = [
+  'bg-red-50 text-red-600 border-red-100',
+  'bg-orange-50 text-orange-600 border-orange-100',
+  'bg-amber-50 text-amber-600 border-amber-100',
+  'bg-green-50 text-green-600 border-green-100',
+  'bg-teal-50 text-teal-600 border-teal-100',
+  'bg-blue-50 text-blue-600 border-blue-100',
+  'bg-indigo-50 text-indigo-600 border-indigo-100',
+  'bg-purple-50 text-purple-600 border-purple-100',
+  'bg-pink-50 text-pink-600 border-pink-100',
+]
+
+const getBallStyle = (index) => {
+  return STATIC_BALL_STYLES[index % STATIC_BALL_STYLES.length]
+}
+
 // --- 初始化資料 ---
 const initFormData = () => {
   if (props.user) {
     formData.value = {
-      // 若無 card_bio，預設為空 (不帶入 profile bio)
       card_bio: props.user.card_bio || '',
-      // 若無 card_tags，預設帶入 profile tags 當初始值，之後分離
       card_tags: props.user.card_tags
         ? [...props.user.card_tags]
         : props.user.tags
           ? [...props.user.tags]
           : [],
-      // 若無 card_photo，預設為空 (編輯時不顯示 avatar，鼓勵上傳新照)
       card_photo: props.user.card_photo || '',
       gallery: Array.isArray(props.user.gallery) ? [...props.user.gallery] : [],
     }
@@ -93,7 +111,6 @@ watch(
 const cardPreview = computed(() => {
   if (!props.user) return {}
 
-  // 照片邏輯：編輯模式優先顯示 formData，否則顯示 user.card_photo，最後 fallback 到 avatar
   const displayPhoto = isEditing.value
     ? formData.value.card_photo || props.user.card_photo || props.user.avatar
     : props.user.card_photo || props.user.avatar
@@ -112,6 +129,9 @@ const cardPreview = computed(() => {
       ? props.user.gallery
       : []
 
+  // 許願球池資料來源整合
+  const displayWishlist = props.wishlist?.length ? props.wishlist : props.user.wishlist || []
+
   return {
     name: props.user.nickname || props.user.name || '使用者',
     age: props.user.age || '—',
@@ -119,8 +139,7 @@ const cardPreview = computed(() => {
     spiritAnimal: props.user.spiritAnimal || '🐾',
     image: displayPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${props.user.uid}`,
     bio: displayBio,
-    // [重點] 強制連動 user.wishlist (唯讀)
-    wishlist: props.wishlist?.length ? props.wishlist : props.user.wishlist || [],
+    wishlist: displayWishlist,
     tags: displayTags,
     gallery: displayGallery,
   }
@@ -168,7 +187,6 @@ const handleFileChange = async (event) => {
 }
 
 const handleSave = () => {
-  // Emit 包含 card_ 前綴的獨立資料
   emit('save', {
     card_bio: formData.value.card_bio,
     card_tags: formData.value.card_tags,
@@ -307,33 +325,21 @@ const removeGalleryImage = (idx) => {
                 <p class="text-gray-700 leading-relaxed text-base">{{ cardPreview.bio }}</p>
               </section>
 
-              <section v-if="cardPreview.gallery && cardPreview.gallery.length">
-                <h3
-                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
-                >
-                  <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
-                </h3>
-                <div class="grid grid-cols-3 gap-2">
-                  <div
-                    v-for="(photo, idx) in cardPreview.gallery"
-                    :key="photo || idx"
-                    class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
-                  >
-                    <img :src="photo" class="w-full h-full object-cover" />
-                  </div>
-                </div>
-              </section>
-
               <section v-if="cardPreview.wishlist.length">
                 <h3
                   class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
                 >
                   <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
                 </h3>
-                <div
-                  class="h-40 rounded-xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
-                >
-                  <WishBallPool :wishlist="cardPreview.wishlist" />
+                <div class="flex flex-wrap gap-2">
+                  <div
+                    v-for="(item, idx) in cardPreview.wishlist"
+                    :key="idx"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold border shadow-sm"
+                    :class="getBallStyle(idx)"
+                  >
+                    {{ item }}
+                  </div>
                 </div>
               </section>
 
@@ -350,6 +356,23 @@ const removeGalleryImage = (idx) => {
                     class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
                     >#{{ tag }}</span
                   >
+                </div>
+              </section>
+
+              <section v-if="cardPreview.gallery && cardPreview.gallery.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
+                </h3>
+                <div class="grid grid-cols-3 gap-2">
+                  <div
+                    v-for="(photo, idx) in cardPreview.gallery"
+                    :key="photo || idx"
+                    class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                  >
+                    <img :src="photo" class="w-full h-full object-cover" />
+                  </div>
                 </div>
               </section>
             </div>
@@ -433,7 +456,7 @@ const removeGalleryImage = (idx) => {
                 class="aspect-square rounded-xl border-2 border-dashed border-gray-300 text-gray-400 flex flex-col items-center justify-center hover:border-primary-400 hover:text-primary-500 transition"
                 @click="triggerGalleryUpload"
               >
-                <UploadIcon class="w-5 h-5 mb-1" />
+                <PlusIcon class="w-5 h-5 mb-1" />
                 <span class="text-xs font-bold">新增</span>
               </button>
               <div
@@ -444,10 +467,10 @@ const removeGalleryImage = (idx) => {
                 <img :src="photo" class="w-full h-full object-cover" />
                 <button
                   type="button"
-                  class="absolute top-1 right-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                  class="absolute top-1 right-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-500 transition"
                   @click="removeGalleryImage(idx)"
                 >
-                  ×
+                  <TrashIcon class="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -479,7 +502,7 @@ const removeGalleryImage = (idx) => {
                 v-for="tag in PREDEFINED_TAGS"
                 :key="tag"
                 @click="toggleTag(tag)"
-                class="px-3 py-1.5 rounded-lg text-xs font-bold transition border"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1"
                 :class="
                   formData.card_tags.includes(tag)
                     ? 'bg-primary-500 text-white border-primary-500 shadow-sm transform scale-105'
@@ -487,6 +510,7 @@ const removeGalleryImage = (idx) => {
                 "
               >
                 {{ tag }}
+                <CheckIcon v-if="formData.card_tags.includes(tag)" class="w-3 h-3" />
               </button>
             </div>
           </div>
@@ -498,9 +522,27 @@ const removeGalleryImage = (idx) => {
             </label>
 
             <div
-              class="relative mt-2 h-40 bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 overflow-hidden"
+              class="p-4 bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 min-h-[80px] flex items-center justify-center"
             >
-              <WishBallPool :wishlist="props.wishlist?.length ? props.wishlist : props.user?.wishlist || []" />
+              <div
+                v-if="
+                  props.wishlist?.length
+                    ? props.wishlist.length
+                    : props.user?.wishlist && props.user.wishlist.length
+                "
+                class="flex flex-wrap gap-2 justify-center w-full"
+              >
+                <div
+                  v-for="(item, idx) in props.wishlist?.length
+                    ? props.wishlist
+                    : props.user.wishlist"
+                  :key="idx"
+                  class="px-3 py-1 rounded-full text-xs font-bold shadow-sm border bg-white text-gray-600 border-gray-300"
+                >
+                  {{ item }}
+                </div>
+              </div>
+              <div v-else class="text-xs text-gray-400">尚無許願內容，請至個人檔案新增。</div>
             </div>
 
             <p class="text-xs text-orange-500 font-medium">

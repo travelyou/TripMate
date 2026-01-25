@@ -1,7 +1,17 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
-import { Heart, MessageCircle, Repeat2, Bookmark, MoreVertical, Edit, Trash2, Share2, Flag } from 'lucide-vue-next'
+import {
+  Heart,
+  MessageCircle,
+  Share,
+  Bookmark,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Share2,
+  Flag,
+} from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 import { useUserStore } from '@/stores/user'
@@ -65,32 +75,26 @@ const itemData = computed(() => ({
   tags: props.post.tags,
   likes: likesCount.value,
   comments: props.post.comments,
-  category: props.post.category, // ★ 新增：確保收藏時也包含分類資訊
+  category: props.post.category,
 }))
 
-// --- [最終版] 純文字清洗邏輯 ---
+// --- 純文字清洗邏輯 ---
 const previewContent = computed(() => {
   if (!props.post.content) return ''
 
   let content = props.post.content
-
-  // 1. 預處理：把會造成換行的 HTML 標籤替換成換行符號 \n
   content = content.replace(/<br\s*\/?>/gi, '\n')
   content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
 
-  // 2. 強力剝除：建立一個暫存 DOM，利用 textContent 取得純文字
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = content
   const plainText = tempDiv.textContent || tempDiv.innerText || ''
 
-  // 3. 回傳修剪後的純文字
   return plainText.trim()
 })
-// -------------------------------------
 
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
-
   try {
     const info = await getLikesInfo(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = info.isLiked
@@ -105,12 +109,10 @@ const handlePostLike = async () => {
     alert('請先登入後才能按讚')
     return
   }
-
   try {
     const result = await toggleLike(props.post.id, currentUserUid.value, 'discussion')
     isLiked.value = result.liked
     likesCount.value = result.likesCount
-
     emit('like', {
       ...props.post,
       isLiked: result.liked,
@@ -163,15 +165,10 @@ const handleEdit = (e) => {
 const handleDelete = async (e) => {
   e.stopPropagation()
   closeMenu()
-
-  if (!confirm('確定要刪除此貼文嗎？')) {
-    return
-  }
-
+  if (!confirm('確定要刪除此貼文嗎？')) return
   try {
     await deletePost(props.post.id)
     emit('delete', props.post)
-    // 重新整理頁面或更新列表
     window.location.reload()
   } catch (error) {
     console.error('刪除失敗:', error)
@@ -183,7 +180,7 @@ const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/discussion?postId=${props.post.id}`
+    const url = `${window.location.origin}/discussion/${props.post.id}`
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
@@ -197,10 +194,8 @@ const handleReport = (e) => {
   closeMenu()
   isReported.value = true
   showToastNotification('已經向管理員提出檢舉 謝謝', 'success')
-  // 这里可以添加实际的检举API调用
 }
 
-// 點擊外部關閉選單
 const handleClickOutside = (event) => {
   if (showMenu.value && !event.target.closest('.post-menu-container')) {
     closeMenu()
@@ -226,7 +221,6 @@ onUnmounted(() => {
     class="p-5 bg-white transition relative cursor-pointer shadow-md hover:shadow-lg rounded-xl border-2 border-secondary-200"
     @click="$emit('click', post)"
   >
-    <!-- 三点菜单按钮 -->
     <div class="absolute top-4 right-4 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-primary-100 transition text-primary-600 hover:text-primary-700"
@@ -235,7 +229,6 @@ onUnmounted(() => {
         <MoreVertical class="w-5 h-5" />
       </button>
 
-      <!-- 菜单下拉 -->
       <div
         v-if="showMenu"
         class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
@@ -286,7 +279,8 @@ onUnmounted(() => {
           <span
             class="font-bold text-gray-800 cursor-pointer hover:text-primary-600 transition"
             @click="handleAvatarClick"
-          >{{ post.author }}</span>
+            >{{ post.author }}</span
+          >
           <span
             v-if="post.spiritAnimal"
             class="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"
@@ -316,7 +310,6 @@ onUnmounted(() => {
       >
         {{ post.category }}
       </div>
-
       <img
         :src="validBanner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
@@ -339,7 +332,6 @@ onUnmounted(() => {
         >
           {{ post.category }}
         </div>
-
         <img
           :src="url"
           class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition border border-amber-100"
@@ -399,14 +391,13 @@ onUnmounted(() => {
       </button>
 
       <button
-        class="ml-auto flex items-center space-x-1 hover:text-gray-600 transition"
+        class="flex items-center space-x-1 hover:text-gray-600 transition"
         @click.stop="$emit('share', post.id)"
       >
-        <Repeat2 class="w-4 h-4" />
+        <Share class="w-4 h-4" />
       </button>
     </div>
 
-    <!-- Toast 通知 -->
     <Teleport to="body">
       <Transition
         enter-active-class="transition-all duration-300 ease-out"
@@ -420,7 +411,7 @@ onUnmounted(() => {
           v-if="showToast"
           :class="[
             'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
-            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white',
           ]"
         >
           <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>

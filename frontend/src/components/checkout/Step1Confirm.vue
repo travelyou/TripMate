@@ -60,9 +60,6 @@ function backCart() {
             <!-- 商品資訊區 -->
             <div>
               <h1 class="text-xl font-bold sm:text-3xl">{{ tour.title }}</h1>
-              <p class="text-sm mt-5 sm:text-base sm:mt-2 line-clamp-2">
-                {{ tour.description }}
-              </p>
 
               <div class="grid grid-cols-1 mt-5 text-sm sm:text-base sm:grid-cols-2">
                 <p>行程日期：{{ tour.date }}</p>

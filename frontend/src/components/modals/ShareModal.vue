@@ -1,11 +1,8 @@
 <script setup>
-//import { defineProps, defineEmits } from 'vue'// <-Vue 3.3+ 版本中，defineProps 和 defineEmits 已經是內建的編譯器巨集，不需要手動import。先暫時拉出，可能是版本衝突//
-import {
-  X as XIcon,
-  Link as LinkIcon, // 保持 LinkIcon，因為你沒有提供複製連結的圖
-} from 'lucide-vue-next'
+import { computed } from 'vue'
+import { X as XIcon, Link as LinkIcon } from 'lucide-vue-next'
 
-// 引入你自己的圖片檔案
+// 引入圖片檔案
 import LineIconSvg from '../../assets/icons/LINE_icon.png'
 import XIconSvg from '../../assets/icons/X_icon.png'
 import InstagramIconPng from '../../assets/icons/Instagram_icon.png'
@@ -15,49 +12,89 @@ import ThreadsIconPng from '../../assets/icons/Threads_icon.png'
 const props = defineProps({
   postLink: {
     type: String,
-    default: 'https://tripmate.com/share/post_id_demo',
+    default: '',
   },
 })
 
 const emit = defineEmits(['close'])
 
-// 模擬的社群平台列表 - 替換為圖片引用
-const socialPlatforms = [
-  // 注意：這裡我們將 icon 屬性設為圖片變數
+// 統一的分享文案 (包含網址)
+const shareText = computed(() => `我在 TripMate 看到這個超棒的旅遊分享！ ${props.postLink}`)
+
+// 定義各平台的連結與行為
+const socialPlatforms = computed(() => [
   {
     name: 'Facebook',
     iconPath: FacebookIconPng,
     color: 'bg-[#1877F2]',
+    // FB 只能帶網址 (u)，不支援帶文字 (text)
     link: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(props.postLink)}`,
+    action: 'direct_open',
   },
   {
     name: 'Instagram',
     iconPath: InstagramIconPng,
     color: 'bg-gradient-to-tr from-yellow-400 to-pink-600',
-    link: 'javascript:alert("IG 分享功能需要手機 APP 支援，此為模擬。")',
+    // IG 策略：複製文案 -> 打開 IG 首頁
+    link: 'https://instagram.com/',
+    action: 'copy_and_open',
   },
   {
     name: 'Threads',
     iconPath: ThreadsIconPng,
     color: 'bg-gradient-to-tr from-gray-900 to-gray-700',
-    link: 'javascript:alert("Threads 尚未開放官方 Web 分享 API，此為模擬。")',
+    // Threads 支援網頁喚起並帶入文字
+    link: `https://www.threads.net/intent/post?text=${encodeURIComponent(shareText.value)}`,
+    action: 'direct_open',
   },
   {
     name: 'X (Twitter)',
     iconPath: XIconSvg,
     color: 'bg-gradient-to-tr from-gray-900 to-gray-800',
-    link: `https://twitter.com/intent/tweet?url=${encodeURIComponent(props.postLink)}&text=我在 TripMate 看到這個超棒的旅遊分享！`,
+    // X 支援帶入文字
+    link: `https://twitter.com/intent/tweet?text=${encodeURIComponent('我在 TripMate 看到這個超棒的旅遊分享！')}&url=${encodeURIComponent(props.postLink)}`,
+    action: 'direct_open',
   },
   {
     name: 'Line',
     iconPath: LineIconSvg,
     color: 'bg-gradient-to-tr from-green-500 to-green-400',
-    link: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(props.postLink)}`,
+    // Line 支援帶入文字
+    link: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(props.postLink)}&text=${encodeURIComponent('我在 TripMate 看到這個超棒的旅遊分享！')}`,
+    action: 'direct_open',
   },
-]
+])
 
-// 處理複製連結
-const copyLink = () => {
+// 統一處理點擊邏輯
+const handlePlatformClick = (platform) => {
+  if (platform.action === 'copy_and_open') {
+    // === IG 專用邏輯 ===
+    // 1. 先複製文字
+    navigator.clipboard
+      .writeText(shareText.value)
+      .then(() => {
+        alert(`已複製文案！正在為您打開 ${platform.name}，請直接貼上發布。`)
+        // 2. 強制打開連結
+        window.open(platform.link, '_blank')
+        // 3. 關閉彈窗
+        emit('close')
+      })
+      .catch(() => {
+        // 就算複製失敗，也要打開連結
+        window.open(platform.link, '_blank')
+        emit('close')
+      })
+  } else {
+    // === 其他平台 (FB, Threads, Line, X) ===
+    // 直接強制打開，不透過 <a> 標籤，確保一定執行
+    window.open(platform.link, '_blank')
+    emit('close')
+  }
+}
+
+// 單純複製連結按鈕
+const copyLinkOnly = () => {
+  if (!props.postLink) return
   navigator.clipboard
     .writeText(props.postLink)
     .then(() => {
@@ -66,6 +103,7 @@ const copyLink = () => {
     })
     .catch((err) => {
       console.error('無法複製:', err)
+      alert('複製失敗，請手動複製')
     })
 }
 </script>
@@ -84,20 +122,18 @@ const copyLink = () => {
         <a
           v-for="platform in socialPlatforms"
           :key="platform.name"
-          :href="platform.link"
-          target="_blank"
-          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80"
+          href="javascript:void(0)"
+          class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 cursor-pointer"
           :class="platform.color"
-          @click="platform.name !== 'Line' && platform.name !== 'Facebook' && emit('close')"
+          @click.prevent="handlePlatformClick(platform)"
         >
           <img :src="platform.iconPath" :alt="platform.name" class="w-8 h-8 object-contain" />
-
           <span class="text-white font-bold text-sm mt-2">{{ platform.name }}</span>
         </a>
 
         <button
           class="flex flex-col items-center justify-center p-4 rounded-xl transition hover:opacity-80 bg-gray-600"
-          @click="copyLink"
+          @click="copyLinkOnly"
         >
           <LinkIcon class="w-8 h-8 text-white" />
           <span class="text-white font-bold text-sm mt-2">複製連結</span>
@@ -106,5 +142,3 @@ const copyLink = () => {
     </div>
   </div>
 </template>
-
-<!-- 已移除 .pixel-modal（已用 Tailwind 類別替代） -->

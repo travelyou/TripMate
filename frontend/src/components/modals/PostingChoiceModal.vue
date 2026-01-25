@@ -1,24 +1,13 @@
 <script setup>
-import { useMyItineraryStore } from '@/stores/myItinerary'
-import MyItineraryDetailModal from './MyItineraryDetailModal.vue'
-import { useRouter } from 'vue-router'
-import { ref, computed, onUnmounted } from 'vue'
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
-  ArrowLeft,
-  Image as ImageIcon,
   Briefcase as BriefcaseIcon,
-  Smile,
-  BarChart2,
-  FileVideo,
-  X,
-  Hash,
-  MapPin,
+  X as XIcon,
 } from 'lucide-vue-next'
 
-const emit = defineEmits(['close', 'submit-post'])
-const router = useRouter()
+// 定義 Emit，讓父層知道要開哪個視窗
+const emit = defineEmits(['close', 'open-discussion', 'open-traveler'])
 
 // --- 狀態管理 ---
 const currentStep = ref('menu') // 'menu', 'edit', 'tags', 'preview'
@@ -105,46 +94,18 @@ const handleSaveDraft = () => {
 
   alert('✨ 文章已存入草稿夾！')
   cleanupPreviews() // 清理 blob URL
+// 1. 發起討論：通知父層開啟「討論區發文彈窗」
+const handleOpenDiscussion = () => {
   emit('close')
-  router.push({ name: 'my_itinerary' })
-}
-
-// 🟢 準備一個空白的行程物件，傳給組員的彈窗使用
-const getBlankItinerary = () => ({
-  id: null, // 設為 null，讓 Store 自己去產生 ID
-  title: '',
-  startDate: '',
-  endDate: '',
-  days: [
-    { day: 1, date: '', activities: [] }, // 🟢 貼心設計：預設給他第一天，不然使用者會不知道怎麼開始
-  ],
-  packingList: [],
-})
-// --- 圖片相關狀態 ---
-const fileInputRef = ref(null)
-const imageFiles = ref([]) // 存儲選中的圖片文件
-const imagePreviews = ref([]) // 存儲預覽 URL
-
-// --- 模擬資料 ---
-const boards = ['亞洲旅遊', '找旅伴', '窮遊省錢', '美食分享', '住宿推薦', '行程請益']
-const suggestedTags = ['#北海道', '#獨旅', '#便宜機票', '#溫泉', '#滑雪']
-
-// --- 功能邏輯 ---
-
-// 切換到編輯模式
-const startPosting = (initialBoard = '') => {
-  if (initialBoard) {
-    postData.value.board = initialBoard
-  } else {
-    postData.value.board = ''
-  }
-  currentStep.value = 'edit'
+  emit('open-discussion')
 }
 
 const openItineraryDirectly = () => {
   cleanupPreviews() // 清理 blob URL
+// 2. 尋找旅伴：通知父層開啟「找旅伴發文彈窗」
+const handleOpenTraveler = () => {
   emit('close')
-  router.push({ path: '/my-itinerary' })
+  emit('open-traveler')
 }
 
 const addTag = (tagText) => {
@@ -301,6 +262,7 @@ const filteredTags = computed(() => {
   if (!tagSearch.value) return suggestedTags
   return suggestedTags.filter((t) => t.includes(tagSearch.value))
 })
+// (移除 handleOpenItinerary 函式，因為我們改用 template 直接跳轉)
 </script>
 
 <template>
@@ -309,7 +271,7 @@ const filteredTags = computed(() => {
     @click.self="handleClose"
   >
     <div
-      class="w-full max-w-md bg-white relative animate-pop-in flex flex-col max-h-[90vh] border-2 border-primary shadow-primary-sm"
+      class="w-full max-w-sm bg-white relative animate-pop-in flex flex-col rounded-2xl shadow-xl overflow-hidden mx-4"
     >
       <div v-if="currentStep === 'menu'" class="p-6">
         <h3 class="text-xl font-bold text-gray-800 mb-6 text-shadow">你想發布什麼？</h3>
@@ -357,19 +319,13 @@ const filteredTags = computed(() => {
         </button>
       </div>
 
-      <div v-else-if="currentStep === 'edit'" class="flex flex-col h-full">
-        <div class="p-4 border-b-2 border-gray-200 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep">
-              <ArrowLeft class="w-5 h-5" />
-            </button>
-            <span class="font-bold text-lg">發文設定</span>
-          </div>
-          <select
-            v-model="postData.board"
-            class="bg-gray-100 border-2 border-gray-400 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-primary-500"
-            :class="errors.board ? 'border-red-500' : 'border-gray-400'"
-            @change="clearError('board')"
+      <div class="p-4 space-y-3">
+        <button
+          class="w-full flex items-center p-4 bg-white border-2 border-gray-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group shadow-sm hover:shadow-md"
+          @click="handleOpenDiscussion"
+        >
+          <div
+            class="p-3 bg-blue-100 text-blue-600 rounded-full mr-4 group-hover:bg-blue-500 group-hover:text-white transition-colors"
           >
             <option value="" disabled>點此選擇發文看板 ▼</option>
             <option v-for="b in boards" :key="b" :value="b">{{ b }}</option>
@@ -436,237 +392,68 @@ const filteredTags = computed(() => {
               <MapPin class="w-4 h-4" />
               ＋ 加入行程規劃
             </button>
+            <MessageSquareIcon class="w-6 h-6" />
           </div>
-
-          <!-- 圖片預覽區 -->
-          <div v-if="imagePreviews.length > 0" class="mt-4 space-y-2">
-            <div class="flex flex-wrap gap-2">
-              <div
-                v-for="(url, index) in imagePreviews"
-                :key="index"
-                class="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-300"
-              >
-                <img :src="url" alt="預覽圖片" class="w-full h-full object-cover" />
-                <button
-                  class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                  @click="removeImage(index)"
-                >
-                  <X class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <p class="text-xs text-gray-500">已選擇 {{ imagePreviews.length }}/5 張圖片</p>
-          </div>
-        </div>
-
-        <div class="p-3 border-t-2 border-gray-200 bg-gray-50">
-          <div class="flex items-center justify-between mb-3 px-2">
-            <div class="flex gap-4 text-gray-500">
-              <button
-                type="button"
-                class="hover:text-primary-600 transition-colors"
-                @click="triggerFileSelect"
-              >
-                <ImageIcon class="w-6 h-6" />
-              </button>
-              <input
-                ref="fileInputRef"
-                type="file"
-                accept="image/*"
-                multiple
-                class="hidden"
-                @change="handleImageSelect"
-              />
-              <button class="hover:text-primary-600 transition-colors">
-                <FileVideo class="w-6 h-6" />
-              </button>
-              <button class="hover:text-primary-600 transition-colors">
-                <Smile class="w-6 h-6" />
-              </button>
-              <button class="hover:text-primary-600 transition-colors">
-                <BarChart2 class="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-
-          <div class="flex gap-3">
-            <button
-              class="flex-1 py-2 text-sm font-bold text-gray-500 pixel-button bg-white border-2 border-secondary-200"
-              @click="handleSaveDraft"
-            >
-              存入草稿
-            </button>
-            <button
-              class="flex-1 py-2 text-sm font-bold text-white pixel-button bg-primary-600 hover:bg-primary-700 border-2 border-primary-700"
-              @click="nextStep"
-            >
-              下一步
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="currentStep === 'tags'" class="flex flex-col h-full">
-        <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep">
-            <ArrowLeft class="w-5 h-5" />
-          </button>
-          <span class="font-bold text-lg">新增標籤</span>
-        </div>
-
-        <div class="p-6 flex-1 overflow-y-auto">
-          <div class="relative mb-6">
-            <input
-              v-model="tagSearch"
-              type="text"
-              placeholder="根據文章內容搜尋相關話題..."
-              class="w-full pl-10 pr-4 py-3 bg-primary-50 border-2 border-primary-200 rounded-xl focus:outline-none focus:border-primary-500 font-bold text-gray-700"
-            />
-            <Hash class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
-          </div>
-
-          <div v-if="postData.tags.length > 0" class="mb-6">
-            <h4 class="text-xs font-bold text-gray-500 mb-2">已選標籤：</h4>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="(tag, index) in postData.tags"
-                :key="index"
-                class="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-bold border border-primary-200 flex items-center gap-1"
-              >
-                #{{ tag }}
-                <button class="hover:text-red-500" @click="removeTag(index)">
-                  <X class="w-3 h-3" />
-                </button>
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <h4 class="text-sm font-bold text-gray-500 mb-3">推薦話題 / 搜尋結果</h4>
-            <button
-              v-if="tagSearch"
-              class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 mb-2 text-primary-600"
-              @click="addTag(tagSearch)"
-            >
-              <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-                <span class="font-bold text-lg">+</span>
-              </div>
-              <div>
-                <p class="font-bold">新增「{{ tagSearch }}」話題</p>
-              </div>
-            </button>
-
-            <div class="space-y-2">
-              <button
-                v-for="tag in filteredTags"
-                :key="tag"
-                class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3 transition-colors border-b border-gray-100"
-                @click="addTag(tag)"
-              >
-                <div
-                  class="w-10 h-10 rounded-full bg-gray-200 border-2 border-secondary-200 flex items-center justify-center font-bold text-gray-600"
-                >
-                  #
-                </div>
-                <div>
-                  <p class="font-bold text-gray-800">{{ tag }}</p>
-                  <p class="text-xs text-gray-500">熱門討論話題</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="p-4 border-t-2 border-gray-200 flex justify-end bg-gray-50 gap-3">
-          <button
-            class="w-full py-2 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 border-2 border-primary shadow-primary-sm"
-            @click="nextStep"
-          >
-            預覽文章
-          </button>
-        </div>
-      </div>
-
-      <div v-else-if="currentStep === 'preview'" class="flex flex-col h-full">
-        <div class="p-4 border-b-2 border-gray-200 flex items-center gap-2">
-          <button class="hover:bg-gray-200 p-1 rounded" @click="prevStep">
-            <ArrowLeft class="w-5 h-5" />
-          </button>
-          <span class="font-bold text-lg">預覽文章</span>
-        </div>
-
-        <div class="p-6 flex-1 overflow-y-auto bg-gray-50">
-          <div class="bg-white p-5 border-2 border-gray-200 rounded-lg shadow-sm">
-            <div class="flex justify-between items-start mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-gray-300 border border-gray-400"></div>
-                <div>
-                  <p class="font-bold text-sm">Yuan</p>
-                  <p class="text-xs text-gray-500">剛剛</p>
-                </div>
-              </div>
-              <span class="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded font-bold">{{
-                postData.board || '未分類'
-              }}</span>
-            </div>
-
-            <h2 class="text-xl font-bold mb-3">{{ postData.title || '(無標題)' }}</h2>
-            <p class="text-gray-700 whitespace-pre-wrap mb-4">
-              {{ postData.content || '(無內容)' }}
+          <div class="text-left">
+            <p class="font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
+              發起討論
             </p>
-
-            <!-- 預覽圖片 -->
-            <div v-if="imagePreviews.length > 0" class="mb-4">
-              <div class="flex flex-wrap gap-2">
-                <img
-                  v-for="(url, index) in imagePreviews"
-                  :key="index"
-                  :src="url"
-                  alt="預覽圖片"
-                  class="w-24 h-24 rounded-lg object-cover border-2 border-gray-300"
-                />
-              </div>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-              <span v-for="tag in postData.tags" :key="tag" class="text-primary-600 text-sm font-bold">
-                #{{ tag }}
-              </span>
-            </div>
+            <p class="text-xs text-gray-500">分享經驗或尋求建議</p>
           </div>
-        </div>
+        </button>
 
-        <div class="p-4 border-t-2 border-gray-200 bg-white flex gap-3">
-          <button
-            class="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-200 border-2 border-primary shadow-primary-sm"
-            @click="prevStep"
+        <button
+          class="w-full flex items-center p-4 bg-white border-2 border-gray-100 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all group shadow-sm hover:shadow-md"
+          @click="handleOpenTraveler"
+        >
+          <div
+            class="p-3 bg-green-100 text-green-600 rounded-full mr-4 group-hover:bg-green-500 group-hover:text-white transition-colors"
           >
-            返回修改
-          </button>
-          <button
-            class="flex-1 py-2 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 border-2 border-primary shadow-primary-sm"
-            @click="handleFinalSubmit"
+            <UsersIcon class="w-6 h-6" />
+          </div>
+          <div class="text-left">
+            <p class="font-bold text-gray-800 group-hover:text-green-700 transition-colors">
+              尋找旅伴
+            </p>
+            <p class="text-xs text-gray-500">找到志同道合的夥伴</p>
+          </div>
+        </button>
+
+        <RouterLink
+          :to="{ name: 'my_itinerary' }"
+          class="w-full flex items-center p-4 bg-white border-2 border-gray-100 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all group shadow-sm hover:shadow-md"
+          @click="$emit('close')"
+        >
+          <div
+            class="p-3 bg-purple-100 text-purple-600 rounded-full mr-4 group-hover:bg-purple-500 group-hover:text-white transition-colors"
           >
-            確認發布
-          </button>
-        </div>
+            <BriefcaseIcon class="w-6 h-6" />
+          </div>
+          <div class="text-left">
+            <p class="font-bold text-gray-800 group-hover:text-purple-700 transition-colors">
+              規劃行程
+            </p>
+            <p class="text-xs text-gray-500">這周末想做什麼?</p>
+          </div>
+        </RouterLink>
+      </div>
+
+      <div class="p-3 bg-gray-50 border-t border-gray-100">
+        <button
+          class="w-full py-2 text-sm text-gray-500 font-bold hover:text-gray-700 transition"
+          @click="$emit('close')"
+        >
+          取消
+        </button>
       </div>
     </div>
-
-    <MyItineraryDetailModal
-      v-if="showItineraryModal"
-      :itinerary="getBlankItinerary()"
-      @close="showItineraryModal = false"
-      @save="handleItinerarySave"
-      @save-draft="handleItineraryDraftSave"
-    />
   </div>
 </template>
 
 <style scoped>
 @keyframes popIn {
   0% {
-    transform: scale(0.9);
+    transform: scale(0.95);
     opacity: 0;
   }
   100% {
@@ -675,12 +462,6 @@ const filteredTags = computed(() => {
   }
 }
 .animate-pop-in {
-  animation: popIn 0.15s ease-out forwards;
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-
-.text-shadow {
-  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
-}
-
-/* pixel-card and pixel-button replaced by Tailwind-like classes in template */
 </style>
