@@ -230,36 +230,38 @@ const handleAddToCart = async () => {
     }
 
     const itineraryId = localItineraryData.value.id
-    const existingItem = checkoutStore.cartItems.find(
-      (item) => Number(item.itineraryId) === Number(itineraryId),
+
+    // 優先從 tourGroups（已展示的購物車項目）查找
+    const existingTourGroup = checkoutStore.tourGroups.find(
+      (t) => Number(t.id) === Number(itineraryId),
     )
-    if (existingItem) {
-      const shouldIncrease = await showConfirm(
-        '\u8cfc\u7269\u8eca\u5df2\u7d93\u6709\u76f8\u540c\u884c\u7a0b\uff0c\u662f\u5426\u8981\u589e\u52a0\u4eba\u6578\uff1f',
-        {
-          confirmButtonText: '\u589e\u52a0\u4eba\u6578',
-          cancelButtonText: '\u53d6\u6d88',
-          icon: 'question',
-          iconColor: '#2563eb',
-        },
-      )
+
+    if (existingTourGroup) {
+      const shouldIncrease = await showConfirm('購物車已經有相同行程，是否要增加人數？', {
+        confirmButtonText: '增加人數',
+        cancelButtonText: '取消',
+        icon: 'question',
+        iconColor: '#2563eb',
+      })
       if (!shouldIncrease) return
 
-      const nextPersons = Number(existingItem.persons ?? 1) + 1
+      const nextPersons = Number(existingTourGroup.persons ?? 1) + 1
       try {
         await updateCartItemPersons({ itineraryId, persons: nextPersons })
-        existingItem.persons = nextPersons
-        const group = checkoutStore.tourGroups.find((t) => Number(t.id) === Number(itineraryId))
-        if (group) group.persons = nextPersons
-        const goToCart = await showConfirm(
-          '\u5df2\u589e\u52a0\u4eba\u6578\uff0c\u662f\u5426\u524d\u5f80\u8cfc\u7269\u8eca\uff1f',
-          {
-            confirmButtonText: '\u524d\u5f80\u8cfc\u7269\u8eca',
-            cancelButtonText: '\u7559\u5728\u6b64\u9801',
-            icon: 'success',
-            iconColor: '#16a34a',
-          },
+        existingTourGroup.persons = nextPersons
+
+        // 同時更新 cartItems 中的該項
+        const cartItem = checkoutStore.cartItems.find(
+          (c) => Number(c.itineraryId) === Number(itineraryId),
         )
+        if (cartItem) cartItem.persons = nextPersons
+
+        const goToCart = await showConfirm('已增加人數，是否前往購物車？', {
+          confirmButtonText: '前往購物車',
+          cancelButtonText: '留在此頁',
+          icon: 'success',
+          iconColor: '#16a34a',
+        })
         if (goToCart) {
           await checkoutStore.loadCartFromDb()
           if (checkoutStore.cartError) {
@@ -269,7 +271,7 @@ const handleAddToCart = async () => {
           router.push('/cart')
         }
       } catch (error) {
-        await showError(error?.message || '\u589e\u52a0\u4eba\u6578\u5931\u6557')
+        await showError(error?.message || '增加人數失敗')
       }
       return
     }
@@ -278,16 +280,6 @@ const handleAddToCart = async () => {
     if (checkoutStore.cartError) {
       await showError(checkoutStore.cartError)
       return
-    }
-    if (
-      !checkoutStore.cartItems?.some(
-        (item) => Number(item.itineraryId) === Number(itineraryId),
-      )
-    ) {
-      checkoutStore.cartItems = [
-        ...(checkoutStore.cartItems || []),
-        { itineraryId, persons: 1 },
-      ]
     }
     const goToCart = await showConfirm('已成功加入購物車，是否前往查看？', {
       confirmButtonText: '前往購物車',
@@ -613,7 +605,6 @@ onMounted(async () => {
                   ]"
                 />
               </button>
-
               <button
                 class="text-secondary-400 hover:text-primary-600 transition group ml-1"
                 title="分享"

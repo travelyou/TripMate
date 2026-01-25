@@ -163,13 +163,47 @@ export const checkoutStore = reactive({
   async addToCart(itineraryId, persons = 1, options = {}) {
     try {
       this.cartError = ''
-      await addCartItem({ itineraryId, persons })
+      const numItineraryId = Number(itineraryId)
+
+      // 1. Optimistically update local state（樂觀更新）
+      const exists = this.cartItems.some(
+        (item) => Number(item.itineraryId) === Number(numItineraryId),
+      )
+
+      if (!exists) {
+        // 新增項目至 cartItems
+        this.cartItems.push({ itineraryId: numItineraryId, persons })
+
+        // 同時樂觀更新 tourGroups（避免紅點延遲顯示）
+        // 此時先添加一個簡單的佔位符，等 loadCartFromDb 時會補全詳細資訊
+        const existsInTourGroups = this.tourGroups.some((t) => t.id === numItineraryId)
+        if (!existsInTourGroups) {
+          // 注：此處只是佔位符，真實資訊會在 loadCartFromDb 或選擇時補全
+          this.tourGroups.push({
+            id: numItineraryId,
+            title: '載入中...',
+            description: '',
+            image: '',
+            date: '',
+            duration: '',
+            price: 0,
+            persons: persons,
+          })
+        }
+      }
+
+      // 2. Call API
+      await addCartItem({ itineraryId: numItineraryId, persons })
+
+      // 3. Reload from DB if not skipping
       if (!options.skipReload) {
         await this.loadCartFromDb()
       }
     } catch (e) {
       console.error('[addToCart] failed:', e)
       this.cartError = e?.message || '加入購物車失敗'
+      // 4. Revert on error - resync with backend
+      await this.loadCartFromDb()
     }
   },
 

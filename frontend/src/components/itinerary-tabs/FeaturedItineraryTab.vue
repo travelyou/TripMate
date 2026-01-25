@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { reportBankTransfer } from '@/api/payments'
 import { Calendar as CalendarIcon, Star as StarIcon } from 'lucide-vue-next'
 
@@ -182,8 +182,25 @@ const formatTaiwanDate = (value, { showSeconds = false } = {}) => {
   return `${year}/${month}/${day} ${dayPeriod} ${time}`
 }
 
+// 檢查是否有聯絡人資訊
+const hasContactInfo = (target) => {
+  const c = target?.contact
+  return !!(c && (c.name || c.phone || c.email || c.note))
+}
+
+// 檢查是否有緊急聯絡人資訊
+const hasEmergencyContactInfo = (target) => {
+  const ec = target?.emergencyContact
+  return !!(ec && (ec.name || ec.phone))
+}
+
 watch(isDetailOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : ''
+})
+
+// 確保元件卸載時還原 body 的滾動狀態
+onUnmounted(() => {
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -551,15 +568,7 @@ watch(isDetailOpen, (open) => {
             </div>
           </div>
 
-          <div
-            v-if="
-              detailTarget.contact &&
-              (detailTarget.contact.name ||
-                detailTarget.contact.phone ||
-                detailTarget.contact.email ||
-                detailTarget.contact.note)
-            "
-          >
+          <div v-if="hasContactInfo(detailTarget)">
             <h3 class="mb-4 text-lg font-bold text-secondary-800">訂購人資訊</h3>
             <div class="bg-white p-5 rounded-xl border border-secondary-100">
               <div class="flex flex-col gap-5">
@@ -595,12 +604,7 @@ watch(isDetailOpen, (open) => {
             </div>
           </div>
 
-          <div
-            v-if="
-              detailTarget.emergencyContact &&
-              (detailTarget.emergencyContact.name || detailTarget.emergencyContact.phone)
-            "
-          >
+          <div v-if="hasEmergencyContactInfo(detailTarget)">
             <h3 class="mb-4 text-lg font-bold text-secondary-800">緊急聯絡人</h3>
             <div class="bg-white p-5 rounded-xl border border-secondary-100">
               <div class="flex flex-col gap-5">
