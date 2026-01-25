@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   MessageSquare as MessageSquareIcon,
   Users as UsersIcon,
@@ -15,6 +16,7 @@ const emit = defineEmits(['close'])
 const showDiscussionModal = ref(false)
 const showTravelerModal = ref(false)
 const showItineraryModal = ref(false)
+const router = useRouter()
 
 const openDiscussionModal = () => {
   showDiscussionModal.value = true
@@ -25,7 +27,8 @@ const openTravelerModal = () => {
 }
 
 const openItineraryModal = () => {
-  showItineraryModal.value = true
+  emit('close')
+  router.push({ name: 'my_itinerary' })
 }
 
 const handlePostSuccess = () => {

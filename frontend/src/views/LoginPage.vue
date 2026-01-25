@@ -850,7 +850,7 @@ const registerErrors = ref({
                       </div>
                     </div>
                   </label>
-                  <label v-if="false" class="flex-1 cursor-pointer">
+                  <label class="flex-1 cursor-pointer">
                     <input
                       v-model="registerForm.role"
                       type="radio"
