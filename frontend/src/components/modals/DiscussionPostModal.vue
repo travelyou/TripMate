@@ -1285,6 +1285,7 @@ onMounted(() => {
                 />
               </div>
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
+              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 class="text-secondary-700 text-base mb-4 leading-relaxed prose prose-lg max-w-none"
                 v-html="postData.content"

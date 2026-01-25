@@ -32,7 +32,6 @@ import {
   getApplications,
   acceptApplication,
   rejectApplication,
-  submitApplication,
 } from '@/api/travelers'
 import { deleteTraveler } from '@/api/travelers'
 import { formatTime } from '@/utils/time'
@@ -66,9 +65,6 @@ const localComments = ref([])
 const applications = ref([])
 const isLoadingApplications = ref(false)
 const processingIds = ref(new Set())
-const applicationMessage = ref('')
-const isSubmittingApplication = ref(false)
-const applicationError = ref('')
 const myApplication = ref(null)
 const showMenu = ref(false)
 const showShareModal = ref(false) // [新增]
@@ -172,13 +168,13 @@ const jumpToComments = async () => {
 
   // 等待 tab 內容渲染完成
   await nextTick()
-  
+
   // 滾動到留言區
   const tabElement = document.getElementById('traveler-tab-nav')
   if (tabElement) {
     tabElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
-  
+
   // 如果有留言輸入框，聚焦它
   await nextTick()
   commentInputRef.value?.focus()
@@ -271,9 +267,10 @@ const toggleCommentLike = async (item) => {
     if (typeof result?.likesCount === 'number') {
       item.likes = result.likesCount
     }
-  } catch (error) {
+  } catch (err) {
     item.isLiked = wasLiked
     item.likes = originalLikes
+    console.error(err)
     alert('留言按讚失敗，請稍後再試')
   }
 }
@@ -375,27 +372,6 @@ const handleRejectApplication = async (application) => {
     alert('拒絕報名失敗，請稍後再試')
   } finally {
     processingIds.value.delete(application.id)
-  }
-}
-
-const handleSubmitApplication = async () => {
-  if (
-    !applicationMessage.value.trim() ||
-    applicationMessage.value.length > 200 ||
-    isSubmittingApplication.value
-  )
-    return
-  isSubmittingApplication.value = true
-  applicationError.value = ''
-  try {
-    await submitApplication(localTravelerData.value.id, applicationMessage.value.trim())
-    await loadApplications()
-    applicationMessage.value = ''
-    alert('報名成功！')
-  } catch (err) {
-    applicationError.value = err.response?.data?.message || '提交失敗，請稍後再試'
-  } finally {
-    isSubmittingApplication.value = false
   }
 }
 
@@ -506,7 +482,7 @@ onMounted(async () => {
       }
     }
   }
-  
+
   // 確保數據載入完成後再滾動到留言區
   if (props.scrollToComments) {
     await nextTick()
@@ -527,7 +503,7 @@ onMounted(async () => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
     @click.self="emit('close')"
   >
-    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+    <ShareModal v-if="showShareModal" :post-link="shareLink" @close="showShareModal = false" />
 
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
@@ -611,8 +587,8 @@ onMounted(async () => {
         <div class="absolute top-4 right-16 z-20">
           <button
             class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
-            @click.stop="showMenu = !showMenu"
             title="更多"
+            @click.stop="showMenu = !showMenu"
           >
             <MoreVertical class="w-6 h-6" />
           </button>
@@ -780,10 +756,12 @@ onMounted(async () => {
               >
             </div>
 
+            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-6 rich-content"
               v-html="processedContent"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
 
             <div
               class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6"
@@ -834,8 +812,8 @@ onMounted(async () => {
               <button
                 v-if="isAuthor"
                 class="flex items-center space-x-1 transition group text-secondary-400 hover:text-blue-600"
-                @click="handleViewApplications"
                 title="查看報名清單"
+                @click="handleViewApplications"
               >
                 <UserPlusIcon class="w-5 h-5 transition-transform group-active:scale-125" />
               </button>
@@ -848,8 +826,8 @@ onMounted(async () => {
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-secondary-400 hover:text-blue-600',
                 ]"
-                @click="handleApply"
                 :title="hasApplied ? '已報名' : '報名'"
+                @click="handleApply"
               >
                 <UserPlusIcon
                   :class="[
@@ -1041,16 +1019,16 @@ onMounted(async () => {
                         <button
                           :disabled="processingIds.has(app.id)"
                           class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50"
-                          @click="handleAcceptApplication(app)"
                           title="接受"
+                          @click="handleAcceptApplication(app)"
                         >
                           <CheckIcon class="w-4 h-4" />
                         </button>
                         <button
                           :disabled="processingIds.has(app.id)"
                           class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50"
-                          @click="handleRejectApplication(app)"
                           title="拒絕"
+                          @click="handleRejectApplication(app)"
                         >
                           <XCloseIcon class="w-4 h-4" />
                         </button>

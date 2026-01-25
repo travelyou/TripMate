@@ -151,7 +151,6 @@ app.use('/api/notifications', require('./routes/notifications'))
 app.use('/api/my-itinerary', require('./routes/myItinerary'))
 
 // 全域錯誤處理
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {

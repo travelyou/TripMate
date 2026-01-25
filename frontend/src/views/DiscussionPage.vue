@@ -199,12 +199,6 @@ const closeDiscussionDetailModal = () => {
   router.push('/discussion')
 }
 
-const handlePostSuccess = async () => {
-  isPostingModalOpen.value = false
-  postToEdit.value = null
-  loadDiscussionsData(false)
-}
-
 const handleEditPost = (post) => {
   setAppLoading(true)
   postToEdit.value = post

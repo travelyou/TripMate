@@ -11,7 +11,6 @@ import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsM
 import ShareModal from '@/components/modals/ShareModal.vue' // [新增] 確保功能不遺失
 import { getTravelers, getTravelerById } from '@/api/travelers'
 import { useMyItineraryStore } from '@/stores/myItinerary'
-import { auth } from '@/firebase/config'
 import { TRAVELER_STATUS_OPTIONS, TRAVELER_CATEGORY_OPTIONS } from '@/utils/filterOptions'
 
 const myItineraryStore = useMyItineraryStore()
@@ -264,25 +263,25 @@ const tryOpenSharedTraveler = async () => {
     }
   }
   if (!travelerId) return
-  
+
   // 防止重複打開
   if (isDetailModalOpen.value && String(selectedTraveler.value?.id) === String(travelerId)) {
     return
   }
-  
+
   // 檢查是否需要滾動到留言區
   const shouldScroll = route.query.scrollToComments === 'true'
-  
+
   setAppLoading(true)
   try {
     const response = await getTravelerById(travelerId)
     if (response?.success && response.data) {
       // 先清除 URL 參數，避免重複觸發
       await router.replace({ path: '/travelers', query: {}, hash: '' })
-      
+
       // 確保 URL 更新後再打開模態框
       await nextTick()
-      
+
       selectedTraveler.value = response.data
       shouldScrollToComments.value = shouldScroll
       isDetailModalOpen.value = true
@@ -296,9 +295,9 @@ const tryOpenSharedTraveler = async () => {
     console.error('開啟分享旅伴失敗：', error)
     // 清除 URL 參數
     await router.replace({ path: '/travelers', query: {}, hash: '' }).catch(() => {})
-    
+
     // 根據錯誤類型給予不同提示
-    const errorMessage = error.response?.status === 404 
+    const errorMessage = error.response?.status === 404
       ? '找旅伴貼文不存在或已被刪除'
       : '開啟找旅伴貼文時發生錯誤，請稍後再試'
     alert(errorMessage)
@@ -338,6 +337,9 @@ onMounted(() => {
   )
 
   if (loadMoreTrigger.value) observer.observe(loadMoreTrigger.value)
+
+  tryOpenDraft()
+  tryOpenEditTraveler()
 })
 
 onUnmounted(() => {

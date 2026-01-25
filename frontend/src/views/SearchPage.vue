@@ -1,4 +1,5 @@
 ﻿<template>
+  <!-- eslint-disable vue/no-v-html -->
   <div class="min-h-screen bg-secondary-50 flex flex-col pb-24 lg:pb-0">
     <div class="sticky top-0 z-30 bg-secondary-100 shadow-sm border-b border-secondary-200 p-4">
       <div class="w-full">
@@ -230,6 +231,7 @@
       @close="closeDiscussionDetailModal"
     />
   </div>
+  <!-- eslint-enable vue/no-v-html -->
 </template>
 
 <script setup>
@@ -265,7 +267,7 @@ const searchInput = ref(null)
 const searchQuery = ref('')
 const hasSearched = ref(false)
 const activeTab = ref('all')
-const activeSubFilters = ref(['全部']) // 改為陣列，支援複選
+const activeSubFilters = ref(['全部']) // 陣列但只允許單選
 
 const currentPage = ref(1)
 const itemsPerPage = 10
@@ -674,32 +676,21 @@ const quickSearch = (keyword) => {
   performSearch()
 }
 
-// 切換子篩選條件（支援複選）
+// 切換子篩選條件（單選）
 const toggleSubFilter = (filter) => {
-  const index = activeSubFilters.value.indexOf(filter)
-
   if (filter === '全部') {
-    // 如果點擊「全部」，清除其他選項，只保留「全部」
+    // 點擊「全部」，清除其他選項，只保留「全部」
     activeSubFilters.value = ['全部']
-  } else {
-    // 如果點擊其他選項
-    if (index > -1) {
-      // 如果已選中，則取消選中
-      activeSubFilters.value.splice(index, 1)
-      // 如果取消後沒有選中任何選項，自動選中「全部」
-      if (activeSubFilters.value.length === 0) {
-        activeSubFilters.value = ['全部']
-      }
-    } else {
-      // 如果未選中，則選中
-      // 如果當前有「全部」，先移除「全部」
-      const allIndex = activeSubFilters.value.indexOf('全部')
-      if (allIndex > -1) {
-        activeSubFilters.value.splice(allIndex, 1)
-      }
-      activeSubFilters.value.push(filter)
-    }
+    return
   }
+
+  // 單選：只保留被點選的項目；再次點選同一項則回到「全部」
+  if (activeSubFilters.value[0] === filter) {
+    activeSubFilters.value = ['全部']
+    return
+  }
+
+  activeSubFilters.value = [filter]
 }
 
 const getTabLabel = (val) => {

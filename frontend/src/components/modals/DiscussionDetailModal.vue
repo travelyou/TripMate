@@ -371,7 +371,7 @@ onMounted(async () => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-2 sm:p-4"
     @click.self="emit('close')"
   >
-    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+    <ShareModal v-if="showShareModal" :post-link="shareLink" @close="showShareModal = false" />
 
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
@@ -507,10 +507,12 @@ onMounted(async () => {
               >
             </div>
 
+            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-gray-900 rich-content"
               v-html="processedContent"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
 
             <div
               class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6"

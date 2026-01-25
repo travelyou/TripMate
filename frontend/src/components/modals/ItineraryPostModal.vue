@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import {
   X as XIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -17,11 +17,9 @@ import {
   Bold as BoldIcon,
   Italic as ItalicIcon,
   Underline as UnderlineIcon,
-  Strikethrough as StrikethroughIcon,
   Heading2 as Heading2Icon,
   Heading3 as Heading3Icon,
   Type as TypeIcon,
-  Minus as MinusIcon,
   AlignLeft as AlignLeftIcon,
   AlignCenter as AlignCenterIcon,
   Palette as PaletteIcon,
@@ -43,13 +41,6 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
-
-const props = defineProps({
-  itineraryToEdit: {
-    type: Object,
-    default: null,
-  },
-})
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -661,18 +652,18 @@ if (postData.value.itinerary.days.length === 0) {
                 class="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center sticky top-0 z-30 shadow-sm"
               >
                 <button
-                  @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 2 }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="H2"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 2 }) }"
+                  @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
                 >
                   <Heading2Icon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 3 }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="H3"
+                  :class="{ 'bg-gray-200 text-black': editor.isActive('heading', { level: 3 }) }"
+                  @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
                 >
                   <Heading3Icon class="w-4 h-4" />
                 </button>

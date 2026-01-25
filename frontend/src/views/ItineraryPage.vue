@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
-import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
+import { Map as MapIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useRoute, useRouter } from 'vue-router'
 import { getItineraryById } from '@/api/itinerary'
@@ -10,7 +10,6 @@ import ShareModal from '@/components/modals/ShareModal.vue'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 import { ITINERARY_CATEGORY_OPTIONS } from '@/utils/filterOptions'
-import { showError } from '@/utils/alert'
 
 const itinerariesStore = useItineraryStore()
 const route = useRoute()
@@ -132,35 +131,6 @@ const closeDetailModal = () => {
   router.push('/featured-itinerary') // 網址重置會自動觸發 watch 載入列表
 }
 
-const tryOpenSharedItinerary = async () => {
-  let itineraryId = route.query.itineraryId
-  if (!itineraryId && route.hash) {
-    const match = route.hash.match(/^#itinerary-(.+)$/)
-    if (match?.[1]) {
-      itineraryId = match[1]
-    }
-  }
-  if (!itineraryId) return
-  setAppLoading(true)
-  try {
-    const response = await getItineraryById(itineraryId)
-    const itinerary = response?.data || response
-    if (itinerary) {
-      openDetailModal(itinerary, false)
-      router.replace({ path: '/featured-itinerary', query: {}, hash: '' })
-    } else {
-      await showError('無法找到該行程，可能已被刪除或不存在')
-      router.replace({ path: '/featured-itinerary', query: {}, hash: '' })
-    }
-  } catch (error) {
-    console.error('開啟分享行程失敗：', error)
-    await showError('開啟行程時發生錯誤，請稍後再試')
-    router.replace({ path: '/featured-itinerary', query: {}, hash: '' }).catch(() => {})
-  } finally {
-    setAppLoading(false)
-  }
-}
-
 // 處理開啟分享模態框
 const openShareModal = (itineraryId) => {
   shareLink.value = `${window.location.origin}/featured-itinerary/${itineraryId}`
@@ -194,11 +164,6 @@ const handleDetailEdit = (itinerary) => {
 }
 
 const handleCardDelete = () => {
-  loadItinerariesData(false)
-}
-
-// eslint-disable-next-line no-unused-vars
-const handleCardDelete = (itinerary) => {
   // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
   itinerariesStore.fetchItineraries()
 }

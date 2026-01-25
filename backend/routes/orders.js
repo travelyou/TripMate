@@ -97,11 +97,6 @@ router.post('/from-cart', async (req, res) => {
       })
     }
 
-    if (itemR.rows.length === 0) {
-      await client.query('ROLLBACK')
-      return res.status(400).json({ ok: false, message: '找不到購物車內的該行程，無法結帳' })
-    }
-
     const item = itemR.rows[0]
     const p = Number(item.persons)
     if (!Number.isInteger(p) || p <= 0) {
@@ -388,6 +383,8 @@ router.get('/:id', async (req, res) => {
         o.unit_price,
         o.persons,
         o.itinerary_id,
+        o.contact_json,
+        o.emergency_contact_json,
         o.created_at,
         i.title,
         i.start_date,
