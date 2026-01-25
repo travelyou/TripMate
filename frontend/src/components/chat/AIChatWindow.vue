@@ -11,7 +11,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-// 引入設定檔
+// 引入設定檔 (請確保您的 aiConfig.js 已改為使用 gemini-pro)
 import { GEMINI_MODEL_NAME, TRIPMATE_SYSTEM_PROMPT } from '@/config/aiConfig'
 
 defineEmits(['close'])
@@ -20,49 +20,58 @@ const messageInput = ref('')
 const messagesContainer = ref(null)
 const isLoading = ref(false)
 
-// 初始化 Gemini
+// 初始化變數
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-let genAI = null
-let model = null
 let chat = null
 
-if (!apiKey) {
-  console.error('❌ 沒有 VITE_GEMINI_API_KEY ！')
-  if (import.meta.env.PROD) {
-    console.error('⚠️ 生產環境：請檢查 GitHub Secrets 中的 VITE_GEMINI_API_KEY 是否已設置')
+// 初始化聊天室函數 (相容性修正版：解決 404 與 SDK 版本問題)
+const initChat = async () => {
+  if (!apiKey) {
+    console.error('❌ 沒有 VITE_GEMINI_API_KEY ！')
+    return
   }
-}
 
-if (apiKey) {
   try {
-    genAI = new GoogleGenerativeAI(apiKey)
-    model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME })
-    chat = model.startChat({
-      history: TRIPMATE_SYSTEM_PROMPT,
+    const genAI = new GoogleGenerativeAI(apiKey)
+
+    // 1. 獲取模型 (使用設定檔中的名稱，建議先用 'gemini-pro')
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_MODEL_NAME,
     })
-    console.log('✅ AI 初始化成功，模型:', GEMINI_MODEL_NAME)
+
+    // 2. 使用 history 來注入您的 50 題業務規則
+    // 這種寫法對所有版本的 Gemini 模型都通用，不會報錯
+    chat = model.startChat({
+      history: [
+        {
+          role: 'user',
+          parts: [{ text: TRIPMATE_SYSTEM_PROMPT }],
+        },
+        {
+          role: 'model',
+          parts: [{ text: '收到，我是 TripMate 小幫手，我已熟讀所有業務規則，請隨時問我！' }],
+        },
+      ],
+    })
+    console.log(`✅ AI 初始化成功，使用模型: ${GEMINI_MODEL_NAME}`)
   } catch (error) {
     console.error('❌ AI 初始化失敗:', error)
-    if (error.message?.includes('API key') || error.message?.includes('API_KEY')) {
-      console.error('⚠️ API Key 可能無效或過期，請檢查 GitHub Secrets')
-    }
   }
 }
 
+// 執行初始化
+initChat()
+
 // 預設歡迎訊息
+
 const messages = ref([
   {
     id: 1,
     type: 'bot',
     content: `
-      <p class="mb-2">您好！我是 TripMate 助手，很高興為您服務！</p>
-      <p class="mb-2">我可以協助您：</p>
-      <ul class="list-disc list-inside space-y-1 ml-1">
-        <li>規劃旅遊行程</li>
-        <li>推薦景點與美食</li>
-        <li>解答旅遊相關問題</li>
-      </ul>
-      <p class="mt-2">請告訴我您需要什麼協助？</p>
+      <p>您好！我是 <b>TripMate 小幫手</b> 🐬</p>
+      <p>我可以回答您關於<b>旅遊規劃</b>與<b>網站操作</b>的相關問題。</p>
+      <p class="mt-2">請問有什麼我可以幫您的嗎？</p>
     `,
   },
 ])
@@ -71,29 +80,35 @@ const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text || isLoading.value) return
 
-  if (!chat) {
-    messages.value.push({
-      id: Date.now() + 1,
-      type: 'bot',
-      content: '聊天功能沒有成功開始',
-    })
-    return
-  }
-
-  // 1. 加入使用者訊息
+  // 1. 加入使用者訊息到畫面
   messages.value.push({
     id: Date.now(),
     type: 'user',
     content: text,
   })
 
+  const currentInput = text
   messageInput.value = ''
   isLoading.value = true
   scrollToBottom()
 
+  // 確保聊天室已初始化
+  if (!chat) {
+    await initChat()
+    if (!chat) {
+      messages.value.push({
+        id: Date.now() + 1,
+        type: 'bot',
+        content: '⚠️ 系統連線異常，請檢查 API Key 設定。',
+      })
+      isLoading.value = false
+      return
+    }
+  }
+
   try {
-    // 2. 呼叫 AI
-    const result = await chat.sendMessage(text)
+    // 2. 呼叫 AI API
+    const result = await chat.sendMessage(currentInput)
     const responseText = result.response.text()
 
     // 3. 轉 HTML 並消毒
@@ -110,22 +125,11 @@ const sendMessage = async () => {
 
     let errorMessage = '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫'
 
-    // 檢查特定錯誤類型
-    if (error.message?.includes('API key expired') || error.message?.includes('API_KEY_INVALID')) {
-      errorMessage = '⚠️ API Key 已過期或無效，請聯繫管理員更新'
-      console.error('⚠️ API Key 問題：', error.message)
-      if (import.meta.env.PROD) {
-        console.error('⚠️ 生產環境：請檢查 GitHub Secrets 中的 VITE_GEMINI_API_KEY')
-      }
-    } else if (error.message?.includes('404') || error.message?.includes('not found')) {
-      errorMessage = '⚠️ 模型名稱錯誤，請檢查配置'
-      console.error('⚠️ 模型問題：', error.message)
-    } else if (error.message?.includes('502') || error.message?.includes('Bad Gateway')) {
-      errorMessage = '⚠️ 網路連線問題，請稍後再試'
-      console.error('⚠️ 網路問題：', error.message)
-    } else if (error.message?.includes('400')) {
-      errorMessage = '⚠️ 請求格式錯誤，請稍後再試'
-      console.error('⚠️ 請求錯誤：', error.message)
+    // 錯誤判斷
+    if (error.message?.includes('API key')) {
+      errorMessage = '⚠️ API Key 無效或已過期'
+    } else if (error.message?.includes('404')) {
+      errorMessage = '⚠️ 找不到模型，請檢查 aiConfig.js 中的模型名稱'
     }
 
     messages.value.push({
@@ -193,7 +197,6 @@ onMounted(() => {
               : 'bg-white text-secondary-800 rounded-2xl rounded-tl-sm border-2 border-secondary-100 markdown-body',
           ]"
         >
-          <!-- eslint-disable-next-line vue/no-v-html -->
           <div v-if="msg.type === 'bot'" v-html="msg.content"></div>
           <div v-else>{{ msg.content }}</div>
         </div>
