@@ -20,27 +20,22 @@ const router = createRouter({
       },
     },
     {
-      path: '/discussion',
+      path: '/discussion/:id?',
       name: 'discussion',
       component: () => import('@/views/DiscussionPage.vue'),
+      props: true,
     },
     {
-      path: '/post/:id',
-      name: 'post_redirect',
-      redirect: (to) => ({
-        path: '/discussion',
-        query: { postId: to.params.id },
-      }),
-    },
-    {
-      path: '/travelers',
+      path: '/travelers/:id?',
       name: 'travelers',
       component: () => import('@/views/TravelerPage.vue'),
+      props: true,
     },
     {
-      path: '/featured-itinerary',
+      path: '/featured-itinerary/:id?',
       name: 'featured_itinerary',
       component: () => import('@/views/ItineraryPage.vue'),
+      props: true,
     },
     {
       path: '/my-itinerary',

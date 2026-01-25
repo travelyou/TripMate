@@ -9,7 +9,7 @@ import {
   Heart as HeartIcon,
   DollarSign as DollarSignIcon,
   MessageCircle as MessageCircleIcon,
-  Repeat2 as Repeat2Icon,
+  Share,
   Building as BuildingIcon,
   MoreVertical,
   Edit,
@@ -64,7 +64,7 @@ const itemData = computed(() => ({
   price: props.itinerary.price,
 }))
 
-// --- HTML 轉純文字 (摘要用) ---
+// --- HTML 轉純文字 ---
 const previewContent = computed(() => {
   if (!props.itinerary.description) return ''
   let content = props.itinerary.description
@@ -95,7 +95,6 @@ const displayDate = computed(() => {
     const d1 = new Date(start_date)
     const d2 = new Date(end_date)
     if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return `${durationDays || 1} 天`
-    // 簡化日期顯示邏輯
     const pad = (n) => n.toString().padStart(2, '0')
     const startStr = `${d1.getFullYear()}/${pad(d1.getMonth() + 1)}/${pad(d1.getDate())}`
     const endStr = `${pad(d2.getMonth() + 1)}/${pad(d2.getDate())}`
@@ -105,7 +104,6 @@ const displayDate = computed(() => {
   return `${durationDays || 1} 天`
 })
 
-// --- 按讚邏輯 ---
 const loadLikesInfo = async () => {
   if (!props.itinerary.id || !currentUserUid.value) return
   try {
@@ -169,13 +167,12 @@ const handleEdit = (e) => {
 const handleDelete = async (e) => {
   e.stopPropagation()
   closeMenu()
-  
+
   if (!confirm('確定要刪除此行程嗎？')) {
     return
   }
-  
+
   try {
-    // 使用axios直接呼叫刪除API
     const axios = (await import('axios')).default
     const { API_BASE_URL } = await import('@/api/config')
     await axios.delete(`${API_BASE_URL}/itineraries/${props.itinerary.id}`)
@@ -187,13 +184,14 @@ const handleDelete = async (e) => {
   }
 }
 
+// [修正] 修改複製連結格式為路徑形式，並修正 ID 抓取
 const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
   try {
-    const url = `${window.location.origin}/featured-itinerary?itineraryId=${props.itinerary.id}`
+    const url = `${window.location.origin}/featured-itinerary/${props.itinerary.id}`
     await navigator.clipboard.writeText(url)
-    showToastNotification('已複製貼文網址', 'info')
+    showToastNotification('已複製行程網址', 'info')
   } catch (error) {
     console.error('複製失敗:', error)
     alert('複製失敗，請稍後再試')
@@ -229,10 +227,9 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border border-secondary-200 shadow-md bg-white group flex flex-col h-full"
+    class="overflow-hidden cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] duration-150 rounded-2xl border border-secondary-200 shadow-md bg-white group flex flex-col h-full relative"
     @click="emit('open-detail', props.itinerary, false)"
   >
-    <!-- 三点菜单按钮 -->
     <div v-if="showMenuButton" class="absolute top-2 right-2 post-menu-container z-30">
       <button
         class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
@@ -240,8 +237,7 @@ onUnmounted(() => {
       >
         <MoreVertical class="w-5 h-5" />
       </button>
-      
-      <!-- 菜单下拉 -->
+
       <div
         v-if="showMenu"
         class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
@@ -280,7 +276,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Toast 通知 -->
     <Teleport to="body">
       <Transition
         enter-active-class="transition-all duration-300 ease-out"
@@ -294,7 +289,7 @@ onUnmounted(() => {
           v-if="showToast"
           :class="[
             'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-xl transition-all duration-300',
-            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+            toastType === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white',
           ]"
         >
           <p class="text-sm font-bold whitespace-nowrap">{{ toastMessage }}</p>
@@ -394,6 +389,13 @@ onUnmounted(() => {
               (props.itinerary.totalSaves || 0) + (userStore.isCollected(itemData) ? 1 : 0)
             }}</span>
           </button>
+
+          <button
+            class="flex items-center space-x-1 p-1 rounded-md text-secondary-400 hover:text-primary-600 transition"
+            @click.stop="emit('open-share', props.itinerary.id)"
+          >
+            <Share class="w-4 h-4" />
+          </button>
         </div>
 
         <div class="flex items-center space-x-2 text-secondary-400">
@@ -402,13 +404,6 @@ onUnmounted(() => {
             @click.stop="emit('open-detail', props.itinerary, true)"
           >
             <MessageCircleIcon class="w-4 h-4" />
-          </button>
-
-          <button
-            class="p-1.5 hover:bg-secondary-50 rounded-full hover:text-secondary-600 transition"
-            @click.stop="emit('open-share', props.itinerary.id)"
-          >
-            <Repeat2Icon class="w-4 h-4" />
           </button>
         </div>
       </div>

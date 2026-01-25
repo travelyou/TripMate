@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus as PlusIcon, MessageCircle as MessageCircleIcon } from 'lucide-vue-next'
 import { useDiscussionsStore } from '@/stores/discussions'
@@ -7,6 +7,7 @@ import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { storeToRefs } from 'pinia'
+import { fetchPostById } from '@/api/discussions' // [新增] 直接引入
 
 // 引入組件
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
@@ -37,18 +38,36 @@ const filterOptions = ref([
 ])
 const activeFilter = ref('全部')
 
-// --- ★ 分頁狀態 ---
+// --- 分頁狀態 ---
 const currentPage = ref(1)
 const hasMore = ref(true)
-const loadMoreTrigger = ref(null) // 綁定到底部的 DOM 元素
-let observer = null // IntersectionObserver 實例
+const loadMoreTrigger = ref(null)
+let observer = null
 
-// ★ 修改：載入文章 (支援分頁)
+// [重點修改] 支援單一貼文顯示的載入邏輯
 const loadDiscussionsData = async (isLoadMore = false) => {
-  if (discussionsStore.loading) return // 防止重複觸發
+  if (discussionsStore.loading) return
 
   try {
-    // 如果不是載入更多 (代表是切換分類或初始化)，重置狀態
+    // 1. 如果網址有指定 ID 且不是「載入更多」模式
+    if (route.params.id && !isLoadMore) {
+      setAppLoading(true)
+      const post = await fetchPostById(route.params.id)
+      if (post) {
+        // 強制將列表清空，只放入這單一篇貼文
+        discussionsStore.discussions = [post]
+        hasMore.value = false // 單篇模式下禁止無限捲動
+        selectedPost.value = post
+        isDetailModalOpen.value = true // 自動開啟 Modal
+      } else {
+        discussionsStore.discussions = []
+        hasMore.value = false
+      }
+      setAppLoading(false)
+      return
+    }
+
+    // 2. 如果網址沒有 ID，執行原本的全列表載入邏輯
     if (!isLoadMore) {
       currentPage.value = 1
       hasMore.value = true
@@ -57,27 +76,16 @@ const loadDiscussionsData = async (isLoadMore = false) => {
     const params = {
       page: currentPage.value,
       limit: 10,
+      category: activeFilter.value !== '全部' ? activeFilter.value : null,
     }
 
-    if (activeFilter.value !== '全部') {
-      params.category = activeFilter.value
-    }
-
-    // 呼叫 Store，傳入是否為 loadMore
     const data = await discussionsStore.loadDiscussions(params, isLoadMore)
 
-    // 判斷是否還有下一頁
     if (data && data.posts) {
       if (data.posts.length < 10) {
-        hasMore.value = false // 回傳少於 10 筆，代表沒資料了
+        hasMore.value = false
       } else {
-        // 準備下一頁
-        if (isLoadMore) {
-          currentPage.value++
-        } else {
-          // 如果是第一頁載入完，且數量足夠，下一頁就是 2
-          currentPage.value = 2
-        }
+        currentPage.value = isLoadMore ? currentPage.value + 1 : 2
       }
     }
   } catch (error) {
@@ -85,119 +93,89 @@ const loadDiscussionsData = async (isLoadMore = false) => {
   }
 }
 
-// 監聽分類切換 -> 重新載入 (重置為第一頁)
+// 監聽網址 ID 變化：當從 /discussion/77 回到 /discussion 時，重新載入全列表
+watch(
+  () => route.params.id,
+  (newId) => {
+    loadDiscussionsData(false)
+  },
+  { immediate: true },
+)
+
 watch(activeFilter, () => {
-  loadDiscussionsData(false)
-})
-
-onAuthStateChanged(auth, async (user) => {
-  const previousUid = currentUserUid.value
-  currentUserUid.value = user ? user.uid : null
-
-  if (previousUid !== currentUserUid.value && currentUserUid.value) {
-    // 登入狀態改變時，重新載入第一頁
+  // 如果正在單篇模式，切換分類應回到主列表
+  if (route.params.id) {
+    router.push('/discussion')
+  } else {
     loadDiscussionsData(false)
   }
 })
 
+onAuthStateChanged(auth, async (user) => {
+  currentUserUid.value = user ? user.uid : null
+  if (currentUserUid.value) loadDiscussionsData(false)
+})
+
 onMounted(async () => {
   const firebaseUser = auth.currentUser
-  if (firebaseUser && !currentUserUid.value) {
-    currentUserUid.value = firebaseUser.uid
-  }
+  if (firebaseUser && !currentUserUid.value) currentUserUid.value = firebaseUser.uid
 
-  // 1. 初始載入第一頁
   await loadDiscussionsData(false)
 
-  // 2. ★ 設定 IntersectionObserver (無限捲動偵測)
   observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
-      // 如果看到底部元素 && 還有更多資料 && 目前沒有在載入中
+      // 只有在非單篇模式 (hasMore 為 true) 且捲動到底部時觸發
       if (entry.isIntersecting && hasMore.value && !discussionsStore.loading) {
-        console.log('👀 看到底部了，載入更多...')
-        loadDiscussionsData(true) // 載入更多
+        loadDiscussionsData(true)
       }
     },
-    {
-      rootMargin: '100px', // 提早 100px 觸發，體驗更流暢
-    },
+    { rootMargin: '100px' },
   )
 
-  if (loadMoreTrigger.value) {
-    observer.observe(loadMoreTrigger.value)
-  }
-  // 檢查是否有草稿需要打開
+  if (loadMoreTrigger.value) observer.observe(loadMoreTrigger.value)
+
   tryOpenDraft()
-  // 檢查是否需要開啟編輯
   tryOpenEditPost()
-  // 檢查是否有分享連結需要開啟
-  tryOpenSharedPost()
 })
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
-// 監聽路由變化
-watch(
-  () => route.query.openDraft,
-  (newDraftId) => {
-    if (newDraftId) {
-      nextTick(() => {
-        tryOpenDraft()
-      })
-    }
-  },
-)
-
-watch(() => route.query.postId, (newPostId) => {
-  if (newPostId) {
-    nextTick(() => {
-      tryOpenSharedPost()
-    })
-  }
-})
-
-watch(() => route.query.editPost, (newPostId) => {
-  if (newPostId) {
-    nextTick(() => {
-      tryOpenEditPost()
-    })
-  }
-})
-
-// 發文成功後的回調
-const handlePostSuccess = async () => {
-  isPostingModalOpen.value = false
-  postToEdit.value = null
-  // 發文成功後，重新整理列表 (回到第一頁)
-  loadDiscussionsData(false)
-}
-
 // --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
-const selectedDraft = ref(null) // 用於存儲要打開的草稿
+const selectedDraft = ref(null)
 const selectedPost = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const postToEdit = ref(null)
+
 const setAppLoading = (active) => {
   window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
 }
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
-  selectedPost.value = post
-  shouldScrollToComments.value = focusComment
-  isDetailModalOpen.value = true
+  // 透過路由變更來觸發 watch 並更新網址
+  router.push({
+    path: `/discussion/${post.id}`,
+    query: focusComment ? { scrollTo: 'comments' } : {},
+  })
 }
 
 const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
-  shouldScrollToComments.value = false
+  // 關閉 Modal 時將網址重置，觸發 watch 重新載入全列表
+  router.push('/discussion')
+}
+
+const handlePostSuccess = async () => {
+  isPostingModalOpen.value = false
+  postToEdit.value = null
+  loadDiscussionsData(false)
 }
 
 const handleEditPost = (post) => {
@@ -215,27 +193,15 @@ const handleCardEdit = (post) => {
   nextTick(() => setAppLoading(false))
 }
 
-const handleDetailEdit = (post) => {
-  handleEditPost(post)
-}
-
-const handleCardDelete = (post) => {
-  // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
-  loadDiscussionsData(false)
-}
-
-const handleDetailDeleted = () => {
-  loadDiscussionsData(false)
-}
-
+const handleCardDelete = () => loadDiscussionsData(false)
+const handleDetailDeleted = () => loadDiscussionsData(false)
 const handlePostModalClose = () => {
   isPostingModalOpen.value = false
   postToEdit.value = null
-  selectedDraft.value = null
 }
 
 const openShareModal = (postId) => {
-  shareLink.value = `${window.location.origin}/discussion?postId=${postId}`
+  shareLink.value = `${window.location.origin}/discussion/${postId}`
   isShareModalOpen.value = true
 }
 
@@ -251,16 +217,14 @@ const handleCardLike = (updatedPostInfo) => {
     post.likes = updatedPostInfo.likes
   }
 }
-// 開啟草稿編輯
+
 const openDraft = (draft) => {
   if (draft.type === 'discussion' && draft.data) {
-    // 設置草稿數據並打開 Modal
     selectedDraft.value = draft
     isPostingModalOpen.value = true
   }
 }
 
-// 嘗試打開草稿的函數
 const tryOpenDraft = () => {
   const draftId = route.query.openDraft
   if (draftId) {
@@ -268,41 +232,9 @@ const tryOpenDraft = () => {
     if (draft && draft.type === 'discussion') {
       nextTick(() => {
         openDraft(draft)
-        // 清除查詢參數
         router.replace({ path: '/discussion', query: {} })
       })
     }
-  }
-}
-
-const tryOpenSharedPost = async () => {
-  let postId = route.query.postId
-  if (!postId && route.hash) {
-    const match = route.hash.match(/^#post-(.+)$/)
-    if (match?.[1]) {
-      postId = match[1]
-    }
-  }
-  if (!postId) return
-  setAppLoading(true)
-  try {
-    const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
-    if (existing) {
-      openDiscussionDetailModal(existing, false)
-      router.replace({ path: '/discussion', query: {}, hash: '' })
-      return
-    }
-
-    const { fetchPostById } = await import('@/api/discussions')
-    const post = await fetchPostById(postId)
-    if (post) {
-      openDiscussionDetailModal(post, false)
-      router.replace({ path: '/discussion', query: {}, hash: '' })
-    }
-  } catch (error) {
-    console.error('開啟分享貼文失敗：', error)
-  } finally {
-    setAppLoading(false)
   }
 }
 
@@ -311,7 +243,6 @@ const tryOpenEditPost = async () => {
   if (!postId) return
   setAppLoading(true)
   try {
-    const { fetchPostById } = await import('@/api/discussions')
     const post = await fetchPostById(postId)
     if (post) {
       postToEdit.value = post
@@ -397,12 +328,12 @@ const tryOpenEditPost = async () => {
             @share="openShareModal(post.id)"
             @like="handleCardLike"
             @edit="handleCardEdit"
-            @delete="handleCardDelete"
+            @delete="handlePostModalClose"
           />
         </template>
 
         <div v-else-if="!discussionsStore.loading" class="text-center py-20 text-gray-500">
-          目前沒有這個分類的討論文章，來發一篇吧！
+          目前沒有任何討論文章，來發一篇吧！
         </div>
 
         <div ref="loadMoreTrigger" class="py-4 text-center">
@@ -411,7 +342,7 @@ const tryOpenEditPost = async () => {
             class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
           ></div>
           <div
-            v-else-if="!hasMore && discussionsStore.discussions.length > 0"
+            v-else-if="!hasMore && discussionsStore.discussions.length > 0 && !route.params.id"
             class="text-gray-400 text-sm"
           >
             已經到底囉，沒有更多貼文了 🏝️
@@ -428,13 +359,12 @@ const tryOpenEditPost = async () => {
     :draft-data="selectedDraft"
     @success="handlePostSuccess"
   />
-
   <DiscussionDetailModal
     v-if="isDetailModalOpen"
     :post="selectedPost"
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDiscussionDetailModal"
-    @edit="handleDetailEdit"
+    @edit="handleEditPost"
     @deleted="handleDetailDeleted"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />

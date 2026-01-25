@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
 import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useRoute, useRouter } from 'vue-router'
@@ -25,8 +25,8 @@ const isPostModalOpen = ref(false)
 const selectedItinerary = ref(null)
 const shareLink = ref('')
 const shouldScrollToComments = ref(false)
+const itineraryToEdit = ref(null)
 
-// ★ 修改：更新為新的分類選項
 const filterOptions = ref([
   '全部',
   '國內旅遊',
@@ -40,59 +40,107 @@ const filterOptions = ref([
 ])
 const activeFilter = ref('全部')
 
-// ★ 新增：前端分類篩選邏輯
+// --- ★ 分頁與捲動狀態 [新增] ---
+const currentPage = ref(1)
+const hasMore = ref(true)
+const loadMoreTrigger = ref(null)
+let observer = null
+
 const filteredItineraries = computed(() => {
   const itineraries = itinerariesStore.itineraries || []
-  if (activeFilter.value === '全部') {
-    return itineraries
-  }
-  return itineraries.filter((item) => {
-    // 兼容舊資料：如果沒有分類，歸類為「其他」
-    const itemCategory = item.category || '其他'
-    return itemCategory === activeFilter.value
-  })
+  if (activeFilter.value === '全部') return itineraries
+  return itineraries.filter((item) => (item.category || '其他') === activeFilter.value)
 })
 
-// 處理開啟詳情彈窗
+// [修正] 核心載入邏輯：支援 15 則分頁載入
+const loadItinerariesData = async (isLoadMore = false) => {
+  if (itinerariesStore.loading) return
+
+  // 1. 單篇顯示模式 (網址帶 ID)
+  if (route.params.id && !isLoadMore) {
+    setAppLoading(true)
+    try {
+      const response = await getItineraryById(route.params.id)
+      const item = response?.data || response
+      if (item) {
+        itinerariesStore.itineraries = [item] // 背景只留一張
+        selectedItinerary.value = item
+        isDetailModalOpen.value = true
+        hasMore.value = false // 關閉無限捲動
+      }
+    } catch (error) {
+      console.error('抓取行程失敗:', error)
+    } finally {
+      setAppLoading(false)
+    }
+    return
+  }
+
+  // 2. 正常列表分頁模式
+  try {
+    if (!isLoadMore) {
+      currentPage.value = 1
+      hasMore.value = true
+    }
+
+    const params = {
+      page: currentPage.value,
+      limit: 15, // ★ 每次載入 15 則
+      category: activeFilter.value !== '全部' ? activeFilter.value : null,
+    }
+
+    // 呼叫 Store Action，傳入分頁參數
+    const newData = await itinerariesStore.fetchItineraries(params, isLoadMore)
+
+    // 判斷是否還有資料
+    if (newData && newData.length < 15) {
+      hasMore.value = false
+    }
+
+    if (isLoadMore) {
+      currentPage.value++
+    } else {
+      if (hasMore.value) currentPage.value = 2
+    }
+  } catch (error) {
+    console.error('載入行程失敗:', error)
+  }
+}
+
+// 監聽網址參數：處理 Modal 開啟與列表刷新
+watch(
+  () => route.params.id,
+  () => {
+    loadItinerariesData(false)
+  },
+  { immediate: true },
+)
+
+// 監聽篩選條件：切換時若在單篇模式則回到列表
+watch(activeFilter, () => {
+  if (route.params.id) {
+    router.push('/featured-itinerary')
+  } else {
+    loadItinerariesData(false)
+  }
+})
+
 const openDetailModal = (itinerary, focusComment = false) => {
-  selectedItinerary.value = itinerary
-  shouldScrollToComments.value = focusComment
-  isDetailModalOpen.value = true
+  router.push({
+    path: `/featured-itinerary/${itinerary.id}`,
+    query: focusComment ? { scrollTo: 'comments' } : {},
+  })
 }
 
 const closeDetailModal = () => {
   isDetailModalOpen.value = false
   selectedItinerary.value = null
   shouldScrollToComments.value = false
+  router.push('/featured-itinerary') // 網址重置會自動觸發 watch 載入列表
 }
 
-const tryOpenSharedItinerary = async () => {
-  let itineraryId = route.query.itineraryId
-  if (!itineraryId && route.hash) {
-    const match = route.hash.match(/^#itinerary-(.+)$/)
-    if (match?.[1]) {
-      itineraryId = match[1]
-    }
-  }
-  if (!itineraryId) return
-  setAppLoading(true)
-  try {
-    const response = await getItineraryById(itineraryId)
-    const itinerary = response?.data || response
-    if (itinerary) {
-      openDetailModal(itinerary, false)
-      router.replace({ path: '/featured-itinerary', query: {}, hash: '' })
-    }
-  } catch (error) {
-    console.error('開啟分享行程失敗：', error)
-  } finally {
-    setAppLoading(false)
-  }
-}
-
-// 處理開啟分享模態框
 const openShareModal = (itineraryId) => {
-  shareLink.value = `${window.location.origin}/featured-itinerary?itineraryId=${itineraryId}`
+  shareLink.value = `${window.location.origin}/featured-itinerary/${itineraryId}`
   isShareModalOpen.value = true
 }
 
@@ -101,13 +149,10 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-const itineraryToEdit = ref(null)
-
 const handlePostSuccess = async () => {
-  // 發布成功後，重新載入列表資料
-  await itinerariesStore.fetchItineraries()
   isPostModalOpen.value = false
   itineraryToEdit.value = null
+  loadItinerariesData(false)
 }
 
 const handleCardEdit = (itinerary) => {
@@ -125,27 +170,34 @@ const handleDetailEdit = (itinerary) => {
   nextTick(() => setAppLoading(false))
 }
 
-const handleDetailDeleted = () => {
-  itinerariesStore.fetchItineraries()
+const handleCardDelete = () => {
+  loadItinerariesData(false)
 }
 
-const handleCardDelete = (itinerary) => {
-  // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
-  itinerariesStore.fetchItineraries()
-}
-
-// 初始化載入資料
 onMounted(() => {
-  itinerariesStore.fetchItineraries()
-  tryOpenSharedItinerary()
+  // 設定無限捲動偵測器
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMore.value && !itinerariesStore.loading) {
+        loadItinerariesData(true) // 下載更多 15 則
+      }
+    },
+    { rootMargin: '200px' },
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
+
+  // 舊式查詢參數導航兼容處理
+  if (route.query.itineraryId) {
+    router.replace(`/featured-itinerary/${route.query.itineraryId}`)
+  }
 })
 
-watch(() => route.query.itineraryId, (newItineraryId) => {
-  if (newItineraryId) {
-    nextTick(() => {
-      tryOpenSharedItinerary()
-    })
-  }
+onUnmounted(() => {
+  if (observer) observer.disconnect()
 })
 </script>
 
@@ -156,16 +208,8 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
         class="bg-primary p-5 rounded-xl mb-6 mt-4 shadow-primary-tall flex justify-between items-center"
       >
         <h1 class="text-2xl font-black text-secondary-50 flex items-center py-1">
-          <MapIcon class="w-6 h-6 mr-3 text-white" />
-          精選行程
+          <MapIcon class="w-6 h-6 mr-3 text-white" />精選行程
         </h1>
-        <button
-          class="bg-white text-primary px-5 py-2 rounded-lg font-bold hover:bg-gray-200 transition shadow-md flex items-center"
-          @click="isPostModalOpen = true"
-        >
-          <PlusIcon class="w-5 h-5 mr-1" />
-          上架行程
-        </button>
       </div>
 
       <div
@@ -189,45 +233,14 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
       </div>
 
       <div
-        v-if="itinerariesStore.loading"
+        v-if="itinerariesStore.loading && itinerariesStore.itineraries.length === 0"
         class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
       >
         <div
           v-for="n in 6"
-          :key="`itinerary-skeleton-${n}`"
-          class="bg-white border border-secondary-200 shadow-md rounded-2xl overflow-hidden animate-pulse flex flex-col h-full"
-        >
-          <div class="relative w-full aspect-[4/3] bg-secondary-100">
-            <div class="absolute top-0 left-0 h-6 w-20 bg-white/70 rounded-br-xl"></div>
-            <div class="absolute bottom-2 left-2 h-8 w-28 bg-primary-600/30 rounded-full"></div>
-          </div>
-
-          <div class="p-4 flex flex-col flex-1 space-y-3">
-            <div class="h-3 w-24 bg-primary-100 rounded"></div>
-            <div class="h-5 w-4/5 bg-gray-200 rounded"></div>
-            <div class="h-4 w-full bg-gray-200 rounded"></div>
-            <div class="h-4 w-5/6 bg-gray-200 rounded"></div>
-
-            <div class="flex items-center space-x-3 text-sm pt-2">
-              <div class="h-4 w-24 bg-gray-200 rounded"></div>
-              <div class="h-4 w-32 bg-gray-200 rounded"></div>
-            </div>
-
-            <div class="flex items-center justify-between border-t border-secondary-100 pt-3 mt-auto">
-              <div class="flex items-center space-x-3">
-                <div class="h-6 w-14 bg-gray-200 rounded"></div>
-                <div class="h-6 w-14 bg-gray-200 rounded"></div>
-              </div>
-              <div class="flex items-center space-x-2">
-                <div class="h-6 w-6 bg-gray-200 rounded-full"></div>
-                <div class="h-6 w-6 bg-gray-200 rounded-full"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-else-if="itinerariesStore.error" class="text-center py-10 text-red-500">
-        {{ itinerariesStore.error }}
+          :key="n"
+          class="bg-white border border-secondary-200 shadow-md rounded-2xl animate-pulse h-96"
+        ></div>
       </div>
 
       <div
@@ -235,14 +248,7 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
         class="text-center py-20 text-gray-500 flex flex-col items-center"
       >
         <XCircleIcon class="w-16 h-16 mb-4 text-gray-300" />
-        <p class="text-lg">目前沒有「{{ activeFilter }}」分類的行程</p>
-        <button
-          v-if="activeFilter !== '全部'"
-          class="mt-4 text-primary-600 font-bold hover:underline"
-          @click="activeFilter = '全部'"
-        >
-          查看全部行程
-        </button>
+        <p class="text-lg">目前沒有符合的行程</p>
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -250,12 +256,26 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
           v-for="itinerary in filteredItineraries"
           :key="itinerary.id"
           :itinerary="itinerary"
-          :show-menu-button="false"
+          :show-menu-button="true"
           @open-detail="openDetailModal"
           @open-share="openShareModal"
           @edit="handleCardEdit"
           @delete="handleCardDelete"
         />
+      </div>
+
+      <div ref="loadMoreTrigger" class="py-10 text-center w-full">
+        <div v-if="itinerariesStore.loading" class="flex justify-center">
+          <div
+            class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+          ></div>
+        </div>
+        <div
+          v-else-if="!hasMore && filteredItineraries.length > 0 && !route.params.id"
+          class="text-gray-400 text-sm"
+        >
+          已經到底囉，看更多精選行程 🏝️
+        </div>
       </div>
     </div>
   </div>
@@ -266,15 +286,18 @@ watch(() => route.query.itineraryId, (newItineraryId) => {
     :scroll-to-comments="shouldScrollToComments"
     @close="closeDetailModal"
     @edit="handleDetailEdit"
-    @deleted="handleDetailDeleted"
+    @deleted="handleCardDelete"
   />
-
   <ItineraryPostModal
     v-if="isPostModalOpen"
     :itinerary-to-edit="itineraryToEdit"
-    @close="() => { isPostModalOpen = false; itineraryToEdit = null }"
+    @close="
+      () => {
+        isPostModalOpen = false
+        itineraryToEdit = null
+      }
+    "
     @success="handlePostSuccess"
   />
-
-  <ShareModal v-if="isShareModalOpen" :share-link="shareLink" @close="closeShareModal" />
+  <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

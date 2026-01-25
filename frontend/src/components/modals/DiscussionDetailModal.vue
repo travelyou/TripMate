@@ -8,6 +8,7 @@ import {
   Bookmark as BookmarkIcon,
   FileText as FileTextIcon,
   MoreVertical,
+  Share as ShareIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -18,6 +19,8 @@ import { toggleLike, getLikesInfo } from '@/api/likes'
 import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
 import { deletePost } from '@/api/discussions'
+import DOMPurify from 'dompurify'
+import ShareModal from './ShareModal.vue' // [新增]
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -47,14 +50,16 @@ const localComments = ref([])
 const replyTarget = ref(null)
 const localPostData = ref({ ...props.post })
 const showMenu = ref(false)
+const showShareModal = ref(false) // [新增]
+
 const isAuthor = computed(() => {
   const authorUid = localPostData.value?.author_uid || localPostData.value?.authorUid
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
 const normalizedComments = computed(() => {
-  if (Array.isArray(localComments.value) && localComments.value.length > 0) return localComments.value
-  // 嘗試從多個可能的欄位獲取留言（只接受陣列）
+  if (Array.isArray(localComments.value) && localComments.value.length > 0)
+    return localComments.value
   if (Array.isArray(localPostData.value.commentsData)) return localPostData.value.commentsData
   if (Array.isArray(localPostData.value.comments)) return localPostData.value.comments
   return []
@@ -70,6 +75,12 @@ const totalCommentCount = computed(() => {
   return total
 })
 
+// [新增] 計算分享連結
+const shareLink = computed(() => {
+  if (!localPostData.value?.id) return window.location.href
+  return `${window.location.origin}/discussion/${localPostData.value.id}`
+})
+
 const buildCommentThreads = (comments = []) => {
   if (!Array.isArray(comments)) return []
   if (comments.some((comment) => Array.isArray(comment.replies))) return comments
@@ -79,7 +90,12 @@ const buildCommentThreads = (comments = []) => {
     if (!comment) return
     map.set(comment.id, {
       id: comment.id,
-      author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+      author:
+        comment.author_nickname ||
+        comment.author_name ||
+        comment.author ||
+        comment.author_uid ||
+        '匿名用戶',
       author_uid: comment.author_uid,
       avatar:
         comment.author_avatar ||
@@ -105,17 +121,17 @@ const buildCommentThreads = (comments = []) => {
   return roots
 }
 
-// --- HTML 內容解碼處理 ---
 const processedContent = computed(() => {
   const content = localPostData.value.content || ''
 
   try {
     const txt = document.createElement('textarea')
     txt.innerHTML = content
-    return txt.value
+    const decoded = txt.value
+    return DOMPurify.sanitize(decoded)
   } catch (e) {
-    console.error('HTML Decode Error', e)
-    return content
+    console.error('HTML Process Error', e)
+    return DOMPurify.sanitize(content)
   }
 })
 
@@ -125,11 +141,10 @@ const scrollToTop = () => {
 }
 
 const handleCopyLink = async () => {
-  if (!localPostData.value?.id) return
-  const link = `${window.location.origin}/discussion?postId=${localPostData.value.id}`
   try {
-    await navigator.clipboard.writeText(link)
+    await navigator.clipboard.writeText(shareLink.value)
     showMenu.value = false
+    alert('連結已複製！')
   } catch (error) {
     console.error('複製連結失敗：', error)
   }
@@ -154,13 +169,11 @@ const handleDelete = async () => {
   }
 }
 
-// 滑動到留言區
 const scrollToCommentsSection = () => {
   activeSection.value = 'comments'
   commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-// 初始化載入按讚資訊
 const loadLikesInfo = async () => {
   if (!props.post?.id || !currentUserUid.value) return
   try {
@@ -172,26 +185,21 @@ const loadLikesInfo = async () => {
   }
 }
 
-// 載入完整的貼文詳情和留言
 const loadFullPostDetails = async () => {
   if (!props.post?.id) return
 
   try {
     const postData = await fetchPostById(props.post.id)
 
-    // 更新本地資料
     localPostData.value = {
       ...localPostData.value,
       ...postData,
-      // 確保 commentsData 被正確處理
       comments: postData.commentsData || postData.comments || [],
       commentsData: postData.commentsData || postData.comments || [],
     }
 
-    // 格式化留言資料
     localComments.value = buildCommentThreads(localPostData.value.commentsData || [])
 
-    // 更新按讚數
     if (postData.likes_count !== undefined) {
       likesCount.value = postData.likes_count
     }
@@ -233,7 +241,6 @@ const submitComment = async () => {
       parent_comment_id: replyTarget.value?.id || null,
     })
 
-    // 重新載入完整的貼文詳情以獲取最新留言
     await loadFullPostDetails()
 
     newComment.value = ''
@@ -280,7 +287,6 @@ const startReply = async (comment) => {
   commentInputRef.value?.focus()
 }
 
-// 監聽 Auth
 onAuthStateChanged(auth, async (user) => {
   const previousUid = currentUserUid.value
   currentUserUid.value = user ? user.uid : null
@@ -295,7 +301,6 @@ onAuthStateChanged(auth, async (user) => {
 })
 
 onMounted(async () => {
-  // 初始化本地資料
   const initialComments = Array.isArray(props.post.commentsData)
     ? props.post.commentsData
     : Array.isArray(props.post.comments)
@@ -306,19 +311,25 @@ onMounted(async () => {
   const initialIsLiked = typeof props.post.isLiked === 'boolean' ? props.post.isLiked : false
   isLiked.value = initialIsLiked
 
-  // 如果 props.post 中沒有完整的留言資料或為空陣列，主動載入
   const hasCommentsData =
     Array.isArray(props.post.commentsData) && props.post.commentsData.length > 0
   if (!hasCommentsData && props.post.id) {
     await loadFullPostDetails()
   } else if (props.post.commentsData && Array.isArray(props.post.commentsData)) {
-    // 格式化已有的留言資料
-    localComments.value = props.post.commentsData.map(comment => {
+    localComments.value = props.post.commentsData.map((comment) => {
       return {
         id: comment.id,
-        author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+        author:
+          comment.author_nickname ||
+          comment.author_name ||
+          comment.author ||
+          comment.author_uid ||
+          '匿名用戶',
         author_uid: comment.author_uid,
-        avatar: comment.author_avatar || comment.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+        avatar:
+          comment.author_avatar ||
+          comment.avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
         content: comment.content,
         time: comment.created_at || comment.timestamp || comment.time,
         likes: comment.likes || 0,
@@ -347,6 +358,8 @@ onMounted(async () => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-2 sm:p-4"
     @click.self="emit('close')"
   >
+    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
         <button
@@ -354,67 +367,38 @@ onMounted(async () => {
             'bg-tag-amber text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
             activeSection === 'content' ? '-translate-y-1' : '',
           ]"
-          title="回到內文"
           @click="scrollToTop"
         >
-          <FileTextIcon class="w-4 h-4" />
-          內文
+          <FileTextIcon class="w-4 h-4" />內文
         </button>
         <button
           :class="[
             'bg-tag-blue text-white px-3 pt-2 pb-3 rounded-t-xl rounded-b-none shadow-md inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold transition-transform',
             activeSection === 'comments' ? '-translate-y-1' : '',
           ]"
-          title="跳轉至留言區"
           @click="scrollToCommentsSection"
         >
-          <MessageCircleIcon class="w-4 h-4" />
-          留言區
+          <MessageCircleIcon class="w-4 h-4" />留言區
         </button>
       </div>
       <button
         class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
-        title="回到內文"
         @click="scrollToTop"
       >
-        <FileTextIcon class="w-5 h-5 fill-current" />
-        <span
+        <FileTextIcon class="w-5 h-5 fill-current" /><span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
+          >內文&emsp;</span
         >
-          內文&emsp;
-        </span>
       </button>
-
       <button
         class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
-        title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >
-        <MessageCircleIcon class="w-5 h-5 fill-current" />
-        <span
+        <MessageCircleIcon class="w-5 h-5 fill-current" /><span
           class="text-sm font-bold whitespace-nowrap writing-vertical-lr sm:writing-horizontal-tb"
+          >留言區</span
         >
-          留言區
-        </span>
       </button>
-
-      <!-- 行動版浮動按鈕 -->
-      <div class="md:hidden fixed bottom-20 right-4 z-50 flex flex-col gap-2">
-        <button
-          class="bg-tag-amber text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 border-2 border-tag-amber"
-          title="回到內文"
-          @click="scrollToTop"
-        >
-          <FileTextIcon class="w-5 h-5 fill-current" />
-        </button>
-        <button
-          class="bg-tag-blue text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:brightness-95 transition-all duration-300 inline-flex items-center justify-center gap-2 border-2 border-tag-blue"
-          title="跳轉至留言區"
-          @click="scrollToCommentsSection"
-        >
-          <MessageCircleIcon class="w-5 h-5 fill-current" />
-        </button>
-      </div>
 
       <div
         class="bg-white w-full h-full flex flex-col rounded-xl border-2 border-primary overflow-hidden relative z-10"
@@ -423,7 +407,6 @@ onMounted(async () => {
           <button
             class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
             @click.stop="showMenu = !showMenu"
-            title="更多"
           >
             <MoreVertical class="w-6 h-6" />
           </button>
@@ -433,7 +416,7 @@ onMounted(async () => {
           >
             <button
               v-if="isAuthor"
-              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
               @click="handleEdit"
             >
               編輯
@@ -447,13 +430,13 @@ onMounted(async () => {
             </button>
             <div v-if="isAuthor" class="border-t border-gray-200 my-1"></div>
             <button
-              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
               @click="handleCopyLink"
             >
               複製連結
             </button>
             <button
-              class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
               @click="emit('close')"
             >
               關閉
@@ -470,7 +453,7 @@ onMounted(async () => {
         <div ref="contentContainerRef" class="flex-1 overflow-y-auto custom-scrollbar p-6">
           <div class="mb-6">
             <div v-if="localPostData.banner" class="-mx-6 -mt-6 h-64 sm:h-80 overflow-hidden mb-6">
-              <img :src="localPostData.banner" class="w-full h-full object-cover" alt="文章封面" />
+              <img :src="localPostData.banner" class="w-full h-full object-cover" />
             </div>
 
             <div class="flex items-center space-x-3 mb-4">
@@ -488,9 +471,9 @@ onMounted(async () => {
                 </div>
                 <div class="text-sm text-secondary-500">
                   {{ formatTime(localPostData.time) }}
-                  <span v-if="localPostData.category" class="ml-2 text-primary-600 font-bold">
-                    @ {{ localPostData.category }}
-                  </span>
+                  <span v-if="localPostData.category" class="ml-2 text-primary-600 font-bold"
+                    >@ {{ localPostData.category }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -504,17 +487,14 @@ onMounted(async () => {
                 v-for="tag in localPostData.tags"
                 :key="tag"
                 class="text-sm font-medium text-primary-700 bg-primary-100 px-3 py-1 rounded-full"
+                >#{{ tag }}</span
               >
-                #{{ tag }}
-              </span>
             </div>
 
-            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-gray-900 rich-content"
               v-html="processedContent"
             ></div>
-            <!-- eslint-enable vue/no-v-html -->
 
             <div
               class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6"
@@ -534,21 +514,28 @@ onMounted(async () => {
                 />
                 <span class="font-bold">{{ likesCount }}</span>
               </button>
-
               <div class="flex items-center space-x-1 text-secondary-400">
-                <MessageCircleIcon class="w-5 h-5" />
-                <span class="font-bold">{{ totalCommentCount }}</span>
+                <MessageCircleIcon class="w-5 h-5" /><span class="font-bold">{{
+                  totalCommentCount
+                }}</span>
               </div>
-
-              <button class="ml-auto text-secondary-400 hover:text-primary-600">
+              <button class="text-secondary-400 hover:text-primary-600">
                 <BookmarkIcon class="w-5 h-5" />
               </button>
+              <div class="ml-auto flex items-center space-x-3">
+                <button
+                  class="text-secondary-400 hover:text-primary-600"
+                  title="分享"
+                  @click="showShareModal = true"
+                >
+                  <ShareIcon class="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
           <div ref="commentsSectionRef">
             <h3 class="font-bold text-lg text-secondary-900 mb-4">留言討論區</h3>
-
             <div v-if="normalizedComments.length" class="space-y-4">
               <div
                 v-for="comment in normalizedComments"
@@ -572,20 +559,17 @@ onMounted(async () => {
                         <HeartIcon
                           class="w-4 h-4"
                           :class="{ 'fill-current text-accent-600': comment.isLiked }"
-                        />
-                        <span>{{ comment.likes || 0 }}</span>
+                        /><span>{{ comment.likes || 0 }}</span>
                       </button>
                       <button
                         class="flex items-center gap-1 transition hover:text-primary-600"
                         @click.stop="startReply(comment)"
                       >
-                        <MessageCircleIcon class="w-4 h-4" />
-                        <span>回覆</span>
+                        <MessageCircleIcon class="w-4 h-4" /><span>回覆</span>
                       </button>
                     </div>
                   </div>
                 </div>
-
                 <div v-if="comment.replies && comment.replies.length" class="mt-4 space-y-3 pl-12">
                   <div
                     v-for="reply in comment.replies"
@@ -597,8 +581,12 @@ onMounted(async () => {
                       <img :src="reply.avatar" class="w-8 h-8 rounded-full object-cover" />
                       <div class="flex-1">
                         <div class="flex justify-between items-start mb-1">
-                          <span class="font-bold text-secondary-900 text-sm">{{ reply.author }}</span>
-                          <span class="text-xs text-secondary-400">{{ formatTime(reply.time) }}</span>
+                          <span class="font-bold text-secondary-900 text-sm">{{
+                            reply.author
+                          }}</span>
+                          <span class="text-xs text-secondary-400">{{
+                            formatTime(reply.time)
+                          }}</span>
                         </div>
                         <p class="text-secondary-700 text-xs">{{ reply.content }}</p>
                         <div class="mt-2 flex items-center gap-3 text-xs text-secondary-500">
@@ -609,15 +597,13 @@ onMounted(async () => {
                             <HeartIcon
                               class="w-3.5 h-3.5"
                               :class="{ 'fill-current text-accent-600': reply.isLiked }"
-                            />
-                            <span>{{ reply.likes || 0 }}</span>
+                            /><span>{{ reply.likes || 0 }}</span>
                           </button>
                           <button
                             class="flex items-center gap-1 transition hover:text-primary-600"
                             @click.stop="startReply(comment)"
                           >
-                            <MessageCircleIcon class="w-3.5 h-3.5" />
-                            <span>回覆</span>
+                            <MessageCircleIcon class="w-3.5 h-3.5" /><span>回覆</span>
                           </button>
                         </div>
                       </div>
@@ -641,7 +627,11 @@ onMounted(async () => {
               v-if="replyTarget"
               class="flex items-center justify-between rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-700"
             >
-              <span>回覆 @{{ replyTarget.author || replyTarget.author_nickname || replyTarget.author_name }}</span>
+              <span
+                >回覆 @{{
+                  replyTarget.author || replyTarget.author_nickname || replyTarget.author_name
+                }}</span
+              >
               <button
                 class="p-1 rounded-full hover:bg-primary-100 transition"
                 @click="replyTarget = null"
@@ -675,9 +665,8 @@ onMounted(async () => {
               class="text-primary-600 font-bold hover:underline"
               @click="router.push('/login')"
             >
-              登入
-            </button>
-            <span class="text-secondary-500"> 後才能參與討論</span>
+              登入</button
+            ><span class="text-secondary-500"> 後才能參與討論</span>
           </div>
         </div>
       </div>
@@ -696,12 +685,10 @@ onMounted(async () => {
   background: #cbd5e1;
   border-radius: 4px;
 }
-
 :deep(.rich-content) {
   font-size: 1rem;
   line-height: 1.75;
 }
-
 :deep(.rich-content h2) {
   font-size: 1.5rem;
   font-weight: 800;
@@ -715,7 +702,6 @@ onMounted(async () => {
   background-color: #eff6ff;
   border-radius: 0 0.5rem 0.5rem 0;
 }
-
 :deep(.rich-content h3) {
   font-size: 1.25rem;
   font-weight: 700;
@@ -729,25 +715,21 @@ onMounted(async () => {
   background-color: #f0f9ff;
   border-radius: 0 0.375rem 0.375rem 0;
 }
-
 :deep(.rich-content p) {
   color: #111827;
   margin-bottom: 1.25em;
   font-size: 1.1rem;
 }
-
 :deep(.rich-content ul) {
   list-style-type: disc;
   padding-left: 1.5em;
   margin-bottom: 1.25em;
 }
-
 :deep(.rich-content ol) {
   list-style-type: decimal;
   padding-left: 1.5em;
   margin-bottom: 1.25em;
 }
-
 :deep(.rich-content blockquote) {
   border-left: 4px solid #e5e7eb;
   padding-left: 1em;
@@ -755,7 +737,6 @@ onMounted(async () => {
   font-style: italic;
   margin: 1.5em 0;
 }
-
 :deep(.rich-content img) {
   border-radius: 0.5rem;
   margin-top: 1em;
@@ -766,7 +747,6 @@ onMounted(async () => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   display: block;
 }
-
 :deep(.rich-content [style*='font-family: BiauKai']) {
   font-family: BiauKai, 'DFKai-SB', 標楷體, serif;
 }

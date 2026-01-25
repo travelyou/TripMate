@@ -15,6 +15,7 @@ import {
   Share2,
   Flag,
   UserPlus as UserPlusIcon,
+  Share,
 } from 'lucide-vue-next'
 import { deleteTraveler } from '@/api/travelers'
 import { auth } from '@/firebase/config'
@@ -29,7 +30,15 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['open-detail', 'edit', 'delete', 'open-apply', 'open-applications'])
+// [修正] 加入 'share' 到 emit 清單
+const emit = defineEmits([
+  'open-detail',
+  'edit',
+  'delete',
+  'open-apply',
+  'open-applications',
+  'share',
+])
 
 const userStore = useUserStore()
 const currentUserUid = ref(null)
@@ -178,6 +187,7 @@ const closeMenu = () => {
   showMenu.value = false
 }
 
+// [修正] 統一使用這個 Helper，避免直接操作 state
 const showToastNotification = (message, type = 'info') => {
   toastMessage.value = message
   toastType.value = type
@@ -211,17 +221,11 @@ const handleDelete = async (e) => {
   }
 }
 
-const handleShare = async (e) => {
+// [修正] 改為 emit 'share' 事件，讓父層統一處理
+const handleShare = (e) => {
   e.stopPropagation()
   closeMenu()
-  try {
-    const url = `${window.location.origin}/travelers?travelerId=${props.traveler.id}`
-    await navigator.clipboard.writeText(url)
-    showToastNotification('已複製貼文網址', 'info')
-  } catch (error) {
-    console.error('複製失敗:', error)
-    alert('複製失敗，請稍後再試')
-  }
+  emit('share', props.traveler.id)
 }
 
 const handleReport = (e) => {
@@ -279,7 +283,6 @@ watch(
         {{ displayStatus }}
       </div>
 
-      <!-- 三點選單按鈕 -->
       <div
         class="absolute top-2 right-2 post-menu-container z-30"
         :style="{ top: displayStatus ? '3.5rem' : '0.5rem' }"
@@ -291,7 +294,6 @@ watch(
           <MoreVertical class="w-5 h-5" />
         </button>
 
-        <!-- 選單下拉 -->
         <div
           v-if="showMenu"
           class="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-2 shadow-xl"
@@ -330,7 +332,6 @@ watch(
         </div>
       </div>
 
-      <!-- Toast 通知 -->
       <Teleport to="body">
         <Transition
           enter-active-class="transition-all duration-300 ease-out"
@@ -394,7 +395,9 @@ watch(
                 <h3 class="mb-1 line-clamp-1 text-base sm:text-lg md:text-xl font-bold break-words">
                   {{ traveler.title }}
                 </h3>
-                <p class="mb-2 line-clamp-2 text-xs sm:text-sm text-white/85 sm:line-clamp-1 xl:line-clamp-2 break-words">
+                <p
+                  class="mb-2 line-clamp-2 text-xs sm:text-sm text-white/85 sm:line-clamp-1 xl:line-clamp-2 break-words"
+                >
                   {{ previewContent }}
                 </p>
               </div>
@@ -413,7 +416,9 @@ watch(
 
               <div class="flex flex-col gap-2">
                 <div class="mt-2 flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-                  <span class="flex max-w-[8rem] sm:max-w-[10rem] items-center truncate text-xs sm:text-sm">
+                  <span
+                    class="flex max-w-[8rem] sm:max-w-[10rem] items-center truncate text-xs sm:text-sm"
+                  >
                     <MapPinIcon class="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-white/80 shrink-0" />
                     <span class="truncate">{{ traveler.location }}</span>
                   </span>
@@ -426,11 +431,7 @@ watch(
                 <div class="mt-2 flex min-w-0 flex-wrap items-center gap-4">
                   <button
                     class="group flex items-center transition"
-                    :class="
-                      isFavorited
-                        ? 'text-red-300'
-                        : 'text-white/70 hover:text-red-300'
-                    "
+                    :class="isFavorited ? 'text-red-300' : 'text-white/70 hover:text-red-300'"
                     @click.stop="handleToggleFavorite"
                   >
                     <HeartIcon
@@ -463,6 +464,13 @@ watch(
                   </button>
 
                   <button
+                    class="flex items-center space-x-1 text-white/70 hover:text-gray-200 transition"
+                    @click.stop="handleShare"
+                  >
+                    <Share class="w-4 h-4" />
+                  </button>
+
+                  <button
                     v-if="isAuthor"
                     class="group flex items-center space-x-1 text-white/70 transition hover:text-blue-300"
                     title="查看報名清單"
@@ -492,7 +500,9 @@ watch(
                 <div class="flex items-center font-bold text-white min-w-0 flex-1">
                   <UsersIcon class="mr-1 h-4 w-4 sm:h-5 sm:w-5 text-white/85 shrink-0" />
                   <span class="text-xs sm:text-sm truncate">招募人數：</span>
-                  <span class="ml-1 text-base sm:text-lg text-white shrink-0">{{ traveler.people }}</span>
+                  <span class="ml-1 text-base sm:text-lg text-white shrink-0">{{
+                    traveler.people
+                  }}</span>
                 </div>
 
                 <button

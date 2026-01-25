@@ -1,257 +1,113 @@
 ﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import dayjs from 'dayjs' // 確保已安裝並引入 dayjs
+import {
+  createMyItinerary,
+  getPersonalItineraries,
+  getJoinedItineraries,
+  deleteMyItinerary,
+} from '@/api/myItinerary'
+import { auth } from '@/firebase/config'
 
 export const useMyItineraryStore = defineStore('myItinerary', () => {
-  // 1. 我的行程
-  const myItineraries = ref([
-    {
-      id: 1,
-      title: '台北美食五日遊',
-      startDate: '2024-12-20',
-      endDate: '2024-12-24',
-      status: 'upcoming',
-      days: [
-        {
-          day: 1,
-          date: '12/20',
-          activities: [
-            {
-              id: 101,
-              time: '09:00',
-              icon: 'camera',
-              title: '台北 101',
-              desc: '參觀台北 101 觀景台，俯瞰城市美景，順便逛逛信義區百貨。',
-            },
-            {
-              id: 102,
-              time: '12:00',
-              icon: 'coffee',
-              title: '鼎泰豐午餐',
-              desc: '享用世界聞名的小籠包，記得先抽號碼牌。',
-            },
-            {
-              id: 103,
-              time: '15:00',
-              icon: 'map-pin',
-              title: '象山步道',
-              desc: '登上象山六巨石，拍攝台北 101 最好的角度。',
-            },
-            {
-              id: 104,
-              time: '19:00',
-              icon: 'coffee',
-              title: '饒河街夜市',
-              desc: '必吃胡椒餅、藥燉排骨。',
-            },
-          ],
-        },
-        {
-          day: 2,
-          date: '12/21',
-          activities: [
-            {
-              id: 201,
-              time: '10:00',
-              icon: 'map-pin',
-              title: '故宮博物院',
-              desc: '欣賞翠玉白菜與肉形石，深入了解中華文化歷史。',
-            },
-            {
-              id: 202,
-              time: '14:00',
-              icon: 'coffee',
-              title: '士林官邸',
-              desc: '散步賞花，感受歷史氛圍。',
-            },
-            {
-              id: 203,
-              time: '18:00',
-              icon: 'coffee',
-              title: '士林夜市',
-              desc: '體驗豪大大雞排與各種小吃。',
-            },
-          ],
-        },
-        {
-          day: 3,
-          date: '12/22',
-          activities: [
-            {
-              id: 301,
-              time: '09:00',
-              icon: 'map-pin',
-              title: '中正紀念堂',
-              desc: '觀看衛兵交接儀式。',
-            },
-            {
-              id: 302,
-              time: '13:00',
-              icon: 'camera',
-              title: '華山文創園區',
-              desc: '看展覽、喝咖啡，享受文青午後。',
-            },
-          ],
-        },
-        { day: 4, date: '12/23', activities: [] },
-        { day: 5, date: '12/24', activities: [] },
-      ],
-      packingList: [
-        {
-          category: '證件與錢包',
-          items: [
-            { id: 'p1', name: '身分證/護照', checked: true },
-            { id: 'p2', name: '悠遊卡', checked: true },
-            { id: 'p3', name: '現金', checked: false },
-          ],
-        },
-        {
-          category: '衣物',
-          items: [
-            { id: 'c1', name: '換洗衣物 (5套)', checked: false },
-            { id: 'c2', name: '薄外套', checked: true },
-            { id: 'c3', name: '好走的鞋', checked: true },
-          ],
-        },
-        {
-          category: '電子產品',
-          items: [
-            { id: 'e1', name: '手機充電器', checked: true },
-            { id: 'e2', name: '行動電源', checked: true },
-            { id: 'e3', name: '相機', checked: false },
-          ],
-        },
-      ],
-    },
-    {
-      id: 2,
-      title: '京都賞楓深度旅',
-      startDate: '2025-11-15',
-      endDate: '2025-11-20',
-      status: 'planning',
-      days: [],
-      packingList: [],
-    },
-    {
-      id: 3,
-      title: '紐約跨年圓夢行',
-      startDate: '2025-12-28',
-      endDate: '2026-01-03',
-      status: 'planning',
-      days: [],
-      packingList: [],
-    },
-    {
-      id: 4,
-      title: '泰國普吉島跳島遊',
-      startDate: '2025-04-10',
-      endDate: '2025-04-15',
-      status: 'upcoming',
-      days: [],
-      packingList: [],
-    },
-    {
-      id: 5,
-      title: '瑞士阿爾卑斯鐵道行',
-      startDate: '2025-06-01',
-      endDate: '2025-06-08',
-      status: 'planning',
-      days: [],
-      packingList: [],
-    },
-  ])
-
-  // 草稿夾
-  const drafts = ref([])
-  const featuredItineraries = ref([])
+  const myItineraries = ref([])
   const partnerItineraries = ref([])
+  const drafts = ref(JSON.parse(localStorage.getItem('itinerary_drafts') || '[]'))
 
-  // 新增行程
-  const addItinerary = () => {
-    const newId = Date.now()
-    myItineraries.value.push({
-      id: newId,
-      title: '新行程草稿',
-      startDate: '',
-      endDate: '',
-      status: 'draft',
-      days: [
-        { day: 1, date: 'Day 1', activities: [] },
-        { day: 2, date: 'Day 2', activities: [] },
-        { day: 3, date: 'Day 3', activities: [] },
-      ],
-      packingList: [
-        { category: '未分類', items: [{ id: Date.now(), name: '記得帶護照', checked: false }] },
-      ],
-    })
+  // [Action] 載入個人行程並強制轉換日期格式 (Snake -> Camel + Format Date)
+  const loadPersonalData = async (uid) => {
+    if (!uid) return
+    try {
+      const res = await getPersonalItineraries(uid)
+      if (res.success) {
+        myItineraries.value = res.data.map((item) => {
+          const { start_date, end_date, itinerary, packing_list, ...rest } = item
+          return {
+            ...rest,
+            // [修正] 僅保留日期，不顯示時間
+            startDate: start_date ? dayjs(start_date).format('YYYY-MM-DD') : '',
+            endDate: end_date ? dayjs(end_date).format('YYYY-MM-DD') : '',
+            days: itinerary || [],
+            packingList: packing_list || [],
+          }
+        })
+      }
+    } catch (error) {
+      console.error('載入個人行程失敗:', error)
+    }
   }
 
-  // 刪除行程
-  const deleteItinerary = (id) => {
-    myItineraries.value = myItineraries.value.filter((i) => i.id !== id)
+  const loadJoinedData = async (uid) => {
+    if (!uid) return
+    try {
+      const res = await getJoinedItineraries(uid)
+      if (res.success) {
+        partnerItineraries.value = res.data.map((item) => ({
+          ...item,
+          startDate: item.start_date ? dayjs(item.start_date).format('YYYY-MM-DD') : '',
+          endDate: item.end_date ? dayjs(item.end_date).format('YYYY-MM-DD') : '',
+        }))
+      }
+    } catch (error) {
+      console.error('載入參加行程失敗:', error)
+    }
   }
 
-  // 新增草稿
+  const saveItinerary = async (itineraryData, uid) => {
+    if (!uid) return { success: false, message: '使用者未登入' }
+    const payload = {
+      user_uid: uid,
+      title: itineraryData.title,
+      location: itineraryData.location || '',
+      start_date: itineraryData.startDate,
+      end_date: itineraryData.endDate,
+      itinerary: itineraryData.days,
+      packing_list: itineraryData.packingList,
+    }
+    try {
+      const res = await createMyItinerary(payload)
+      if (res.success) {
+        await loadPersonalData(uid)
+        return { success: true }
+      }
+      return { success: false, message: res.message }
+    } catch (error) {
+      return { success: false, message: '儲存失敗' }
+    }
+  }
+
+  const deleteItinerary = async (id) => {
+    try {
+      const res = await deleteMyItinerary(id)
+      if (res.success) {
+        const uid = auth.currentUser?.uid
+        if (uid) await loadPersonalData(uid)
+        return { success: true }
+      }
+      return { success: false }
+    } catch (error) {
+      return { success: false, message: '刪除失敗' }
+    }
+  }
+
   const addDraft = (draftData) => {
     const newDraft = {
-      id: Date.now(),
-      saveTime: new Date().toLocaleString('zh-TW'),
+      id: Date.now() + Math.random(),
+      saveTime: new Date().toISOString(),
       ...draftData,
     }
     drafts.value.unshift(newDraft)
-  }
-
-  const updateFeaturedRating = ({ id, rating, comment }) => {
-    const target = featuredItineraries.value.find((item) => item.id === id)
-    if (!target) return
-    target.rating = rating === 0 ? null : rating
-    if (comment !== undefined) target.comment = comment
-  }
-
-  const clearFeaturedRating = (id) => {
-    const target = featuredItineraries.value.find((item) => item.id === id)
-    if (!target) return
-    target.rating = null
-    target.comment = ''
-  }
-
-  const updatePartnerItinerary = ({ id, comment, reviewLabel }) => {
-    const target = partnerItineraries.value.find((item) => item.id === id)
-    if (!target) return
-    if (comment !== undefined) target.comment = comment
-    if (reviewLabel !== undefined) target.reviewLabel = reviewLabel
-  }
-
-  // 儲存行程（新增或更新）
-  const saveItinerary = (itineraryData) => {
-    if (!itineraryData.id) {
-      // 如果沒有 ID，生成一個新的
-      itineraryData.id = Date.now()
-    }
-
-    // 檢查是否已存在
-    const existingIndex = myItineraries.value.findIndex((i) => i.id === itineraryData.id)
-
-    if (existingIndex !== -1) {
-      // 更新現有行程
-      myItineraries.value[existingIndex] = itineraryData
-    } else {
-      // 新增行程
-      myItineraries.value.unshift(itineraryData)
-    }
+    localStorage.setItem('itinerary_drafts', JSON.stringify(drafts.value))
   }
 
   return {
     myItineraries,
-    drafts,
-    featuredItineraries,
     partnerItineraries,
-    addItinerary,
+    drafts,
+    loadPersonalData,
+    loadJoinedData,
+    saveItinerary,
     deleteItinerary,
     addDraft,
-    updateFeaturedRating,
-    clearFeaturedRating,
-    updatePartnerItinerary,
-    saveItinerary,
   }
 })
-
