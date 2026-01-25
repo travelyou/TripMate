@@ -179,12 +179,10 @@ const router = createRouter({
   },
 })
 
-router.beforeEach((to, from, next) => {
-  flushPendingLikesNow({ keepalive: true })
-  next()
-})
-
 router.beforeEach(async (to, from, next) => {
+  // 在路由切換時刷新按讚狀態
+  flushPendingLikesNow({ keepalive: true })
+
   const userStore = useUserStore()
 
   if (!userStore.authReady) {
