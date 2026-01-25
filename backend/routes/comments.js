@@ -3,6 +3,8 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createCommentNotification } = require('../utils/notifications')
+const { getUserInfo } = require('../utils/userInfo')
 
 // GET /api/posts/:postId/comments - 獲取指定貼文的留言
 router.get('/posts/:postId/comments', async (req, res) => {
@@ -132,6 +134,70 @@ router.post('/posts/:postId/comments', async (req, res) => {
       parent_comment_id || null,
     ])
     const newComment = result.rows[0]
+
+    // 創建回覆通知（不給自己發通知）
+    try {
+      // 獲取貼文作者和標題
+      let postQuery = ''
+      if (postType === 'discussion') {
+        postQuery = `SELECT author_uid, title FROM discussion.discussion WHERE id = $1`
+      } else if (postType === 'traveler') {
+        postQuery = `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`
+      }
+      
+      if (postQuery) {
+        const postResult = await pool.query(postQuery, [postIdNum])
+        if (postResult.rows.length > 0) {
+          const postAuthor = postResult.rows[0].author_uid
+          const postTitle = postResult.rows[0].title
+          
+          // 只有當回覆者不是貼文作者時才發送通知
+          if (postAuthor && postAuthor !== author_uid) {
+            // 使用共用函式獲取回覆者資訊
+            const commenterInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
+            
+            // 如果回覆者資訊中的名稱是 uid，使用匿名用戶
+            let commenterName = commenterInfo.name
+            if (commenterName === author_uid) {
+              commenterName = '匿名用戶'
+              console.warn(`[通知] 回覆者 ${author_uid} 沒有找到 nickname 或 name，使用匿名用戶`)
+            }
+            
+            // 優先使用 users 表的頭像，如果沒有則使用傳入的 author_avatar
+            const commenterAvatar = commenterInfo.avatar || author_avatar
+            
+            // 獲取作者的 nickname（用於檢查是否被 tag）
+            let authorNickname = null
+            try {
+              const authorResult = await pool.query(
+                `SELECT nickname, name FROM public.users WHERE uid = $1`,
+                [postAuthor]
+              )
+              if (authorResult.rows.length > 0) {
+                authorNickname = authorResult.rows[0].nickname || authorResult.rows[0].name
+              }
+            } catch (authorError) {
+              console.error('獲取作者資訊失敗：', authorError)
+            }
+            
+            await createCommentNotification({
+              user_uid: postAuthor,
+              post_id: postIdNum,
+              board: postType,
+              commenter_uid: author_uid,
+              commenter_name: commenterName,
+              commenter_avatar: commenterAvatar,
+              comment_content: content,
+              post_title: postTitle,
+              author_name: authorNickname, // 傳入作者名稱用於檢查是否被 tag
+            })
+          }
+        }
+      }
+    } catch (notifError) {
+      console.error('創建回覆通知失敗（不影響主流程）：', notifError)
+      console.error('創建回覆通知失敗詳情：', notifError.stack)
+    }
 
     res.status(201).json(newComment)
   } catch (error) {

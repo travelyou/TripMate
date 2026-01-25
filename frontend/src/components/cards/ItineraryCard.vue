@@ -255,7 +255,7 @@ onUnmounted(() => {
   >
     <div v-if="showMenuButton" class="absolute top-2 right-2 post-menu-container z-30">
       <button
-        class="p-2 rounded-full hover:bg-white/80 transition text-white hover:text-gray-700 bg-black/20 backdrop-blur-sm"
+        class="p-2 rounded-full hover:bg-primary-100 transition text-primary-600 hover:text-primary-700 bg-white/90 backdrop-blur-sm shadow-md"
         @click="toggleMenu"
       >
         <MoreVertical class="w-5 h-5" />

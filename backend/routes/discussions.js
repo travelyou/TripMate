@@ -3,6 +3,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { isValidImageUrl } = require('../utils/imageUtils')
 
 // GET /api/discussions - 獲取所有討論
 router.get('/', async (req, res) => {
@@ -110,9 +111,15 @@ router.get('/', async (req, res) => {
         console.log(`  - author_avatar: ${discussion.author_avatar || 'NULL'}`)
         console.log(`  - author_name: ${discussion.author_name || 'NULL'}`)
         console.log(`  - author_spirit_animal: ${discussion.author_spirit_animal || 'NULL'}`)
-        console.log(`  - old_author_avatar: ${discussion.old_author_avatar || 'NULL'}`)
+        console.log(`  - old_author_avatar: ${discussion.old_avatar || 'NULL'}`)
         console.log(`  - 所有欄位:`, Object.keys(discussion))
       }
+
+      // 🔧 過濾掉無效的圖片 URL
+      const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
+      const cleanImageUrls = Array.isArray(discussion.image_urls) 
+        ? discussion.image_urls.filter(url => isValidImageUrl(url))
+        : []
 
       return {
         ...discussion,
@@ -122,8 +129,8 @@ router.get('/', async (req, res) => {
         author_spirit_animal: discussion.author_spirit_animal || null,
         likes_count: parseInt(discussion.likes_count) || 0,
         comments_count: parseInt(discussion.comments_count) || 0,
-        banner: discussion.banner || null,
-        image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+        banner: cleanBanner,
+        image_urls: cleanImageUrls,
         tags: Array.isArray(discussion.tags) ? discussion.tags : [],
       }
     })
@@ -302,13 +309,19 @@ router.get('/:id', async (req, res) => {
       [idNum],
     )
 
+    // 🔧 過濾無效的圖片 URL（blob 和 data URL）
+    const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
+    const cleanImageUrls = Array.isArray(discussion.image_urls)
+      ? discussion.image_urls.filter(url => isValidImageUrl(url))
+      : []
+
     const detailedDiscussion = {
       ...discussion,
       commentsData: commentsResult.rows,
       comments_count: parseInt(discussion.comments_count) || 0,
       likes_count: parseInt(discussion.likes_count) || 0,
-      banner: discussion.banner || null,
-      image_urls: Array.isArray(discussion.image_urls) ? discussion.image_urls : [],
+      banner: cleanBanner,
+      image_urls: cleanImageUrls,
       tags: Array.isArray(discussion.tags) ? discussion.tags : [],
     }
 

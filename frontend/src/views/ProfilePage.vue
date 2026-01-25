@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePersonalityStore } from '@/stores/personality'
 import { getTravelers } from '@/api/travelers'
@@ -33,6 +33,7 @@ import CardSettingsModal from '@/components/profile/card/CardSettingsModal.vue'
 const userStore = useUserStore()
 const personalityStore = usePersonalityStore()
 const route = useRoute()
+const router = useRouter()
 
 // --- 核心資料計算 ---
 const targetUid = computed(() => {
@@ -248,13 +249,36 @@ const handleAddFriend = async () => {
     alert('不能加自己為好友')
     return
   }
+
   try {
-    await import('@/api/profile')
-    // ... (簡化，請保留你原本完整的加好友邏輯) ...
-    // 這裡只是示意，實際請用你原本的程式碼，或者如果需要我提供完整的這段請告訴我
-    alert('好友功能暫時保留原樣')
+    const { addFriend, removeFriend } = await import('@/api/profile')
+
+    // 如果已經是好友，執行解除好友
+    if (friendRequestStatus.value === 'accepted') {
+      const confirmed = confirm('確定要解除好友關係嗎？')
+      if (!confirmed) return
+
+      await removeFriend(currentUid, friendUid)
+      alert('已解除好友')
+      friendRequestStatus.value = null
+      await loadProfileData()
+      return
+    }
+
+    // 如果已發送請求，提示用戶
+    if (friendRequestStatus.value === 'sent') {
+      alert('已發送好友請求，請等待對方回應')
+      return
+    }
+
+    // 發送好友請求
+    await addFriend(currentUid, friendUid)
+    alert('已發送好友請求')
+    friendRequestStatus.value = 'sent'
+    await loadProfileData()
   } catch (error) {
-    console.error(error)
+    console.error('加好友失敗：', error)
+    alert(error.message || '操作失敗，請稍後再試')
   }
 }
 
@@ -438,8 +462,26 @@ watch(
   { immediate: true },
 )
 
+// 監聽路由查詢參數變化（用於處理通知跳轉）
+watch(() => route.query.openFriends, (shouldOpen) => {
+  if (shouldOpen === 'true') {
+    nextTick(() => {
+      isFriendModalOpen.value = true
+      router.replace({ path: '/profile', query: {} })
+    })
+  }
+})
+
 onMounted(() => {
-  nextTick(() => loadProfileData())
+  nextTick(() => {
+    loadProfileData()
+
+    // 檢查是否需要打開好友列表（來自通知）
+    if (route.query.openFriends === 'true') {
+      isFriendModalOpen.value = true
+      router.replace({ path: '/profile', query: {} })
+    }
+  })
 })
 </script>
 
@@ -570,6 +612,7 @@ onMounted(() => {
       :traveler="selectedTraveler"
       @close="isTravelerApplicationsModalOpen = false"
       @application-updated="loadHostedTravelers(targetUid)"
+      @traveler-updated="loadHostedTravelers(targetUid)"
     />
 
     <TravelerPostModal

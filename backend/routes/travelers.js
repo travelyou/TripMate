@@ -2,6 +2,8 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createTravelerApplicationNotification } = require('../utils/notifications')
+const { getUserInfo } = require('../utils/userInfo')
 
 let bannerPositionYAvailable = null
 const checkBannerPositionYAvailable = async () => {
@@ -24,7 +26,6 @@ const checkBannerPositionYAvailable = async () => {
 
 router.get('/', async (req, res) => {
   try {
-    console.log('收到獲取旅伴列表請求')
     const { status, location, category, author_uid, limit = 20, offset = 0 } = req.query
 
     // ★ 修改：加上別名 t
@@ -52,7 +53,7 @@ router.get('/', async (req, res) => {
         t.created_at,
         t.updated_at
       FROM travelers.travelers t
-      LEFT JOIN users u ON t.author_uid = u.uid
+      LEFT JOIN public.users u ON t.author_uid = u.uid
       WHERE t.deleted_at IS NULL
     `
 
@@ -86,12 +87,7 @@ router.get('/', async (req, res) => {
     query += ` ORDER BY t.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
     params.push(parseInt(limit), parseInt(offset))
 
-    console.log('執行查詢:', query)
-    console.log('查詢參數:', params)
-
     const result = await pool.query(query, params)
-
-    console.log('查詢成功，找到', result.rows.length, '筆資料')
 
     const formattedData = result.rows.map((row) => {
       const startDate = new Date(row.start_date)
@@ -239,10 +235,16 @@ const ensureApplicationsTable = async () => {
   )
 }
 
+// 確保 chat schema 存在
+const ensureChatSchema = async () => {
+  await pool.query(`CREATE SCHEMA IF NOT EXISTS chat`)
+}
+
 // 确保群组聊天室表存在
 const ensureGroupChatRoomsTable = async () => {
+  await ensureChatSchema()
   await pool.query(
-    `CREATE TABLE IF NOT EXISTS public.group_chat_rooms (
+    `CREATE TABLE IF NOT EXISTS chat.group_chat_rooms (
       id SERIAL PRIMARY KEY,
       traveler_id INTEGER REFERENCES travelers.travelers(id) ON DELETE CASCADE,
       name VARCHAR(255) NOT NULL,
@@ -251,13 +253,13 @@ const ensureGroupChatRoomsTable = async () => {
     )`,
   )
   await pool.query(
-    `ALTER TABLE public.group_chat_rooms
+    `ALTER TABLE chat.group_chat_rooms
      ADD COLUMN IF NOT EXISTS avatar TEXT`,
   )
   await pool.query(
-    `CREATE TABLE IF NOT EXISTS public.group_chat_members (
+    `CREATE TABLE IF NOT EXISTS chat.group_chat_members (
       id SERIAL PRIMARY KEY,
-      room_id INTEGER NOT NULL REFERENCES public.group_chat_rooms(id) ON DELETE CASCADE,
+      room_id INTEGER NOT NULL REFERENCES chat.group_chat_rooms(id) ON DELETE CASCADE,
       user_uid VARCHAR(255) NOT NULL,
       joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(room_id, user_uid)
@@ -265,19 +267,20 @@ const ensureGroupChatRoomsTable = async () => {
   )
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_group_chat_members_room_id
-     ON public.group_chat_members(room_id)`,
+     ON chat.group_chat_members(room_id)`,
   )
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_group_chat_members_user_uid
-     ON public.group_chat_members(user_uid)`,
+     ON chat.group_chat_members(user_uid)`,
   )
 }
 
 const ensureGroupChatMessagesTable = async () => {
+  await ensureChatSchema()
   await pool.query(
-    `CREATE TABLE IF NOT EXISTS public.group_chat_messages (
+    `CREATE TABLE IF NOT EXISTS chat.group_chat_messages (
       id SERIAL PRIMARY KEY,
-      room_id INTEGER NOT NULL REFERENCES public.group_chat_rooms(id) ON DELETE CASCADE,
+      room_id INTEGER NOT NULL REFERENCES chat.group_chat_rooms(id) ON DELETE CASCADE,
       sender_uid VARCHAR(255) NOT NULL,
       sender_name VARCHAR(255),
       sender_avatar TEXT,
@@ -287,20 +290,18 @@ const ensureGroupChatMessagesTable = async () => {
   )
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_group_chat_messages_room_id
-     ON public.group_chat_messages(room_id, created_at)`,
+     ON chat.group_chat_messages(room_id, created_at)`,
   )
 }
 
 const ensureUsersTable = async () => {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      uid VARCHAR(255) UNIQUE NOT NULL,
-      name VARCHAR(255),
-      nickname VARCHAR(255),
-      avatar TEXT
-    )`,
-  )
+  // users 表已經存在於主資料庫中，這裡只需要驗證
+  // 不需要創建新表，避免與現有的 users 表衝突
+  try {
+    await pool.query(`SELECT 1 FROM public.users LIMIT 1`)
+  } catch (error) {
+    console.warn('users 表不存在或無法訪問：', error.message)
+  }
 }
 
 // 提交报名
@@ -356,6 +357,40 @@ router.post('/:id/applications', async (req, res) => {
        RETURNING *`,
       [id, author_uid, author_name || '匿名用戶', author_avatar, message]
     )
+
+    // 創建找旅伴申請通知
+    try {
+      // 獲取旅伴招募貼文作者和標題
+      const travelerResult = await pool.query(
+        `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`,
+        [id]
+      )
+      
+      if (travelerResult.rows.length > 0) {
+        const travelerAuthor = travelerResult.rows[0].author_uid
+        const travelerTitle = travelerResult.rows[0].title
+        
+        // 只有當申請者不是貼文作者時才發送通知
+        if (travelerAuthor && travelerAuthor !== author_uid) {
+          // 使用共用函式獲取申請者資訊
+          const applicantInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
+          
+          // 優先使用 users 表的頭像，如果沒有則使用傳入的 author_avatar
+          const applicantAvatar = applicantInfo.avatar || author_avatar
+          
+          await createTravelerApplicationNotification({
+            user_uid: travelerAuthor,
+            traveler_id: id,
+            applicant_uid: author_uid,
+            applicant_name: applicantInfo.name,
+            applicant_avatar: applicantAvatar,
+            traveler_title: travelerTitle,
+          })
+        }
+      }
+    } catch (notifError) {
+      console.error('創建找旅伴申請通知失敗（不影響主流程）：', notifError)
+    }
 
     res.json({ success: true, data: result.rows[0] })
   } catch (error) {
@@ -480,7 +515,7 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
 
     // 检查是否已存在群组聊天室
     let roomResult = await client.query(
-      `SELECT id FROM public.group_chat_rooms WHERE traveler_id = $1`,
+      `SELECT id FROM chat.group_chat_rooms WHERE traveler_id = $1`,
       [id]
     )
 
@@ -488,7 +523,7 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
     if (roomResult.rows.length === 0) {
       // 创建新的群组聊天室
       const newRoomResult = await client.query(
-        `INSERT INTO public.group_chat_rooms (traveler_id, name, created_by)
+        `INSERT INTO chat.group_chat_rooms (traveler_id, name, created_by)
          VALUES ($1, $2, $3)
          RETURNING id`,
         [id, traveler.title || '旅行群組', user_uid]
@@ -497,7 +532,7 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
 
       // 添加作者为群组成员
       await client.query(
-        `INSERT INTO public.group_chat_members (room_id, user_uid)
+        `INSERT INTO chat.group_chat_members (room_id, user_uid)
          VALUES ($1, $2)
          ON CONFLICT (room_id, user_uid) DO NOTHING`,
         [roomId, user_uid]
@@ -508,7 +543,7 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
 
     // 添加被接受的报名者为群组成员
     await client.query(
-      `INSERT INTO public.group_chat_members (room_id, user_uid)
+      `INSERT INTO chat.group_chat_members (room_id, user_uid)
        VALUES ($1, $2)
        ON CONFLICT (room_id, user_uid) DO NOTHING`,
       [roomId, application.author_uid]
@@ -523,7 +558,7 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
 
     for (const app of acceptedApps.rows) {
       await client.query(
-        `INSERT INTO public.group_chat_members (room_id, user_uid)
+        `INSERT INTO chat.group_chat_members (room_id, user_uid)
          VALUES ($1, $2)
          ON CONFLICT (room_id, user_uid) DO NOTHING`,
         [roomId, app.author_uid]
@@ -566,10 +601,10 @@ router.get('/group-chat-rooms', async (req, res) => {
         r.created_by,
         r.created_at,
         t.title as traveler_title
-      FROM public.group_chat_rooms r
+      FROM chat.group_chat_rooms r
       LEFT JOIN travelers.travelers t ON r.traveler_id = t.id
       WHERE EXISTS (
-        SELECT 1 FROM public.group_chat_members m
+        SELECT 1 FROM chat.group_chat_members m
         WHERE m.room_id = r.id AND m.user_uid = $1
       )
       ORDER BY r.created_at DESC`,
@@ -603,7 +638,7 @@ router.patch('/group-chat-rooms/:roomId', async (req, res) => {
     }
 
     const roomResult = await pool.query(
-      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      `SELECT id, created_by FROM chat.group_chat_rooms WHERE id = $1`,
       [roomIdNum],
     )
     if (roomResult.rows.length === 0) {
@@ -630,7 +665,7 @@ router.patch('/group-chat-rooms/:roomId', async (req, res) => {
     values.push(roomIdNum)
 
     const updateResult = await pool.query(
-      `UPDATE public.group_chat_rooms
+      `UPDATE chat.group_chat_rooms
        SET ${updates.join(', ')}
        WHERE id = $${idx}
        RETURNING id, name, avatar, created_by`,
@@ -662,7 +697,7 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
     }
 
     const roomResult = await pool.query(
-      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      `SELECT id, created_by FROM chat.group_chat_rooms WHERE id = $1`,
       [roomIdNum],
     )
     if (roomResult.rows.length === 0) {
@@ -674,7 +709,7 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO public.group_chat_members (room_id, user_uid)
+      `INSERT INTO chat.group_chat_members (room_id, user_uid)
        VALUES ($1, $2)
        ON CONFLICT (room_id, user_uid) DO NOTHING`,
       [roomIdNum, member_uid],
@@ -683,10 +718,10 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
     const memberResult = await pool.query(
       `SELECT
         $1::varchar AS user_uid,
-        COALESCE(u.name, u.nickname, $1) AS name,
+        COALESCE(u.nickname, $1) AS name,
         u.nickname,
         u.avatar
-       FROM users u
+       FROM public.users u
        WHERE u.uid = $1`,
       [member_uid],
     )
@@ -719,7 +754,7 @@ router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
     }
 
     const memberCheck = await pool.query(
-      `SELECT 1 FROM public.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
+      `SELECT 1 FROM chat.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
       [roomIdNum, user_uid],
     )
     if (memberCheck.rows.length === 0) {
@@ -728,7 +763,7 @@ router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
 
     const messagesResult = await pool.query(
       `SELECT id, sender_uid, sender_name, sender_avatar, content, created_at
-       FROM public.group_chat_messages
+       FROM chat.group_chat_messages
        WHERE room_id = $1
        ORDER BY created_at ASC`,
       [roomIdNum],
@@ -759,7 +794,7 @@ router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
     }
 
     const roomResult = await pool.query(
-      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      `SELECT id, created_by FROM chat.group_chat_rooms WHERE id = $1`,
       [roomIdNum],
     )
     if (roomResult.rows.length === 0) {
@@ -767,7 +802,7 @@ router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
     }
 
     const memberCheck = await pool.query(
-      `SELECT 1 FROM public.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
+      `SELECT 1 FROM chat.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
       [roomIdNum, user_uid],
     )
     if (memberCheck.rows.length === 0) {
@@ -777,11 +812,11 @@ router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
     const membersResult = await pool.query(
       `SELECT
         m.user_uid,
-        COALESCE(u.name, u.nickname, m.user_uid) AS name,
+        COALESCE(u.nickname, m.user_uid) AS name,
         u.nickname,
         u.avatar
-       FROM public.group_chat_members m
-       LEFT JOIN users u ON u.uid = m.user_uid
+       FROM chat.group_chat_members m
+       LEFT JOIN public.users u ON u.uid = m.user_uid
        WHERE m.room_id = $1
        ORDER BY m.joined_at ASC`,
       [roomIdNum],
@@ -818,7 +853,7 @@ router.post('/group-chat-rooms/:roomId/members/:memberUid/remove', async (req, r
     }
 
     const roomResult = await pool.query(
-      `SELECT id, created_by FROM public.group_chat_rooms WHERE id = $1`,
+      `SELECT id, created_by FROM chat.group_chat_rooms WHERE id = $1`,
       [roomIdNum],
     )
     if (roomResult.rows.length === 0) {
@@ -834,7 +869,7 @@ router.post('/group-chat-rooms/:roomId/members/:memberUid/remove', async (req, r
     }
 
     const deleteResult = await pool.query(
-      `DELETE FROM public.group_chat_members
+      `DELETE FROM chat.group_chat_members
        WHERE room_id = $1 AND user_uid = $2
        RETURNING user_uid`,
       [roomIdNum, memberUid],
@@ -872,7 +907,7 @@ router.post('/group-chat-rooms/:roomId/messages', async (req, res) => {
     }
 
     const memberCheck = await pool.query(
-      `SELECT 1 FROM public.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
+      `SELECT 1 FROM chat.group_chat_members WHERE room_id = $1 AND user_uid = $2`,
       [roomIdNum, user_uid],
     )
     if (memberCheck.rows.length === 0) {
@@ -880,7 +915,7 @@ router.post('/group-chat-rooms/:roomId/messages', async (req, res) => {
     }
 
     const insertResult = await pool.query(
-      `INSERT INTO public.group_chat_messages (room_id, sender_uid, sender_name, sender_avatar, content)
+      `INSERT INTO chat.group_chat_messages (room_id, sender_uid, sender_name, sender_avatar, content)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, sender_uid, sender_name, sender_avatar, content, created_at`,
       [roomIdNum, user_uid, sender_name || null, sender_avatar || null, content.trim()],
@@ -947,8 +982,6 @@ router.get('/:id', async (req, res) => {
       })
     }
 
-    console.log('獲取旅伴詳情，ID:', idNum)
-
     const hasBannerPos = await checkBannerPositionYAvailable()
     const bannerPosSelect = hasBannerPos ? 't.banner_position_y AS "banner_position_y",' : ''
 
@@ -987,7 +1020,6 @@ router.get('/:id', async (req, res) => {
     const travelerResult = await pool.query(travelerQuery, [idNum])
 
     if (travelerResult.rows.length === 0) {
-      console.log('找不到旅伴 ID:', idNum)
       return res.status(404).json({
         success: false,
         message: '找不到此旅伴貼文',
@@ -995,7 +1027,6 @@ router.get('/:id', async (req, res) => {
     }
 
     const traveler = travelerResult.rows[0]
-    console.log('找到旅伴:', traveler.title)
 
     const itineraryResult = await pool.query(
       'SELECT day_number, date, activities FROM travelers.traveler_itineraries WHERE traveler_id = $1 ORDER BY day_number',
@@ -1079,8 +1110,6 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    console.log('[Backend Travelers POST] ========== 開始 ==========')
-
     const {
       title,
       content,
@@ -1101,7 +1130,6 @@ router.post('/', async (req, res) => {
     } = req.body
 
     if (!title || !content || !location || !start_date || !end_date || !author_uid || !category) {
-      console.log('[Backend Travelers POST] 缺少必填欄位')
       return res.status(400).json({
         success: false,
         message: '缺少必填欄位',
@@ -1119,7 +1147,7 @@ router.post('/', async (req, res) => {
       let finalSpiritAnimal = spirit_animal || null
       if (!finalSpiritAnimal && author_uid) {
         try {
-          const userQuery = await client.query('SELECT spirit_animal FROM users WHERE uid = $1', [
+          const userQuery = await client.query('SELECT spirit_animal FROM public.users WHERE uid = $1', [
             author_uid,
           ])
           if (userQuery.rows.length > 0 && userQuery.rows[0].spirit_animal) {
@@ -1175,7 +1203,6 @@ router.post('/', async (req, res) => {
       )
 
       const travelerId = travelerResult.rows[0].id
-      console.log('[Backend Travelers POST] 主表插入成功，ID:', travelerId)
 
       if (itinerary && itinerary.days && Array.isArray(itinerary.days)) {
         for (let i = 0; i < itinerary.days.length; i++) {
@@ -1185,12 +1212,6 @@ router.post('/', async (req, res) => {
           const dayActivities = Array.isArray(day.activities)
             ? JSON.stringify(day.activities)
             : '[]'
-
-          console.log(`[Backend Travelers POST] 行程第 ${i + 1} 天:`, {
-            dayNumber,
-            date: dayDate,
-            activitiesCount: Array.isArray(day.activities) ? day.activities.length : 0,
-          })
 
           if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 365) {
             throw new Error(

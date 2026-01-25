@@ -169,9 +169,13 @@ const handleDelete = async () => {
   }
 }
 
-const scrollToCommentsSection = () => {
+// 滑動到留言區
+const scrollToCommentsSection = async () => {
   activeSection.value = 'comments'
+  await nextTick()
   commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  await nextTick()
+  commentInputRef.value?.focus()
 }
 
 const loadLikesInfo = async () => {
@@ -283,7 +287,7 @@ const toggleCommentLike = async (item) => {
     if (typeof result?.likesCount === 'number') {
       item.likes = result.likesCount
     }
-  } catch (error) {
+  } catch {
     item.isLiked = wasLiked
     item.likes = originalLikes
     alert('留言按讚失敗，請稍後再試')
@@ -371,8 +375,16 @@ onMounted(async () => {
 
   if (props.scrollToComments) {
     await nextTick()
-    commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    commentInputRef.value?.focus()
+    // 使用較長的延遲確保 Modal 動畫完成和 DOM 完全渲染
+    setTimeout(() => {
+      if (commentsSectionRef.value) {
+        commentsSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        activeSection.value = 'comments'
+        setTimeout(() => {
+          commentInputRef.value?.focus()
+        }, 100)
+      }
+    }, 500)
   }
 })
 
@@ -386,7 +398,7 @@ onUnmounted(() => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-2 sm:p-4"
     @click.self="emit('close')"
   >
-    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+    <ShareModal v-if="showShareModal" :post-link="shareLink" @close="showShareModal = false" />
 
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
@@ -410,7 +422,8 @@ onUnmounted(() => {
         </button>
       </div>
       <button
-        class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
+        title="回到內文"
         @click="scrollToTop"
       >
         <FileTextIcon class="w-5 h-5 fill-current" /><span
@@ -419,7 +432,8 @@ onUnmounted(() => {
         >
       </button>
       <button
-        class="hidden lg:inline-flex hidden md:flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
+        class="hidden lg:inline-flex absolute -right-3 lg:right-full top-20 lg:top-40 z-20 lg:z-0 bg-tag-blue text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-blue min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
+        title="跳轉至留言區"
         @click="scrollToCommentsSection"
       >
         <MessageCircleIcon class="w-5 h-5 fill-current" /><span
@@ -434,6 +448,7 @@ onUnmounted(() => {
         <div class="absolute top-4 right-16 z-20">
           <button
             class="bg-white border-2 border-primary p-2 rounded-full hover:bg-primary-50 transition shadow-primary-sm"
+            title="更多"
             @click.stop="showMenu = !showMenu"
           >
             <MoreVertical class="w-6 h-6" />
@@ -519,10 +534,12 @@ onUnmounted(() => {
               >
             </div>
 
+            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-gray-900 rich-content"
               v-html="processedContent"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
 
             <div
               class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6"

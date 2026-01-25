@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { getProfile } from '@/api/profile'
 import { uploadImage } from '@/api/storage'
 import { useRouter } from 'vue-router'
+import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
 const emit = defineEmits(['close', 'open-chat-room'])
@@ -42,6 +43,8 @@ const groupAvatarInputRef = ref(null)
 const isSavingGroupName = ref(false)
 const isSavingGroupAvatar = ref(false)
 const memberActionLoading = ref(new Set())
+const isGroupAvatarCropOpen = ref(false)
+const groupAvatarFileToCrop = ref(null)
 
 // 訊息列表（根據當前聊天室）
 const messages = ref([])
@@ -89,9 +92,14 @@ const isFriendChat = computed(() => {
   const friendList = userStore.currentUser?.friends || []
   return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
-const canSendMessage = computed(() =>
-  isGroupChat.value ? true : (chatInteractionCount.value.canSend && isFriendChat.value),
-)
+const canSendMessage = computed(() => {
+  // 群組聊天：可以發送
+  if (isGroupChat.value) return true
+  // 好友聊天：可以發送
+  if (isFriendChat.value) return true
+  // 非好友：檢查剩餘次數
+  return chatInteractionCount.value.canSend && chatInteractionCount.value.remaining > 0
+})
 
 const updateUnreadCount = (friendUid, mappedMessages) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
@@ -229,7 +237,11 @@ const loadChatRoomsFromStorage = () => {
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
-      chatRoomsList.value = parsed
+      // 清理 blob URL（它們在頁面刷新後會失效）
+      chatRoomsList.value = parsed.map(room => ({
+        ...room,
+        avatar: room.avatar && room.avatar.startsWith('blob:') ? '' : room.avatar
+      }))
     }
   } catch (error) {
     console.warn('Load chat rooms failed:', error)
@@ -256,7 +268,14 @@ const loadMessagesFromStorage = (friendUid) => {
     const raw = localStorage.getItem(getChatMessagesStorageKey(currentUid, friendUid))
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    // 過濾掉包含 blob URL 的圖片訊息（它們在頁面刷新後會失效）
+    return parsed.map(msg => {
+      if (msg.isImage && msg.content && msg.content.startsWith('blob:')) {
+        return { ...msg, content: '', isImage: false }
+      }
+      return msg
+    }).filter(msg => msg.content) // 移除內容為空的訊息
   } catch (error) {
     console.warn('Load chat messages failed:', error)
     return []
@@ -305,10 +324,22 @@ const loadGroupMembers = async (silent = false) => {
       const data = response.data || {}
       groupMembersOwnerUid.value = data.created_by || ''
       groupMembers.value = Array.isArray(data.members) ? data.members : []
+    } else {
+      console.error('載入群組成員失敗 - API 回應:', response)
+      if (!silent) groupMembersError.value = response?.message || '載入群組成員失敗'
     }
   } catch (error) {
-    console.warn('載入群組成員失敗:', error)
-    if (!silent) groupMembersError.value = '載入群組成員失敗'
+    console.error('載入群組成員失敗 - 錯誤:', error)
+    console.error('錯誤詳情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      roomId: activeChatRoom.value?.roomId,
+    })
+    if (!silent) {
+      const errorMsg = error.response?.data?.message || error.message || '載入群組成員失敗'
+      groupMembersError.value = errorMsg
+    }
   } finally {
     if (!silent) groupMembersLoading.value = false
   }
@@ -372,7 +403,7 @@ const handleGroupAvatarClick = () => {
   groupAvatarInputRef.value?.click()
 }
 
-const handleGroupAvatarChange = async (event) => {
+const handleGroupAvatarChange = (event) => {
   if (!isGroupOwner.value || !activeChatRoom.value?.roomId) return
   const file = event.target.files?.[0]
   if (!file) return
@@ -388,21 +419,31 @@ const handleGroupAvatarChange = async (event) => {
     return
   }
 
+  // 開啟裁切 Modal
+  groupAvatarFileToCrop.value = file
+  isGroupAvatarCropOpen.value = true
+  event.target.value = ''
+}
+
+const handleGroupAvatarCrop = async (croppedFile) => {
+  if (!isGroupOwner.value || !activeChatRoom.value?.roomId || !croppedFile) return
+
   isSavingGroupAvatar.value = true
   try {
-    const avatarUrl = await uploadImage(file, 'group-avatars')
+    const avatarUrl = await uploadImage(croppedFile, 'group-avatars')
     if (!avatarUrl) throw new Error('未取得圖片網址')
     const { updateGroupChatRoom } = await import('@/api/travelers')
     const response = await updateGroupChatRoom(activeChatRoom.value.roomId, { avatar: avatarUrl })
     if (response?.success && response.data) {
       updateGroupRoomLocal(activeChatRoom.value.roomId, { avatar: response.data.avatar })
+      isGroupAvatarCropOpen.value = false
+      groupAvatarFileToCrop.value = null
     }
   } catch (error) {
     console.error('更新群組頭像失敗：', error)
     alert('更新群組頭像失敗，請稍後再試')
   } finally {
     isSavingGroupAvatar.value = false
-    event.target.value = ''
   }
 }
 
@@ -543,25 +584,43 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
       }
     })
 
-    // 檢查是否有新訊息（比較訊息數量）
-    const hasNewMessages = mappedMessages.length > messages.value.length
-    const previousMessageCount = messages.value.length
+    // 改進：檢查是否有真正的新訊息（比較最後一條訊息的 ID 和時間戳）
+    const previousMessages = messages.value
+    const lastOldMessage = previousMessages[previousMessages.length - 1]
+    const lastNewMessage = mappedMessages[mappedMessages.length - 1]
+
+    // 更嚴格的新訊息檢查：
+    // 1. 訊息數量增加
+    // 2. 最後一條訊息的 ID 或時間戳不同
+    // 3. 內容不同
+    const hasNewMessages = mappedMessages.length > previousMessages.length &&
+      (!lastOldMessage || !lastNewMessage ||
+       lastOldMessage.id !== lastNewMessage.id ||
+       lastOldMessage.timestamp !== lastNewMessage.timestamp ||
+       lastOldMessage.content !== lastNewMessage.content)
 
     const localMessages = loadMessagesFromStorage(friendUid)
-    messages.value = mappedMessages.length > 0 ? mappedMessages : localMessages
 
-    if (mappedMessages.length > 0) {
+    // 只有在有新訊息或首次載入時才更新
+    if (mappedMessages.length > 0 && (previousMessages.length === 0 || hasNewMessages)) {
+      messages.value = mappedMessages
       saveMessagesToStorage(friendUid, mappedMessages)
 
-      // 如果有新訊息，自動滾動到底部
-      if (hasNewMessages && previousMessageCount > 0) {
+      // 如果有新訊息且不是首次載入，自動滾動到底部
+      if (hasNewMessages && previousMessages.length > 0) {
         await nextTick()
         scrollToBottom()
       }
+    } else if (mappedMessages.length === 0 && previousMessages.length === 0) {
+      // 如果資料庫沒有訊息，嘗試從本地存儲載入
+      messages.value = localMessages
+    }
+
+    if (mappedMessages.length > 0) {
 
       // 檢查是否有新訊息（未讀）
       const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
-      if (currentUid) {
+      if (currentUid && hasNewMessages && previousMessages.length > 0) {
         const unreadKey = `unread_${currentUid}_${friendUid}`
         const unreadData = localStorage.getItem(unreadKey)
         let lastReadTime = null
@@ -579,23 +638,19 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
           if (!lastReadTime || lastMessageTime > new Date(lastReadTime).getTime()) {
             // 有新訊息，觸發更新事件
             window.dispatchEvent(new CustomEvent('message-updated'))
-          }
-        }
-      }
 
-      if (hasNewMessages && previousMessageCount > 0) {
-        const lastMessage = mappedMessages[mappedMessages.length - 1]
-        if (lastMessage && lastMessage.type !== 'user') {
-          const roomInfo = chatRoomsList.value.find(r => r.uid === friendUid) || activeChatRoom.value
-          const preview = lastMessage.isImage ? '傳送了圖片' : lastMessage.content
-          window.dispatchEvent(new CustomEvent('incoming-message', {
-            detail: {
-              uid: friendUid,
-              name: roomInfo?.name || '未知用戶',
-              avatar: roomInfo?.avatar || '',
-              content: preview
-            }
-          }))
+            // 只在真正有新訊息時才發送通知
+            const roomInfo = chatRoomsList.value.find(r => r.uid === friendUid) || activeChatRoom.value
+            const preview = lastMessage.isImage ? '傳送了圖片' : lastMessage.content
+            window.dispatchEvent(new CustomEvent('incoming-message', {
+              detail: {
+                uid: friendUid,
+                name: roomInfo?.name || '未知用戶',
+                avatar: roomInfo?.avatar || '',
+                content: preview
+              }
+            }))
+          }
         }
       }
     }
@@ -638,17 +693,38 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
       senderUid: msg.sender_uid,
     }))
 
-    messages.value = mappedMessages
-    saveMessagesToStorage(`group-${roomId}`, messages.value)
+    // 檢查是否有新訊息（避免重複通知）
+    const previousMessages = messages.value
+    const lastOldMessage = previousMessages[previousMessages.length - 1]
+    const lastNewMessage = mappedMessages[mappedMessages.length - 1]
 
-    const groupRoom = groupChatRooms.value.find((room) => room.id === roomId)
-    if (groupRoom) {
-      groupRoom.lastMessage = mappedMessages.length ? mappedMessages[mappedMessages.length - 1].content : ''
-      groupRoom.lastMessageTime = mappedMessages.length ? '剛剛' : groupRoom.lastMessageTime
-    }
+    // 更嚴格的新訊息檢查
+    const hasNewMessages = mappedMessages.length > previousMessages.length &&
+      (!lastOldMessage || !lastNewMessage ||
+       lastOldMessage.id !== lastNewMessage.id ||
+       lastOldMessage.timestamp !== lastNewMessage.timestamp ||
+       lastOldMessage.content !== lastNewMessage.content)
 
-    if (activeChatRoom.value) {
-      activeChatRoom.value.messages = messages.value
+    // 只有在有新訊息或首次載入時才更新
+    if (previousMessages.length === 0 || hasNewMessages) {
+      messages.value = mappedMessages
+      saveMessagesToStorage(`group-${roomId}`, messages.value)
+
+      const groupRoom = groupChatRooms.value.find((room) => room.id === roomId)
+      if (groupRoom && mappedMessages.length > 0) {
+        groupRoom.lastMessage = mappedMessages[mappedMessages.length - 1].content
+        groupRoom.lastMessageTime = '剛剛'
+      }
+
+      if (activeChatRoom.value) {
+        activeChatRoom.value.messages = messages.value
+      }
+
+      // 只在有新訊息且不是首次載入時滾動到底部
+      if (hasNewMessages && previousMessages.length > 0) {
+        await nextTick()
+        scrollToBottom()
+      }
     }
 
     if (!silent) {
@@ -844,6 +920,11 @@ const toggleStickerPicker = () => {
 
 // 打開圖片預覽
 const openImagePreview = (imageUrl, imageName = '') => {
+  // 檢查是否為 blob URL（已失效）
+  if (!imageUrl || imageUrl.startsWith('blob:')) {
+    alert('圖片已失效，無法預覽。\n請從資料庫重新載入聊天記錄。')
+    return
+  }
   previewImageUrl.value = imageUrl
   previewImageName.value = imageName
   showImagePreview.value = true
@@ -871,8 +952,8 @@ const goToFriendProfile = (friendUid) => {
 // 下載圖片
 const downloadImage = async (imageUrl, fileName = 'image') => {
   try {
-    if (!imageUrl) {
-      throw new Error('圖片網址無效')
+    if (!imageUrl || imageUrl.startsWith('blob:')) {
+      throw new Error('圖片已失效，無法下載')
     }
 
     const response = await fetch(imageUrl)
@@ -949,17 +1030,13 @@ const handleFileSelect = async (event) => {
     return
   }
 
+  // 非好友：檢查對話次數
   if (!isFriendChat.value) {
-    alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
-    event.target.value = ''
-    return
-  }
-
-  // 檢查對話次數
-  if (!chatInteractionCount.value.canSend) {
-    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
-    event.target.value = ''
-    return
+    if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
+      alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
+      event.target.value = ''
+      return
+    }
   }
 
   // 確認是否傳送檔案
@@ -1084,15 +1161,12 @@ const sendMessage = async () => {
     return
   }
 
+  // 非好友：檢查對話次數
   if (!isFriendChat.value) {
-    alert('⚠️ 目前不是好友，無法傳送訊息。')
-    return
-  }
-
-  // 檢查對話次數（在發送前檢查）
-  if (!chatInteractionCount.value.canSend) {
-    alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
-    return
+    if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
+      alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
+      return
+    }
   }
 
   const optimisticId = Date.now()
@@ -1147,12 +1221,12 @@ const startMessagePolling = (uid, friendUid) => {
   // 清除現有的輪詢
   stopMessagePolling()
 
-  // 每 3 秒檢查一次新訊息
+  // 每 5 秒檢查一次新訊息（降低頻率）
   messagePollingInterval = setInterval(async () => {
     if (activeChatRoom.value && activeChatRoom.value.uid === friendUid) {
       await loadChatHistory(uid, friendUid, true) // silent = true，不輸出日誌
     }
-  }, 3000) // 3 秒輪詢一次
+  }, 5000) // 5 秒輪詢一次，降低頻率避免重複
 }
 
 const startGroupMessagePolling = (roomId) => {
@@ -1553,6 +1627,16 @@ const handleChatReceived = (event) => {
   const incomingMessage = detail.message
   if (!fromUid || !incomingMessage) return
 
+  // 防止處理發送給自己的訊息（應該由發送函數處理）
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) return
+
+  // 忽略自己發送的訊息（這些訊息應該已經在 sendMessage 中處理過了）
+  if (fromUid === currentUid) {
+    console.log('[handleChatReceived] 忽略自己發送的訊息')
+    return
+  }
+
   const room = chatRoomsList.value.find(r => r.uid === fromUid) || {
     uid: fromUid,
     name: detail.senderName || '未知用戶',
@@ -1569,19 +1653,36 @@ const handleChatReceived = (event) => {
   }
 
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
-  const exists = roomMessages.some(msg => msg.id === incomingMessage.id && msg.timestamp === incomingMessage.timestamp)
+
+  // 改進的去重檢查：檢查 ID、內容和時間戳
+  const exists = roomMessages.some(msg => {
+    // 檢查 ID 是否相同
+    if (msg.id && incomingMessage.id && msg.id === incomingMessage.id) {
+      return true
+    }
+    // 檢查內容、時間戳和類型是否完全相同（可能是重複訊息）
+    const sameContent = msg.content === incomingMessage.content
+    const sameTimestamp = msg.timestamp === incomingMessage.timestamp
+    const sameType = msg.isImage === incomingMessage.isImage
+    return sameContent && sameTimestamp && sameType
+  })
+
   if (!exists) {
     roomMessages.push({
       ...incomingMessage,
       type: 'friend',
     })
+    console.log(`[handleChatReceived] 新增訊息：從 ${fromUid}`)
+  } else {
+    console.log(`[handleChatReceived] 忽略重複訊息：從 ${fromUid}`)
+    return // 如果是重複訊息，直接返回，不進行後續處理
   }
+
   room.messages = roomMessages
   room.lastMessage = incomingMessage.isImage ? '傳送了圖片' : (incomingMessage.content || '新訊息')
   room.lastMessageTime = '剛剛'
   room.lastMessageTimestamp = new Date(incomingMessage.timestamp || new Date().toISOString()).getTime()
 
-  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   const isActiveRoom = activeChatRoom.value?.uid === fromUid
   if (isActiveRoom) {
     messages.value = roomMessages
@@ -1605,7 +1706,45 @@ const handleChatReceived = (event) => {
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
+// 清理 localStorage 中的 blob URL
+const cleanupBlobUrls = () => {
+  try {
+    const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+    if (!currentUid) return
+
+    // 清理所有聊天訊息中的 blob URL
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(CHAT_MESSAGES_STORAGE_PREFIX)) {
+        const messagesRaw = localStorage.getItem(key)
+        if (messagesRaw) {
+          try {
+            const messages = JSON.parse(messagesRaw)
+            if (Array.isArray(messages)) {
+              const cleaned = messages.map(msg => {
+                if (msg.isImage && msg.content && msg.content.startsWith('blob:')) {
+                  return { ...msg, content: '', isImage: false }
+                }
+                return msg
+              }).filter(msg => msg.content)
+
+              // 只在有變化時才更新
+              if (JSON.stringify(cleaned) !== JSON.stringify(messages)) {
+                localStorage.setItem(key, JSON.stringify(cleaned))
+              }
+            }
+          } catch {
+            // 忽略解析錯誤
+          }
+        }
+      }
+    })
+  } catch (error) {
+    console.warn('清理 blob URL 失敗：', error)
+  }
+}
+
 onMounted(() => {
+  cleanupBlobUrls()
   loadFriends()
   loadChatRoomsFromStorage()
   loadGroupChatRooms()
@@ -1892,13 +2031,16 @@ onUnmounted(() => {
             ]"
           >
             <img
-              v-if="msg.isImage"
+              v-if="msg.isImage && msg.content && !msg.content.startsWith('blob:')"
               :src="msg.content"
               alt="傳送的圖片"
               class="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition"
               @error="(e) => { console.error('圖片載入失敗：', msg.content); e.target.style.display = 'none' }"
               @click.stop="openImagePreview(msg.content, '圖片')"
             />
+            <span v-else-if="msg.isImage && (!msg.content || msg.content.startsWith('blob:'))" class="text-gray-400 italic">
+              [圖片已失效]
+            </span>
             <span v-else>{{ msg.content }}</span>
           </div>
 
@@ -1921,13 +2063,19 @@ onUnmounted(() => {
         </div>
 
         <div
-          v-if="!isFriendChat"
+          v-if="!isFriendChat && chatInteractionCount.remaining > 0"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
-          ⚠️ 目前不是好友，無法傳送訊息
+          💬 目前不是好友，還可以發送 <span class="font-bold text-primary-600">{{ chatInteractionCount.remaining }}</span> 次訊息
         </div>
         <div
-          v-else-if="!chatInteractionCount.canSend"
+          v-else-if="!isFriendChat && chatInteractionCount.remaining <= 0"
+          class="text-center text-xs text-gray-600 py-2 px-4 bg-red-50 border border-red-200 rounded-lg"
+        >
+          ⚠️ 已達到對話次數上限，請先加對方為好友才能繼續聊天
+        </div>
+        <div
+          v-else-if="isFriendChat && !chatInteractionCount.canSend"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
           ⚠️ 已達到對話次數上限（3次），等待對方同意好友請求後才能繼續
@@ -2143,7 +2291,6 @@ onUnmounted(() => {
               <div class="flex items-center justify-between mb-1">
                 <div class="font-bold text-gray-800 text-sm truncate">
                   {{ room.name }}
-                  <span v-if="room.isStranger" class="text-yellow-600">（申請邀請的好友）</span>
                 </div>
                 <div v-if="room.lastMessageTime" class="text-xs text-gray-500 ml-2 flex-shrink-0">{{ room.lastMessageTime }}</div>
               </div>
@@ -2415,6 +2562,14 @@ onUnmounted(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 群組頭貼裁切 Modal -->
+    <AvatarCropModal
+      :is-open="isGroupAvatarCropOpen"
+      :image-file="groupAvatarFileToCrop"
+      @close="isGroupAvatarCropOpen = false"
+      @crop="handleGroupAvatarCrop"
+    />
   </div>
 </template>
 

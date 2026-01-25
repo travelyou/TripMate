@@ -1,4 +1,5 @@
 ﻿<template>
+  <!-- eslint-disable vue/no-v-html -->
   <div class="min-h-screen bg-secondary-50 flex flex-col pb-24 lg:pb-0">
     <div class="sticky top-0 z-30 bg-secondary-100 shadow-sm border-b border-secondary-200 p-4">
       <div class="w-full">
@@ -62,11 +63,11 @@
             :key="filter"
             :class="[
               'px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition border',
-              activeSubFilter === filter
+              activeSubFilters.includes(filter)
                 ? 'bg-primary-100 text-primary-700 border-primary-300'
                 : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
             ]"
-            @click="activeSubFilter = filter"
+            @click="toggleSubFilter(filter)"
           >
             {{ filter }}
           </button>
@@ -108,7 +109,9 @@
         <div v-else class="space-y-4">
           <p class="text-sm text-secondary-500 mb-2 ml-1">
             在 <span class="font-bold text-secondary-700">{{ getTabLabel(activeTab) }}</span>
-            <span v-if="activeSubFilter !== '全部'"> ({{ activeSubFilter }}) </span>
+            <span v-if="activeSubFilters.length > 0 && !activeSubFilters.includes('全部')">
+              ({{ activeSubFilters.join('、') }})
+            </span>
             中找到 {{ filteredResults.length }} 筆結果
           </p>
 
@@ -118,12 +121,21 @@
             class="bg-white p-4 rounded-xl border-2 border-secondary-100 hover:border-primary-300 hover:shadow-md transition cursor-pointer flex gap-4 group"
             @click="handleResultClick(item)"
           >
-            <div v-if="item.type === 'traveler'" class="w-16 h-16 shrink-0">
+            <!-- 使用者和找旅伴：顯示圓形頭像 -->
+            <div v-if="item.type === 'traveler' || item.type === 'user'" class="w-16 h-16 shrink-0 rounded-full bg-secondary-100 flex items-center justify-center overflow-hidden border-2 border-secondary-200 group-hover:border-primary-200 transition">
               <img
+                v-if="item.avatar && isValidImageUrl(item.avatar) && !avatarErrors[`${item.type}-${item.id}`]"
                 :src="item.avatar"
-                class="w-full h-full object-cover rounded-full border-2 border-secondary-200 group-hover:border-primary-200 transition"
+                :alt="item.title"
+                class="w-full h-full object-cover"
+                @error="handleAvatarError(`${item.type}-${item.id}`)"
+              />
+              <UserIcon
+                v-else
+                class="w-8 h-8 text-secondary-400"
               />
             </div>
+            <!-- 討論區和行程：顯示方形圖片 -->
             <div
               v-else
               class="w-24 h-24 shrink-0 bg-secondary-100 rounded-lg overflow-hidden border border-secondary-100"
@@ -219,6 +231,7 @@
       @close="closeDiscussionDetailModal"
     />
   </div>
+  <!-- eslint-enable vue/no-v-html -->
 </template>
 
 <script setup>
@@ -230,12 +243,15 @@ import {
   ChevronRight as ChevronRightIcon,
   X as XIcon,
   Image as ImageIcon,
+  User as UserIcon,
 } from 'lucide-vue-next'
 
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
 import { useItineraryStore } from '@/stores/itinerary'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import { getAllUsers } from '@/api/users'
+import { isValidHttpImageUrl as isValidImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
@@ -251,33 +267,113 @@ const searchInput = ref(null)
 const searchQuery = ref('')
 const hasSearched = ref(false)
 const activeTab = ref('all')
-const activeSubFilter = ref('全部')
+const activeSubFilters = ref(['全部']) // 陣列但只允許單選
 
 const currentPage = ref(1)
 const itemsPerPage = 10
+
+const users = ref([])
+const loadingUsers = ref(false)
+const avatarErrors = ref({})
 
 const tabs = [
   { label: '全部', value: 'all' },
   { label: '找旅伴', value: 'traveler' },
   { label: '討論區', value: 'discussion' },
   { label: '精選行程', value: 'itinerary' },
+  { label: '使用者', value: 'user' },
 ]
 
 const subFilterOptions = {
   all: [],
-  traveler: ['全部', '招募中', '已額滿', '單人遊', '團體遊'],
-  discussion: ['全部', '有圖', '新貼文', '找旅伴', '找話題'],
-  itinerary: ['全部', '旅行社精選', '導遊推薦', '短天數(1-5日)', '長天數(6日以上)', '亞洲'],
+  traveler: ['全部', '招募中', '已額滿', '國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假', '攝影', '自駕共乘', '其他'],
+  discussion: ['全部', '國內旅遊', '亞洲旅遊', '歐美紐澳', '攝影愛好', '交通建議', '美食分享', '住宿推薦', '行程請益', '其他'],
+  itinerary: ['全部', '國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假', '攝影/興趣', '自駕共乘', '其他'],
+  user: ['全部'],
 }
 
 const currentSubFilters = computed(() => {
   return subFilterOptions[activeTab.value] || []
 })
 
-watch([activeTab, activeSubFilter], () => {
+// 關鍵字常數（避免重複定義）
+const FILTER_KEYWORDS = {
+  '國內旅遊': ['台灣', '國內', '本島', '離島', '澎湖', '金門', '馬祖', '花蓮', '台東', '墾丁', '阿里山', '日月潭'],
+  '日韓旅遊': ['日本', '韓國', '東京', '大阪', '京都', '首爾', '釜山', '沖繩', '北海道'],
+  '亞洲其他': ['泰國', '越南', '新加坡', '馬來西亞', '印尼', '菲律賓', '中國', '香港', '澳門', '柬埔寨', '寮國', '緬甸', '印度', '斯里蘭卡'],
+  '亞洲旅遊': ['日本', '韓國', '泰國', '越南', '新加坡', '馬來西亞', '印尼', '菲律賓', '中國', '香港', '澳門', '柬埔寨', '寮國', '緬甸', '印度', '斯里蘭卡', '東京', '大阪', '京都', '首爾', '釜山', '沖繩', '北海道'],
+  '歐美紐澳': ['歐洲', '美國', '紐約', '澳洲', '紐西蘭', '英國', '法國', '德國', '義大利', '西班牙', '荷蘭', '瑞士', '奧地利', '加拿大'],
+  '海島度假': ['海島', '度假', '海邊', '沙灘', '潛水', '浮潛', '海灘', '島嶼', '馬爾地夫', '峇里島', '長灘島', '帛琉'],
+  '攝影': ['攝影', '拍照', '風景'],
+  '攝影/興趣': ['攝影', '拍照', '風景', '興趣', '愛好', '單眼', '相機', '取景', '構圖'],
+  '攝影愛好': ['攝影', '拍照', '風景', '興趣', '愛好', '單眼', '相機', '取景', '構圖', '攝影技巧', '攝影景點'],
+  '自駕共乘': ['自駕', '共乘', '開車'],
+  '交通建議': ['交通', '交通方式', '交通資訊', '交通攻略', '交通費用', '交通時間', '大眾運輸', '地鐵', '公車', '計程車', '租車', '包車'],
+  '美食分享': ['美食', '餐廳', '小吃', '料理', '推薦餐廳', '必吃', '美食推薦', '美食攻略', '當地美食', '特色美食', '美食體驗'],
+  '住宿推薦': ['住宿', '飯店', '旅館', '民宿', '酒店', '住宿推薦', '住宿攻略', '住宿體驗', '住宿評價', '住宿選擇', '訂房'],
+  '行程請益': ['行程', '行程規劃', '行程安排', '行程建議', '請益', '詢問', '問題', '求助', '建議', '行程討論', '行程分享'],
+}
+
+// 共用的關鍵字匹配函數
+const matchByKeywords = (filter, item, originalData, categoryValue) => {
+  const keywords = FILTER_KEYWORDS[filter]
+  if (!keywords) return false
+
+  return (
+    keywords.some((keyword) =>
+      item.title.includes(keyword) ||
+      item.description.includes(keyword) ||
+      item.tags.some((t) => t.includes(keyword))
+    ) || originalData.category === categoryValue
+  )
+}
+
+// 共用的分類篩選函數
+const matchCategoryFilter = (filter, item, originalData) => {
+  // 國內旅遊、日韓旅遊、亞洲其他、歐美紐澳、海島度假 共用邏輯
+  if (['國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假'].includes(filter)) {
+    return matchByKeywords(filter, item, originalData, filter)
+  }
+
+  // 攝影（找旅伴）
+  if (filter === '攝影') {
+    return matchByKeywords('攝影', item, originalData, '攝影')
+  }
+
+  // 攝影/興趣（精選行程）
+  if (filter === '攝影/興趣') {
+    return (
+      matchByKeywords('攝影/興趣', item, originalData, '攝影/興趣') ||
+      originalData.category === '攝影'
+    )
+  }
+
+  // 自駕共乘
+  if (filter === '自駕共乘') {
+    return matchByKeywords('自駕共乘', item, originalData, '自駕共乘')
+  }
+
+  // 其他
+  if (filter === '其他') {
+    return (
+      originalData.category === '其他' ||
+      item.title.includes('其他') ||
+      item.description.includes('其他') ||
+      item.tags.some((t) => t.includes('其他'))
+    )
+  }
+
+  return false
+}
+
+watch(activeTab, () => {
   currentPage.value = 1
-  if (activeTab.value) activeSubFilter.value = '全部'
+  activeSubFilters.value = ['全部']
 })
+
+watch(activeSubFilters, () => {
+  currentPage.value = 1
+}, { deep: true })
 
 const allData = computed(() => {
   const results = []
@@ -288,23 +384,36 @@ const allData = computed(() => {
         type: 'discussion',
         title: post.title,
         description: post.content,
-        image: post.image,
-        date: post.time || '剛剛',
-        tags: post.tags || [],
+        image: post.image || post.banner,
+        date: post.time || post.created_at || '剛剛',
+        tags: Array.isArray(post.tags) ? post.tags : [],
         originalData: post,
       })
     })
   }
   if (travelersStore.recommendations) {
     travelersStore.recommendations.forEach((traveler) => {
+      // 過濾有效的頭像 URL
+      const avatarUrl = traveler.avatar || traveler.image
+      const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
+                         !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
+                         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
+                         ? avatarUrl : null
+
       results.push({
         id: traveler.id,
         type: 'traveler',
         title: traveler.title,
         description: traveler.content || `地點：${traveler.location}`,
-        avatar: traveler.avatar || traveler.image,
-        date: traveler.date || '近期',
-        tags: traveler.tag ? [traveler.tag] : [],
+        avatar: validAvatar,
+        date: traveler.date || traveler.created_at || '近期',
+        tags: Array.isArray(traveler.tags)
+          ? traveler.tags
+          : traveler.tag
+            ? [traveler.tag]
+            : traveler.category
+              ? [traveler.category]
+              : [],
         originalData: traveler,
       })
     })
@@ -315,11 +424,36 @@ const allData = computed(() => {
         id: plan.id,
         type: 'itinerary',
         title: plan.title,
-        description: plan.description || '精彩的旅程規劃',
-        image: plan.coverImage || plan.image,
-        date: plan.date || '隨時出發',
-        tags: plan.tags || [],
+        description: plan.description || plan.content || '精彩的旅程規劃',
+        image: plan.coverImage || plan.image || plan.banner_image,
+        date: plan.date || plan.created_at || '隨時出發',
+        tags: Array.isArray(plan.tags) ? plan.tags : [],
         originalData: plan,
+      })
+    })
+  }
+  if (users.value && users.value.length > 0) {
+    users.value.forEach((user) => {
+      // 過濾有效的頭像 URL
+      const avatarUrl = user.avatar || user.photoURL
+      const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
+                         !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
+                         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
+                         ? avatarUrl : null
+
+      results.push({
+        id: user.uid,
+        type: 'user',
+        title: user.nickname || user.displayName || '使用者',
+        description: user.bio || user.card_bio || `旅行夥伴 · ${user.location || '探索世界'}`,
+        avatar: validAvatar,
+        date: '活躍中',
+        tags: Array.isArray(user.tags)
+          ? user.tags
+          : Array.isArray(user.card_tags)
+            ? user.card_tags
+            : [],
+        originalData: user,
       })
     })
   }
@@ -397,16 +531,81 @@ const filteredResults = computed(() => {
     const matchTab = activeTab.value === 'all' || item.type === activeTab.value
 
     let matchSubFilter = true
-    if (activeSubFilter.value !== '全部') {
-      const filter = activeSubFilter.value
-      const tagMatch = item.tags && item.tags.some((t) => t.includes(filter))
-      const textMatch = (item.title + item.description).includes(filter)
+    // 如果選中「全部」或沒有選中任何條件，顯示所有項目
+    if (activeSubFilters.value.includes('全部') || activeSubFilters.value.length === 0) {
+      matchSubFilter = true
+    } else {
+      // 支援複選：只要符合任何一個選中的條件就顯示（OR 邏輯）
+      const originalData = item.originalData || {}
+      matchSubFilter = activeSubFilters.value.some((filter) => {
+        // 找旅伴專屬篩選
+        if (activeTab.value === 'traveler' || item.type === 'traveler') {
+          if (filter === '招募中') {
+            return (
+              originalData.status === 'active' ||
+              (!item.title.includes('額滿') && !item.title.includes('已成行'))
+            )
+          } else if (filter === '已額滿') {
+            return (
+              originalData.status === 'full' ||
+              item.title.includes('額滿') ||
+              item.title.includes('已成行')
+            )
+          } else {
+            // 使用共用的分類篩選函數
+            return matchCategoryFilter(filter, item, originalData)
+          }
+        }
+        // 討論區專屬篩選
+        else if (activeTab.value === 'discussion' || item.type === 'discussion') {
+          // 國內旅遊、亞洲旅遊、歐美紐澳 使用共用邏輯
+          if (['國內旅遊', '亞洲旅遊', '歐美紐澳'].includes(filter)) {
+            return matchByKeywords(filter, item, originalData, filter)
+          }
 
-      if (filter === '有圖') matchSubFilter = !!item.image
-      else if (filter === '招募中') matchSubFilter = !item.title.includes('額滿')
-      else if (filter === '已額滿') matchSubFilter = item.title.includes('額滿')
-      else if (filter === '短天數(1-5日)') matchSubFilter = item.description.includes('日')
-      else matchSubFilter = tagMatch || textMatch
+          // 攝影愛好
+          if (filter === '攝影愛好') {
+            return matchByKeywords('攝影愛好', item, originalData, '攝影愛好')
+          }
+
+          // 交通建議
+          if (filter === '交通建議') {
+            return matchByKeywords('交通建議', item, originalData, '交通建議')
+          }
+
+          // 美食分享
+          if (filter === '美食分享') {
+            return matchByKeywords('美食分享', item, originalData, '美食分享')
+          }
+
+          // 住宿推薦
+          if (filter === '住宿推薦') {
+            return matchByKeywords('住宿推薦', item, originalData, '住宿推薦')
+          }
+
+          // 行程請益
+          if (filter === '行程請益') {
+            return matchByKeywords('行程請益', item, originalData, '行程請益')
+          }
+
+          // 其他
+          if (filter === '其他') {
+            return (
+              originalData.category === '其他' ||
+              item.title.includes('其他') ||
+              item.description.includes('其他') ||
+              item.tags.some((t) => t.includes('其他'))
+            )
+          }
+        }
+        // 精選行程專屬篩選
+        else if (activeTab.value === 'itinerary' || item.type === 'itinerary') {
+          // 使用共用的分類篩選函數
+          return matchCategoryFilter(filter, item, originalData)
+        }
+        // 使用者專屬篩選（目前只有「全部」選項，無需額外篩選邏輯）
+        return false // 如果沒有匹配到任何條件，返回 false
+      })
     }
 
     return matchTab && matchSubFilter
@@ -431,12 +630,22 @@ const changePage = (page) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.q) {
     searchQuery.value = route.query.q
     performSearch()
   } else {
     searchInput.value?.focus()
+  }
+
+  // 載入使用者資料
+  loadingUsers.value = true
+  try {
+    users.value = await getAllUsers({ limit: 100 })
+  } catch (error) {
+    console.error('載入使用者列表失敗：', error)
+  } finally {
+    loadingUsers.value = false
   }
 })
 
@@ -467,12 +676,29 @@ const quickSearch = (keyword) => {
   performSearch()
 }
 
+// 切換子篩選條件（單選）
+const toggleSubFilter = (filter) => {
+  if (filter === '全部') {
+    // 點擊「全部」，清除其他選項，只保留「全部」
+    activeSubFilters.value = ['全部']
+    return
+  }
+
+  // 單選：只保留被點選的項目；再次點選同一項則回到「全部」
+  if (activeSubFilters.value[0] === filter) {
+    activeSubFilters.value = ['全部']
+    return
+  }
+
+  activeSubFilters.value = [filter]
+}
+
 const getTabLabel = (val) => {
   const tab = tabs.find((t) => t.value === val)
   return tab ? tab.label : '全部'
 }
 const getCategoryLabel = (type) => {
-  const map = { traveler: '找旅伴', discussion: '討論區', itinerary: '行程' }
+  const map = { traveler: '找旅伴', discussion: '討論區', itinerary: '行程', user: '使用者' }
   return map[type] || '其他'
 }
 const getCategoryStyle = (type) => {
@@ -480,18 +706,30 @@ const getCategoryStyle = (type) => {
     traveler: 'bg-green-50 text-green-600 border-green-200',
     discussion: 'bg-indigo-50 text-indigo-600 border-indigo-200',
     itinerary: 'bg-primary-50 text-primary-700 border-primary-200',
+    user: 'bg-purple-50 text-purple-600 border-purple-200',
   }
   return map[type] || 'bg-secondary-50 text-secondary-600 border-secondary-200'
 }
 
 const handleResultClick = (item) => {
+  if (item.type === 'user') {
+    // 導航到使用者個人頁面
+    router.push(`/profile/${item.id}`)
+  } else {
+    // 其他類型打開 modal
   selectedPost.value = item.originalData
   isModalOpen.value = true
+  }
 }
 
 const closeDiscussionDetailModal = () => {
   isModalOpen.value = false
   selectedPost.value = null
+}
+
+// 頭像錯誤處理
+const handleAvatarError = (key) => {
+  avatarErrors.value[key] = true
 }
 </script>
 

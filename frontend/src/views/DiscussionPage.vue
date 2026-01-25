@@ -14,6 +14,8 @@ import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
+import { DISCUSSION_CATEGORY_OPTIONS } from '@/utils/filterOptions'
+import { showError } from '@/utils/alert'
 
 const discussionsStore = useDiscussionsStore()
 const myItineraryStore = useMyItineraryStore()
@@ -24,18 +26,7 @@ const { drafts } = storeToRefs(myItineraryStore)
 const currentUserUid = ref(null)
 
 // --- 篩選狀態 ---
-const filterOptions = ref([
-  '全部',
-  '國內旅遊',
-  '亞洲旅遊',
-  '歐美紐澳',
-  '攝影愛好',
-  '交通建議',
-  '美食分享',
-  '住宿推薦',
-  '行程請益',
-  '其他',
-])
+const filterOptions = ref(DISCUSSION_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
 
 // --- 分頁狀態 ---
@@ -143,6 +134,42 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
+// 監聽路由變化
+watch(
+  () => route.query.openDraft,
+  (newDraftId) => {
+    if (newDraftId) {
+      nextTick(() => {
+        tryOpenDraft()
+      })
+    }
+  },
+)
+
+// 監聽 query 參數變化，處理通知跳轉等情況
+watch(() => route.query.postId, async (newPostId) => {
+  if (newPostId) {
+    await nextTick()
+    tryOpenSharedPost()
+  }
+})
+
+watch(() => route.query.editPost, (newPostId) => {
+  if (newPostId) {
+    nextTick(() => {
+      tryOpenEditPost()
+    })
+  }
+})
+
+// 發文成功後的回調
+const handlePostSuccess = async () => {
+  isPostingModalOpen.value = false
+  postToEdit.value = null
+  // 發文成功後，重新整理列表 (回到第一頁)
+  loadDiscussionsData(false)
+}
+
 // --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
@@ -170,12 +197,6 @@ const closeDiscussionDetailModal = () => {
   selectedPost.value = null
   // 關閉 Modal 時將網址重置，觸發 watch 重新載入全列表
   router.push('/discussion')
-}
-
-const handlePostSuccess = async () => {
-  isPostingModalOpen.value = false
-  postToEdit.value = null
-  loadDiscussionsData(false)
 }
 
 const handleEditPost = (post) => {
@@ -235,6 +256,67 @@ const tryOpenDraft = () => {
         router.replace({ path: '/discussion', query: {} })
       })
     }
+  }
+}
+
+const tryOpenSharedPost = async () => {
+  let postId = route.query.postId
+  if (!postId && route.hash) {
+    const match = route.hash.match(/^#post-(.+)$/)
+    if (match?.[1]) {
+      postId = match[1]
+    }
+  }
+  if (!postId) return
+  
+  // 防止重複打開
+  if (isDetailModalOpen.value && String(selectedPost.value?.id) === String(postId)) {
+    return
+  }
+  
+  // 檢查是否需要滾動到留言區
+  const shouldScroll = route.query.scrollToComments === 'true'
+  
+  setAppLoading(true)
+  try {
+    const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
+    let postToOpen = null
+    
+    if (existing) {
+      postToOpen = existing
+    } else {
+      const { fetchPostById } = await import('@/api/discussions')
+      try {
+      postToOpen = await fetchPostById(postId)
+      } catch (apiError) {
+        console.error('API 獲取貼文失敗：', apiError)
+        // 清除 URL 參數
+        await router.replace({ path: '/discussion', query: {}, hash: '' })
+        await showError('無法找到該貼文，可能已被刪除或不存在')
+        return
+      }
+    }
+    
+    if (postToOpen) {
+      // 先清除 URL 參數，避免重複觸發
+      await router.replace({ path: '/discussion', query: {}, hash: '' })
+      
+      // 確保 URL 更新後再打開模態框
+      await nextTick()
+      
+      openDiscussionDetailModal(postToOpen, shouldScroll)
+    } else {
+      // 清除 URL 參數
+      await router.replace({ path: '/discussion', query: {}, hash: '' })
+      await showError('無法找到該貼文')
+    }
+  } catch (error) {
+    console.error('開啟分享貼文失敗：', error)
+    // 清除 URL 參數
+    await router.replace({ path: '/discussion', query: {}, hash: '' }).catch(() => {})
+    await showError('開啟貼文時發生錯誤，請稍後再試')
+  } finally {
+    setAppLoading(false)
   }
 }
 

@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
-import { Map as MapIcon, Plus as PlusIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
+import { Map as MapIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useRoute, useRouter } from 'vue-router'
 import { getItineraryById } from '@/api/itinerary'
@@ -9,6 +9,7 @@ import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
+import { ITINERARY_CATEGORY_OPTIONS } from '@/utils/filterOptions'
 
 const itinerariesStore = useItineraryStore()
 const route = useRoute()
@@ -27,17 +28,8 @@ const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const itineraryToEdit = ref(null)
 
-const filterOptions = ref([
-  '全部',
-  '國內旅遊',
-  '日韓旅遊',
-  '亞洲其他',
-  '歐美紐澳',
-  '海島度假',
-  '攝影/興趣',
-  '自駕共乘',
-  '其他',
-])
+// ★ 修改：更新為新的分類選項
+const filterOptions = ref(ITINERARY_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
 
 // --- ★ 分頁與捲動狀態 [新增] ---
@@ -139,6 +131,7 @@ const closeDetailModal = () => {
   router.push('/featured-itinerary') // 網址重置會自動觸發 watch 載入列表
 }
 
+// 處理開啟分享模態框
 const openShareModal = (itineraryId) => {
   shareLink.value = `${window.location.origin}/featured-itinerary/${itineraryId}`
   isShareModalOpen.value = true
@@ -171,9 +164,11 @@ const handleDetailEdit = (itinerary) => {
 }
 
 const handleCardDelete = () => {
-  loadItinerariesData(false)
+  // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
+  itinerariesStore.fetchItineraries()
 }
 
+// 初始化載入資料
 onMounted(() => {
   // 設定無限捲動偵測器
   observer = new IntersectionObserver(

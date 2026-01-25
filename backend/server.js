@@ -27,7 +27,9 @@ const allowedOrigins = [
   'https://tripmate-backend.zeabur.app',
   'https://tripmate-mayoyo.com',
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'https://trip-mate-xi.vercel.app', // 新增你的 Vercel 前端網址
   process.env.ALLOWED_ORIGIN, // 預留給環境變數設定
 ].filter(Boolean) // 過濾掉空值
@@ -145,10 +147,10 @@ app.use('/api/cart', cartRouter)
 app.use('/api/swipes', swipesRouter)
 app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
+app.use('/api/notifications', require('./routes/notifications'))
 app.use('/api/my-itinerary', require('./routes/myItinerary'))
 
 // 全域錯誤處理
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {
@@ -193,7 +195,16 @@ app.use((req, res) => {
 
 // 2. 修改：只在非 Vercel 環境下啟動監聽 (Zeabur/Local 依然會執行這裡)
 if (!process.env.VERCEL) {
-  app.listen(PORT, HOST, () => {
+  const http = require('http')
+  const { initWebSocket } = require('./websocket')
+
+  // 創建 HTTP 服務器
+  const server = http.createServer(app)
+
+  // 初始化 WebSocket 服務器
+  initWebSocket(server)
+
+  server.listen(PORT, HOST, () => {
     console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
     console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
   })
@@ -201,3 +212,38 @@ if (!process.env.VERCEL) {
 
 // 3. 修改：匯出 app 供 Vercel Serverless Function 使用
 module.exports = app
+
+// 4. 設置定時任務：檢查找旅伴到期提醒（僅在非 Vercel 環境運行）
+if (!process.env.VERCEL) {
+  const { checkAndSendTravelerReminders } = require('./utils/travelerReminders')
+
+  // 每天凌晨 1 點執行一次
+  const scheduleReminderCheck = () => {
+    const now = new Date()
+    const nextCheck = new Date()
+    nextCheck.setHours(1, 0, 0, 0)
+    if (nextCheck <= now) {
+      nextCheck.setDate(nextCheck.getDate() + 1)
+    }
+
+    const msUntilNext = nextCheck - now
+
+    setTimeout(() => {
+      checkAndSendTravelerReminders()
+      // 設置每天執行一次
+      setInterval(checkAndSendTravelerReminders, 24 * 60 * 60 * 1000)
+    }, msUntilNext)
+
+    console.log(`[Scheduler] 找旅伴到期提醒將在 ${nextCheck.toLocaleString('zh-TW')} 開始執行`)
+  }
+
+  // 立即執行一次（用於測試）
+  if (process.env.NODE_ENV === 'development') {
+    setTimeout(() => {
+      checkAndSendTravelerReminders()
+    }, 5000) // 5秒後執行，確保資料庫連接已建立
+  }
+
+  // 設置定時任務
+  scheduleReminderCheck()
+}

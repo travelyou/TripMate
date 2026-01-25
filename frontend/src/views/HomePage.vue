@@ -167,6 +167,21 @@ const handleTravelerEdit = (traveler) => {
   router.push({ name: 'travelers', query: { editTraveler: traveler.id } })
 }
 
+const handleTravelerOpenApply = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplyModalOpen.value = true
+}
+
+const handleTravelerOpenApplications = (traveler) => {
+  selectedTraveler.value = traveler
+  isTravelerApplicationsModalOpen.value = true
+}
+
+const handleTravelerUpdated = () => {
+  // 重新載入旅伴推薦列表
+  travelersStore.loadRecommendations(false)
+}
+
 // --- 分享功能 ---
 const isShareModalOpen = ref(false)
 const shareLink = ref('')
@@ -351,8 +366,9 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
     v-if="isTravelerModalOpen"
     :traveler="selectedTraveler"
     @close="closeTravelerDetailModal"
-    @open-apply="() => (isTravelerApplyModalOpen = true)"
-    @open-applications="() => (isTravelerApplicationsModalOpen = true)"
+    @traveler-updated="handleTravelerUpdated"
+    @open-apply="handleTravelerOpenApply"
+    @open-applications="handleTravelerOpenApplications"
     @edit="handleTravelerEdit"
   />
 
@@ -365,6 +381,8 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
     v-if="isTravelerApplicationsModalOpen"
     :traveler="selectedTraveler"
     @close="isTravelerApplicationsModalOpen = false"
+    @application-updated="handleTravelerUpdated"
+    @traveler-updated="handleTravelerUpdated"
   />
   <ShareModal v-if="isShareModalOpen" :post-link="shareLink" @close="closeShareModal" />
 </template>

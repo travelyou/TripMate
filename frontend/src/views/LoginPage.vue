@@ -190,25 +190,25 @@ const handleLogin = async () => {
       if (neonUserData) {
         // 優先級順序：1. Neon 資料庫 2. Firebase Auth photoURL 3. Firestore 4. localStorage 5. 默認頭貼
         let avatar = null
-        
+
         // 1. 優先使用 Neon 資料庫中的頭貼（排除 dicebear 默認頭貼）
         if (neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')) {
           avatar = neonUserData.avatar
           console.log('✅ 使用 Neon 資料庫中的頭貼')
         }
-        
+
         // 2. 如果沒有，嘗試使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
         if (!avatar && userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
           console.log('✅ 使用 Firebase Auth 的 photoURL')
         }
-        
+
         // 3. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
         if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
           avatar = userData.avatar
           console.log('✅ 使用 Firestore 的頭貼')
         }
-        
+
         // 4. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
         let avatarFromLocalStorage = false
         if (!avatar) {
@@ -223,7 +223,7 @@ const handleLogin = async () => {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
           }
         }
-        
+
         // 5. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
         if (!avatar) {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
@@ -239,7 +239,7 @@ const handleLogin = async () => {
           } catch (e) {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
-          
+
           // 如果頭貼是從 localStorage 恢復的，或者資料庫中沒有，同步到資料庫
           if (avatarFromLocalStorage || !neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) {
             try {
@@ -252,7 +252,7 @@ const handleLogin = async () => {
               console.warn('同步頭貼到資料庫失敗:', e)
             }
           }
-          
+
           // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
           if (userCredential.user.photoURL !== avatar) {
             try {
@@ -280,19 +280,19 @@ const handleLogin = async () => {
       } else {
         // 如果 Neon 中沒有資料，使用以下優先級：1. Firebase Auth photoURL 2. Firestore 3. localStorage 4. 默認頭貼
         let avatar = null
-        
+
         // 1. 優先使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
         if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
           console.log('✅ 使用 Firebase Auth 的 photoURL')
         }
-        
+
         // 2. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
         if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
           avatar = userData.avatar
           console.log('✅ 使用 Firestore 的頭貼')
         }
-        
+
         // 3. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
         if (!avatar) {
           try {
@@ -305,7 +305,7 @@ const handleLogin = async () => {
             console.warn('從 localStorage 恢復頭貼失敗:', e)
           }
         }
-        
+
         // 4. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
         if (!avatar) {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
@@ -321,7 +321,7 @@ const handleLogin = async () => {
           } catch (e) {
             console.warn('保存頭貼到 localStorage 失敗:', e)
           }
-          
+
           // 同步到資料庫
           try {
             await createOrUpdateUser({
@@ -332,7 +332,7 @@ const handleLogin = async () => {
           } catch (e) {
             console.warn('同步頭貼到資料庫失敗:', e)
           }
-          
+
           // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
           if (userCredential.user.photoURL !== avatar) {
             try {

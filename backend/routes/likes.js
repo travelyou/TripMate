@@ -3,6 +3,8 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createLikeNotification } = require('../utils/notifications')
+const { getUserInfo } = require('../utils/userInfo')
 
 // POST /api/likes - 按讚/取消按讚
 router.post('/', async (req, res) => {
@@ -152,6 +154,51 @@ router.post('/', async (req, res) => {
     `
     const countResult = await pool.query(countQuery, [postIdNum, board])
     likesCount = parseInt(countResult.rows[0].count) || 0
+
+    // 如果按讚成功，創建通知（不給自己發通知）
+    if (liked) {
+      try {
+        // 獲取貼文作者和標題
+        let postQuery = ''
+        if (board === 'discussion') {
+          postQuery = `SELECT author_uid, title FROM discussion.discussion WHERE id = $1`
+        } else if (board === 'traveler') {
+          postQuery = `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`
+        }
+        
+        if (postQuery) {
+          const postResult = await pool.query(postQuery, [postIdNum])
+          if (postResult.rows.length > 0) {
+            const postAuthor = postResult.rows[0].author_uid
+            const postTitle = postResult.rows[0].title
+            
+            // 只有當按讚者不是貼文作者時才發送通知
+            if (postAuthor && postAuthor !== author_uid) {
+              // 使用共用函式獲取按讚者資訊
+              const likerInfo = await getUserInfo(author_uid)
+              
+              // 確保不會使用 uid 作為名稱（除非真的沒有其他選擇）
+              if (likerInfo.name === author_uid) {
+                console.warn(`[通知] 按讚者 ${author_uid} 沒有找到 nickname 或 name，使用 uid 作為名稱`)
+              }
+              
+              // 創建通知
+              await createLikeNotification({
+                user_uid: postAuthor,
+                post_id: postIdNum,
+                board,
+                liker_uid: author_uid,
+                liker_name: likerInfo.name,
+                liker_avatar: likerInfo.avatar,
+                post_title: postTitle,
+              })
+            }
+          }
+        }
+      } catch (notifError) {
+        console.error('創建按讚通知失敗（不影響主流程）：', notifError)
+      }
+    }
 
     console.log('✅ [Backend Likes POST] 成功，liked:', liked, 'count:', likesCount)
 

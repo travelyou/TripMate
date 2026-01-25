@@ -18,6 +18,7 @@ import { useUserStore } from '@/stores/user'
 import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 import { deletePost } from '@/api/discussions'
 import { auth } from '@/firebase/config'
+import { isValidImageUrl } from '@/utils/image'
 
 const router = useRouter()
 
@@ -51,12 +52,22 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('info') // 'info' for share, 'success' for report
 
+// 過濾掉無效的圖片 URL
+const validBanner = computed(() => {
+  return isValidImageUrl(props.post.banner) ? props.post.banner : null
+})
+
+const validImageUrls = computed(() => {
+  if (!Array.isArray(props.post.image_urls)) return []
+  return props.post.image_urls.filter(url => isValidImageUrl(url))
+})
+
 const itemData = computed(() => ({
   id: props.post.id,
   type: 'discussion',
   title: props.post.title,
-  image: props.post.banner,
-  banner: props.post.banner,
+  image: validBanner.value,
+  banner: validBanner.value,
   author: props.post.author,
   avatar: props.post.avatar,
   content: props.post.content,
@@ -234,7 +245,7 @@ onUnmounted(() => {
   >
     <div class="absolute top-4 right-4 post-menu-container z-30">
       <button
-        class="p-2 rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-gray-700"
+        class="p-2 rounded-full hover:bg-primary-100 transition text-primary-600 hover:text-primary-700"
         @click="toggleMenu"
       >
         <MoreVertical class="w-5 h-5" />
@@ -312,7 +323,7 @@ onUnmounted(() => {
     </p>
 
     <div
-      v-if="post.banner"
+      v-if="validBanner"
       class="w-full h-64 rounded-xl overflow-hidden mb-4 border-2 border-amber-100 relative"
     >
       <div
@@ -322,23 +333,23 @@ onUnmounted(() => {
         {{ post.category }}
       </div>
       <img
-        :src="post.banner"
+        :src="validBanner"
         class="w-full h-full object-cover hover:scale-105 transition duration-500"
         alt="討論封面"
       />
     </div>
 
     <div
-      v-if="post.image_urls && post.image_urls.length > 0"
+      v-if="validImageUrls.length > 0"
       class="grid gap-2 mb-4"
       :class="{
-        'grid-cols-1': post.image_urls.length === 1,
-        'grid-cols-2': post.image_urls.length >= 2,
+        'grid-cols-1': validImageUrls.length === 1,
+        'grid-cols-2': validImageUrls.length >= 2,
       }"
     >
-      <div v-for="(url, idx) in post.image_urls.slice(0, 4)" :key="idx" class="relative">
+      <div v-for="(url, idx) in validImageUrls.slice(0, 4)" :key="idx" class="relative">
         <div
-          v-if="!post.banner && idx === 0 && post.category"
+          v-if="!validBanner && idx === 0 && post.category"
           class="absolute top-0 left-0 px-3 py-1 font-bold text-xs bg-white/90 text-primary-700 rounded-br-xl border-b-2 border-r-2 border-white/50 backdrop-blur-sm z-10 shadow-sm"
         >
           {{ post.category }}

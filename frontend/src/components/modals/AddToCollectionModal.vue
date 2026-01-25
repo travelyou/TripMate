@@ -34,8 +34,8 @@ const checkItemInCategory = (categoryId) => {
       <div class="p-4 border-b-2 border-gray-100 flex justify-between items-center bg-white">
         <h3 class="font-bold text-gray-800 text-lg">加入收藏</h3>
         <button
-          @click="userStore.isCollectionModalOpen = false"
           class="text-gray-400 hover:text-gray-600"
+          @click="userStore.isCollectionModalOpen = false"
         >
           <X class="w-5 h-5" />
         </button>
@@ -76,8 +76,8 @@ const checkItemInCategory = (categoryId) => {
         </div>
         <div v-else class="flex gap-2">
           <input
-            v-model="newCategoryName"
             ref="inputRef"
+            v-model="newCategoryName"
             placeholder="輸入分類名稱..."
             class="flex-1 px-3 py-2 border-2 border-primary-200 rounded-lg focus:outline-none focus:border-primary-500 bg-white"
             @keyup.enter="handleCreate"

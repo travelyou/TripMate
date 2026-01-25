@@ -202,7 +202,7 @@ function restoreStamp(key) {
               v-model="editForm.name"
               type="text"
               maxlength="35"
-              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border"
+              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-black border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border placeholder-gray-400"
             />
           </div>
           <div class="min-w-0 w-full">
@@ -215,7 +215,7 @@ function restoreStamp(key) {
               type="text"
               placeholder="台灣"
               maxlength="35"
-              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border"
+              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-black border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border placeholder-gray-400"
             />
           </div>
           <div class="md:col-span-2 min-w-0 w-full">
@@ -227,7 +227,7 @@ function restoreStamp(key) {
               v-model="editForm.bio"
               rows="3"
               maxlength="200"
-              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none resize-none box-border break-words"
+              class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-black border border-secondary-200 rounded-xl focus:ring-2 focus:ring-2 focus:ring-primary-500 outline-none resize-none box-border break-words placeholder-gray-400"
             ></textarea>
           </div>
 

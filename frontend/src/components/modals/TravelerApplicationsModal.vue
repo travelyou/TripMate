@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { X as XIcon, Check as CheckIcon, X as XCloseIcon } from 'lucide-vue-next'
 import { getApplications, acceptApplication, rejectApplication } from '@/api/travelers'
-import { useUserStore } from '@/stores/user'
 import { formatTime } from '@/utils/time'
 
 const props = defineProps({
@@ -12,8 +11,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'application-updated'])
-const userStore = useUserStore()
+const emit = defineEmits(['close', 'application-updated', 'traveler-updated'])
 
 const applications = ref([])
 const isLoading = ref(false)
@@ -41,6 +39,7 @@ const handleAccept = async (application) => {
     await acceptApplication(props.traveler.id, application.id)
     await loadApplications()
     emit('application-updated')
+    emit('traveler-updated') // 通知父組件更新旅伴資料
   } catch (error) {
     console.error('接受報名失敗:', error)
     alert('接受報名失敗，請稍後再試')
@@ -118,16 +117,16 @@ onMounted(() => {
                 <button
                   :disabled="processingIds.has(app.id)"
                   class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50"
-                  @click="handleAccept(app)"
                   title="接受"
+                  @click="handleAccept(app)"
                 >
                   <CheckIcon class="w-4 h-4" />
                 </button>
                 <button
                   :disabled="processingIds.has(app.id)"
                   class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50"
-                  @click="handleReject(app)"
                   title="拒絕"
+                  @click="handleReject(app)"
                 >
                   <XCloseIcon class="w-4 h-4" />
                 </button>

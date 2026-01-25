@@ -234,10 +234,12 @@ const connectChatSocket = (uid) => {
       }, 2000)
     }
   }
-  chatSocket.onerror = () => {
+  chatSocket.onerror = (error) => {
+    console.warn('WebSocket 連接錯誤:', error)
     chatSocketFailureCount += 1
     if (!chatSocketHasConnected && chatSocketFailureCount >= 3) {
       chatSocketBlockedUntil = Date.now() + 30000
+      console.warn('WebSocket 連接失敗次數過多，暫停重連 30 秒')
       if (chatSocketReconnectTimer) {
         clearTimeout(chatSocketReconnectTimer)
         chatSocketReconnectTimer = null
@@ -263,8 +265,15 @@ const sendChatSocketMessage = (payload) => {
 const handleIncomingChatMessage = (payload) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) return
-  const fromUid = payload.fromUid
+  const fromUid = payload.fromUid || payload.sender_uid
   if (!fromUid) return
+  
+  // 防止處理自己發送的訊息（應該已經在發送時處理過了）
+  if (fromUid === currentUid) {
+    console.log('[handleIncomingChatMessage] 忽略自己發送的訊息')
+    return
+  }
+  
   const mappedMessage = {
     id: payload.clientId || payload.id || Date.now(),
     type: 'friend',
@@ -277,9 +286,9 @@ const handleIncomingChatMessage = (payload) => {
   if (!room) {
     room = {
       uid: fromUid,
-      name: payload.senderName || '未知用戶',
-      nickname: payload.senderName || '',
-      avatar: payload.senderAvatar || '',
+      name: payload.senderName || payload.sender_name || '未知用戶',
+      nickname: payload.senderName || payload.sender_name || '',
+      avatar: payload.senderAvatar || payload.sender_avatar || '',
       lastMessage: '',
       lastMessageTime: '',
       unreadCount: 0,
@@ -288,6 +297,23 @@ const handleIncomingChatMessage = (payload) => {
     rooms.unshift(room)
   }
   const storedMessages = Array.isArray(room.messages) ? room.messages : []
+  
+  // 檢查訊息是否已存在，避免重複
+  const exists = storedMessages.some(msg => {
+    if (msg.id && mappedMessage.id && msg.id === mappedMessage.id) {
+      return true
+    }
+    const sameContent = msg.content === mappedMessage.content
+    const sameTimestamp = msg.timestamp === mappedMessage.timestamp
+    const sameType = msg.isImage === mappedMessage.isImage
+    return sameContent && sameTimestamp && sameType
+  })
+  
+  if (exists) {
+    console.log('[handleIncomingChatMessage] 忽略重複訊息')
+    return
+  }
+  
   storedMessages.push(mappedMessage)
   room.messages = storedMessages
   const preview = mappedMessage.isImage ? '傳送了圖片' : mappedMessage.content
@@ -310,7 +336,7 @@ const handleIncomingChatMessage = (payload) => {
     detail: {
       fromUid,
       message: mappedMessage,
-      senderName: payload.senderName || '',
+      senderName: payload.senderName || payload.sender_name || '',
       senderAvatar: payload.senderAvatar || '',
     },
   }))
@@ -589,16 +615,23 @@ const handleChatSend = (event) => {
   const detail = event.detail || {}
   const toUid = detail.toUid
   if (!toUid) return
+  
+  // 防止發送訊息給自己
+  if (toUid === currentUid) {
+    console.warn('⚠️ 不能發送訊息給自己')
+    return
+  }
+  
   sendChatSocketMessage({
     type: 'chat_message',
     fromUid: currentUid,
-    toUid,
+    receiver_uid: toUid, // 修改為 receiver_uid 以符合後端 WebSocket 處理
     content: detail.content || '',
     isImage: Boolean(detail.isImage),
     timestamp: detail.timestamp || new Date().toISOString(),
     clientId: detail.clientId || null,
-    senderName: userStore.currentUser?.name || userStore.currentUser?.nickname || '',
-    senderAvatar: userStore.currentUser?.avatar || '',
+    sender_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '',
+    sender_avatar: userStore.currentUser?.avatar || '',
   })
 }
 
