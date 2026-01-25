@@ -62,11 +62,11 @@
             :key="filter"
             :class="[
               'px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition border',
-              activeSubFilters.includes(filter)
+              activeSubFilter === filter
                 ? 'bg-primary-100 text-primary-700 border-primary-300'
                 : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
             ]"
-            @click="toggleSubFilter(filter)"
+            @click="activeSubFilter = filter"
           >
             {{ filter }}
           </button>
@@ -108,8 +108,8 @@
         <div v-else class="space-y-4">
           <p class="text-sm text-secondary-500 mb-2 ml-1">
             在 <span class="font-bold text-secondary-700">{{ getTabLabel(activeTab) }}</span>
-            <span v-if="activeSubFilters.length > 0 && !activeSubFilters.includes('全部')">
-              ({{ activeSubFilters.join('、') }})
+            <span v-if="activeSubFilter && activeSubFilter !== '全部'">
+              ({{ activeSubFilter }})
             </span>
             中找到 {{ filteredResults.length }} 筆結果
           </p>
@@ -266,7 +266,7 @@ const searchInput = ref(null)
 const searchQuery = ref('')
 const hasSearched = ref(false)
 const activeTab = ref('all')
-const activeSubFilters = ref(['全部']) // 改為陣列，支援複選
+const activeSubFilter = ref('全部') // 單選
 
 const currentPage = ref(1)
 const itemsPerPage = 10
@@ -303,6 +303,11 @@ const matchByKeywords = (filter, item, originalData, categoryValue) => {
 
 // 共用的分類篩選函數
 const matchCategoryFilter = (filter, item, originalData) => {
+  // 首先檢查 category 是否直接匹配
+  if (originalData.category === filter) {
+    return true
+  }
+
   // 國內旅遊、日韓旅遊、亞洲其他、歐美紐澳、海島度假 共用邏輯
   if (['國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假'].includes(filter)) {
     return matchByKeywords(filter, item, originalData, filter)
@@ -317,7 +322,8 @@ const matchCategoryFilter = (filter, item, originalData) => {
   if (filter === '攝影/興趣') {
     return (
       matchByKeywords('攝影/興趣', item, originalData, '攝影/興趣') ||
-      originalData.category === '攝影'
+      originalData.category === '攝影' ||
+      originalData.category === '攝影/興趣'
     )
   }
 
@@ -330,6 +336,7 @@ const matchCategoryFilter = (filter, item, originalData) => {
   if (filter === '其他') {
     return (
       originalData.category === '其他' ||
+      !originalData.category || // 如果沒有分類，歸類為「其他」
       item.title.includes('其他') ||
       item.description.includes('其他') ||
       item.tags.some((t) => t.includes('其他'))
@@ -341,12 +348,12 @@ const matchCategoryFilter = (filter, item, originalData) => {
 
 watch(activeTab, () => {
   currentPage.value = 1
-  activeSubFilters.value = ['全部']
+  activeSubFilter.value = '全部'
 })
 
-watch(activeSubFilters, () => {
+watch(activeSubFilter, () => {
   currentPage.value = 1
-}, { deep: true })
+})
 
 const allData = computed(() => {
   const results = []
@@ -504,13 +511,14 @@ const filteredResults = computed(() => {
     const matchTab = activeTab.value === 'all' || item.type === activeTab.value
 
     let matchSubFilter = true
-    // 如果選中「全部」或沒有選中任何條件，顯示所有項目
-    if (activeSubFilters.value.includes('全部') || activeSubFilters.value.length === 0) {
+    // 如果選中「全部」，顯示所有項目
+    if (activeSubFilter.value === '全部') {
       matchSubFilter = true
     } else {
-      // 支援複選：只要符合任何一個選中的條件就顯示（OR 邏輯）
+      // 單選：只顯示符合選中條件的項目
       const originalData = item.originalData || {}
-      matchSubFilter = activeSubFilters.value.some((filter) => {
+      const filter = activeSubFilter.value
+      matchSubFilter = (() => {
         // 找旅伴專屬篩選
         if (activeTab.value === 'traveler' || item.type === 'traveler') {
           if (filter === '招募中') {
@@ -578,7 +586,7 @@ const filteredResults = computed(() => {
         }
         // 使用者專屬篩選（目前只有「全部」選項，無需額外篩選邏輯）
         return false // 如果沒有匹配到任何條件，返回 false
-      })
+      })()
     }
 
     return matchTab && matchSubFilter
@@ -609,6 +617,12 @@ onMounted(async () => {
     performSearch()
   } else {
     searchInput.value?.focus()
+  }
+
+  // 載入所有需要的資料
+  // 載入精選行程資料
+  if (!itineraryStore.itineraries || itineraryStore.itineraries.length === 0) {
+    await itineraryStore.fetchItineraries()
   }
 
   // 載入使用者資料
@@ -649,33 +663,6 @@ const quickSearch = (keyword) => {
   performSearch()
 }
 
-// 切換子篩選條件（支援複選）
-const toggleSubFilter = (filter) => {
-  const index = activeSubFilters.value.indexOf(filter)
-
-  if (filter === '全部') {
-    // 如果點擊「全部」，清除其他選項，只保留「全部」
-    activeSubFilters.value = ['全部']
-  } else {
-    // 如果點擊其他選項
-    if (index > -1) {
-      // 如果已選中，則取消選中
-      activeSubFilters.value.splice(index, 1)
-      // 如果取消後沒有選中任何選項，自動選中「全部」
-      if (activeSubFilters.value.length === 0) {
-        activeSubFilters.value = ['全部']
-      }
-    } else {
-      // 如果未選中，則選中
-      // 如果當前有「全部」，先移除「全部」
-      const allIndex = activeSubFilters.value.indexOf('全部')
-      if (allIndex > -1) {
-        activeSubFilters.value.splice(allIndex, 1)
-      }
-      activeSubFilters.value.push(filter)
-    }
-  }
-}
 
 const getTabLabel = (val) => {
   const tab = tabs.find((t) => t.value === val)
