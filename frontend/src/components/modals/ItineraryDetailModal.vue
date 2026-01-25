@@ -16,6 +16,7 @@ import {
   Building as BuildingIcon,
   FileText as FileTextIcon,
   MoreVertical,
+  Share as ShareIcon, // [新增]
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { checkoutStore } from '@/stores/checkout'
@@ -25,6 +26,7 @@ import { getItineraryById } from '@/api/itinerary'
 import { toggleLike, getLikesInfo } from '@/api/likes'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
+import ShareModal from './ShareModal.vue' // [新增]
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -53,6 +55,8 @@ const isAddingToCart = ref(false)
 
 const contentContainerRef = ref(null)
 const showMenu = ref(false)
+const showShareModal = ref(false) // [新增]
+
 const isAuthor = computed(() => {
   const authorUid = localItineraryData.value?.author_uid || localItineraryData.value?.authorUid
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
@@ -66,6 +70,12 @@ const itemData = computed(() => ({
   coverImage: localItineraryData.value.coverImage,
   price: localItineraryData.value.price,
 }))
+
+// [新增] 計算分享連結
+const shareLink = computed(() => {
+  if (!localItineraryData.value?.id) return window.location.href
+  return `${window.location.origin}/featured-itinerary?itineraryId=${localItineraryData.value.id}`
+})
 
 // 整合資料結構
 const itineraryDetails = computed(() => {
@@ -164,10 +174,8 @@ const scrollToTop = () => {
 }
 
 const handleCopyLink = async () => {
-  if (!localItineraryData.value?.id) return
-  const link = `${window.location.origin}/featured-itinerary?itineraryId=${localItineraryData.value.id}`
   try {
-    await navigator.clipboard.writeText(link)
+    await navigator.clipboard.writeText(shareLink.value)
     showMenu.value = false
   } catch (error) {
     console.error('複製連結失敗：', error)
@@ -262,6 +270,8 @@ onMounted(async () => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
     @click.self="emit('close')"
   >
+    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+
     <div class="relative w-full max-w-5xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
         <button
@@ -542,6 +552,13 @@ onMounted(async () => {
                 />
               </button>
 
+              <button
+                class="text-secondary-400 hover:text-primary-600 transition group ml-1"
+                title="分享"
+                @click="showShareModal = true"
+              >
+                <ShareIcon class="w-6 h-6 transition-transform group-active:scale-125" />
+              </button>
             </div>
 
             <div id="itinerary-tab-nav" class="border-b-2 border-primary-200 mb-6">
@@ -688,7 +705,6 @@ onMounted(async () => {
   background: #cbd5e1;
   border-radius: 4px;
 }
-
 :deep(.rich-content) {
   font-size: 1rem;
   line-height: 1.75;

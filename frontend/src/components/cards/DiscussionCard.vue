@@ -4,7 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import {
   Heart,
   MessageCircle,
-  Share, // [更換] 將 Repeat2 換成 Share (箭頭圖示)
+  Share,
   Bookmark,
   MoreVertical,
   Edit,

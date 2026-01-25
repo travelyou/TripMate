@@ -9,7 +9,7 @@ import {
   Heart as HeartIcon,
   DollarSign as DollarSignIcon,
   MessageCircle as MessageCircleIcon,
-  Share, // [更換] 將 Repeat2 換成 Share (箭頭圖示)
+  Share,
   Building as BuildingIcon,
   MoreVertical,
   Edit,

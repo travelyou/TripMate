@@ -18,6 +18,7 @@ import {
   Check as CheckIcon,
   X as XCloseIcon,
   MoreVertical,
+  Share as ShareIcon, // [新增]
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -35,6 +36,7 @@ import {
 } from '@/api/travelers'
 import { deleteTraveler } from '@/api/travelers'
 import { formatTime } from '@/utils/time'
+import ShareModal from './ShareModal.vue' // [新增]
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -67,8 +69,12 @@ const processingIds = ref(new Set())
 const applicationMessage = ref('')
 const isSubmittingApplication = ref(false)
 const applicationError = ref('')
-const myApplication = ref(null) // 當前用戶的報名資訊
+const myApplication = ref(null)
 const showMenu = ref(false)
+const showShareModal = ref(false) // [新增]
+
+// 建立一個本地變數來存「完整資料」
+const localTravelerData = ref({ ...props.traveler })
 
 const handleAuthorClick = () => {
   const authorUid = props.traveler.author_uid || localTravelerData.value?.author_uid
@@ -77,12 +83,17 @@ const handleAuthorClick = () => {
   }
 }
 
+// [新增] 計算分享連結
+const shareLink = computed(() => {
+  if (!localTravelerData.value?.id) return window.location.href
+  return `${window.location.origin}/travelers?travelerId=${localTravelerData.value.id}`
+})
+
 const handleCopyLink = async () => {
-  if (!localTravelerData.value?.id) return
-  const link = `${window.location.origin}/travelers?travelerId=${localTravelerData.value.id}`
   try {
-    await navigator.clipboard.writeText(link)
+    await navigator.clipboard.writeText(shareLink.value)
     showMenu.value = false
+    alert('連結已複製！')
   } catch (error) {
     console.error('複製連結失敗：', error)
   }
@@ -106,9 +117,6 @@ const handleDelete = async () => {
     alert('刪除失敗，請稍後再試')
   }
 }
-
-// 建立一個本地變數來存「完整資料」，預設先用傳進來的 props 擋著
-const localTravelerData = ref({ ...props.traveler })
 
 const itineraryData = computed(() => {
   if (localTravelerData.value.itinerary && localTravelerData.value.itinerary.days) {
@@ -197,7 +205,12 @@ const fetchFullTravelerDetails = async () => {
       if (Array.isArray(commentsData)) {
         localComments.value = commentsData.map((comment) => ({
           id: comment.id,
-          author: comment.author_nickname || comment.author_name || comment.author || comment.author_uid || '匿名用戶',
+          author:
+            comment.author_nickname ||
+            comment.author_name ||
+            comment.author ||
+            comment.author_uid ||
+            '匿名用戶',
           author_uid: comment.author_uid,
           avatar:
             comment.author_avatar ||
@@ -272,7 +285,6 @@ const isAuthor = computed(() => {
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
-// 檢查用戶是否已報名（pending或accepted狀態）
 const hasApplied = computed(() => {
   if (!myApplication.value) return false
   return myApplication.value.status === 'pending' || myApplication.value.status === 'accepted'
@@ -283,7 +295,6 @@ const handleApply = () => {
     alert('請先登入後才能報名')
     return
   }
-  // 如果已經報名，不允許再次報名
   if (hasApplied.value) {
     return
   }
@@ -308,17 +319,14 @@ const loadApplications = async () => {
   isLoadingApplications.value = true
   try {
     if (isAuthor.value) {
-      // 作者：獲取所有報名列表
       const response = await getApplications(localTravelerData.value.id)
       if (response.success) {
         applications.value = response.data || []
       }
     } else {
-      // 非作者：只獲取自己的報名資訊
       const response = await getApplications(localTravelerData.value.id)
       if (response.success) {
         const allApplications = response.data || []
-        // 找到當前用戶的報名
         myApplication.value =
           allApplications.find((app) => app.author_uid === currentUserUid.value) || null
       }
@@ -332,7 +340,6 @@ const loadApplications = async () => {
 
 const handleAcceptApplication = async (application) => {
   if (processingIds.value.has(application.id)) return
-
   processingIds.value.add(application.id)
   try {
     await acceptApplication(localTravelerData.value.id, application.id)
@@ -348,9 +355,7 @@ const handleAcceptApplication = async (application) => {
 
 const handleRejectApplication = async (application) => {
   if (processingIds.value.has(application.id)) return
-
   if (!confirm('確定要拒絕此報名嗎？')) return
-
   processingIds.value.add(application.id)
   try {
     await rejectApplication(localTravelerData.value.id, application.id)
@@ -370,16 +375,12 @@ const handleSubmitApplication = async () => {
     isSubmittingApplication.value
   )
     return
-
   isSubmittingApplication.value = true
   applicationError.value = ''
-
   try {
     await submitApplication(localTravelerData.value.id, applicationMessage.value.trim())
-    // 重新載入報名資訊
     await loadApplications()
     applicationMessage.value = ''
-    // 顯示成功提示
     alert('報名成功！')
   } catch (err) {
     applicationError.value = err.response?.data?.message || '提交失敗，請稍後再試'
@@ -390,9 +391,7 @@ const handleSubmitApplication = async () => {
 
 const submitComment = async () => {
   if (!newComment.value.trim()) return
-  if (isExpired.value) {
-    return // 已过期的文章不能留言
-  }
+  if (isExpired.value) return
   if (!userStore.isLoggedIn || !currentUserUid.value) {
     alert('請先登入後才能留言')
     return
@@ -492,7 +491,6 @@ onMounted(async () => {
     await fetchFullTravelerDetails()
     if (currentUserUid.value) {
       await loadLikesInfo()
-      // 如果不是作者，載入自己的報名狀態
       if (!isAuthor.value) {
         await loadApplications()
       }
@@ -509,6 +507,8 @@ onMounted(async () => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-4"
     @click.self="emit('close')"
   >
+    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
         <button
@@ -546,6 +546,7 @@ onMounted(async () => {
           報名
         </button>
       </div>
+
       <button
         class="hidden lg:inline-flex absolute -right-3 lg:right-full top-2 lg:top-24 z-20 lg:z-0 bg-tag-amber text-white py-3 pl-4 pr-5 rounded-l-xl rounded-r-none shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:brightness-95 transition-all duration-300 items-center justify-center gap-2 group border-y-2 border-l-2 border-tag-amber min-w-24 lg:translate-x-1 lg:hover:translate-x-0"
         title="回到內文"
@@ -801,6 +802,15 @@ onMounted(async () => {
                   ]"
                 />
               </button>
+
+              <button
+                class="text-secondary-400 hover:text-primary-600 transition group ml-1"
+                title="分享"
+                @click="showShareModal = true"
+              >
+                <ShareIcon class="w-5 h-5 transition-transform group-active:scale-125" />
+              </button>
+
               <button
                 v-if="isAuthor"
                 class="flex items-center space-x-1 transition group text-secondary-400 hover:text-blue-600"
@@ -980,7 +990,6 @@ onMounted(async () => {
             </div>
 
             <div v-if="activeTab === 'applications' && isAuthor">
-              <!-- 作者視角：顯示所有報名清單 -->
               <div>
                 <div v-if="isLoadingApplications" class="text-center py-10 text-gray-500">
                   載入中...
@@ -1168,7 +1177,6 @@ onMounted(async () => {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
-
 :deep(.rich-content) {
   font-size: 1rem;
   line-height: 1.75;

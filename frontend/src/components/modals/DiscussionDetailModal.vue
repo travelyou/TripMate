@@ -8,6 +8,7 @@ import {
   Bookmark as BookmarkIcon,
   FileText as FileTextIcon,
   MoreVertical,
+  Share as ShareIcon,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -19,6 +20,7 @@ import { formatTime } from '@/utils/time'
 import { fetchPostById } from '@/api/discussions'
 import { deletePost } from '@/api/discussions'
 import DOMPurify from 'dompurify'
+import ShareModal from './ShareModal.vue' // [新增]
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -48,6 +50,8 @@ const localComments = ref([])
 const replyTarget = ref(null)
 const localPostData = ref({ ...props.post })
 const showMenu = ref(false)
+const showShareModal = ref(false) // [新增]
+
 const isAuthor = computed(() => {
   const authorUid = localPostData.value?.author_uid || localPostData.value?.authorUid
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
@@ -69,6 +73,12 @@ const totalCommentCount = computed(() => {
     if (comment.replies) total += comment.replies.length
   })
   return total
+})
+
+// [新增] 計算分享連結
+const shareLink = computed(() => {
+  if (!localPostData.value?.id) return window.location.href
+  return `${window.location.origin}/discussion/${localPostData.value.id}`
 })
 
 const buildCommentThreads = (comments = []) => {
@@ -115,13 +125,9 @@ const processedContent = computed(() => {
   const content = localPostData.value.content || ''
 
   try {
-    // 1. 先進行 HTML Entity 解碼 (例如 &lt; 轉成 <)
     const txt = document.createElement('textarea')
     txt.innerHTML = content
     const decoded = txt.value
-
-    // 2. 使用 DOMPurify 移除危險腳本 (例如 script tags)
-    // 注意：絕對不要在註解中寫出完整的 script 結束標籤，會導致 vue compiler 報錯
     return DOMPurify.sanitize(decoded)
   } catch (e) {
     console.error('HTML Process Error', e)
@@ -135,10 +141,8 @@ const scrollToTop = () => {
 }
 
 const handleCopyLink = async () => {
-  if (!localPostData.value?.id) return
-  const link = `${window.location.origin}/discussion/${localPostData.value.id}`
   try {
-    await navigator.clipboard.writeText(link)
+    await navigator.clipboard.writeText(shareLink.value)
     showMenu.value = false
     alert('連結已複製！')
   } catch (error) {
@@ -354,6 +358,8 @@ onMounted(async () => {
     class="fixed inset-0 bg-black/60 z-[99] flex justify-center items-center p-2 sm:p-4"
     @click.self="emit('close')"
   >
+    <ShareModal v-if="showShareModal" :postLink="shareLink" @close="showShareModal = false" />
+
     <div class="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
       <div class="lg:hidden relative z-0 flex items-center justify-end gap-2 mr-4 -mb-2">
         <button
@@ -513,9 +519,18 @@ onMounted(async () => {
                   totalCommentCount
                 }}</span>
               </div>
-              <button class="ml-auto text-secondary-400 hover:text-primary-600">
+              <button class="text-secondary-400 hover:text-primary-600">
                 <BookmarkIcon class="w-5 h-5" />
               </button>
+              <div class="ml-auto flex items-center space-x-3">
+                <button
+                  class="text-secondary-400 hover:text-primary-600"
+                  title="分享"
+                  @click="showShareModal = true"
+                >
+                  <ShareIcon class="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -670,12 +685,10 @@ onMounted(async () => {
   background: #cbd5e1;
   border-radius: 4px;
 }
-
 :deep(.rich-content) {
   font-size: 1rem;
   line-height: 1.75;
 }
-
 :deep(.rich-content h2) {
   font-size: 1.5rem;
   font-weight: 800;
@@ -689,7 +702,6 @@ onMounted(async () => {
   background-color: #eff6ff;
   border-radius: 0 0.5rem 0.5rem 0;
 }
-
 :deep(.rich-content h3) {
   font-size: 1.25rem;
   font-weight: 700;
@@ -703,25 +715,21 @@ onMounted(async () => {
   background-color: #f0f9ff;
   border-radius: 0 0.375rem 0.375rem 0;
 }
-
 :deep(.rich-content p) {
   color: #111827;
   margin-bottom: 1.25em;
   font-size: 1.1rem;
 }
-
 :deep(.rich-content ul) {
   list-style-type: disc;
   padding-left: 1.5em;
   margin-bottom: 1.25em;
 }
-
 :deep(.rich-content ol) {
   list-style-type: decimal;
   padding-left: 1.5em;
   margin-bottom: 1.25em;
 }
-
 :deep(.rich-content blockquote) {
   border-left: 4px solid #e5e7eb;
   padding-left: 1em;
@@ -729,7 +737,6 @@ onMounted(async () => {
   font-style: italic;
   margin: 1.5em 0;
 }
-
 :deep(.rich-content img) {
   border-radius: 0.5rem;
   margin-top: 1em;
@@ -740,7 +747,6 @@ onMounted(async () => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   display: block;
 }
-
 :deep(.rich-content [style*='font-family: BiauKai']) {
   font-family: BiauKai, 'DFKai-SB', 標楷體, serif;
 }

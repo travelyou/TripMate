@@ -15,7 +15,7 @@ import {
   Share2,
   Flag,
   UserPlus as UserPlusIcon,
-  Share, // [新增] 引入 Share 圖示
+  Share,
 } from 'lucide-vue-next'
 import { deleteTraveler } from '@/api/travelers'
 import { auth } from '@/firebase/config'
