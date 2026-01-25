@@ -11,6 +11,7 @@ import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsM
 import { getTravelers, getTravelerById } from '@/api/travelers'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
+import { TRAVELER_STATUS_OPTIONS, TRAVELER_CATEGORY_OPTIONS } from '@/utils/filterOptions'
 
 const myItineraryStore = useMyItineraryStore()
 const route = useRoute()
@@ -31,20 +32,10 @@ const travelers = ref([])
 const isLoading = ref(false)
 
 // --- 篩選狀態 ---
-const filterOptions = ref(['全部', '招募中', '已額滿'])
+const filterOptions = ref(TRAVELER_STATUS_OPTIONS)
 const activeFilter = ref('全部') // 對應後端的 status
 
-const categoryOptions = ref([
-  '全部',
-  '國內旅遊',
-  '日韓旅遊',
-  '亞洲其他',
-  '歐美紐澳',
-  '海島度假',
-  '攝影',
-  '自駕共乘',
-  '其他',
-])
+const categoryOptions = ref(TRAVELER_CATEGORY_OPTIONS)
 const activeCategory = ref('全部') // 對應後端的 category
 
 // --- 分頁狀態 ---

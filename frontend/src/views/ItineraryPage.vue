@@ -9,6 +9,8 @@ import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
+import { ITINERARY_CATEGORY_OPTIONS } from '@/utils/filterOptions'
+import { showError } from '@/utils/alert'
 
 const itinerariesStore = useItineraryStore()
 const route = useRoute()
@@ -27,17 +29,7 @@ const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 
 // ★ 修改：更新為新的分類選項
-const filterOptions = ref([
-  '全部',
-  '國內旅遊',
-  '日韓旅遊',
-  '亞洲其他',
-  '歐美紐澳',
-  '海島度假',
-  '攝影/興趣',
-  '自駕共乘',
-  '其他',
-])
+const filterOptions = ref(ITINERARY_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
 
 // ★ 新增：前端分類篩選邏輯
@@ -82,9 +74,14 @@ const tryOpenSharedItinerary = async () => {
     if (itinerary) {
       openDetailModal(itinerary, false)
       router.replace({ path: '/featured-itinerary', query: {}, hash: '' })
+    } else {
+      await showError('無法找到該行程，可能已被刪除或不存在')
+      router.replace({ path: '/featured-itinerary', query: {}, hash: '' })
     }
   } catch (error) {
     console.error('開啟分享行程失敗：', error)
+    await showError('開啟行程時發生錯誤，請稍後再試')
+    router.replace({ path: '/featured-itinerary', query: {}, hash: '' }).catch(() => {})
   } finally {
     setAppLoading(false)
   }
@@ -129,6 +126,7 @@ const handleDetailDeleted = () => {
   itinerariesStore.fetchItineraries()
 }
 
+// eslint-disable-next-line no-unused-vars
 const handleCardDelete = (itinerary) => {
   // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
   itinerariesStore.fetchItineraries()

@@ -13,6 +13,8 @@ import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
+import { DISCUSSION_CATEGORY_OPTIONS } from '@/utils/filterOptions'
+import { showError } from '@/utils/alert'
 
 const discussionsStore = useDiscussionsStore()
 const myItineraryStore = useMyItineraryStore()
@@ -23,18 +25,7 @@ const { drafts } = storeToRefs(myItineraryStore)
 const currentUserUid = ref(null)
 
 // --- 篩選狀態 ---
-const filterOptions = ref([
-  '全部',
-  '國內旅遊',
-  '亞洲旅遊',
-  '歐美紐澳',
-  '攝影愛好',
-  '交通建議',
-  '美食分享',
-  '住宿推薦',
-  '行程請益',
-  '其他',
-])
+const filterOptions = ref(DISCUSSION_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
 
 // --- ★ 分頁狀態 ---
@@ -308,7 +299,7 @@ const tryOpenSharedPost = async () => {
         console.error('API 獲取貼文失敗：', apiError)
         // 清除 URL 參數
         await router.replace({ path: '/discussion', query: {}, hash: '' })
-        alert('無法找到該貼文，可能已被刪除或不存在')
+        await showError('無法找到該貼文，可能已被刪除或不存在')
         return
       }
     }
@@ -324,13 +315,13 @@ const tryOpenSharedPost = async () => {
     } else {
       // 清除 URL 參數
       await router.replace({ path: '/discussion', query: {}, hash: '' })
-      alert('無法找到該貼文')
+      await showError('無法找到該貼文')
     }
   } catch (error) {
     console.error('開啟分享貼文失敗：', error)
     // 清除 URL 參數
     await router.replace({ path: '/discussion', query: {}, hash: '' }).catch(() => {})
-    alert('開啟貼文時發生錯誤，請稍後再試')
+    await showError('開啟貼文時發生錯誤，請稍後再試')
   } finally {
     setAppLoading(false)
   }

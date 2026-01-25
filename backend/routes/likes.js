@@ -169,12 +169,12 @@ router.post('/', async (req, res) => {
             if (postAuthor && postAuthor !== author_uid) {
               // 使用共用函式獲取按讚者資訊
               const likerInfo = await getUserInfo(author_uid)
-
+              
               // 確保不會使用 uid 作為名稱（除非真的沒有其他選擇）
               if (likerInfo.name === author_uid) {
                 console.warn(`[通知] 按讚者 ${author_uid} 沒有找到 nickname 或 name，使用 uid 作為名稱`)
               }
-
+              
               // 創建通知
               await createLikeNotification({
                 user_uid: postAuthor,

@@ -62,11 +62,11 @@
             :key="filter"
             :class="[
               'px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition border',
-              activeSubFilter === filter
+              activeSubFilters.includes(filter)
                 ? 'bg-primary-100 text-primary-700 border-primary-300'
                 : 'bg-white text-secondary-500 border-secondary-200 hover:bg-secondary-50',
             ]"
-            @click="activeSubFilter = filter"
+            @click="toggleSubFilter(filter)"
           >
             {{ filter }}
           </button>
@@ -108,7 +108,9 @@
         <div v-else class="space-y-4">
           <p class="text-sm text-secondary-500 mb-2 ml-1">
             在 <span class="font-bold text-secondary-700">{{ getTabLabel(activeTab) }}</span>
-            <span v-if="activeSubFilter !== '全部'"> ({{ activeSubFilter }}) </span>
+            <span v-if="activeSubFilters.length > 0 && !activeSubFilters.includes('全部')">
+              ({{ activeSubFilters.join('、') }})
+            </span>
             中找到 {{ filteredResults.length }} 筆結果
           </p>
 
@@ -248,6 +250,7 @@ import { useItineraryStore } from '@/stores/itinerary'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import { getAllUsers } from '@/api/users'
 import { isValidHttpImageUrl as isValidImageUrl } from '@/utils/image'
+import { SEARCH_SUB_FILTER_OPTIONS, FILTER_KEYWORDS } from '@/utils/filterOptions'
 
 const router = useRouter()
 const route = useRoute()
@@ -263,7 +266,7 @@ const searchInput = ref(null)
 const searchQuery = ref('')
 const hasSearched = ref(false)
 const activeTab = ref('all')
-const activeSubFilter = ref('全部')
+const activeSubFilters = ref(['全部']) // 改為陣列，支援複選
 
 const currentPage = ref(1)
 const itemsPerPage = 10
@@ -280,26 +283,70 @@ const tabs = [
   { label: '使用者', value: 'user' },
 ]
 
-const subFilterOptions = {
-  all: [],
-  traveler: ['全部', '招募中', '已額滿', '單人遊', '團體遊'],
-  discussion: ['全部', '有圖', '新貼文', '找旅伴', '找話題'],
-  itinerary: ['全部', '旅行社精選', '導遊推薦', '短天數(1-5日)', '長天數(6日以上)', '亞洲'],
-  user: ['全部', '已開啟配對', '有個人簡介', '有標籤'],
+const currentSubFilters = computed(() => {
+  return SEARCH_SUB_FILTER_OPTIONS[activeTab.value] || []
+})
+
+// 共用的關鍵字匹配函數
+const matchByKeywords = (filter, item, originalData, categoryValue) => {
+  const keywords = FILTER_KEYWORDS[filter]
+  if (!keywords) return false
+
+  return (
+    keywords.some((keyword) =>
+      item.title.includes(keyword) ||
+      item.description.includes(keyword) ||
+      item.tags.some((t) => t.includes(keyword))
+    ) || originalData.category === categoryValue
+  )
 }
 
-const currentSubFilters = computed(() => {
-  return subFilterOptions[activeTab.value] || []
-})
+// 共用的分類篩選函數
+const matchCategoryFilter = (filter, item, originalData) => {
+  // 國內旅遊、日韓旅遊、亞洲其他、歐美紐澳、海島度假 共用邏輯
+  if (['國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假'].includes(filter)) {
+    return matchByKeywords(filter, item, originalData, filter)
+  }
+
+  // 攝影（找旅伴）
+  if (filter === '攝影') {
+    return matchByKeywords('攝影', item, originalData, '攝影')
+  }
+
+  // 攝影/興趣（精選行程）
+  if (filter === '攝影/興趣') {
+    return (
+      matchByKeywords('攝影/興趣', item, originalData, '攝影/興趣') ||
+      originalData.category === '攝影'
+    )
+  }
+
+  // 自駕共乘
+  if (filter === '自駕共乘') {
+    return matchByKeywords('自駕共乘', item, originalData, '自駕共乘')
+  }
+
+  // 其他
+  if (filter === '其他') {
+    return (
+      originalData.category === '其他' ||
+      item.title.includes('其他') ||
+      item.description.includes('其他') ||
+      item.tags.some((t) => t.includes('其他'))
+    )
+  }
+
+  return false
+}
 
 watch(activeTab, () => {
   currentPage.value = 1
-  activeSubFilter.value = '全部'
+  activeSubFilters.value = ['全部']
 })
 
-watch(activeSubFilter, () => {
+watch(activeSubFilters, () => {
   currentPage.value = 1
-})
+}, { deep: true })
 
 const allData = computed(() => {
   const results = []
@@ -321,11 +368,11 @@ const allData = computed(() => {
     travelersStore.recommendations.forEach((traveler) => {
       // 過濾有效的頭像 URL
       const avatarUrl = traveler.avatar || traveler.image
-      const validAvatar = avatarUrl && typeof avatarUrl === 'string' && 
+      const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
                          !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
                          (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
                          ? avatarUrl : null
-      
+
       results.push({
         id: traveler.id,
         type: 'traveler',
@@ -362,11 +409,11 @@ const allData = computed(() => {
     users.value.forEach((user) => {
       // 過濾有效的頭像 URL
       const avatarUrl = user.avatar || user.photoURL
-      const validAvatar = avatarUrl && typeof avatarUrl === 'string' && 
+      const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
                          !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
                          (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
                          ? avatarUrl : null
-      
+
       results.push({
         id: user.uid,
         type: 'user',
@@ -457,104 +504,81 @@ const filteredResults = computed(() => {
     const matchTab = activeTab.value === 'all' || item.type === activeTab.value
 
     let matchSubFilter = true
-    if (activeSubFilter.value !== '全部') {
-      const filter = activeSubFilter.value
+    // 如果選中「全部」或沒有選中任何條件，顯示所有項目
+    if (activeSubFilters.value.includes('全部') || activeSubFilters.value.length === 0) {
+      matchSubFilter = true
+    } else {
+      // 支援複選：只要符合任何一個選中的條件就顯示（OR 邏輯）
       const originalData = item.originalData || {}
+      matchSubFilter = activeSubFilters.value.some((filter) => {
+        // 找旅伴專屬篩選
+        if (activeTab.value === 'traveler' || item.type === 'traveler') {
+          if (filter === '招募中') {
+            return (
+              originalData.status === 'active' ||
+              (!item.title.includes('額滿') && !item.title.includes('已成行'))
+            )
+          } else if (filter === '已額滿') {
+            return (
+              originalData.status === 'full' ||
+              item.title.includes('額滿') ||
+              item.title.includes('已成行')
+            )
+          } else {
+            // 使用共用的分類篩選函數
+            return matchCategoryFilter(filter, item, originalData)
+          }
+        }
+        // 討論區專屬篩選
+        else if (activeTab.value === 'discussion' || item.type === 'discussion') {
+          // 國內旅遊、亞洲旅遊、歐美紐澳 使用共用邏輯
+          if (['國內旅遊', '亞洲旅遊', '歐美紐澳'].includes(filter)) {
+            return matchByKeywords(filter, item, originalData, filter)
+          }
 
-      // 找旅伴專屬篩選
-      if (activeTab.value === 'traveler' || item.type === 'traveler') {
-        if (filter === '招募中') {
-          matchSubFilter =
-            originalData.status === 'active' ||
-            (!item.title.includes('額滿') && !item.title.includes('已成行'))
-        } else if (filter === '已額滿') {
-          matchSubFilter =
-            originalData.status === 'full' ||
-            item.title.includes('額滿') ||
-            item.title.includes('已成行')
-        } else if (filter === '單人遊') {
-          matchSubFilter =
-            item.title.includes('單人') ||
-            item.description.includes('單人') ||
-            item.tags.some((t) => t.includes('單人'))
-        } else if (filter === '團體遊') {
-          matchSubFilter =
-            item.title.includes('團體') ||
-            item.description.includes('團體') ||
-            item.tags.some((t) => t.includes('團體'))
+          // 攝影愛好
+          if (filter === '攝影愛好') {
+            return matchByKeywords('攝影愛好', item, originalData, '攝影愛好')
+          }
+
+          // 交通建議
+          if (filter === '交通建議') {
+            return matchByKeywords('交通建議', item, originalData, '交通建議')
+          }
+
+          // 美食分享
+          if (filter === '美食分享') {
+            return matchByKeywords('美食分享', item, originalData, '美食分享')
+          }
+
+          // 住宿推薦
+          if (filter === '住宿推薦') {
+            return matchByKeywords('住宿推薦', item, originalData, '住宿推薦')
+          }
+
+          // 行程請益
+          if (filter === '行程請益') {
+            return matchByKeywords('行程請益', item, originalData, '行程請益')
+          }
+
+          // 其他
+          if (filter === '其他') {
+            return (
+              originalData.category === '其他' ||
+              item.title.includes('其他') ||
+              item.description.includes('其他') ||
+              item.tags.some((t) => t.includes('其他'))
+            )
+          }
         }
-      }
-      // 討論區專屬篩選
-      else if (activeTab.value === 'discussion' || item.type === 'discussion') {
-        if (filter === '有圖') {
-          matchSubFilter = !!(item.image || originalData.image)
-        } else if (filter === '新貼文') {
-          const postDate = new Date(originalData.created_at || originalData.date)
-          const threeDaysAgo = new Date()
-          threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-          matchSubFilter = postDate >= threeDaysAgo
-        } else if (filter === '找旅伴') {
-          matchSubFilter =
-            item.title.includes('旅伴') ||
-            item.description.includes('旅伴') ||
-            item.tags.some((t) => t.includes('旅伴') || t.includes('找人'))
-        } else if (filter === '找話題') {
-          matchSubFilter =
-            item.tags.some((t) => t.includes('推薦') || t.includes('分享') || t.includes('問題')) ||
-            item.description.includes('推薦') ||
-            item.description.includes('分享')
+        // 精選行程專屬篩選
+        else if (activeTab.value === 'itinerary' || item.type === 'itinerary') {
+          // 使用共用的分類篩選函數
+          return matchCategoryFilter(filter, item, originalData)
         }
-      }
-      // 精選行程專屬篩選
-      else if (activeTab.value === 'itinerary' || item.type === 'itinerary') {
-        if (filter === '旅行社精選') {
-          matchSubFilter =
-            originalData.vendor_id ||
-            item.tags.some((t) => t.includes('旅行社') || t.includes('精選'))
-        } else if (filter === '導遊推薦') {
-          matchSubFilter =
-            item.tags.some((t) => t.includes('導遊') || t.includes('推薦')) ||
-            item.title.includes('導遊')
-        } else if (filter === '短天數(1-5日)') {
-          const daysMatch = item.description.match(/(\d+)\s*日/)
-          matchSubFilter = daysMatch && parseInt(daysMatch[1]) <= 5
-        } else if (filter === '長天數(6日以上)') {
-          const daysMatch = item.description.match(/(\d+)\s*日/)
-          matchSubFilter = daysMatch && parseInt(daysMatch[1]) >= 6
-        } else if (filter === '亞洲') {
-          const asianCountries = [
-            '日本',
-            '韓國',
-            '台灣',
-            '泰國',
-            '越南',
-            '新加坡',
-            '馬來西亞',
-            '印尼',
-            '菲律賓',
-            '中國',
-            '香港',
-            '澳門',
-          ]
-          matchSubFilter = asianCountries.some(
-            (country) =>
-              item.title.includes(country) ||
-              item.description.includes(country) ||
-              item.tags.some((t) => t.includes(country)),
-          )
-        }
-      }
-      // 使用者專屬篩選
-      else if (activeTab.value === 'user' || item.type === 'user') {
-        if (filter === '已開啟配對') {
-          matchSubFilter = originalData.is_matching_enabled === true
-        } else if (filter === '有個人簡介') {
-          matchSubFilter = !!(originalData.bio || originalData.card_bio)
-        } else if (filter === '有標籤') {
-          const userTags = originalData.tags || originalData.card_tags || []
-          matchSubFilter = userTags.length > 0
-        }
-      }
+        // 使用者專屬篩選（目前只有「全部」選項，無需額外篩選邏輯）
+        return false // 如果沒有匹配到任何條件，返回 false
+      })
     }
 
     return matchTab && matchSubFilter
@@ -623,6 +647,34 @@ const clearSearch = () => {
 const quickSearch = (keyword) => {
   searchQuery.value = keyword
   performSearch()
+}
+
+// 切換子篩選條件（支援複選）
+const toggleSubFilter = (filter) => {
+  const index = activeSubFilters.value.indexOf(filter)
+
+  if (filter === '全部') {
+    // 如果點擊「全部」，清除其他選項，只保留「全部」
+    activeSubFilters.value = ['全部']
+  } else {
+    // 如果點擊其他選項
+    if (index > -1) {
+      // 如果已選中，則取消選中
+      activeSubFilters.value.splice(index, 1)
+      // 如果取消後沒有選中任何選項，自動選中「全部」
+      if (activeSubFilters.value.length === 0) {
+        activeSubFilters.value = ['全部']
+      }
+    } else {
+      // 如果未選中，則選中
+      // 如果當前有「全部」，先移除「全部」
+      const allIndex = activeSubFilters.value.indexOf('全部')
+      if (allIndex > -1) {
+        activeSubFilters.value.splice(allIndex, 1)
+      }
+      activeSubFilters.value.push(filter)
+    }
+  }
 }
 
 const getTabLabel = (val) => {
