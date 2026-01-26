@@ -34,3 +34,14 @@ export const getVendorPosts = async (vendorId) => {
     return { success: false, data: [] }
   }
 }
+
+// 更新廠商資料
+export const updateVendorProfile = async (vendorId, profileData) => {
+  try {
+    const response = await axios.put(`${API_URL}/vendors/${vendorId}`, profileData)
+    return response.data
+  } catch (error) {
+    console.error('Update Vendor Profile Error:', error)
+    return { success: false, message: error.message }
+  }
+}

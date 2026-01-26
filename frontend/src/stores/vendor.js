@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getVendorProfile, getVendorItineraries, getVendorPosts } from '@/api/vendor'
+import {
+  getVendorProfile,
+  getVendorItineraries,
+  getVendorPosts,
+  updateVendorProfile as updateVendorProfileAPI,
+} from '@/api/vendor'
 import { createItinerary as createItineraryApi } from '@/api/itinerary'
 // 若有 discussion API 請解開下方註解
 // import { createDiscussion as createDiscussionApi } from '@/api/discussions'
@@ -257,11 +262,19 @@ export const useVendorStore = defineStore('vendor', () => {
 
   const updateVendorProfile = async (vendorId, profileData) => {
     loading.value = true
+    error.value = null
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      currentVendor.value = { ...currentVendor.value, ...profileData }
+      // 呼叫真實 API 更新廠商資料
+      const res = await updateVendorProfileAPI(vendorId, profileData)
 
-      return { success: true }
+      if (!res.success) {
+        throw new Error(res.message || '更新失敗')
+      }
+
+      // 更新成功後重新載入廠商資料，確保與後端同步
+      await fetchVendorProfile(vendorId)
+
+      return { success: true, data: res.data }
     } catch (err) {
       error.value = err.message
       throw err
