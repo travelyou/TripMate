@@ -397,6 +397,14 @@ onUnmounted(() => {
 
           <button
             class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
+            @click.stop="emit('open-detail', props.itinerary, true)"
+          >
+            <MessageCircleIcon class="w-4 h-4" />
+            <span class="font-bold">{{ props.itinerary.comments_count || props.itinerary.comments || 0 }}</span>
+          </button>
+
+          <button
+            class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
             :class="userStore.isCollected(itemData) ? 'text-primary-600' : 'hover:text-primary-600'"
             @click.stop="
               userStore.isCollected(itemData)
@@ -418,16 +426,6 @@ onUnmounted(() => {
             @click.stop="emit('open-share', props.itinerary.id)"
           >
             <Share class="w-4 h-4" />
-          </button>
-        </div>
-
-        <div class="flex items-center space-x-2 text-secondary-400">
-          <button
-            class="flex items-center space-x-1 p-1.5 hover:bg-secondary-50 rounded-full hover:text-secondary-600 transition"
-            @click.stop="emit('open-detail', props.itinerary, true)"
-          >
-            <MessageCircleIcon class="w-4 h-4" />
-            <span class="text-xs font-bold">{{ props.itinerary.comments_count || props.itinerary.comments || 0 }}</span>
           </button>
         </div>
       </div>

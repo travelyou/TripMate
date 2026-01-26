@@ -352,17 +352,17 @@ onUnmounted(() => {
           <div v-if="isAuthor" class="my-1 border-t border-gray-200"></div>
           <button
             class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
-            @click="handleShare"
-          >
-            <Share2 class="w-4 h-4" />
-            <span>分享</span>
-          </button>
-          <button
-            class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
             @click="handleReport"
           >
             <Flag class="w-4 h-4" />
             <span>檢舉</span>
+          </button>
+          <button
+            class="flex w-full items-center space-x-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
+            @click="handleShare"
+          >
+            <Share2 class="w-4 h-4" />
+            <span>分享</span>
           </button>
         </div>
       </div>
@@ -477,6 +477,15 @@ onUnmounted(() => {
                   </button>
 
                   <button
+                    class="group flex items-center transition"
+                    :class="'text-white/70 hover:text-white/90'"
+                    @click.stop="emit('open-detail', traveler)"
+                  >
+                    <MessageCircleIcon class="mr-1 h-4 w-4 transition-transform group-active:scale-125" />
+                    <span>{{ traveler.comments || 0 }}</span>
+                  </button>
+
+                  <button
                     class="group flex items-center space-x-1 transition"
                     :class="
                       userStore.isCollected(itemData)
@@ -499,13 +508,6 @@ onUnmounted(() => {
                   </button>
 
                   <button
-                    class="flex items-center space-x-1 text-white/70 hover:text-gray-200 transition"
-                    @click.stop="handleShare"
-                  >
-                    <Share class="w-4 h-4" />
-                  </button>
-
-                  <button
                     v-if="isAuthor"
                     class="group flex items-center space-x-1 text-white/70 transition hover:text-blue-300"
                     title="查看報名清單"
@@ -522,10 +524,12 @@ onUnmounted(() => {
                     <UserPlusIcon class="h-4 w-4 transition-transform group-active:scale-125" />
                   </button>
 
-                  <span class="ml-auto flex items-center text-white/90 md:ml-0">
-                    <MessageCircleIcon class="mr-1 h-4 w-4" />
-                    {{ traveler.comments || 0 }}
-                  </span>
+                  <button
+                    class="flex items-center space-x-1 text-white/70 hover:text-gray-200 transition"
+                    @click.stop="handleShare"
+                  >
+                    <Share class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
