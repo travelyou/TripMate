@@ -50,6 +50,12 @@ const loadDiscussionsData = async (isLoadMore = false) => {
         hasMore.value = false // 單篇模式下禁止無限捲動
         selectedPost.value = post
         isDetailModalOpen.value = true // 自動開啟 Modal
+
+        // 檢查是否需要滾動到留言區
+        const shouldScroll = route.query.scrollTo === 'comments'
+        if (shouldScroll) {
+          shouldScrollToComments.value = true
+        }
       } else {
         discussionsStore.discussions = []
         hasMore.value = false
@@ -268,20 +274,20 @@ const tryOpenSharedPost = async () => {
     }
   }
   if (!postId) return
-  
+
   // 防止重複打開
   if (isDetailModalOpen.value && String(selectedPost.value?.id) === String(postId)) {
     return
   }
-  
+
   // 檢查是否需要滾動到留言區
   const shouldScroll = route.query.scrollToComments === 'true'
-  
+
   setAppLoading(true)
   try {
     const existing = discussionsStore.discussions.find((p) => String(p.id) === String(postId))
     let postToOpen = null
-    
+
     if (existing) {
       postToOpen = existing
     } else {
@@ -296,14 +302,14 @@ const tryOpenSharedPost = async () => {
         return
       }
     }
-    
+
     if (postToOpen) {
       // 先清除 URL 參數，避免重複觸發
       await router.replace({ path: '/discussion', query: {}, hash: '' })
-      
+
       // 確保 URL 更新後再打開模態框
       await nextTick()
-      
+
       openDiscussionDetailModal(postToOpen, shouldScroll)
     } else {
       // 清除 URL 參數

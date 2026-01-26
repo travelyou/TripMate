@@ -59,10 +59,16 @@ const loadTravelers = async (isLoadMore = false) => {
     if (route.params.id && !isLoadMore) {
       const response = await getTravelerById(route.params.id)
       if (response.success && response.data) {
-        travelers.value = [response.data] // 背景只留一張卡片
+        travelers.value = [response.data]
         selectedTraveler.value = response.data
         isDetailModalOpen.value = true
-        hasMore.value = false // 關閉無限捲動
+        hasMore.value = false
+        
+        // 檢查是否需要滾動到留言區
+        const shouldScroll = route.query.scrollTo === 'comments'
+        if (shouldScroll) {
+          shouldScrollToComments.value = true
+        }
       } else {
         travelers.value = []
         hasMore.value = false

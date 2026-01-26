@@ -101,7 +101,7 @@ async function checkAndSendTravelerReminders() {
           sender_uid: null,
           sender_name: '系統提醒',
           sender_avatar: null,
-          link: `/travelers?postId=${traveler.id}`,
+          link: `/travelers/${traveler.id}`,
         })
         
         // 發送通知給已接受的申請者
@@ -143,7 +143,7 @@ async function checkAndSendTravelerReminders() {
               sender_uid: traveler.author_uid,
               sender_name: traveler.author_name,
               sender_avatar: traveler.author_avatar,
-              link: `/travelers?postId=${traveler.id}`,
+              link: `/travelers/${traveler.id}`,
             })
           }
         }
