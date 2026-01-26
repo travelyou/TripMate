@@ -160,6 +160,9 @@ const stats = computed(() => ({
 // --- Methods ---
 
 const openCardSettings = () => {
+  if (userStore.isVendor) {
+    return
+  }
   isCardSettingsOpen.value = true
 }
 

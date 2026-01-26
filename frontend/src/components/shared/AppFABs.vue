@@ -170,6 +170,11 @@ watch(() => userStore.currentUser, () => {
   calculateUnreadCount()
 }, { deep: true })
 
+// 監聽用戶角色變化，確保抽卡按鈕正確顯示/隱藏
+watch(() => userStore.isVendor, () => {
+  // 觸發響應式更新
+})
+
 defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-chat'])
 </script>
 
@@ -186,6 +191,7 @@ defineEmits(['open-posting', 'quick-action', 'toggle-private-chat', 'toggle-ai-c
     </button>
 
     <button
+      v-if="!userStore.isVendor"
       class="p-3 md:p-4 w-14 h-14 bg-primary-500 text-white hover:bg-primary-600 flex items-center justify-center transition-transform hover:-translate-y-1 border-2 border-primary-700 shadow-primary-fab rounded-xl relative"
       title="抽卡找旅伴"
       @click="$emit('quick-action')"

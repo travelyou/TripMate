@@ -268,9 +268,7 @@ const handleIncomingChatMessage = (payload) => {
   const fromUid = payload.fromUid || payload.sender_uid
   if (!fromUid) return
   
-  // 防止處理自己發送的訊息（應該已經在發送時處理過了）
   if (fromUid === currentUid) {
-    console.log('[handleIncomingChatMessage] 忽略自己發送的訊息')
     return
   }
   
@@ -310,7 +308,6 @@ const handleIncomingChatMessage = (payload) => {
   })
   
   if (exists) {
-    console.log('[handleIncomingChatMessage] 忽略重複訊息')
     return
   }
   
@@ -430,6 +427,9 @@ const handleQuickAction = () => {
   if (!ensureLoggedIn()) {
     isSwipeModalOpen.value = false
     isMobileActionMenuOpen.value = false
+    return
+  }
+  if (userStore.isVendor) {
     return
   }
   isSwipeModalOpen.value = true
@@ -730,12 +730,8 @@ const handleToggleAiChat = () => {
   isMobileActionMenuOpen.value = false
 }
 
-// 處理發文提交
 const handleSubmitPost = async (postData) => {
   try {
-    console.log('MainLayout 收到發文請求:', postData)
-
-    // 檢查用戶是否已登入
     const firebaseUser = auth.currentUser
     const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
 
@@ -957,7 +953,11 @@ const handleClosePrivateChat = () => {
               </div>
               <span class="text-lg font-bold text-gray-700">發布</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group relative" @click="handleQuickAction">
+            <button
+              v-if="!userStore.isVendor"
+              class="flex flex-col items-center gap-2 group relative"
+              @click="handleQuickAction"
+            >
               <div
                 class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition relative"
               >
@@ -1008,7 +1008,10 @@ const handleClosePrivateChat = () => {
       @close="handleClosePrivateChat"
     />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
-    <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
+    <SwipeMatchModal
+      v-if="isSwipeModalOpen && !userStore.isVendor"
+      @close="isSwipeModalOpen = false"
+    />
   </div>
 
   <Transition name="fade">

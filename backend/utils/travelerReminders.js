@@ -150,7 +150,6 @@ async function checkAndSendTravelerReminders() {
       }
     }
     
-    console.log(`[Traveler Reminders] 檢查完成，處理了 ${result.rows.length} 個找旅伴貼文`)
   } catch (error) {
     console.error('[Traveler Reminders] 檢查失敗：', error)
   }

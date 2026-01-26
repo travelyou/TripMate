@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useUserStore } from '@/stores/user'
 import {
   Camera,
   Tag,
@@ -9,6 +10,8 @@ import {
   UserPlus,
   IdCard, // [NEW] 引入名片圖示
 } from 'lucide-vue-next'
+
+const userStore = useUserStore()
 
 const props = defineProps({
   user: {
@@ -98,7 +101,7 @@ const shouldMarquee = computed(() => {
       <div class="md:hidden flex flex-col gap-4">
         <div class="flex items-start gap-3 sm:gap-4">
           <div class="flex flex-col items-center shrink-0 -mt-2">
-            <div class="relative group">
+            <div class="relative">
               <div
                 v-if="loading"
                 class="w-20 h-20 rounded-full border-4 border-white/60 bg-white/30 animate-pulse"
@@ -109,15 +112,10 @@ const shouldMarquee = computed(() => {
                 @click.stop="showAvatarMenuMobile = !showAvatarMenuMobile"
               >
               <img
-                  class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-primary-50 transition-opacity group-hover:opacity-80"
+                  class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-primary-50"
                 :src="user.avatar"
                 alt="Avatar"
               />
-                <div
-                  class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center"
-                >
-                  <Camera class="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
               <input
                 ref="fileInputMobile"
                 type="file"
@@ -134,7 +132,7 @@ const shouldMarquee = computed(() => {
                 <!-- 頭像選擇選單 -->
                 <div
                   v-if="showAvatarMenuMobile"
-                  class="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-30 min-w-[140px]"
+                  class="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[100] min-w-[140px]"
                   @click.stop
                 >
                   <button
@@ -280,6 +278,7 @@ const shouldMarquee = computed(() => {
               class="flex items-center gap-1.5 sm:gap-2 self-end mt-1"
             >
               <button
+                v-if="!userStore.isVendor"
                 class="p-1 sm:p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition flex items-center gap-1"
                 title="我的名片"
                 @click="$emit('open-card-settings')"
@@ -349,7 +348,7 @@ const shouldMarquee = computed(() => {
 
       <div class="hidden md:flex items-start gap-6">
         <div class="flex flex-col items-center shrink-0 -mt-2">
-          <div class="relative group">
+          <div class="relative">
             <div
               v-if="loading"
               class="w-32 h-32 rounded-full border-4 border-white/60 bg-white/30 animate-pulse"
@@ -360,15 +359,10 @@ const shouldMarquee = computed(() => {
               @click.stop="showAvatarMenuDesktop = !showAvatarMenuDesktop"
             >
             <img
-                class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-primary-50 transition-opacity group-hover:opacity-80"
+                class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-primary-50"
               :src="user.avatar"
               alt="Avatar"
             />
-              <div
-                class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center"
-              >
-                <Camera class="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
             <input
               ref="fileInputDesktop"
               type="file"
@@ -377,7 +371,7 @@ const shouldMarquee = computed(() => {
               @change="handleFileChange"
             />
             <button
-                class="absolute bottom-2 right-2 p-2 bg-primary-600 rounded-full border-2 border-white hover:bg-primary-700 transition shadow-lg group-hover:scale-110 cursor-pointer z-10"
+                class="absolute bottom-2 right-2 p-2 bg-primary-600 rounded-full border-2 border-white hover:bg-primary-700 transition shadow-lg cursor-pointer z-10"
                 @click.stop="showAvatarMenuDesktop = !showAvatarMenuDesktop"
             >
               <Camera class="w-4 h-4 text-white" />
@@ -385,7 +379,7 @@ const shouldMarquee = computed(() => {
               <!-- 頭像選擇選單 -->
               <div
                 v-if="showAvatarMenuDesktop"
-                class="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-30 min-w-[140px]"
+                class="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[100] min-w-[140px]"
                 @click.stop
               >
                 <button
@@ -535,6 +529,7 @@ const shouldMarquee = computed(() => {
 
           <div v-if="isCurrentUser && !loading" class="flex items-center gap-2">
             <button
+              v-if="!userStore.isVendor"
               class="p-1.5 md:p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition flex items-center gap-2 px-3"
               title="我的名片"
               @click="$emit('open-card-settings')"

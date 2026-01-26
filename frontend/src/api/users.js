@@ -56,14 +56,54 @@ function normalizeUserData(data) {
 
 // 創建或更新用戶資料
 export async function createOrUpdateUser(userData) {
-  const response = await fetch(`${API_BASE_URL}/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
-  })
-  if (!response.ok) throw new Error('創建/更新用戶失敗')
-  const data = await response.json()
-  return data.data || data
+  try {
+    const url = `${API_BASE_URL}/users`
+    console.log('📤 [createOrUpdateUser] 請求 URL:', url)
+    console.log('📤 [createOrUpdateUser] 請求資料：', JSON.stringify(userData, null, 2))
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    })
+    console.log('📥 [createOrUpdateUser] 回應狀態:', response.status, response.statusText)
+    console.log('📥 [createOrUpdateUser] 回應 URL:', response.url)
+
+    if (!response.ok) {
+      let errorMessage = `創建/更新用戶失敗 (${response.status})`
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.error || errorData.message || errorMessage
+      } catch {
+        errorMessage = `${errorMessage}: ${response.statusText}`
+      }
+
+      const error = new Error(errorMessage)
+      error.response = {
+        status: response.status,
+        statusText: response.statusText,
+        data: await response.json().catch(() => null),
+      }
+      throw error
+    }
+
+    const data = await response.json()
+    console.log('📥 [createOrUpdateUser] 原始回應：', data)
+    console.log('📥 [createOrUpdateUser] 回應的鍵：', Object.keys(data))
+    console.log('📥 [createOrUpdateUser] data.data：', data.data)
+    console.log('📥 [createOrUpdateUser] data.data 的鍵：', data.data ? Object.keys(data.data) : '無 data.data')
+    const result = data.data || data
+    console.log('📥 [createOrUpdateUser] 最終返回：', result)
+    console.log('📥 [createOrUpdateUser] 最終返回的鍵：', Object.keys(result))
+    return result
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      const networkError = new Error(`無法連接到伺服器：${API_BASE_URL}/users`)
+      networkError.originalError = error
+      networkError.isNetworkError = true
+      throw networkError
+    }
+    throw error
+  }
 }
 
 export async function getUserProfile(uid) {
@@ -74,7 +114,6 @@ export async function getUserProfile(uid) {
       throw new Error('獲取用戶資料失敗')
     }
     const jsonResponse = await response.json()
-    // jsonResponse 可能是 { data: ... } 或直接是 data
     return normalizeUserData(jsonResponse.data || jsonResponse)
   } catch (error) {
     console.error('獲取用戶資料錯誤：', error)

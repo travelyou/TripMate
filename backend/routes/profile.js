@@ -503,11 +503,8 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
     )
 
     if (checkRequest.rows.length === 0) {
-      console.log(`[acceptFriendRequest] 找不到待接受的好友請求: uid=${uid}, friend_uid=${friend_uid}`)
       return res.status(404).json({ error: '找不到待接受的好友請求' })
     }
-
-    console.log(`[acceptFriendRequest] 找到請求，準備更新: ${JSON.stringify(checkRequest.rows[0])}`)
 
     // 更新狀態為 accepted（friend_uid 發送給 uid 的請求）
     let updateQuery
@@ -530,8 +527,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
       return res.status(404).json({ error: '更新好友請求狀態失敗' })
     }
 
-    console.log(`[acceptFriendRequest] ✅ 成功更新好友請求: ${JSON.stringify(result.rows[0])}`)
-
     // 刪除聊天對話次數限制（因為已經成為好友）
     try {
       const tableCheck = await pool.query(
@@ -545,7 +540,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
               OR (user_uid = $2 AND friend_uid = $1)`,
           [uid, friend_uid],
         )
-        console.log(`[acceptFriendRequest] ✅ 已清除聊天次數限制`)
       }
     } catch (clearError) {
       console.warn(`[acceptFriendRequest] ⚠️ 清除聊天次數失敗:`, clearError.message)
@@ -741,13 +735,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       [uid, friend_uid],
     )
 
-    console.log(
-      `[incrementChatInteraction] UPDATE 嘗試: uid=${uid}, friend_uid=${friend_uid}, rowCount=${result.rowCount}`,
-    )
-
-    // 如果沒有更新任何記錄（rowCount === 0），則插入新記錄
     if (result.rowCount === 0 || result.rows.length === 0) {
-      console.log(`[incrementChatInteraction] 記錄不存在，執行 INSERT`)
       try {
         result = await pool.query(
           `INSERT INTO chat_interactions (user_uid, friend_uid, message_count, created_at, updated_at)
@@ -755,10 +743,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
            RETURNING message_count`,
           [uid, friend_uid],
         )
-        console.log(`[incrementChatInteraction] INSERT 成功: count=${result.rows[0]?.message_count}`)
       } catch (insertError) {
-        // 如果 INSERT 失敗（可能是因為唯一約束），再次嘗試 UPDATE
-        console.log(`[incrementChatInteraction] INSERT 失敗，重新嘗試 UPDATE: ${insertError.message}`)
         result = await pool.query(
           `UPDATE chat_interactions
            SET message_count = message_count + 1, updated_at = CURRENT_TIMESTAMP
@@ -766,15 +751,10 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
            RETURNING message_count`,
           [uid, friend_uid],
         )
-        console.log(`[incrementChatInteraction] 重新 UPDATE 結果: rowCount=${result.rowCount}, count=${result.rows[0]?.message_count}`)
       }
-    } else {
-      console.log(`[incrementChatInteraction] UPDATE 成功: count=${result.rows[0]?.message_count}`)
     }
 
-    // 最終驗證：確保我們獲取到了正確的值
     if (!result.rows || result.rows.length === 0 || !result.rows[0]?.message_count) {
-      console.error(`[incrementChatInteraction] ⚠️ 結果異常，重新查詢數據庫`)
       const finalCheck = await pool.query(
         `SELECT message_count FROM chat_interactions
          WHERE user_uid = $1 AND friend_uid = $2`,
@@ -782,16 +762,12 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       )
       if (finalCheck.rows.length > 0) {
         result.rows = [{ message_count: finalCheck.rows[0].message_count }]
-        console.log(`[incrementChatInteraction] 重新查詢得到的 count=${result.rows[0].message_count}`)
       }
     }
 
-    // 確保獲取正確的 count 值
     let count = parseInt(result.rows[0]?.message_count) || 0
 
-    // 驗證：如果 count 看起來不對，重新查詢一次
     if (count === 0) {
-      console.log(`[incrementChatInteraction] ⚠️ count 為 0 但記錄存在，重新查詢`)
       const verifyResult = await pool.query(
         `SELECT message_count FROM chat_interactions
          WHERE user_uid = $1 AND friend_uid = $2`,
@@ -799,16 +775,11 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       )
       if (verifyResult.rows.length > 0) {
         count = parseInt(verifyResult.rows[0].message_count) || 0
-        console.log(`[incrementChatInteraction] 重新查詢得到的 count=${count}`)
       }
     }
 
     const remaining = Math.max(0, 3 - count)
     const canSend = remaining > 0
-
-    console.log(
-      `[incrementChatInteraction] 最終結果: uid=${uid}, friend_uid=${friend_uid}, count=${count}, remaining=${remaining}, canSend=${canSend}`,
-    )
 
     res.json({ success: true, count, remaining, canSend })
   } catch (error) {
