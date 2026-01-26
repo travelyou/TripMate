@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
 import { loadGoogleMaps } from '@/utils/googleMapLoader'
 
 const props = defineProps({
@@ -189,8 +189,9 @@ const confirmLocation = () => {
 
 watch(
   () => props.isOpen,
-  (isOpen) => {
+  async (isOpen) => {
     if (!isOpen) return
+    await nextTick()
     if (!map) {
       setTimeout(() => {
         if (!map) initMap()
@@ -210,69 +211,45 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-show="isOpen" class="modal-backdrop">
-    <div class="modal">
-      <header class="header">
+  <div
+    v-show="isOpen"
+    class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-4"
+  >
+    <div
+      class="flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
+    >
+      <header class="flex items-center justify-between border-b border-gray-200 px-8 py-3">
         <h3>選擇地點</h3>
         <button @click="emit('close')">✕</button>
       </header>
 
-      <input ref="inputRef" class="search" placeholder="搜尋地點" />
+      <input
+        ref="inputRef"
+        class="mx-8 my-4 rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:shadow-[0_0_0_3px_rgba(37,99,235,0.15)]"
+        placeholder="搜尋地點"
+      />
 
-      <div ref="mapRef" class="map"></div>
+      <div ref="mapRef" class="h-[520px] min-h-[360px] w-full"></div>
 
-      <footer class="footer">
-        <button class="cancel" @click="emit('close')">取消</button>
-        <button class="confirm" @click="confirmLocation">確認</button>
+      <footer class="flex items-center justify-between gap-3 border-t border-gray-200 px-8 py-3">
+        <div class="text-xs text-gray-500">
+          <span>請在圖上點選或搜尋地點</span>
+        </div>
+        <div class="flex gap-2">
+          <button
+            class="rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 font-semibold text-gray-600 hover:bg-gray-200"
+            @click="emit('close')"
+          >
+            取消
+          </button>
+          <button
+            class="rounded-lg bg-primary px-4 py-2 font-semibold text-white shadow-lg hover:bg-secondary-700"
+            @click="confirmLocation"
+          >
+            確定選擇
+          </button>
+        </div>
       </footer>
     </div>
   </div>
 </template>
-
-<style scoped>
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  width: 90%;
-  max-width: 600px;
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.header,
-.footer {
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.search {
-  margin: 12px 16px;
-  padding: 8px 12px;
-}
-
-.map {
-  height: 360px;
-}
-
-.footer {
-  gap: 8px;
-}
-
-.confirm {
-  background: #2563eb;
-  color: white;
-}
-</style>
