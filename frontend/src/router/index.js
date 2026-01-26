@@ -242,18 +242,18 @@ router.beforeEach(async (to, from, next) => {
       return
     }
 
-    // 情況 2: Vendor 訪問自己的 VendorProfile → 導向 Dashboard
-    if (to.name === 'VendorProfile') {
-      const vendorId = userStore.currentUser.vendorId || userStore.currentUser.id
-      const targetId = to.params.id
-
-      // 如果訪問自己的廠商頁面，導向 Dashboard
-      if (targetId === vendorId) {
-        console.log('🔄 [Router] Vendor 訪問自己的頁面，導向 Dashboard')
-        next({ name: 'VendorDashboard' })
-        return
-      }
-    }
+    // ⚠️ 已註解：允許廠商查看自己的前台頁面
+    // 情況 2: Vendor 訪問自己的 VendorProfile → 不再自動導向 Dashboard
+    // if (to.name === 'VendorProfile') {
+    //   const vendorId = userStore.currentUser.vendorId || userStore.currentUser.id
+    //   const targetId = to.params.id
+    //   // 如果訪問自己的廠商頁面，導向 Dashboard
+    //   if (targetId === vendorId) {
+    //     console.log('🔄 [Router] Vendor 訪問自己的頁面，導向 Dashboard')
+    //     next({ name: 'VendorDashboard' })
+    //     return
+    //   }
+    // }
   }
 
   if (to.name === 'login' && userStore.isLoggedIn) {

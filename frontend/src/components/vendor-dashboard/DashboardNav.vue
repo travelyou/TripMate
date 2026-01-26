@@ -48,12 +48,30 @@
                 </p>
               </div>
               <div class="p-1 space-y-1">
-                <!-- 廠商後台專屬選單項目 -->
+                <!-- 廠商專屬選單項目 -->
                 <button
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
-                  @click="handleProfileClick"
+                  @click="goToVendorProfile"
                 >
-                  <UserIcon class="w-4 h-4 mr-3" />我的帳號
+                  <UserIcon class="w-4 h-4 mr-3" />廠商檔案
+                </button>
+                <button
+                  class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                  @click="goToVendorDashboard"
+                >
+                  <AwardIcon class="w-4 h-4 mr-3" />廠商後台
+                </button>
+                <button
+                  class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium lg:hidden"
+                  @click="goToFavorites"
+                >
+                  <HeartIcon class="w-4 h-4 mr-3" />我的最愛
+                </button>
+                <button
+                  class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium lg:hidden"
+                  @click="goToCollections"
+                >
+                  <BookmarkIcon class="w-4 h-4 mr-3" />我的收藏
                 </button>
                 <button
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
@@ -94,6 +112,9 @@ import {
   LogIn as LogInIcon,
   User as UserIcon,
   Info as InfoIcon,
+  Heart as HeartIcon,
+  Bookmark as BookmarkIcon,
+  Award as AwardIcon,
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -117,13 +138,29 @@ const goToLogin = () => {
   router.push('/login')
 }
 
-const handleProfileClick = () => {
+const goToVendorProfile = () => {
   closeMenu()
-  if (userStore.isLoggedIn) {
-    router.push('/profile')
+  const vendorId = userStore.currentUser?.vendorId || userStore.currentUser?.uid
+  if (vendorId) {
+    router.push({ name: 'VendorProfile', params: { id: vendorId } })
   } else {
-    router.push('/login')
+    router.push('/vendor/dashboard')
   }
+}
+
+const goToVendorDashboard = () => {
+  closeMenu()
+  // Already in dashboard, just close menu
+}
+
+const goToFavorites = () => {
+  closeMenu()
+  router.push({ name: 'favorites' })
+}
+
+const goToCollections = () => {
+  closeMenu()
+  router.push({ name: 'collections' })
 }
 
 const goToAbout = () => {

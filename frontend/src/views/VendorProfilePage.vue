@@ -116,8 +116,8 @@ const handlePageChange = (page) => {
     <VendorReviewModal
       :is-open="showReviewModal"
       :reviews="vendorReviews"
-      :average-rating="currentVendor?.rating"
-      :total-reviews="currentVendor?.reviewCount"
+      :average-rating="Number(currentVendor?.rating || 0)"
+      :total-reviews="Number(currentVendor?.reviewCount || 0)"
       @close="showReviewModal = false"
     />
   </div>
