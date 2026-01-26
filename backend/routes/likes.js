@@ -4,11 +4,10 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 const { createLikeNotification } = require('../utils/notifications')
-const { getUserInfo } = require('../utils/userInfo')
 
 router.post('/', async (req, res) => {
   try {
-    const { post_id, author_uid, board, author_name, author_avatar } = req.body
+    const { post_id, author_uid, board } = req.body
 
     if (!post_id || !author_uid || !board) {
       return res.status(400).json({
@@ -122,7 +121,6 @@ router.post('/', async (req, res) => {
     likesCount = parseInt(countResult.rows[0].count) || 0
 
     if (liked) {
-      console.log('[按讚通知] 開始處理通知邏輯，liked:', liked)
       try {
         let postQuery = ''
         if (board === 'discussion') {
@@ -131,45 +129,33 @@ router.post('/', async (req, res) => {
           postQuery = `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`
         }
 
-        console.log('[按讚通知] postQuery:', postQuery, 'postIdNum:', postIdNum)
-
         if (postQuery) {
           const postResult = await pool.query(postQuery, [postIdNum])
-          console.log('[按讚通知] 查詢結果，找到', postResult.rows.length, '筆資料')
 
           if (postResult.rows.length > 0) {
             const postAuthor = postResult.rows[0].author_uid
             const postTitle = postResult.rows[0].title
-            console.log('[按讚通知] postAuthor:', postAuthor, 'author_uid:', author_uid)
 
             if (postAuthor && postAuthor !== author_uid) {
-              console.log('[按讚通知] 開始創建通知')
-              console.log('[按讚通知] 傳入參數:', {
-                author_uid,
-                author_name,
-                author_avatar,
-                postAuthor,
-                postIdNum,
-                board,
-                postTitle,
-              })
+              let likerName = null
+              let likerAvatar = null
 
-              const likerInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
-              console.log('[按讚通知] getUserInfo 返回:', likerInfo)
+              try {
+                const userResult = await pool.query(
+                  `SELECT nickname, avatar FROM public.users WHERE uid = $1`,
+                  [author_uid]
+                )
 
-              let likerName = likerInfo.name
-              if (likerName === author_uid) {
-                likerName = '匿名用戶'
-                console.log('[按讚通知] name 等於 UID，使用匿名用戶')
+                if (userResult.rows.length > 0) {
+                  const user = userResult.rows[0]
+                  likerName = (user.nickname && user.nickname.trim() !== '') ? user.nickname : null
+                  likerAvatar = (user.avatar && user.avatar.trim() !== '') ? user.avatar : null
+                }
+              } catch (error) {
+                console.error('[按讚通知] 查詢用戶資訊失敗:', error.message)
               }
 
-              const likerAvatar = likerInfo.avatar || author_avatar || null
-              console.log('[按讚通知] 最終使用的資料:', {
-                likerName,
-                likerAvatar,
-              })
-
-              const notificationResult = await createLikeNotification({
+              await createLikeNotification({
                 user_uid: postAuthor,
                 post_id: postIdNum,
                 board,
@@ -178,7 +164,6 @@ router.post('/', async (req, res) => {
                 liker_avatar: likerAvatar,
                 post_title: postTitle,
               })
-              console.log('[按讚通知] 通知創建結果:', notificationResult)
             }
           }
         }
