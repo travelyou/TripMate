@@ -29,6 +29,7 @@ import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
 
 // [NEW] 引入名片設定組件
 import CardSettingsModal from '@/components/profile/card/CardSettingsModal.vue'
+import SettingsModal from '@/components/profile/SettingsModal.vue'
 
 const userStore = useUserStore()
 const personalityStore = usePersonalityStore()
@@ -121,6 +122,9 @@ const isCardSettingsOpen = ref(false)
 const isMatchingEnabled = ref(true)
 const friendRequestStatus = ref(null)
 
+// 設定 Modal 狀態
+const isSettingsOpen = ref(false)
+
 const hostedTravelers = ref([])
 const userPosts = ref([])
 const loading = ref(false)
@@ -152,6 +156,10 @@ const stats = computed(() => ({
 
 const openCardSettings = () => {
   isCardSettingsOpen.value = true
+}
+
+const openSettings = () => {
+  isSettingsOpen.value = true
 }
 
 const handleToggleMatching = async () => {
@@ -500,6 +508,7 @@ onMounted(() => {
       @chat="handleChat"
       @add-friend="handleAddFriend"
       @open-card-settings="openCardSettings"
+      @open-settings="openSettings"
     />
 
     <template v-if="!loading">
@@ -578,6 +587,13 @@ onMounted(() => {
       @close="isCardSettingsOpen = false"
       @toggle-matching="handleToggleMatching"
       @save="handleSaveCard"
+    />
+
+    <SettingsModal
+      v-if="isCurrentUser"
+      :is-open="isSettingsOpen"
+      :user="user"
+      @close="isSettingsOpen = false"
     />
 
     <FriendListModal

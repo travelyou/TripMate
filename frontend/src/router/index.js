@@ -21,6 +21,22 @@ const router = createRouter({
       },
     },
     {
+      path: '/tutorial',
+      name: 'tutorial',
+      component: () => import('@/views/TutorialPage.vue'),
+      meta: {
+        hideAd: true,
+      },
+    },
+    {
+      path: '/privacy',
+      name: 'privacy',
+      component: () => import('@/views/PrivacyPolicyPage.vue'),
+      meta: {
+        hideAd: true,
+      },
+    },
+    {
       path: '/discussion/:id?',
       name: 'discussion',
       component: () => import('@/views/DiscussionPage.vue'),
@@ -78,6 +94,15 @@ const router = createRouter({
       component: () => import('@/views/VendorProfilePage.vue'),
       meta: {
         hideAd: true,
+      },
+    },
+    {
+      path: '/vendor/register',
+      name: 'VendorRegister',
+      component: () => import('@/views/VendorRegisterPage.vue'),
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
       },
     },
     {

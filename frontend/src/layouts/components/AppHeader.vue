@@ -54,45 +54,91 @@
           <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-secondary-50" />
         </router-link>
 
-        <!-- 未登入時顯示登入/註冊按鈕 -->
-        <button
+        <div
           v-if="!userStore.isLoggedIn"
-          class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 hover:bg-primary-400 rounded-xl transition ml-1 whitespace-nowrap"
-          @click="goToLogin"
+          ref="loginMenuRef"
+          class="relative ml-1 group"
         >
-          <span class="hidden sm:inline">登入 / 註冊</span>
-          <span class="sm:hidden">登入</span>
-        </button>
-
-        <!-- 已登入時顯示頭像選單 -->
-        <div v-else ref="menuRef" class="relative ml-1 flex items-center gap-2">
-          <div class="relative">
           <button
-            class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm"
-            @click="toggleMenu"
+            class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 hover:bg-primary-400 rounded-xl transition whitespace-nowrap flex items-center gap-1"
+            @click="goToLogin"
           >
-            <img
-              v-if="userStore.userProfile.avatar"
-              :src="userStore.userProfile.avatar"
-              class="w-full h-full object-cover"
-              alt="User Avatar"
-            />
-            <UserIcon v-else class="w-6 h-6 text-gray-400" />
+            <span class="hidden sm:inline">登入 / 註冊</span>
+            <span class="sm:hidden">登入</span>
+            <svg
+              class="w-4 h-4 transition-transform group-hover:rotate-180"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </button>
+
+          <!-- Hover 下拉菜单 -->
+          <div
+            class="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-secondary-100 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+          >
+            <div class="p-1 space-y-1">
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-primary-600 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-bold"
+                @click="goToLogin"
+              >
+                <LogInIcon class="w-4 h-4 mr-3" />登入 / 註冊
+              </button>
+              <div class="h-px bg-secondary-100 my-1"></div>
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                @click="goToTutorial"
+              >
+                <BookIcon class="w-4 h-4 mr-3" />新手教學
+              </button>
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                @click="goToAbout"
+              >
+                <InfoIcon class="w-4 h-4 mr-3" />關於我們
+              </button>
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                @click="goToPrivacy"
+              >
+                <ShieldIcon class="w-4 h-4 mr-3" />隱私政策
+              </button>
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                @click="goToVendorRegister"
+              >
+                <StoreIcon class="w-4 h-4 mr-3" />註冊廠商
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else ref="menuRef" class="relative ml-1 flex items-center gap-2 group">
+          <div class="relative">
+            <button
+              class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm"
+            >
+              <img
+                v-if="userStore.userProfile.avatar"
+                :src="userStore.userProfile.avatar"
+                class="w-full h-full object-cover"
+                alt="User Avatar"
+              />
+              <UserIcon v-else class="w-6 h-6 text-gray-400" />
+            </button>
           </div>
 
-          <Transition
-            enter-active-class="transition-opacity transform duration-200"
-            enter-from-class="opacity-0 -translate-y-2"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition-opacity transform duration-200"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 -translate-y-2"
+          <!-- Hover 下拉菜单 -->
+          <div
+            class="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-secondary-100 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
           >
-            <div
-              v-if="isMenuOpen"
-              class="absolute right-0 top-full mt-4 w-56 bg-white rounded-xl shadow-xl border border-secondary-100 overflow-hidden z-50"
-            >
               <div class="p-3 border border-secondary-100">
                 <p class="text-xs font-bold text-secondary-700">
                   {{
@@ -101,7 +147,6 @@
                 </p>
               </div>
               <div class="p-1 space-y-1">
-                <!-- 一般使用者顯示 -->
                 <button
                   v-if="!userStore.isVendor"
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
@@ -110,7 +155,6 @@
                   <UserIcon class="w-4 h-4 mr-3" />我的帳號
                 </button>
 
-                <!-- 廠商顯示 -->
                 <template v-else>
                   <button
                     class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
@@ -127,6 +171,13 @@
                 </template>
 
                 <button
+                  class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                  @click="goToTutorial"
+                >
+                  <BookIcon class="w-4 h-4 mr-3" />新手教學
+                </button>
+
+                <button
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium lg:hidden"
                   @click="goToFavorites"
                 >
@@ -138,13 +189,23 @@
                 >
                   <BookmarkIcon class="w-4 h-4 mr-3" />我的收藏
                 </button>
+
                 <button
                   class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
                   @click="goToAbout"
                 >
                   <InfoIcon class="w-4 h-4 mr-3" />關於我們
                 </button>
+
+                <button
+                  class="w-full text-left px-3 py-2 text-sm text-secondary-700 hover:bg-primary hover:text-white rounded-lg flex items-center transition font-medium"
+                  @click="goToPrivacy"
+                >
+                  <ShieldIcon class="w-4 h-4 mr-3" />隱私政策
+                </button>
+
                 <div class="h-px bg-secondary-100 my-1"></div>
+
                 <button
                   v-if="userStore.isLoggedIn"
                   class="w-full text-left px-3 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg flex items-center transition font-bold"
@@ -161,11 +222,9 @@
                 </button>
               </div>
             </div>
-          </Transition>
         </div>
       </div>
     </div>
-    <div v-if="isMenuOpen" class="fixed inset-0 z-40 cursor-default" @click="closeMenu"></div>
   </header>
 </template>
 
@@ -185,6 +244,9 @@ import {
   Heart as HeartIcon,
   Bookmark as BookmarkIcon,
   Award as AwardIcon,
+  BookOpen as BookIcon,
+  Shield as ShieldIcon,
+  Store as StoreIcon,
 } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -195,15 +257,11 @@ const userStore = useUserStore()
 const headerSearchQuery = ref('')
 
 const goToVendorDashboard = () => {
-  closeMenu()
   router.push('/vendor/dashboard')
 }
 
 const goToVendorProfile = () => {
-  closeMenu()
   // 導向到自己的廠商檔案
-  // 需確保 userStore.currentUser.uid 存在，且後端有該 ID 的廠商資料
-  // 這裡假設廠商 ID = User UID (單一帳號制)
   const vendorId = userStore.currentUser?.uid
   if (vendorId) {
     router.push({ name: 'VendorProfile', params: { id: vendorId } })
@@ -225,24 +283,14 @@ const handleDesktopSearch = () => {
   headerSearchQuery.value = ''
 }
 
-const isMenuOpen = ref(false)
 const menuRef = ref(null)
-
-const toggleMenu = () => {
-  isMenuOpen.value = !isMenuOpen.value
-}
-
-const closeMenu = () => {
-  isMenuOpen.value = false
-}
+const loginMenuRef = ref(null)
 
 const goToLogin = () => {
-  closeMenu()
   router.push('/login')
 }
 
 const handleProfileClick = () => {
-  closeMenu()
   if (userStore.isLoggedIn) {
     router.push('/profile')
   } else {
@@ -250,19 +298,28 @@ const handleProfileClick = () => {
   }
 }
 
+const goToTutorial = () => {
+  router.push('/tutorial')
+}
+
 const goToFavorites = () => {
-  closeMenu()
   router.push({ name: 'favorites' })
 }
 
 const goToCollections = () => {
-  closeMenu()
   router.push({ name: 'collections' })
 }
 
 const goToAbout = () => {
-  closeMenu()
   router.push({ name: 'about' })
+}
+
+const goToPrivacy = () => {
+  router.push({ name: 'privacy' })
+}
+
+const goToVendorRegister = () => {
+  router.push({ name: 'VendorRegister' })
 }
 
 const goToSearchPage = () => {
@@ -273,9 +330,7 @@ const handleLogout = async () => {
   const confirmed = await showConfirm('確認要登出嗎？')
   if (confirmed) {
     userStore.logout()
-    closeMenu()
     router.push('/')
   }
 }
-
 </script>

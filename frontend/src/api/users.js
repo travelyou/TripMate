@@ -130,3 +130,32 @@ export async function getAllUsers({ limit = 100 } = {}) {
     return []
   }
 }
+
+// 刪除用戶帳號
+export async function deleteUserAccount(uid) {
+  const url = `${API_BASE_URL}/users/${uid}`
+
+  // 獲取 Firebase 認證 token
+  let token = null
+  if (auth.currentUser) {
+    try {
+      token = await auth.currentUser.getIdToken()
+    } catch (tokenError) {
+      console.warn('⚠️ 獲取 token 失敗:', tokenError)
+    }
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers,
+  })
+  if (!response.ok) throw new Error('刪除帳號失敗')
+  return await response.json()
+}

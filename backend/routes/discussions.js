@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
   console.log('🔵 [Backend GET /] ========== 開始 ==========')
 
   try {
-    const { page = 1, limit = 10, category, author_uid } = req.query
+    const { page = 1, limit = 10, category, author_uid, search } = req.query
     const offset = (page - 1) * limit
 
     let whereClause = 'd.deleted_at IS NULL'
@@ -26,6 +26,22 @@ router.get('/', async (req, res) => {
     if (category && category !== '全部') {
       whereClause += ` AND d.category = $${paramIndex}`
       queryParams.push(category)
+      paramIndex++
+    }
+
+    // 添加搜索功能：搜索标题、内容、标签
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`
+      whereClause += ` AND (
+        d.title ILIKE $${paramIndex}
+        OR d.content ILIKE $${paramIndex}
+        OR EXISTS (
+          SELECT 1 FROM unnest(d.tags) AS tag
+          WHERE tag ILIKE $${paramIndex}
+        )
+        OR d.author_name ILIKE $${paramIndex}
+      )`
+      queryParams.push(searchTerm)
       paramIndex++
     }
 
@@ -87,6 +103,22 @@ router.get('/', async (req, res) => {
       countParams.push(category)
       countParamIndex++
     }
+
+    // 添加搜索功能到总数查询
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`
+      countQuery += ` AND (
+        title ILIKE $${countParamIndex}
+        OR content ILIKE $${countParamIndex}
+        OR EXISTS (
+          SELECT 1 FROM unnest(tags) AS tag
+          WHERE tag ILIKE $${countParamIndex}
+        )
+        OR author_name ILIKE $${countParamIndex}
+      )`
+      countParams.push(searchTerm)
+      countParamIndex++
+    }
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
 
@@ -117,7 +149,7 @@ router.get('/', async (req, res) => {
 
       // 🔧 過濾掉無效的圖片 URL
       const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
-      const cleanImageUrls = Array.isArray(discussion.image_urls) 
+      const cleanImageUrls = Array.isArray(discussion.image_urls)
         ? discussion.image_urls.filter(url => isValidImageUrl(url))
         : []
 
