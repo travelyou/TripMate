@@ -58,6 +58,10 @@ const handlePostSuccess = async () => {
 }
 
 onMounted(async () => {
+  console.log('🔍 [Dashboard] 當前用戶:', userStore.currentUser)
+  console.log('🔍 [Dashboard] vendorId:', vendorId.value)
+  console.log('🔍 [Dashboard] role:', userStore.currentUser?.role)
+
   await vendorStore.fetchVendorProfile(vendorId.value)
   await Promise.all([
     vendorStore.fetchVendorItineraries(vendorId.value),
@@ -79,7 +83,12 @@ onMounted(async () => {
       />
 
       <main class="flex-1 overflow-auto">
-        <DashboardHeader v-if="currentVendor && !loading" :vendor="currentVendor" />
+        <DashboardHeader
+          v-if="currentVendor && !loading"
+          :vendor="currentVendor"
+          :itineraries="vendorStore.itineraries"
+          :posts="vendorStore.posts"
+        />
 
         <div class="p-8">
           <div v-if="loading" class="flex justify-center items-center h-96">

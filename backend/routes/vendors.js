@@ -12,52 +12,46 @@ function isUUID(str) {
 router.get('/:id', async (req, res) => {
   const { id } = req.params
 
-  // 防呆：如果 ID 不是 UUID (例如 'vendor001')，直接回傳假資料
-  if (!isUUID(id)) {
-    return res.json({
-      success: true,
-      data: {
-        id: id,
-        name: '環遊世界旅行社-123',
-        avatar: 'https://picsum.photos/200?random=vendor',
-        description:
-          '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。歡迎加入我們，一起發現世界的美好！',
-        isVerified: true,
-        rating: 5.0,
-        reviewCount: 99,
-      },
-    })
-  }
+  console.log('🔍 [Vendors] 取得廠商資料，ID:', id)
 
   try {
     const query = `
-      SELECT id, name, avatar, email, banner_image, description, is_verified, rating, review_count
-      FROM users
+      SELECT id, name, slogan, avatar, banner_image, is_banner_visible,
+             region_tags, description, rating, review_count, is_verified
+      FROM public.vendors
       WHERE id = $1
     `
+    console.log('🔍 [Vendors] 執行查詢:', query, '參數:', [id])
+
+    // Debug: 檢查表結構
+    try {
+      const structureQuery = `
+        SELECT column_name, data_type
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'vendors'
+      `
+      const structure = await pool.query(structureQuery)
+      console.log('🔍 [Vendors] public.vendors 表結構:', structure.rows)
+    } catch (e) {
+      console.log('⚠️ [Vendors] 無法查詢表結構:', e.message)
+    }
+
     const result = await pool.query(query, [id])
 
     if (result.rows.length === 0) {
-      // 找不到也回傳 Mock，避免前端壞掉
-      return res.json({
-        success: true,
-        data: {
-          id: id,
-          name: '環遊世界旅行社',
-          avatar: 'https://www.facebook.com/photo/?fbid=405309498285146&set=a.405309464951816',
-          description:
-            '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。歡迎加入我們，一起發現世界的美好！',
-          isVerified: false,
-          rating: 0,
-          reviewCount: 0,
-        },
+      console.log('⚠️ [Vendors] 找不到廠商，ID:', id)
+      return res.status(404).json({
+        success: false,
+        message: '找不到此廠商',
       })
     }
 
+    console.log('✅ [Vendors] 成功取得廠商資料:', result.rows[0])
     res.json({ success: true, data: result.rows[0] })
   } catch (err) {
-    console.error('查詢廠商失敗:', err)
-    res.status(500).json({ success: false, message: 'Server Error' })
+    console.error('❌ [Vendors] 查詢廠商失敗:', err)
+    console.error('❌ [Vendors] 錯誤詳情:', err.message)
+    res.status(500).json({ success: false, message: 'Server Error', error: err.message })
   }
 })
 
@@ -294,6 +288,7 @@ router.put('/:id', async (req, res) => {
     } = req.body
 
     console.log('📝 [Vendors] 更新廠商資料，ID:', id)
+    console.log('📝 [Vendors] 接收到的資料:', req.body)
 
     const updateFields = []
     const updateValues = []
@@ -331,6 +326,9 @@ router.put('/:id', async (req, res) => {
       RETURNING *
     `
 
+    console.log('🔍 [Vendors] SQL Query:', updateQuery)
+    console.log('🔍 [Vendors] SQL Values:', updateValues)
+
     const result = await pool.query(updateQuery, updateValues)
 
     if (result.rows.length === 0) {
@@ -349,6 +347,8 @@ router.put('/:id', async (req, res) => {
     })
   } catch (error) {
     console.error('❌ [Vendors] 更新廠商資料錯誤:', error)
+    console.error('❌ [Vendors] 錯誤詳情:', error.message)
+    console.error('❌ [Vendors] 錯誤堆疊:', error.stack)
     res.status(500).json({
       success: false,
       message: '更新廠商資料失敗',
