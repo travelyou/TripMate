@@ -102,8 +102,8 @@ router.post('/like', async (req, res) => {
 
       // 獲取雙方用戶資訊以創建通知
       const [userResult, targetResult] = await Promise.all([
-        pool.query('SELECT uid, nickname, real_name, avatar FROM users WHERE uid = $1', [uid]),
-        pool.query('SELECT uid, nickname, real_name, avatar FROM users WHERE uid = $1', [target_uid]),
+        pool.query('SELECT uid, nickname, real_name, avatar FROM public.users WHERE uid = $1', [uid]),
+        pool.query('SELECT uid, nickname, real_name, avatar FROM public.users WHERE uid = $1', [target_uid]),
       ])
 
       const user = userResult.rows[0]
