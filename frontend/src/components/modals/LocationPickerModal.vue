@@ -21,6 +21,7 @@ let map = null
 let marker = null
 let autocomplete = null
 let geocoder = null
+let placesService = null
 let sessionToken = null
 let geocodeTimeout = null
 
@@ -32,6 +33,7 @@ const clearMapResources = () => {
   map = null
   autocomplete = null
   geocoder = null
+  placesService = null
   sessionToken = null
 }
 
@@ -54,16 +56,47 @@ const geocodePosition = (latLng) => {
   const location =
     latLng.lat && typeof latLng.lat === 'function' ? latLng : { lat: latLng.lat, lng: latLng.lng }
 
-  geocoder.geocode({ location }, (results, status) => {
+  geocoder.geocode({ location }, async (results, status) => {
     if (status === 'OK' && results[0]) {
       const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
       const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
+      const topResult = results[0]
+      let placeName = ''
+
+      if (topResult.place_id && placesService) {
+        placeName = await new Promise((resolve) => {
+          placesService.getDetails(
+            {
+              placeId: topResult.place_id,
+              fields: ['name'],
+            },
+            (place, placeStatus) => {
+              if (placeStatus === 'OK' && place?.name) {
+                resolve(place.name)
+              } else {
+                resolve('')
+              }
+            },
+          )
+        })
+      }
+
+      if (!placeName) {
+        const poiComponent = topResult.address_components?.find((component) =>
+          component.types?.some((type) =>
+            ['point_of_interest', 'establishment', 'premise'].includes(type),
+          ),
+        )
+        placeName =
+          poiComponent?.long_name || topResult.name || topResult.formatted_address || '選定位置'
+      }
+
       setSelectedPlace({
-        name: results[0].address_components[0]?.long_name || '選定位置',
-        address: results[0].formatted_address,
+        name: placeName,
+        address: topResult.formatted_address || '',
         lat,
         lng,
-        placeId: results[0].place_id,
+        placeId: topResult.place_id || '',
       })
     }
   })
@@ -127,6 +160,9 @@ const initMap = async () => {
   })
 
   geocoder = new googleRef.maps.Geocoder()
+  if (googleRef.maps.places?.PlacesService) {
+    placesService = new googleRef.maps.places.PlacesService(map)
+  }
 
   if (props.initialLocation) {
     selectedPlace.value = props.initialLocation
