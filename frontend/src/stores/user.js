@@ -106,10 +106,16 @@ export const useUserStore = defineStore('user', () => {
 
     try {
       const targetUid = currentUser.value.uid || currentUser.value.id
+      let board = 'discussion'
+      if (itemType === 'traveler') {
+        board = 'traveler'
+      } else if (itemType === 'itinerary') {
+        board = 'itinerary'
+      }
       await axios.post(`${API_BASE_URL}/likes`, {
         post_id: item.id,
         author_uid: targetUid,
-        board: itemType === 'traveler' ? 'traveler' : 'discussion',
+        board: board,
       })
 
       await fetchFavorites()
