@@ -24,10 +24,23 @@ let geocoder = null
 let placesService = null
 let sessionToken = null
 let geocodeTimeout = null
+const geocodeCache = new Map()
+const GEO_CACHE_TTL = 10000
+const mapListeners = []
 
 const DEFAULT_CENTER = { lat: 25.033964, lng: 121.564468 }
 
 const clearMapResources = () => {
+  if (mapListeners.length > 0) {
+    mapListeners.forEach((listener) => {
+      if (listener?.remove) {
+        listener.remove()
+      } else if (googleRef?.maps?.event?.removeListener) {
+        googleRef.maps.event.removeListener(listener)
+      }
+    })
+    mapListeners.length = 0
+  }
   googleRef = null
   marker = null
   map = null
@@ -39,6 +52,30 @@ const clearMapResources = () => {
 
 const setSelectedPlace = ({ name, address, lat, lng, placeId }) => {
   selectedPlace.value = { name, address, lat, lng, placeId }
+}
+
+const getCacheKey = (lat, lng) => `${lat.toFixed(6)},${lng.toFixed(6)}`
+
+const getCachedPlace = (lat, lng) => {
+  const key = getCacheKey(lat, lng)
+  const cached = geocodeCache.get(key)
+  if (!cached) return null
+  if (Date.now() - cached.timestamp > GEO_CACHE_TTL) {
+    geocodeCache.delete(key)
+    return null
+  }
+  return cached.value
+}
+
+const setCachedPlace = (lat, lng, value) => {
+  const key = getCacheKey(lat, lng)
+  geocodeCache.set(key, { value, timestamp: Date.now() })
+}
+
+const addMapListener = (target, eventName, handler) => {
+  if (!target?.addListener) return
+  const listener = target.addListener(eventName, handler)
+  mapListeners.push(listener)
 }
 
 const debouncedGeocodePosition = (latLng) => {
@@ -56,10 +93,17 @@ const geocodePosition = (latLng) => {
   const location =
     latLng.lat && typeof latLng.lat === 'function' ? latLng : { lat: latLng.lat, lng: latLng.lng }
 
+  const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
+  const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+  const cached = getCachedPlace(lat, lng)
+  if (cached) {
+    setSelectedPlace(cached)
+    return
+  }
+
   geocoder.geocode({ location }, async (results, status) => {
     if (status === 'OK' && results[0]) {
-      const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
-      const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
       const poiResult = results.find((result) =>
         result.types?.some((type) =>
           ['point_of_interest', 'establishment', 'premise'].includes(type),
@@ -90,20 +134,26 @@ const geocodePosition = (latLng) => {
 
       if (!placeName && placesService) {
         const nearby = await new Promise((resolve) => {
-          placesService.nearbySearch(
-            {
-              location: { lat, lng },
-              rankBy: googleRef.maps.places.RankBy.DISTANCE,
-              type: 'establishment',
-            },
-            (resultsList, searchStatus) => {
-              if (searchStatus === 'OK' && resultsList?.length) {
-                resolve(resultsList[0])
-              } else {
-                resolve(null)
+          const supportsRankBy = googleRef?.maps?.places?.RankBy?.DISTANCE
+          const searchOptions = supportsRankBy
+            ? {
+                location: { lat, lng },
+                rankBy: googleRef.maps.places.RankBy.DISTANCE,
+                type: 'establishment',
               }
-            },
-          )
+            : {
+                location: { lat, lng },
+                radius: 80,
+                type: 'establishment',
+              }
+
+          placesService.nearbySearch(searchOptions, (resultsList, searchStatus) => {
+            if (searchStatus === 'OK' && resultsList?.length) {
+              resolve(resultsList[0])
+            } else {
+              resolve(null)
+            }
+          })
         })
 
         if (nearby?.name) {
@@ -123,13 +173,15 @@ const geocodePosition = (latLng) => {
           poiComponent?.long_name || topResult.name || topResult.formatted_address || '選定位置'
       }
 
-      setSelectedPlace({
+      const placeData = {
         name: placeName,
         address: resolvedAddress,
         lat,
         lng,
         placeId: resolvedPlaceId,
-      })
+      }
+      setSelectedPlace(placeData)
+      setCachedPlace(lat, lng, placeData)
     }
   })
 }
@@ -171,6 +223,11 @@ const initAutocomplete = async () => {
 }
 
 const initMap = async () => {
+  if (!mapRef.value) {
+    await nextTick()
+  }
+  if (!mapRef.value) return
+
   googleRef = await loadGoogleMaps()
 
   await googleRef.maps.importLibrary('maps')
@@ -200,12 +257,12 @@ const initMap = async () => {
     selectedPlace.value = props.initialLocation
   }
 
-  marker.addListener('dragend', () => {
+  addMapListener(marker, 'dragend', () => {
     const position = marker.getPosition()
     if (position) debouncedGeocodePosition(position)
   })
 
-  map.addListener('click', (e) => {
+  addMapListener(map, 'click', (e) => {
     marker.setPosition(e.latLng)
     debouncedGeocodePosition(e.latLng)
   })
