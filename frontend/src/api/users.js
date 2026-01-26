@@ -62,7 +62,7 @@ export async function createOrUpdateUser(userData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     })
-
+    
     if (!response.ok) {
       let errorMessage = `創建/更新用戶失敗 (${response.status})`
       try {
@@ -71,7 +71,7 @@ export async function createOrUpdateUser(userData) {
       } catch {
         errorMessage = `${errorMessage}: ${response.statusText}`
       }
-
+      
       const error = new Error(errorMessage)
       error.response = {
         status: response.status,
@@ -80,7 +80,7 @@ export async function createOrUpdateUser(userData) {
       }
       throw error
     }
-
+    
     const data = await response.json()
     return data.data || data
   } catch (error) {

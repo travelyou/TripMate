@@ -358,15 +358,15 @@ router.post('/:id/applications', async (req, res) => {
         `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`,
         [id]
       )
-      
+
       if (travelerResult.rows.length > 0) {
         const travelerAuthor = travelerResult.rows[0].author_uid
         const travelerTitle = travelerResult.rows[0].title
-        
+
         if (travelerAuthor && travelerAuthor !== author_uid) {
           const applicantInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
           const applicantAvatar = applicantInfo.avatar || author_avatar
-          
+
           await createTravelerApplicationNotification({
             user_uid: travelerAuthor,
             traveler_id: id,
@@ -559,6 +559,78 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
     res.status(500).json({ success: false, message: '接受報名失敗', error: error.message })
   } finally {
     client.release()
+  }
+})
+
+router.post('/group-chat-rooms', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+
+    const { user_uid, name, member_uids } = req.body
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: '群組名稱不能為空' })
+    }
+    if (!Array.isArray(member_uids) || member_uids.length === 0) {
+      return res.status(400).json({ success: false, message: '至少需要選擇一個好友' })
+    }
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      const roomResult = await client.query(
+        `INSERT INTO chat.group_chat_rooms (traveler_id, name, created_by)
+         VALUES (NULL, $1, $2)
+         RETURNING id, name, avatar, created_by, created_at`,
+        [name.trim(), user_uid]
+      )
+
+      const room = roomResult.rows[0]
+
+      await client.query(
+        `INSERT INTO chat.group_chat_members (room_id, user_uid)
+         VALUES ($1, $2)
+         ON CONFLICT (room_id, user_uid) DO NOTHING`,
+        [room.id, user_uid]
+      )
+
+      for (const memberUid of member_uids) {
+        if (memberUid !== user_uid) {
+          await client.query(
+            `INSERT INTO chat.group_chat_members (room_id, user_uid)
+             VALUES ($1, $2)
+             ON CONFLICT (room_id, user_uid) DO NOTHING`,
+            [room.id, memberUid]
+          )
+        }
+      }
+
+      await client.query('COMMIT')
+
+      res.json({
+        success: true,
+        data: {
+          id: room.id,
+          name: room.name,
+          avatar: room.avatar,
+          created_by: room.created_by,
+          created_at: room.created_at,
+          traveler_id: null,
+        },
+        message: '群組聊天室創建成功',
+      })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error) {
+    console.error('創建群組聊天室失敗:', error)
+    res.status(500).json({ success: false, message: '創建群組聊天室失敗', error: error.message })
   }
 })
 

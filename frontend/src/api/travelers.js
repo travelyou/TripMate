@@ -78,7 +78,6 @@ export const deleteTraveler = async (id) => {
   }
 }
 
-// 提交報名
 export const submitApplication = async (travelerId, message) => {
   try {
     const { auth } = await import('@/firebase/config')
@@ -101,7 +100,6 @@ export const submitApplication = async (travelerId, message) => {
   }
 }
 
-// 獲取報名列表（作者）
 export const getApplications = async (travelerId) => {
   try {
     const { auth } = await import('@/firebase/config')
@@ -118,7 +116,6 @@ export const getApplications = async (travelerId) => {
   }
 }
 
-// 接受报名
 export const acceptApplication = async (travelerId, applicationId) => {
   try {
     const { auth } = await import('@/firebase/config')
@@ -136,8 +133,42 @@ export const acceptApplication = async (travelerId, applicationId) => {
   }
 }
 
-// 拒绝报名
-// 獲取用戶的群組聊天室列表
+export const rejectApplication = async (travelerId, applicationId) => {
+  try {
+    const { auth } = await import('@/firebase/config')
+    const user = auth.currentUser
+    if (!user) throw new Error('請先登入')
+
+    const response = await axios.post(
+      `${API_BASE_URL}/travelers/${travelerId}/applications/${applicationId}/reject`,
+      { user_uid: user.uid },
+    )
+    return response.data
+  } catch (error) {
+    console.error('拒絕報名失敗：', error)
+    throw error
+  }
+}
+
+export const createGroupChatRoom = async (name, memberUids) => {
+  const userStore = useUserStore()
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    throw new Error('User not logged in.')
+  }
+  try {
+    const response = await axios.post(`${API_BASE_URL}/travelers/group-chat-rooms`, {
+      user_uid: currentUid,
+      name,
+      member_uids: memberUids,
+    })
+    return response.data
+  } catch (error) {
+    console.error('創建群組聊天室失敗：', error)
+    throw error
+  }
+}
+
 export const getGroupChatRooms = async () => {
   const userStore = useUserStore()
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
@@ -231,21 +262,4 @@ export const updateGroupChatRoom = async (roomId, payload = {}) => {
     { user_uid: currentUid, ...payload },
   )
   return response.data
-}
-
-export const rejectApplication = async (travelerId, applicationId) => {
-  try {
-    const { auth } = await import('@/firebase/config')
-    const user = auth.currentUser
-    if (!user) throw new Error('請先登入')
-
-    const response = await axios.post(
-      `${API_BASE_URL}/travelers/${travelerId}/applications/${applicationId}/reject`,
-      { user_uid: user.uid },
-    )
-    return response.data
-  } catch (error) {
-    console.error('拒絕報名失敗：', error)
-    throw error
-  }
 }

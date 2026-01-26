@@ -45,6 +45,10 @@ const isSavingGroupAvatar = ref(false)
 const memberActionLoading = ref(new Set())
 const isGroupAvatarCropOpen = ref(false)
 const groupAvatarFileToCrop = ref(null)
+const showCreateGroupModal = ref(false)
+const groupNameInput = ref('')
+const selectedFriends = ref([])
+const isCreatingGroup = ref(false)
 
 // 訊息列表（根據當前聊天室）
 const messages = ref([])
@@ -512,6 +516,84 @@ const handleRemoveGroupMember = async (member) => {
     alert('移除群組成員失敗，請稍後再試')
   } finally {
     setMemberActionLoading(member.user_uid, false)
+  }
+}
+
+const openCreateGroupModal = () => {
+  showCreateGroupModal.value = true
+  groupNameInput.value = ''
+  selectedFriends.value = []
+}
+
+const closeCreateGroupModal = () => {
+  showCreateGroupModal.value = false
+  groupNameInput.value = ''
+  selectedFriends.value = []
+}
+
+const toggleFriendSelection = (friend) => {
+  const friendUid = friend.uid || friend.id
+  const index = selectedFriends.value.findIndex((f) => (f.uid || f.id) === friendUid)
+  if (index >= 0) {
+    selectedFriends.value.splice(index, 1)
+  } else {
+    selectedFriends.value.push(friend)
+  }
+}
+
+const isFriendSelected = (friend) => {
+  const friendUid = friend.uid || friend.id
+  return selectedFriends.value.some((f) => (f.uid || f.id) === friendUid)
+}
+
+const createGroupChat = async () => {
+  if (!groupNameInput.value.trim()) {
+    alert('請輸入群組名稱')
+    return
+  }
+  if (selectedFriends.value.length === 0) {
+    alert('請至少選擇一個好友')
+    return
+  }
+
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    alert('請先登入')
+    return
+  }
+
+  isCreatingGroup.value = true
+  try {
+    const { createGroupChatRoom } = await import('@/api/travelers')
+    const memberUids = selectedFriends.value.map((f) => f.uid || f.id)
+    const response = await createGroupChatRoom(groupNameInput.value.trim(), memberUids)
+
+    if (response?.success && response.data) {
+      await loadGroupChatRooms()
+
+      const newRoom = {
+        type: 'group',
+        uid: `group-${response.data.id}`,
+        roomId: response.data.id,
+        name: response.data.name,
+        avatar: response.data.avatar || '',
+        messages: [],
+      }
+      activeChatRoom.value = newRoom
+      activeTab.value = 'chatrooms'
+      await loadGroupChatHistory(response.data.id)
+      startGroupMessagePolling(response.data.id)
+      scrollToBottom()
+
+      closeCreateGroupModal()
+    } else {
+      alert('創建群組失敗：' + (response?.message || '未知錯誤'))
+    }
+  } catch (error) {
+    console.error('創建群組失敗：', error)
+    alert('創建群組失敗：' + (error.message || '未知錯誤'))
+  } finally {
+    isCreatingGroup.value = false
   }
 }
 
@@ -1779,6 +1861,15 @@ onUnmounted(() => {
         >
           <ArrowLeftIcon class="w-5 h-5" />
         </button>
+        <!-- 創建群組按鈕（在頭像左邊） -->
+        <button
+          v-if="activeChatRoom && activeChatRoom.type === 'chat'"
+          class="p-1 hover:bg-primary-600 rounded-full transition"
+          title="建立群組聊天"
+          @click.stop="openCreateGroupModal"
+        >
+          <PlusIcon class="w-5 h-5" />
+        </button>
         <button
           v-if="activeChatRoom && activeChatRoom.type === 'chat'"
           class="flex-shrink-0"
@@ -1867,6 +1958,15 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <!-- 創建群組按鈕（在聊天室列表視圖時顯示） -->
+        <button
+          v-if="!activeChatRoom"
+          class="p-1 hover:bg-primary-600 rounded-full transition"
+          title="建立群組聊天"
+          @click.stop="openCreateGroupModal"
+        >
+          <PlusIcon class="w-6 h-6" />
+        </button>
         <button
           v-if="activeChatRoom && activeChatRoom.type === 'group'"
           class="p-1 hover:bg-primary-600 rounded-full transition relative"
@@ -1877,7 +1977,7 @@ onUnmounted(() => {
         </button>
         <!-- 好友請求列表按鈕 -->
         <div
-          v-else
+          v-if="!activeChatRoom || activeChatRoom.type === 'chat'"
           ref="friendRequestsListContainer"
           class="relative friend-requests-list-container"
         >
@@ -2570,6 +2670,127 @@ onUnmounted(() => {
       @close="isGroupAvatarCropOpen = false"
       @crop="handleGroupAvatarCrop"
     />
+
+    <!-- 創建群組聊天室 Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showCreateGroupModal"
+          class="fixed inset-0 z-[9998] bg-black/60 flex items-center justify-center p-4"
+          @click="closeCreateGroupModal"
+        >
+          <div
+            class="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden border-2 border-primary-200 shadow-2xl flex flex-col"
+            @click.stop
+          >
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-primary-50">
+              <div>
+                <h3 class="font-bold text-primary-700">建立群組聊天</h3>
+                <p class="text-xs text-gray-500">選擇好友並建立群組聊天室</p>
+              </div>
+              <button
+                class="p-2 rounded-full hover:bg-primary-100 transition"
+                title="關閉"
+                @click="closeCreateGroupModal"
+              >
+                <XIcon class="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+              <!-- 群組名稱輸入 -->
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">群組名稱</label>
+                <input
+                  v-model="groupNameInput"
+                  type="text"
+                  placeholder="輸入群組名稱..."
+                  maxlength="30"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+
+              <!-- 好友列表 -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label class="block text-sm font-bold text-gray-700">選擇好友</label>
+                  <span class="text-xs text-gray-500">{{ selectedFriends.length }} 位已選擇</span>
+                </div>
+                <div v-if="friends.length === 0" class="text-center text-gray-400 text-sm py-8">
+                  還沒有加任何好友喔！
+                </div>
+                <div v-else class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                  <div
+                    v-for="friend in friends"
+                    :key="friend.id || friend.uid"
+                    class="flex items-center gap-3 p-3 border rounded-xl transition cursor-pointer"
+                    :class="
+                      isFriendSelected(friend)
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-gray-100 bg-white hover:border-primary-200'
+                    "
+                    @click="toggleFriendSelection(friend)"
+                  >
+                    <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-100 flex-shrink-0 flex items-center justify-center">
+                      <img
+                        v-if="friend.avatar && friend.avatar.trim() && !avatarErrors[friend.id || friend.uid]"
+                        :src="friend.avatar"
+                        :alt="friend.name || friend.nickname"
+                        class="w-full h-full object-cover"
+                        @error="avatarErrors[friend.id || friend.uid] = true"
+                      />
+                      <UserIcon v-else class="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-sm text-gray-800 truncate">
+                        {{ friend.name || friend.nickname || '未知用戶' }}
+                      </div>
+                      <div class="text-xs text-gray-500 truncate">
+                        @{{ friend.nickname || friend.name || 'user' }}
+                      </div>
+                    </div>
+                    <div
+                      v-if="isFriendSelected(friend)"
+                      class="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0"
+                    >
+                      <CheckIcon class="w-3 h-3 text-white" />
+                    </div>
+                    <div
+                      v-else
+                      class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
+              <button
+                class="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                @click="closeCreateGroupModal"
+              >
+                取消
+              </button>
+              <button
+                class="px-4 py-2 text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="!groupNameInput.trim() || selectedFriends.length === 0 || isCreatingGroup"
+                @click="createGroupChat"
+              >
+                <span v-if="isCreatingGroup">建立中...</span>
+                <span v-else>建立群組</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
