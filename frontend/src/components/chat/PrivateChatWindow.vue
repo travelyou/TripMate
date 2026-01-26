@@ -1886,7 +1886,7 @@ onUnmounted(() => {
             title="好友邀請"
             @click.stop="toggleFriendRequestsList"
           >
-            <PlusIcon class="w-6 h-6" />
+            <UserIcon class="w-6 h-6" />
             <!-- 未讀邀請數量提示 -->
             <span
               v-if="friendRequests.received && friendRequests.received.length > 0"

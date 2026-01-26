@@ -207,6 +207,11 @@ const loadFullPostDetails = async () => {
     localPostData.value = {
       ...localPostData.value,
       ...postData,
+      // 確保作者名稱和頭像字段正確映射
+      author: postData.author_name || postData.author || localPostData.value.author,
+      authorName: postData.author_name || postData.authorName || localPostData.value.authorName,
+      avatar: postData.author_avatar || postData.avatar || localPostData.value.avatar,
+      authorAvatar: postData.author_avatar || postData.authorAvatar || localPostData.value.authorAvatar,
       comments: postData.commentsData || postData.comments || [],
       commentsData: postData.commentsData || postData.comments || [],
     }
@@ -502,15 +507,16 @@ onUnmounted(() => {
             <div class="flex items-center space-x-3 mb-4">
               <img
                 :src="
+                  localPostData.author_avatar ||
                   localPostData.authorAvatar ||
                   localPostData.avatar ||
-                  'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${localPostData.author_uid || 'default'}`
                 "
                 class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
               />
               <div>
                 <div class="font-bold text-secondary-900">
-                  {{ localPostData.authorName || localPostData.author || '匿名用戶' }}
+                  {{ localPostData.author_name || localPostData.authorName || localPostData.author || '匿名用戶' }}
                 </div>
                 <div class="text-sm text-secondary-500">
                   {{ formatTime(localPostData.time) }}

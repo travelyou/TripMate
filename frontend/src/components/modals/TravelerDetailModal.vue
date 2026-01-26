@@ -62,6 +62,7 @@ const commentInputRef = ref(null)
 const commentsSectionRef = ref(null)
 const contentContainerRef = ref(null)
 const localComments = ref([])
+const replyTarget = ref(null)
 const applications = ref([])
 const isLoadingApplications = ref(false)
 const processingIds = ref(new Set())
@@ -130,9 +131,52 @@ const activeDay = computed(() => {
   return itineraryData.value.days[activeDayIndex.value] || { activities: [] }
 })
 
+const buildCommentThreads = (comments = []) => {
+  if (!Array.isArray(comments)) return []
+  if (comments.some((comment) => Array.isArray(comment.replies))) return comments
+
+  const map = new Map()
+  comments.forEach((comment) => {
+    if (!comment) return
+    map.set(comment.id, {
+      id: comment.id,
+      author:
+        comment.author_nickname ||
+        comment.author_name ||
+        comment.author ||
+        comment.author_uid ||
+        '匿名用戶',
+      author_uid: comment.author_uid,
+      avatar:
+        comment.author_avatar ||
+        comment.avatar ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+      content: comment.content,
+      time: comment.created_at || comment.timestamp || comment.time,
+      likes: comment.likes_count || comment.likes || 0,
+      isLiked: comment.isLiked || false,
+      parent_comment_id: comment.parent_comment_id || null,
+      replies: [],
+    })
+  })
+
+  const roots = []
+  map.forEach((comment) => {
+    if (comment.parent_comment_id && map.has(comment.parent_comment_id)) {
+      map.get(comment.parent_comment_id).replies.push(comment)
+    } else {
+      roots.push(comment)
+    }
+  })
+  return roots
+}
+
 const normalizedComments = computed(() => {
-  if (localComments.value.length > 0) return localComments.value
-  return localTravelerData.value.commentsData || []
+  if (localComments.value.length > 0) {
+    return buildCommentThreads(localComments.value)
+  }
+  const commentsData = localTravelerData.value.commentsData || []
+  return buildCommentThreads(commentsData)
 })
 
 const totalCommentCount = computed(() => {
@@ -237,7 +281,9 @@ const fetchFullTravelerDetails = async () => {
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
           content: comment.content,
           time: comment.created_at || comment.timestamp || comment.time,
-          likes: comment.likes || 0,
+          likes: comment.likes_count || comment.likes || 0,
+          isLiked: comment.isLiked || false,
+          parent_comment_id: comment.parent_comment_id || null,
           replies: comment.replies || [],
         }))
       } else {
@@ -412,26 +458,28 @@ const submitComment = async () => {
       board: 'traveler',
       author_name: userStore.currentUser?.name || userStore.currentUser?.nickname || '匿名用戶',
       author_avatar: userStore.currentUser?.avatar || null,
+      parent_comment_id: replyTarget.value?.id || null,
     })
-    localComments.value = [
-      {
-        id: Date.now(),
-        author: userStore.currentUser?.name || userStore.currentUser?.nickname || '我',
-        avatar:
-          userStore.currentUser?.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserUid.value}`,
-        content: content,
-        time: '剛剛',
-        likes: 0,
-        isLiked: false,
-        replies: [],
-      },
-      ...localComments.value,
-    ]
+    
+    // 重新載入完整資料以獲取最新的留言和回覆
+    await fetchFullTravelerDetails()
+    
     newComment.value = ''
+    replyTarget.value = null
+    await nextTick()
+    commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (error) {
     console.error(error)
   }
+}
+
+const startReply = async (comment) => {
+  if (!comment) return
+  replyTarget.value = comment
+  const displayName = comment.author || comment.author_nickname || comment.author_name || '匿名用戶'
+  newComment.value = `@${displayName} `
+  await nextTick()
+  commentInputRef.value?.focus()
 }
 
 const getIconComponent = (iconName) => {
@@ -495,7 +543,8 @@ const itemData = computed(() => ({
 onMounted(async () => {
   if (props.traveler) {
     likesCount.value = props.traveler.likes || 0
-    localComments.value = props.traveler.commentsData || []
+    const initialComments = props.traveler.commentsData || []
+    localComments.value = buildCommentThreads(initialComments)
     if (currentUserUid.value && props.traveler?.id) {
       seedLikeState(props.traveler.id, currentUserUid.value, 'traveler', {
         liked: !!props.traveler.isLiked,
@@ -1108,7 +1157,7 @@ onUnmounted(() => {
                       <div class="flex items-center space-x-4 text-xs text-secondary-500">
                         <button
                           class="flex items-center space-x-1 hover:text-accent-600 transition"
-                          @click="toggleCommentLike(comment)"
+                          @click.stop="toggleCommentLike(comment)"
                         >
                           <HeartIcon
                             :class="[
@@ -1117,12 +1166,22 @@ onUnmounted(() => {
                             ]"
                           /><span>{{ comment.likes || 0 }}</span>
                         </button>
+                        <button
+                          class="flex items-center space-x-1 hover:text-primary-600 transition"
+                          @click.stop="startReply(comment)"
+                        >
+                          <MessageCircleIcon class="w-3 h-3" /><span>回覆</span>
+                        </button>
                       </div>
                       <div
                         v-if="comment.replies && comment.replies.length"
                         class="mt-3 pl-4 border-l-2 border-primary-200 space-y-2"
                       >
-                        <div v-for="reply in comment.replies" :key="reply.id">
+                        <div
+                          v-for="reply in comment.replies"
+                          :key="reply.id"
+                          class="bg-white p-2 rounded-lg border border-secondary-100"
+                        >
                           <div class="flex items-start space-x-2">
                             <img :src="reply.avatar" class="w-7 h-7 rounded-full object-cover" />
                             <div class="flex-1">
@@ -1133,6 +1192,25 @@ onUnmounted(() => {
                                 formatTime(reply.time)
                               }}</span>
                               <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
+                              <div class="mt-1 flex items-center space-x-3 text-xs text-secondary-500">
+                                <button
+                                  class="flex items-center space-x-1 hover:text-accent-600 transition"
+                                  @click.stop="toggleCommentLike(reply)"
+                                >
+                                  <HeartIcon
+                                    :class="[
+                                      'w-2.5 h-2.5',
+                                      reply.isLiked ? 'fill-current text-accent-600' : '',
+                                    ]"
+                                  /><span>{{ reply.likes || 0 }}</span>
+                                </button>
+                                <button
+                                  class="flex items-center space-x-1 hover:text-primary-600 transition"
+                                  @click.stop="startReply(comment)"
+                                >
+                                  <MessageCircleIcon class="w-2.5 h-2.5" /><span>回覆</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1160,22 +1238,40 @@ onUnmounted(() => {
           <p class="text-gray-600 font-bold mb-1">此招募已結束</p>
           <p class="text-gray-500 text-sm">日期已過期，無法再留言</p>
         </div>
-        <div v-else-if="userStore.isLoggedIn && currentUserUid" class="flex space-x-3">
-          <input
-            ref="commentInputRef"
-            v-model="newComment"
-            type="text"
-            placeholder="發表你的看法..."
-            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400"
-            @keyup.enter="submitComment"
-          />
-          <button
-            :disabled="!newComment.trim()"
-            class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
-            @click="submitComment"
+        <div v-else-if="userStore.isLoggedIn && currentUserUid" class="space-y-3">
+          <div
+            v-if="replyTarget"
+            class="flex items-center justify-between rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-700"
           >
-            <SendIcon class="w-5 h-5" />
-          </button>
+            <span
+              >回覆 @{{
+                replyTarget.author || replyTarget.author_nickname || replyTarget.author_name
+              }}</span
+            >
+            <button
+              class="p-1 rounded-full hover:bg-primary-100 transition"
+              @click="replyTarget = null"
+            >
+              <XIcon class="w-4 h-4" />
+            </button>
+          </div>
+          <div class="flex space-x-3">
+            <input
+              ref="commentInputRef"
+              v-model="newComment"
+              type="text"
+              placeholder="發表你的看法..."
+              class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400"
+              @keyup.enter="submitComment"
+            />
+            <button
+              :disabled="!newComment.trim()"
+              class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
+              @click="submitComment"
+            >
+              <SendIcon class="w-5 h-5" />
+            </button>
+          </div>
         </div>
         <div
           v-else
