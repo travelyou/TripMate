@@ -57,16 +57,11 @@ function normalizeUserData(data) {
 // 創建或更新用戶資料
 export async function createOrUpdateUser(userData) {
   try {
-    const url = `${API_BASE_URL}/users`
-    console.log('📤 [createOrUpdateUser] 請求 URL:', url)
-    console.log('📤 [createOrUpdateUser] 請求資料：', JSON.stringify(userData, null, 2))
-    const response = await fetch(url, {
+    const response = await fetch(`${API_BASE_URL}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     })
-    console.log('📥 [createOrUpdateUser] 回應狀態:', response.status, response.statusText)
-    console.log('📥 [createOrUpdateUser] 回應 URL:', response.url)
 
     if (!response.ok) {
       let errorMessage = `創建/更新用戶失敗 (${response.status})`
@@ -87,14 +82,7 @@ export async function createOrUpdateUser(userData) {
     }
 
     const data = await response.json()
-    console.log('📥 [createOrUpdateUser] 原始回應：', data)
-    console.log('📥 [createOrUpdateUser] 回應的鍵：', Object.keys(data))
-    console.log('📥 [createOrUpdateUser] data.data：', data.data)
-    console.log('📥 [createOrUpdateUser] data.data 的鍵：', data.data ? Object.keys(data.data) : '無 data.data')
-    const result = data.data || data
-    console.log('📥 [createOrUpdateUser] 最終返回：', result)
-    console.log('📥 [createOrUpdateUser] 最終返回的鍵：', Object.keys(result))
-    return result
+    return data.data || data
   } catch (error) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       const networkError = new Error(`無法連接到伺服器：${API_BASE_URL}/users`)
@@ -142,15 +130,6 @@ export async function updateUserProfile(uid, userData) {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
-
-  console.log('📤 發送更新請求:', {
-    url,
-    method: 'PUT',
-    uid,
-    userData,
-    hasToken: !!token,
-    headers
-  })
 
   const response = await fetch(url, {
     method: 'PUT',

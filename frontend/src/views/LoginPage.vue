@@ -471,15 +471,8 @@ const handleRegister = async () => {
     let userCredential = null
     let userData = null
 
-    // 確保 role 正確設置（vendor 或 user）
     const selectedRole = registerForm.value.role
     const finalRole = (selectedRole === 'vendor' || selectedRole === 'user') ? selectedRole : 'user'
-
-    console.log('📝 註冊資訊：', {
-      selectedRole: selectedRole,
-      finalRole: finalRole,
-      registerFormRole: registerForm.value.role
-    })
 
     try {
       // 先創建Firebase用戶
@@ -507,7 +500,6 @@ const handleRegister = async () => {
       const vendorId = null
 
       try {
-        // 準備傳遞給 Neon 的資料（確保空字串轉為 null）
         const neonUserData = {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
@@ -520,48 +512,28 @@ const handleRegister = async () => {
           vendor_id: vendorId || null,
         }
 
-        console.log('📤 準備同步到 Neon 的資料：', JSON.stringify(neonUserData, null, 2))
-        console.log('📤 資料類型檢查：', {
-          nickname: { value: neonUserData.nickname, type: typeof neonUserData.nickname },
-          real_name: { value: neonUserData.real_name, type: typeof neonUserData.real_name },
-          role: { value: neonUserData.role, type: typeof neonUserData.role }
-        })
-
-        // 驗證 Neon 同步是否成功
         const neonResponse = await createOrUpdateUser(neonUserData)
 
-        console.log('✅ Neon 同步成功，返回的 role:', neonResponse?.role)
-        console.log('✅ Neon 完整回應：', neonResponse)
-        console.log('✅ Neon 回應的鍵：', neonResponse ? Object.keys(neonResponse) : '無回應')
-
-        // 驗證 Neon 中確實有該用戶（雙重檢查）
         if (!neonResponse || !neonResponse.uid) {
           throw new Error('Neon 資料庫未成功創建用戶資料')
         }
 
-        // 驗證關鍵欄位是否存在
         if (!neonResponse.role) {
-          console.warn('⚠️ Neon 回應中缺少 role，等待後重試查詢...')
-          // 等待一小段時間後重新查詢
           await new Promise(resolve => setTimeout(resolve, 1000))
           try {
             const retryResponse = await createOrUpdateUser(neonUserData)
-            console.log('🔄 重試後的 Neon 回應：', retryResponse)
             if (retryResponse && retryResponse.role) {
               Object.assign(neonResponse, retryResponse)
             }
-          } catch (retryError) {
-            console.warn('⚠️ 重試查詢失敗，但繼續流程:', retryError)
+          } catch {
+            // 重試失敗，繼續流程
           }
         }
 
         neonUserCreated = true
         userStore.markAsRecentlyRegistered(userCredential.user.uid)
-        console.log('✅ 註冊成功：Firebase 和 Neon 都已同步')
       } catch (syncError) {
-        console.error('❌ 同步到 Neon 資料庫失敗，開始回滾 Firebase：', syncError)
-
-        // 回滾：刪除Firebase用戶和Firestore資料
+        console.error('同步到 Neon 資料庫失敗，開始回滾 Firebase：', syncError)
         let rollbackErrors = []
 
         try {
@@ -584,8 +556,7 @@ const handleRegister = async () => {
 
         // 如果有回滾錯誤，記錄警告
         if (rollbackErrors.length > 0) {
-          console.warn('⚠️ 回滾過程中發生錯誤：', rollbackErrors.join(', '))
-          console.warn('⚠️ 請手動檢查並清理 Firebase 中的用戶資料：', userCredential.user.uid)
+          console.warn('回滾過程中發生錯誤：', rollbackErrors.join(', '))
         }
 
         // 檢查是否是 404 錯誤（API 端點不存在）
@@ -617,15 +588,12 @@ const handleRegister = async () => {
         throw new Error('註冊失敗：資料同步到資料庫失敗。所有資料已回滾。' + (errorMessage ? ` (${errorMessage})` : ''))
       }
     } catch (error) {
-      // 如果Neon同步失敗且Firebase用戶已創建，確保已回滾
       if (userCredential && !neonUserCreated) {
-        // 已經在上面嘗試回滾了，這裡只是記錄
         console.error('註冊流程失敗，已嘗試回滾 Firebase 用戶')
       }
       throw error
     }
 
-    // 只有在Neon同步成功後才繼續
     if (userCredential && userData && neonUserCreated) {
       applyUserProfileToStore({
         uid: userCredential.user.uid,
