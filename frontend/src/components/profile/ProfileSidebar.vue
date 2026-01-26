@@ -110,28 +110,8 @@ const getWishlistTagColor = (index) => {
           <Pencil class="w-4 h-4" />
         </button>
       </div>
-      <!-- Ball Container - 只有自己的才顯示動態球池，別人的顯示標籤 -->
-      <WishBallPool v-if="isCurrentUser" :wishlist="wishlist" />
-      <div v-else class="flex flex-wrap gap-2 justify-center items-start min-h-[160px] lg:min-h-[300px]">
-        <span
-          v-for="(place, index) in wishlist"
-          :key="place"
-          :class="[
-            'px-3 py-1.5 border rounded-lg text-sm font-bold',
-            getWishlistTagColor(index).bg,
-            getWishlistTagColor(index).text,
-            getWishlistTagColor(index).border,
-          ]"
-        >
-          {{ place }}
-        </span>
-        <div
-          v-if="wishlist.length === 0"
-          class="w-full flex items-center justify-center text-gray-400 text-xs md:text-sm"
-        >
-          尚未填寫許願球池
-        </div>
-      </div>
+      <!-- Ball Container - 動態球池，無論是自己還是別人的檔案都顯示 -->
+      <WishBallPool :wishlist="wishlist" />
     </div>
   </div>
 </template>

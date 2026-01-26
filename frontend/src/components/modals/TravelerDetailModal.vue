@@ -308,11 +308,6 @@ const isFull = computed(() => {
   return localTravelerData.value?.status === '已額滿'
 })
 
-// 檢查是否可以留言（未過期且未額滿）
-const canComment = computed(() => {
-  return !isExpired.value && !isFull.value
-})
-
 const isAuthor = computed(() => {
   const authorUid = localTravelerData.value?.author_uid || props.traveler?.author_uid
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
@@ -404,7 +399,7 @@ const handleRejectApplication = async (application) => {
 
 const submitComment = async () => {
   if (!newComment.value.trim()) return
-  if (isExpired.value || isFull.value) return
+  if (isExpired.value) return
   if (!userStore.isLoggedIn || !currentUserUid.value) {
     alert('請先登入後才能留言')
     return
@@ -1165,14 +1160,7 @@ onUnmounted(() => {
           <p class="text-gray-600 font-bold mb-1">此招募已結束</p>
           <p class="text-gray-500 text-sm">日期已過期，無法再留言</p>
         </div>
-        <div
-          v-else-if="isFull"
-          class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-gray-200"
-        >
-          <p class="text-gray-600 font-bold mb-1">此招募已額滿</p>
-          <p class="text-gray-500 text-sm">人數已滿，無法再留言</p>
-        </div>
-        <div v-else-if="userStore.isLoggedIn && currentUserUid && canComment" class="flex space-x-3">
+        <div v-else-if="userStore.isLoggedIn && currentUserUid" class="flex space-x-3">
           <input
             ref="commentInputRef"
             v-model="newComment"
