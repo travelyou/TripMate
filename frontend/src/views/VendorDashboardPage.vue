@@ -22,17 +22,35 @@ const activeTab = ref('basic_info')
 const showItineraryModal = ref(false)
 const showPostModal = ref(false)
 
-const vendorId = computed(() => userStore.currentUser?.vendorId || 'vendor001')
+const vendorId = computed(() => {
+  const id = userStore.currentUser?.vendorId || userStore.currentUser?.id || 'vendor001'
+  console.log('🔄 [Dashboard] Computed vendorId:', id)
+  return id
+})
 const currentVendor = computed(() => vendorStore.currentVendor)
 const loading = computed(() => vendorStore.loading)
 
 const handleLogout = () => {
+  console.log('🚪 handleLogout triggered')
   userStore.logout()
   router.push('/login')
 }
 
 const handleSwitchToFrontend = () => {
-  router.push('/vendor')
+  console.log('🚀 handleSwitchToFrontend triggered')
+  // 優先使用 vendorId，否則使用 uid，與 AppHeader 邏輯保持一致
+  const targetId = userStore.currentUser?.vendorId || userStore.currentUser?.uid
+
+  console.log('📝 userStore.currentUser:', userStore.currentUser)
+  console.log('👉 Target ID:', targetId)
+
+  if (targetId) {
+    router.push({ name: 'VendorProfile', params: { id: targetId } })
+  } else {
+    // 只有在真的沒有 ID 時才回退到 vendor001 (僅供開發測試)
+    console.warn('⚠️ No vendor ID found, falling back to mock ID')
+    router.push({ name: 'VendorProfile', params: { id: 'vendor001' } })
+  }
 }
 
 const openItineraryModal = () => {
@@ -60,6 +78,7 @@ const handlePostSuccess = async () => {
 onMounted(async () => {
   console.log('🔍 [Dashboard] 當前用戶:', userStore.currentUser)
   console.log('🔍 [Dashboard] vendorId:', vendorId.value)
+
   console.log('🔍 [Dashboard] role:', userStore.currentUser?.role)
 
   await vendorStore.fetchVendorProfile(vendorId.value)

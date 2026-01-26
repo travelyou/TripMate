@@ -388,7 +388,7 @@ const handleImageUpload = async (event, type) => {
           <div class="flex items-start gap-4">
             <div class="relative group cursor-pointer" @click="isEditing && $refs.avatarInput.click()">
               <img
-                :src="form.avatar || 'https://via.placeholder.com/150'"
+                :src="form.avatar || ''"
                 class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md bg-gray-100"
                 alt="Avatar"
               />
@@ -449,7 +449,7 @@ const handleImageUpload = async (event, type) => {
 
           <div :class="['relative group rounded-xl overflow-hidden bg-gray-100 aspect-[21/9] transition-opacity', !form.isBannerVisible ? 'opacity-50 grayscale' : '']">
             <img
-              :src="form.bannerImage || 'https://via.placeholder.com/1200x500'"
+              :src="form.bannerImage || ''"
               class="w-full h-full object-cover"
               alt="Banner"
             />

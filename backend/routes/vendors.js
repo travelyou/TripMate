@@ -39,15 +39,51 @@ router.get('/:id', async (req, res) => {
     const result = await pool.query(query, [id])
 
     if (result.rows.length === 0) {
-      console.log('⚠️ [Vendors] 找不到廠商，ID:', id)
+      console.log('⚠️ [Vendors] public.vendors 找不到，嘗試從 users 查找 fallback...')
+
+      // Fallback: 嘗試從 users 表讀取
+      // 注意: users 表的主鍵是 uid，且有 vendor_id 欄位
+      const userQuery = `SELECT * FROM users WHERE uid = $1 OR vendor_id = $1 LIMIT 1`
+      const userResult = await pool.query(userQuery, [id])
+
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0]
+        console.log('✅ [Vendors] 從 users 表找到使用者，轉換為廠商格式:', user.nickname)
+
+        // 構建廠商格式資料
+        const vendorData = {
+          id: user.id || id,
+          name: user.nickname || user.name || '未命名廠商',
+          slogan: user.bio || '',
+          description: user.bio || '',
+          avatar: user.avatar || '',
+          banner_image: user.bg_image || '', // 嘗試對應 users 的 bg_image
+          is_banner_visible: true,
+          region_tags: [],
+          rating: 0,
+          review_count: 0,
+          is_verified: user.role === 'vendor'
+        }
+
+        // 可選：考慮在此時將資料寫入 public.vendors 以便未來維護？
+        // 暫時僅回傳以修復顯示問題
+        return res.json({ success: true, data: vendorData })
+      }
+
+      console.log('⚠️ [Vendors] users 表也找不到，ID:', id)
       return res.status(404).json({
         success: false,
         message: '找不到此廠商',
       })
     }
 
-    console.log('✅ [Vendors] 成功取得廠商資料:', result.rows[0])
-    res.json({ success: true, data: result.rows[0] })
+    // 格式化資料 (處理型別問題)
+    const vendorData = result.rows[0]
+    vendorData.rating = parseFloat(vendorData.rating) || 0
+    vendorData.review_count = parseInt(vendorData.review_count) || 0
+
+    console.log('✅ [Vendors] 成功取得廠商資料:', vendorData)
+    res.json({ success: true, data: vendorData })
   } catch (err) {
     console.error('❌ [Vendors] 查詢廠商失敗:', err)
     console.error('❌ [Vendors] 錯誤詳情:', err.message)
