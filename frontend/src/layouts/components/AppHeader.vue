@@ -251,6 +251,7 @@ import {
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirm } from '@/utils/alert'
+import { getVendorProfileRoute } from '@/utils/navigation'
 const router = useRouter()
 const userStore = useUserStore()
 
@@ -261,6 +262,7 @@ const goToVendorDashboard = () => {
 }
 
 const goToVendorProfile = () => {
+<<<<<<< HEAD
   // 導向到自己的廠商檔案
   const vendorId = userStore.currentUser?.uid
   if (vendorId) {
@@ -268,6 +270,11 @@ const goToVendorProfile = () => {
   } else {
     router.push('/vendor/dashboard') // Fallback
   }
+=======
+  closeMenu()
+  const route = getVendorProfileRoute(userStore.currentUser)
+  router.push(route)
+>>>>>>> f0439c4 (feat: 建立廠商頁面邏輯+按鈕顯示)
 }
 
 const hasCartItems = computed(() => {
