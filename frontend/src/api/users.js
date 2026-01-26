@@ -40,6 +40,12 @@ function normalizeUserData(data) {
           ? data.isMatchingEnabled
           : true,
 
+    // [NEW] 去過的地方 (自主簽證旅行)
+    visitedPlaces: data.visitedPlaces || {
+      domestic: [],
+      international: [],
+    },
+
     stats: data.stats || {
       followers: 0,
       following: 0,

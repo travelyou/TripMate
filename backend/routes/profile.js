@@ -1018,7 +1018,7 @@ router.get('/:uid', async (req, res) => {
     const user = userResult.rows[0]
 
     const visitedPlacesResult = await pool.query(
-      'SELECT name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
+      'SELECT id, name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
       [uid],
     )
 
@@ -1026,6 +1026,7 @@ router.get('/:uid', async (req, res) => {
       domestic: visitedPlacesResult.rows
         .filter((p) => p.type === 'domestic')
         .map((p) => ({
+          id: p.id,
           name: p.name,
           date: p.date,
           icon: p.icon,
@@ -1033,6 +1034,7 @@ router.get('/:uid', async (req, res) => {
       international: visitedPlacesResult.rows
         .filter((p) => p.type === 'international')
         .map((p) => ({
+          id: p.id,
           name: p.name,
           date: p.date,
           icon: p.icon,
