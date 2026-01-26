@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, watch, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useVendorStore } from '@/stores/vendor'
 import { storeToRefs } from 'pinia'
 import { usePermission } from '@/composables/usePermission'
@@ -13,6 +13,7 @@ import VendorRegionSelector from '@/components/vendor/VendorRegionSelector.vue'
 import VendorReviewModal from '@/components/vendor/VendorReviewModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const vendorStore = useVendorStore()
 const { currentVendor, vendorItineraries, vendorPosts, vendorReviews, loading } =
   storeToRefs(vendorStore)
@@ -48,12 +49,20 @@ watch(
 )
 
 // Event Handlers
+const handleEdit = () => {
+  router.push({ name: 'VendorDashboard' })
+}
+
+const handleManage = () => {
+  router.push({ name: 'VendorDashboard' })
+}
+
 const handleRegionSelect = (region) => {
   activeRegion.value = region
   // NOTE: In a real app we might want to fetch data filtered by region from backend
   // but here we filter on client side in child components.
 }
-
+// ... existing code ...
 const handlePageChange = (page) => {
   // Implement real pagination here
   console.log('Page changed to:', page)
@@ -74,6 +83,8 @@ const handlePageChange = (page) => {
         :vendor="currentVendor"
         :is-owner="isOwner"
         @open-review-modal="showReviewModal = true"
+        @edit="handleEdit"
+        @manage="handleManage"
       />
 
       <!-- 廠商 Banner (本季主打) -->

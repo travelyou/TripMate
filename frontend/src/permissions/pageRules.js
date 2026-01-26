@@ -12,7 +12,12 @@ export function checkPageAction(actionType, currentUser, targetUserId) {
   const currentId = String(currentUser.uid || currentUser.id)
   const targetId = String(targetUserId)
 
-  const isOwner = currentId === targetId
+  let isOwner = currentId === targetId
+
+  // 如果尚未匹配，且當前用戶是廠商，嘗試比對 vendorId
+  if (!isOwner && currentUser.vendorId) {
+    isOwner = String(currentUser.vendorId) === targetId
+  }
 
   switch (actionType) {
     case 'EDIT':

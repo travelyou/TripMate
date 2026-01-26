@@ -9,6 +9,7 @@ import DashboardHeader from '@/components/vendor-dashboard/DashboardHeader.vue'
 import TabBasicInfo from '@/components/vendor-dashboard/tabs/TabBasicInfo.vue'
 import TabItineraryList from '@/components/vendor-dashboard/tabs/TabItineraryList.vue'
 import TabPostList from '@/components/vendor-dashboard/tabs/TabPostList.vue'
+import { getVendorProfileRoute } from '@/utils/navigation'
 
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
@@ -38,19 +39,10 @@ const handleLogout = () => {
 
 const handleSwitchToFrontend = () => {
   console.log('🚀 handleSwitchToFrontend triggered')
-  // 優先使用 vendorId，否則使用 uid，與 AppHeader 邏輯保持一致
-  const targetId = userStore.currentUser?.vendorId || userStore.currentUser?.uid
-
-  console.log('📝 userStore.currentUser:', userStore.currentUser)
-  console.log('👉 Target ID:', targetId)
-
-  if (targetId) {
-    router.push({ name: 'VendorProfile', params: { id: targetId } })
-  } else {
-    // 只有在真的沒有 ID 時才回退到 vendor001 (僅供開發測試)
-    console.warn('⚠️ No vendor ID found, falling back to mock ID')
-    router.push({ name: 'VendorProfile', params: { id: 'vendor001' } })
-  }
+  // 使用統一的導航 Helper
+  const route = getVendorProfileRoute(userStore.currentUser)
+  console.log('🚀 handleSwitchToFrontend -> target route:', route)
+  router.push(route)
 }
 
 const openItineraryModal = () => {
