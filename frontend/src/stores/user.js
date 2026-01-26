@@ -51,7 +51,7 @@ export const useUserStore = defineStore('user', () => {
     if (!targetUid) return
 
     try {
-      const [discussionResponse, travelerResponse] = await Promise.all([
+      const [discussionResponse, travelerResponse, itineraryResponse] = await Promise.all([
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
             params: { board: 'discussion' },
@@ -60,6 +60,11 @@ export const useUserStore = defineStore('user', () => {
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
             params: { board: 'traveler' },
+          })
+          .catch(() => ({ data: [] })),
+        axios
+          .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
+            params: { board: 'itinerary' },
           })
           .catch(() => ({ data: [] })),
       ])
@@ -72,8 +77,12 @@ export const useUserStore = defineStore('user', () => {
         ...item,
         type: 'traveler',
       }))
+      const normalizedItinerary = (itineraryResponse.data || []).map((item) => ({
+        ...item,
+        type: 'itinerary',
+      }))
 
-      favorites.value = [...normalizedDiscussion, ...normalizedTraveler]
+      favorites.value = [...normalizedDiscussion, ...normalizedTraveler, ...normalizedItinerary]
     } catch (error) {
       console.error('獲取收藏失敗:', error)
     }

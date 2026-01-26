@@ -251,6 +251,7 @@ router.get('/user/:uid', async (req, res) => {
           i.agency_name,
           i.author_uid,
           i.vendor_id,
+          i.banner_position_y,
           'itinerary' as type,
           u.nickname,
           u.avatar,
@@ -300,6 +301,7 @@ router.get('/user/:uid', async (req, res) => {
 
       if (row.type === 'itinerary') {
         baseData.coverImage = row.cover_image || null
+        baseData.description = row.content || ''
         baseData.price = row.price ?? null
         baseData.category = row.category || null
         baseData.destinations = row.location ? [row.location] : row.destinations || []
@@ -309,6 +311,9 @@ router.get('/user/:uid', async (req, res) => {
         baseData.agencyName = row.agency_name || null
         baseData.author_uid = row.author_uid || null
         baseData.vendor_id = row.vendor_id || null
+        baseData.banner_position_y = row.banner_position_y ?? 50
+        baseData.isLiked = true
+        baseData.comments_count = parseInt(row.comments_count) || 0
       }
 
       return baseData
