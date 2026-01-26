@@ -2709,6 +2709,7 @@ onBeforeUnmount(() => {
   min-height: 300px;
   line-height: 1.5;
   font-size: 16px;
+  color: #111827;
 }
 :deep(.ProseMirror p) {
   margin: 0 !important;

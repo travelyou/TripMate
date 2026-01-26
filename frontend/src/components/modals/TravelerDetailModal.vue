@@ -1161,7 +1161,7 @@ onUnmounted(() => {
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
-            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none"
+            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400"
             @keyup.enter="submitComment"
           />
           <button
