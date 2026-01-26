@@ -158,6 +158,13 @@ const refreshMapState = () => {
   } else {
     selectedPlace.value = null
   }
+
+  if (googleRef?.maps?.event?.trigger) {
+    setTimeout(() => {
+      googleRef.maps.event.trigger(map, 'resize')
+      map.setCenter(center)
+    }, 0)
+  }
 }
 
 const confirmLocation = () => {
@@ -203,7 +210,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="modal-backdrop">
+  <div v-show="isOpen" class="modal-backdrop">
     <div class="modal">
       <header class="header">
         <h3>選擇地點</h3>
