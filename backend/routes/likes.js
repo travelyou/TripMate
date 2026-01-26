@@ -23,6 +23,7 @@ router.post('/', async (req, res) => {
         details: 'post_id 必須是正整數',
       })
     }
+
     let postExists = false
     if (board === 'discussion') {
       const postCheckQuery = `
@@ -58,6 +59,7 @@ router.post('/', async (req, res) => {
         details: `找不到 ID 為 ${postIdNum} 的 ${board} 貼文`,
       })
     }
+
     const checkQuery = `
       SELECT id, board FROM public.likes
       WHERE post_id = $1 AND author_uid = $2
@@ -105,14 +107,15 @@ router.post('/', async (req, res) => {
         } else if (insertError.code === '23503') {
           throw new Error(
             `無法為 ${board} 類型的帖子創建按讚記錄。` +
-              `數據庫外鍵約束只支持 discussion 類型的帖子。` +
-              `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
+            `數據庫外鍵約束只支持 discussion 類型的帖子。` +
+            `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
           )
         } else {
           throw insertError
         }
       }
     }
+
     const countQuery = `
       SELECT COUNT(*) as count FROM public.likes
       WHERE post_id = $1 AND board = $2
@@ -152,7 +155,7 @@ router.post('/', async (req, res) => {
                   likerAvatar = (user.avatar && user.avatar.trim() !== '') ? user.avatar : null
                 }
               } catch (error) {
-                console.error('[按讚通知] 查詢用戶資訊失敗:', error.message)
+                console.error('查詢用戶資訊失敗:', error.message)
               }
 
               await createLikeNotification({
@@ -253,7 +256,8 @@ router.get('/user/:uid', async (req, res) => {
           u.avatar,
           u.spirit_animal,
           l.created_at as liked_at,
-          (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count
+          (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count,
+          (SELECT COUNT(*) FROM public.comments WHERE post_id = i.id AND post_type = 'itinerary' AND deleted_at IS NULL) as comments_count
         FROM public.likes l
         JOIN itinerary.itineraries i ON l.post_id = i.id
         LEFT JOIN users u ON i.author_uid = u.uid
@@ -336,6 +340,7 @@ router.get('/:postId', async (req, res, next) => {
     }
 
     if (postId === 'user') return next()
+
     const query = `
       SELECT
         (SELECT COUNT(*)::int FROM public.likes WHERE post_id = $1 AND board = $2) AS likes_count,

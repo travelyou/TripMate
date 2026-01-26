@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -20,6 +20,7 @@ import {
 import { deleteTraveler } from '@/api/travelers'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
+import { toggleLike, getLikesInfo, buildLikeKey, seedLikeState } from '@/api/likes'
 
 const router = useRouter()
 
@@ -47,7 +48,8 @@ const isReported = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('info')
-const localLikes = ref(0)
+const isLiked = ref(false)
+const likesCount = ref(0)
 
 const handleAvatarClick = (e) => {
   e.stopPropagation()
@@ -101,8 +103,25 @@ const isExpired = computed(() => {
   return endDate < today
 })
 
-const likeCount = computed(() => localLikes.value)
-const isFavorited = computed(() => userStore.isFavorite(itemData.value))
+const loadLikesInfo = async () => {
+  if (!props.traveler?.id || !currentUserUid.value) return
+  try {
+    const info = await getLikesInfo(props.traveler.id, currentUserUid.value, 'traveler')
+    isLiked.value = info.isLiked
+    likesCount.value = info.likesCount || Number(props.traveler.likes ?? props.traveler.likes_count ?? 0)
+  } catch (error) {
+    console.error('載入按讚狀態失敗：', error)
+  }
+}
+
+const handleLikesUpdated = (event) => {
+  const detail = event?.detail
+  if (!detail || !currentUserUid.value) return
+  const key = buildLikeKey(props.traveler.id, currentUserUid.value, 'traveler')
+  if (detail.key !== key) return
+  isLiked.value = detail.liked
+  likesCount.value = detail.likesCount
+}
 
 const isFull = computed(() => {
   const currentFromField = Number(props.traveler.current_people)
@@ -147,9 +166,6 @@ const isAuthor = computed(() => {
   return currentUserUid.value && authorUid && currentUserUid.value === authorUid
 })
 
-const syncLocalLikes = () => {
-  localLikes.value = Number(props.traveler.likes ?? props.traveler.likes_count ?? 0)
-}
 
 const handleApply = (e) => {
   e.stopPropagation()
@@ -176,11 +192,22 @@ const toggleMenu = (e) => {
   showMenu.value = !showMenu.value
 }
 
-const handleToggleFavorite = (e) => {
-  e.stopPropagation()
-  const wasFavorite = isFavorited.value
-  localLikes.value = Math.max(0, localLikes.value + (wasFavorite ? -1 : 1))
-  userStore.toggleFavorite(itemData.value)
+const handleLike = async () => {
+  if (!currentUserUid.value) {
+    alert('請先登入後才能按讚')
+    return
+  }
+  try {
+    const result = await toggleLike(props.traveler.id, currentUserUid.value, 'traveler', {
+      currentLiked: isLiked.value,
+      currentLikesCount: likesCount.value,
+    })
+    isLiked.value = result.liked
+    likesCount.value = result.likesCount
+  } catch (error) {
+    console.error('按讚操作失敗：', error)
+    alert('按讚操作失敗，請稍後再試')
+  }
 }
 
 const closeMenu = () => {
@@ -241,8 +268,17 @@ const handleClickOutside = (event) => {
   }
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   currentUserUid.value = user ? user.uid : null
+  if (currentUserUid.value && props.traveler?.id) {
+    seedLikeState(props.traveler.id, currentUserUid.value, 'traveler', {
+      liked: !!props.traveler.isLiked,
+      likesCount: Number(props.traveler.likes ?? props.traveler.likes_count ?? 0),
+    })
+    await loadLikesInfo()
+  } else {
+    isLiked.value = false
+  }
 })
 
 onMounted(() => {
@@ -250,18 +286,17 @@ onMounted(() => {
   if (user) {
     currentUserUid.value = user.uid
   }
-  syncLocalLikes()
+  if (props.traveler?.id) {
+    likesCount.value = Number(props.traveler.likes ?? props.traveler.likes_count ?? 0)
+  }
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('likes-updated', handleLikesUpdated)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('likes-updated', handleLikesUpdated)
 })
-
-watch(
-  () => [props.traveler.likes, props.traveler.likes_count],
-  () => syncLocalLikes(),
-)
 </script>
 
 <template>
@@ -431,14 +466,14 @@ watch(
                 <div class="mt-2 flex min-w-0 flex-wrap items-center gap-4">
                   <button
                     class="group flex items-center transition"
-                    :class="isFavorited ? 'text-red-300' : 'text-white/70 hover:text-red-300'"
-                    @click.stop="handleToggleFavorite"
+                    :class="isLiked ? 'text-red-300' : 'text-white/70 hover:text-red-300'"
+                    @click.stop="handleLike"
                   >
                     <HeartIcon
                       class="mr-1 h-4 w-4 transition-transform group-active:scale-125"
-                      :class="{ 'fill-current text-red-300': isFavorited }"
+                      :class="{ 'fill-current text-red-300': isLiked }"
                     />
-                    <span>{{ likeCount }}</span>
+                    <span>{{ likesCount }}</span>
                   </button>
 
                   <button
