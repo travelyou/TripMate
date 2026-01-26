@@ -3,6 +3,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
+const { createNotification } = require('../utils/notifications')
 
 const ensureSwipeLikesTable = async () => {
   await pool.query(
@@ -98,6 +99,44 @@ router.post('/like', async (req, res) => {
 
     if (matched) {
       await upsertAcceptedFriend(uid, target_uid)
+
+      // 獲取雙方用戶資訊以創建通知
+      const [userResult, targetResult] = await Promise.all([
+        pool.query('SELECT uid, nickname, real_name, avatar FROM users WHERE uid = $1', [uid]),
+        pool.query('SELECT uid, nickname, real_name, avatar FROM users WHERE uid = $1', [target_uid]),
+      ])
+
+      const user = userResult.rows[0]
+      const target = targetResult.rows[0]
+
+      if (user && target) {
+        const userDisplayName = user.nickname || user.real_name || '旅伴'
+        const targetDisplayName = target.nickname || target.real_name || '旅伴'
+
+        // 為雙方創建通知
+        await Promise.all([
+          createNotification({
+            user_uid: uid,
+            type: 'friend_match',
+            title: '抽卡配對成功！',
+            content: `你與 ${targetDisplayName} 通過抽卡配對成功，已成為好友`,
+            sender_uid: target_uid,
+            sender_name: targetDisplayName,
+            sender_avatar: target.avatar,
+            link: `/profile/${target_uid}`,
+          }),
+          createNotification({
+            user_uid: target_uid,
+            type: 'friend_match',
+            title: '抽卡配對成功！',
+            content: `你與 ${userDisplayName} 通過抽卡配對成功，已成為好友`,
+            sender_uid: uid,
+            sender_name: userDisplayName,
+            sender_avatar: user.avatar,
+            link: `/profile/${uid}`,
+          }),
+        ])
+      }
     }
 
     res.json({ success: true, matched })
