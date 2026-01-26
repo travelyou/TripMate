@@ -665,10 +665,7 @@ const openLocationPicker = (activity) => {
 const handleLocationSelect = (location) => {
   if (editingActivity.value) {
     editingActivity.value.location = location
-    // 如果標題是空的，自動填入地點名稱
-    if (!editingActivity.value.title) {
-      editingActivity.value.title = location.name
-    }
+    editingActivity.value.title = location.name
   }
 }
 
@@ -747,11 +744,7 @@ const insertTransportActivity = async () => {
   }
 }
 
-const getDirections = async (
-  origin,
-  destination,
-  mode = 'DRIVING',
-) => {
+const getDirections = async (origin, destination, mode = 'DRIVING') => {
   if (directionsCallCount >= DIRECTIONS_LIMIT_PER_SESSION) {
     console.warn('[Google Maps] 已達到 Directions API 調用限制')
     return null
@@ -762,8 +755,7 @@ const getDirections = async (
   const google = await loadGoogleMaps()
 
   // 2️⃣ 只拿你需要的 routes library
-  const { DirectionsService, TravelMode } =
-    await google.maps.importLibrary('routes')
+  const { DirectionsService, TravelMode } = await google.maps.importLibrary('routes')
 
   const service = new DirectionsService()
 
@@ -786,7 +778,6 @@ const getDirections = async (
     )
   })
 }
-
 
 const removeActivity = (activityIndex) => currentDay.value.activities.splice(activityIndex, 1)
 

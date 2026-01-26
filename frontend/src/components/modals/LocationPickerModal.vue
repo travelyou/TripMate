@@ -60,8 +60,15 @@ const geocodePosition = (latLng) => {
     if (status === 'OK' && results[0]) {
       const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
       const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
-      const topResult = results[0]
+      const poiResult = results.find((result) =>
+        result.types?.some((type) =>
+          ['point_of_interest', 'establishment', 'premise'].includes(type),
+        ),
+      )
+      const topResult = poiResult || results[0]
       let placeName = ''
+      let resolvedPlaceId = topResult.place_id || ''
+      let resolvedAddress = topResult.formatted_address || ''
 
       if (topResult.place_id && placesService) {
         placeName = await new Promise((resolve) => {
@@ -81,6 +88,31 @@ const geocodePosition = (latLng) => {
         })
       }
 
+      if (!placeName && placesService) {
+        const nearby = await new Promise((resolve) => {
+          placesService.nearbySearch(
+            {
+              location: { lat, lng },
+              rankBy: googleRef.maps.places.RankBy.DISTANCE,
+              type: 'establishment',
+            },
+            (resultsList, searchStatus) => {
+              if (searchStatus === 'OK' && resultsList?.length) {
+                resolve(resultsList[0])
+              } else {
+                resolve(null)
+              }
+            },
+          )
+        })
+
+        if (nearby?.name) {
+          placeName = nearby.name
+          resolvedPlaceId = nearby.place_id || resolvedPlaceId
+          resolvedAddress = nearby.vicinity || resolvedAddress
+        }
+      }
+
       if (!placeName) {
         const poiComponent = topResult.address_components?.find((component) =>
           component.types?.some((type) =>
@@ -93,10 +125,10 @@ const geocodePosition = (latLng) => {
 
       setSelectedPlace({
         name: placeName,
-        address: topResult.formatted_address || '',
+        address: resolvedAddress,
         lat,
         lng,
-        placeId: topResult.place_id || '',
+        placeId: resolvedPlaceId,
       })
     }
   })
