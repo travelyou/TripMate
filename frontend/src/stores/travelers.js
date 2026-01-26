@@ -39,15 +39,15 @@ export const useTravelersStore = defineStore('travelers', () => {
         }
       }
 
-      if (newData.length < limit) {
-        hasMore.value = false
-      }
+        if (newData.length < limit) {
+          hasMore.value = false
+        }
 
-      if (isLoadMore) {
+        if (isLoadMore) {
         if (newData.length > 0) {
           recommendations.value.push(...newData)
         }
-      } else {
+        } else {
         if (newData.length > 0 || recommendations.value.length === 0) {
           recommendations.value = newData
         }

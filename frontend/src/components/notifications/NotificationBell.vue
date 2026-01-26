@@ -39,16 +39,16 @@ const closeNotifications = () => {
 
 const handleNotificationClick = async (notification) => {
   if (isNavigating.value) return
-
+  
   try {
     isNavigating.value = true
-
+    
     if (!notification.is_read) {
       await notificationsStore.markAsRead(notification.id)
     }
-
+    
     closeNotifications()
-
+    
     if (notification.link) {
       let link = notification.link
       if (link.includes('/discussion?postId=')) {
@@ -98,7 +98,7 @@ const handleNotificationClick = async (notification) => {
           targetPath = `/travelers/${notification.related_id}`
           break
       }
-
+      
       if (targetPath) {
         await router.push(targetPath)
       }
@@ -173,16 +173,16 @@ const clearAllIntervals = () => {
 
 const startAutoRefresh = (uid) => {
   if (!uid) return
-
+  
   clearAllIntervals()
   notificationsStore.refreshNotifications(uid)
-
+  
   refreshInterval = setInterval(() => {
     if (document.visibilityState === 'visible') {
       notificationsStore.refreshNotifications(uid)
     }
   }, REFRESH_INTERVAL)
-
+  
   unreadCountInterval = setInterval(() => {
     if (document.visibilityState === 'visible') {
       notificationsStore.fetchUnreadCount(uid)

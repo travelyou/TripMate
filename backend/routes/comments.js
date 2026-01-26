@@ -45,7 +45,7 @@ router.get('/posts/:postId/comments', async (req, res) => {
     }
 
     const commentsResult = await pool.query(
-      `SELECT * FROM public.comments 
+      `SELECT * FROM public.comments
        WHERE post_id = $1 AND post_type = $2 AND deleted_at IS NULL
        ORDER BY created_at ASC`,
       [postIdNum, postType],
@@ -144,42 +144,42 @@ router.post('/posts/:postId/comments', async (req, res) => {
       } else if (postType === 'traveler') {
         postQuery = `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`
       }
-      
+
       if (postQuery) {
         const postResult = await pool.query(postQuery, [postIdNum])
         if (postResult.rows.length > 0) {
           const postAuthor = postResult.rows[0].author_uid
           const postTitle = postResult.rows[0].title
-          
+
           // 只有當回覆者不是貼文作者時才發送通知
           if (postAuthor && postAuthor !== author_uid) {
             // 使用共用函式獲取回覆者資訊
             const commenterInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
-            
+
             // 如果回覆者資訊中的名稱是 uid，使用匿名用戶
             let commenterName = commenterInfo.name
             if (commenterName === author_uid) {
               commenterName = '匿名用戶'
               console.warn(`[通知] 回覆者 ${author_uid} 沒有找到 nickname 或 name，使用匿名用戶`)
             }
-            
+
             // 優先使用 users 表的頭像，如果沒有則使用傳入的 author_avatar
             const commenterAvatar = commenterInfo.avatar || author_avatar
-            
+
             // 獲取作者的 nickname（用於檢查是否被 tag）
             let authorNickname = null
             try {
               const authorResult = await pool.query(
-                `SELECT nickname, name FROM public.users WHERE uid = $1`,
+                `SELECT nickname FROM public.users WHERE uid = $1`,
                 [postAuthor]
               )
               if (authorResult.rows.length > 0) {
-                authorNickname = authorResult.rows[0].nickname || authorResult.rows[0].name
+                authorNickname = authorResult.rows[0].nickname
               }
             } catch (authorError) {
               console.error('獲取作者資訊失敗：', authorError)
             }
-            
+
             await createCommentNotification({
               user_uid: postAuthor,
               post_id: postIdNum,
