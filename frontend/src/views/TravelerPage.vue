@@ -160,9 +160,12 @@ const closeShareModal = () => {
 
 const handleFilterChange = (filter) => {
   activeFilter.value = filter
+  loadTravelers(false)
 }
+
 const handleCategoryChange = (cat) => {
   activeCategory.value = cat
+  loadTravelers(false)
 }
 const handleTravelerUpdated = () => {
   loadTravelers(false)
