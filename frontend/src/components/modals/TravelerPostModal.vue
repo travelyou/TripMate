@@ -30,6 +30,8 @@ import {
   Footprints as WalkIcon,
   GripVertical as GripVerticalIcon,
   Briefcase as BriefcaseIcon,
+  Heart as HeartIcon,
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import LocationPickerModal from './LocationPickerModal.vue'
@@ -199,6 +201,7 @@ const uploadProgress = ref(0)
 const isSubmitting = ref(false)
 const submitStatus = ref('')
 const activeDayIndex = ref(0)
+const previewActiveTab = ref('itinerary')
 // 基本資訊輸入框 Refs，用於 Enter 鍵切換焦點
 const titleInput = ref(null)
 const locationInput = ref(null)
@@ -1583,7 +1586,7 @@ onBeforeUnmount(() => {
 
       <div v-if="currentStep !== 'preview'" class="px-3 sm:px-6 border-b border-gray-100">
         <div
-          class="flex items-center space-x-4 sm:space-x-8 text-xs sm:text-sm font-bold overflow-x-auto"
+          class="flex items-center space-x-4 sm:space-x-8 text-xs sm:text-sm font-bold overflow-x-auto custom-scrollbar pb-1"
         >
           <button
             v-for="step in ['basic', 'itinerary', 'packing', 'tags', 'preview']"
@@ -1915,6 +1918,8 @@ onBeforeUnmount(() => {
             <a-range-picker
               v-model:value="dateRange"
               :disabled-date="disabledDate"
+              :get-popup-container="(trigger) => trigger.parentElement || document.body"
+              :popup-style="{ zIndex: 10000 }"
               class="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-primary-500 focus:border-primary-500 transition shadow-none"
               :class="{ 'border-red-500': fieldErrors.start_date || fieldErrors.end_date }"
               :placeholder="['開始日期', '結束日期']"
@@ -1933,23 +1938,23 @@ onBeforeUnmount(() => {
             <h3 class="text-base sm:text-lg font-bold text-gray-800">行程安排</h3>
             <div class="flex items-center gap-2">
               <button
-                @click="isImportModalOpen = true"
                 type="button"
                 class="px-3 py-1.5 bg-secondary-100 text-secondary-600 rounded-lg font-bold hover:bg-secondary-200 flex items-center gap-2 text-xs sm:text-sm transition shadow-sm"
+                @click="isImportModalOpen = true"
               >
                 <BriefcaseIcon class="w-4 h-4" /> 從我的行程匯入
               </button>
               <button
-                @click="addDay"
                 type="button"
                 class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary-50 text-primary-600 rounded-lg font-bold hover:bg-primary-100 flex items-center gap-1.5 sm:gap-2"
+                @click="addDay"
               >
                 <PlusIcon class="w-3 h-3 sm:w-4" /> <span>新增天數</span>
               </button>
             </div>
           </div>
 
-          <div ref="dayListContainer" class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar">
+          <div ref="dayListContainer" class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar -mx-3 sm:-mx-6 px-3 sm:px-6">
             <button
               v-for="(day, index) in postData.itinerary.days"
               :key="index"
@@ -2425,7 +2430,7 @@ onBeforeUnmount(() => {
             ></div>
             <!-- eslint-enable vue/no-v-html -->
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
                 <div class="flex items-center text-primary-600 mb-1">
                   <MapPinIcon class="w-4 h-4 mr-1" /><span
@@ -2433,7 +2438,7 @@ onBeforeUnmount(() => {
                     >地點</span
                   >
                 </div>
-                <div class="font-bold text-secondary-900">{{ postData.location }}</div>
+                <div class="font-bold text-secondary-900 text-sm sm:text-base break-words">{{ postData.location }}</div>
               </div>
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
                 <div class="flex items-center text-secondary-500 mb-1">
@@ -2442,7 +2447,7 @@ onBeforeUnmount(() => {
                     >日期</span
                   >
                 </div>
-                <div class="font-bold text-secondary-900">{{ postData.start_date }}</div>
+                <div class="font-bold text-secondary-900 text-sm sm:text-base">{{ postData.start_date }}</div>
               </div>
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-primary-sm">
                 <div class="flex items-center text-primary-500 mb-1">
@@ -2451,7 +2456,7 @@ onBeforeUnmount(() => {
                     >人數</span
                   >
                 </div>
-                <div class="font-bold text-primary-600">{{ postData.max_people }}</div>
+                <div class="font-bold text-primary-600 text-sm sm:text-base">{{ postData.max_people }}</div>
               </div>
             </div>
 
@@ -2464,62 +2469,56 @@ onBeforeUnmount(() => {
               >
             </div>
 
-            <div class="prose prose-lg max-w-none mb-6">
-              <p class="text-secondary-700 leading-relaxed whitespace-pre-wrap">
-                {{ postData.content }}
-              </p>
-            </div>
-
             <div
-              class="flex items-center space-x-4 py-4 border-t border-b border-secondary-200 mb-6 opacity-50 cursor-not-allowed"
+              class="flex items-center space-x-2 sm:space-x-4 py-3 sm:py-4 border-t border-b border-secondary-200 mb-6 opacity-50 cursor-not-allowed"
             >
               <button class="flex items-center space-x-1 text-secondary-400">
-                <HeartIcon class="w-5 h-5" /> <span class="font-bold">0</span>
+                <HeartIcon class="w-4 h-4 sm:w-5 sm:h-5" /> <span class="font-bold text-xs sm:text-sm">0</span>
               </button>
               <button class="flex items-center space-x-1 text-secondary-400">
-                <BookmarkIcon class="w-5 h-5" />
+                <BookmarkIcon class="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <div
-                class="ml-auto bg-primary-600 text-white px-6 py-2 rounded-full font-bold shadow-md"
+                class="ml-auto bg-primary-600 text-white px-3 sm:px-6 py-1.5 sm:py-2 rounded-full font-bold shadow-md text-xs sm:text-sm"
               >
                 聯繫作者
               </div>
             </div>
 
-            <div class="border-b-2 border-primary-200 mb-6">
-              <div class="flex space-x-1">
+            <div class="border-b-2 border-primary-200 mb-6 overflow-x-auto">
+              <div class="flex space-x-1 min-w-max">
                 <button
                   :class="[
-                    'px-6 py-3 font-bold transition relative',
+                    'px-3 sm:px-6 py-2 sm:py-3 font-bold transition relative text-xs sm:text-base whitespace-nowrap',
                     previewActiveTab === 'itinerary'
                       ? 'text-primary-600 border-b-4 border-primary-600'
                       : 'text-secondary-400 hover:text-secondary-600',
                   ]"
                   @click="previewActiveTab = 'itinerary'"
                 >
-                  <MapIcon class="w-5 h-5 inline mr-2" /> 行程規劃
+                  <MapIcon class="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" /> 行程規劃
                 </button>
                 <button
                   :class="[
-                    'px-6 py-3 font-bold transition relative',
+                    'px-3 sm:px-6 py-2 sm:py-3 font-bold transition relative text-xs sm:text-base whitespace-nowrap',
                     previewActiveTab === 'comments'
                       ? 'text-primary-600 border-b-4 border-primary-600'
                       : 'text-secondary-400 hover:text-secondary-600',
                   ]"
                   @click="previewActiveTab = 'comments'"
                 >
-                  <MessageCircleIcon class="w-5 h-5 inline mr-2" /> 留言討論
+                  <MessageCircleIcon class="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" /> 留言討論
                 </button>
               </div>
             </div>
 
-            <div v-if="previewActiveTab === 'itinerary'" class="space-y-6 pb-20">
-              <div class="flex overflow-x-auto space-x-2 pb-2">
+            <div v-if="previewActiveTab === 'itinerary'" class="space-y-4 sm:space-y-6 pb-20">
+              <div class="flex overflow-x-auto space-x-2 pb-2 custom-scrollbar -mx-6 px-6">
                 <button
                   v-for="(day, index) in postData.itinerary.days"
                   :key="index"
                   :class="[
-                    'px-4 py-2 rounded-lg font-bold border-2 transition whitespace-nowrap',
+                    'px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold border-2 transition whitespace-nowrap text-xs sm:text-sm',
                     activeDayIndex === index
                       ? 'bg-primary-600 text-white border-primary-700'
                       : 'bg-white text-secondary-500 border-secondary-200',
@@ -2531,30 +2530,30 @@ onBeforeUnmount(() => {
               </div>
               <div
                 v-if="currentDay"
-                class="bg-white p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
+                class="bg-white p-3 sm:p-4 rounded-xl border-2 border-secondary-200 shadow-primary-sm"
               >
-                <h4 class="font-bold text-gray-700 mb-3">
+                <h4 class="font-bold text-gray-700 mb-3 text-sm sm:text-base">
                   Day {{ currentDay.day }} - {{ currentDay.date }}
                 </h4>
                 <div class="space-y-3">
                   <div
                     v-for="act in currentDay.activities"
                     :key="act.id"
-                    class="flex gap-4 p-3 bg-gray-50 rounded-lg"
+                    class="flex gap-2 sm:gap-4 p-2 sm:p-3 bg-gray-50 rounded-lg"
                   >
-                    <div class="text-primary-600 font-black w-16">{{ act.time }}</div>
-                    <div>
-                      <div class="font-bold text-secondary-900">{{ act.title }}</div>
-                      <div class="text-sm text-secondary-500">{{ act.desc }}</div>
+                    <div class="text-primary-600 font-black w-12 sm:w-16 text-xs sm:text-sm">{{ act.time }}</div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-secondary-900 text-sm sm:text-base break-words">{{ act.title }}</div>
+                      <div class="text-xs sm:text-sm text-secondary-500 break-words">{{ act.desc }}</div>
                     </div>
                   </div>
                 </div>
               </div>
               <div v-if="postData.packingList.length" class="mt-6">
-                <h3 class="font-black text-lg text-secondary-900 mb-3">
-                  <CheckSquareIcon class="w-5 h-5 inline mr-2 text-primary" /> 建議攜帶物品
+                <h3 class="font-black text-base sm:text-lg text-secondary-900 mb-3">
+                  <CheckSquareIcon class="w-4 h-4 sm:w-5 sm:h-5 inline mr-2 text-primary" /> 建議攜帶物品
                 </h3>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div
                     v-for="(cat, idx) in postData.packingList"
                     :key="idx"
@@ -2758,5 +2757,36 @@ onBeforeUnmount(() => {
 }
 :deep(.ProseMirror [style*='font-family: BiauKai']) {
   font-family: BiauKai, 'DFKai-SB', 標楷體, serif;
+}
+
+/* Ant Design RangePicker 弹出层样式优化 */
+:deep(.ant-picker-dropdown) {
+  z-index: 10000 !important;
+}
+
+:deep(.ant-picker-panel-container) {
+  z-index: 10000 !important;
+}
+
+/* 移动端优化：确保日期选择器在移动端可见 */
+@media (max-width: 640px) {
+  :deep(.ant-picker-dropdown) {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 90vw !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+  }
+
+  :deep(.ant-picker-panels) {
+    flex-direction: column !important;
+  }
+
+  :deep(.ant-picker-panel) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 </style>
