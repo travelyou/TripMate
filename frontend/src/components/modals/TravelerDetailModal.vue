@@ -1256,21 +1256,21 @@ onUnmounted(() => {
             </button>
           </div>
           <div class="flex space-x-3">
-            <input
-              ref="commentInputRef"
-              v-model="newComment"
-              type="text"
-              placeholder="發表你的看法..."
-              class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400"
-              @keyup.enter="submitComment"
-            />
-            <button
-              :disabled="!newComment.trim()"
-              class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
-              @click="submitComment"
-            >
-              <SendIcon class="w-5 h-5" />
-            </button>
+          <input
+            ref="commentInputRef"
+            v-model="newComment"
+            type="text"
+            placeholder="發表你的看法..."
+            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400"
+            @keyup.enter="submitComment"
+          />
+          <button
+            :disabled="!newComment.trim()"
+            class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
+            @click="submitComment"
+          >
+            <SendIcon class="w-5 h-5" />
+          </button>
           </div>
         </div>
         <div

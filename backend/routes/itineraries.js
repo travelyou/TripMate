@@ -79,7 +79,7 @@ router.get('/:id', async (req, res) => {
         views_count as "totalViews",
         saves_count as "totalSaves",
         likes_count as likes,
-        author_name, author_avatar
+        author_uid, author_name, author_avatar
       FROM itinerary.itineraries WHERE id = $1
     `
     const itineraryResult = await pool.query(itineraryQuery, [id])

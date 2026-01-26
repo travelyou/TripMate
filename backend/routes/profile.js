@@ -602,7 +602,16 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
 
-    // 先檢查是否為好友關係（如果是好友，則不受3次限制）
+    const vendorCheck = await pool.query(
+      `SELECT role FROM public.users WHERE uid = $1`,
+      [friend_uid],
+    )
+    const isVendor = vendorCheck.rows.length > 0 && vendorCheck.rows[0].role === 'vendor'
+
+    if (isVendor) {
+      return res.json({ count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true })
+    }
+
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -612,7 +621,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     let isFriend = false
     if (hasStatus) {
-      // 檢查雙向好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE ((user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1))
@@ -621,7 +629,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       )
       isFriend = friendCheck.rows.length > 0
     } else {
-      // 沒有 status 欄位時，檢查是否存在任何好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
@@ -630,7 +637,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       isFriend = friendCheck.rows.length > 0
     }
 
-    // 如果是好友，直接返回允許發送（不受3次限制）
     if (isFriend) {
       return res.json({ count: 0, remaining: 999, canSend: true, isFriend: true })
     }
@@ -675,7 +681,16 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
   try {
     const { uid, friend_uid } = req.params
 
-    // 先檢查是否為好友關係（如果是好友，則不受3次限制，不需要記錄次數）
+    const vendorCheck = await pool.query(
+      `SELECT role FROM public.users WHERE uid = $1`,
+      [friend_uid],
+    )
+    const isVendor = vendorCheck.rows.length > 0 && vendorCheck.rows[0].role === 'vendor'
+
+    if (isVendor) {
+      return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true })
+    }
+
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -685,7 +700,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     let isFriend = false
     if (hasStatus) {
-      // 檢查雙向好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE ((user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1))
@@ -694,7 +708,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       )
       isFriend = friendCheck.rows.length > 0
     } else {
-      // 沒有 status 欄位時，檢查是否存在任何好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
@@ -703,7 +716,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       isFriend = friendCheck.rows.length > 0
     }
 
-    // 如果是好友，直接返回允許發送（不需要記錄次數）
     if (isFriend) {
       return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: true })
     }

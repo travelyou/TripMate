@@ -358,15 +358,15 @@ router.post('/:id/applications', async (req, res) => {
         `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`,
         [id]
       )
-
+      
       if (travelerResult.rows.length > 0) {
         const travelerAuthor = travelerResult.rows[0].author_uid
         const travelerTitle = travelerResult.rows[0].title
-
+        
         if (travelerAuthor && travelerAuthor !== author_uid) {
           const applicantInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
           const applicantAvatar = applicantInfo.avatar || author_avatar
-
+          
           await createTravelerApplicationNotification({
             user_uid: travelerAuthor,
             traveler_id: id,

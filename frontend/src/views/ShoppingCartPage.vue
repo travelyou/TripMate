@@ -11,6 +11,8 @@ const router = useRouter()
 onMounted(() => {
   // 購物車永遠以後端為準：每次進來都抓一次
   checkoutStore.loadCartFromDb()
+  // 標記購物車已查看，隱藏紅點
+  checkoutStore.markCartAsViewed()
 })
 
 const tourGroups = computed(() => checkoutStore.tourGroups)

@@ -14,6 +14,10 @@ const props = defineProps({
   openChatWithUser: {
     type: Object,
     default: null // { uid, name, nickname, avatar }
+  },
+  isVendorChat: {
+    type: Boolean,
+    default: false // 是否為廠商聊天
   }
 })
 
@@ -96,9 +100,18 @@ const isFriendChat = computed(() => {
   const friendList = userStore.currentUser?.friends || []
   return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
+const isVendorChatRoom = computed(() => {
+  // 檢查是否為廠商聊天室
+  if (props.isVendorChat) return true
+  if (!activeChatRoom.value?.uid) return false
+  // 可以通過檢查聊天室標記或從後端 API 返回的 isVendor 標誌來判斷
+  return chatInteractionCount.value?.isVendor || false
+})
 const canSendMessage = computed(() => {
   // 群組聊天：可以發送
   if (isGroupChat.value) return true
+  // 廠商聊天：可以發送（不限次數）
+  if (isVendorChatRoom.value) return true
   // 好友聊天：可以發送
   if (isFriendChat.value) return true
   // 非好友：檢查剩餘次數
@@ -178,12 +191,15 @@ const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = 
         typeof data.canSend === 'boolean' ? data.canSend : newRemaining > 0
       const newIsFriend =
         typeof data.isFriend === 'boolean' ? data.isFriend : chatInteractionCount.value.isFriend || false
+      const newIsVendor =
+        typeof data.isVendor === 'boolean' ? data.isVendor : chatInteractionCount.value.isVendor || false
 
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newCanSend,
+        canSend: newIsVendor ? true : newCanSend,  // 廠商聊天永遠可以發送
         isFriend: newIsFriend,
+        isVendor: newIsVendor,
       }
 
       if (logPrefix) {
@@ -200,20 +216,22 @@ const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = 
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newRemaining > 0,
+        canSend: chatInteractionCount.value.isVendor ? true : (newRemaining > 0),  // 廠商聊天永遠可以發送
         isFriend: chatInteractionCount.value.isFriend || false,
+        isVendor: chatInteractionCount.value.isVendor || false,
       }
     }
   } catch (error) {
     console.error('記錄對話次數失敗：', error)
     const newCount = (chatInteractionCount.value.count || 0) + 1
     const newRemaining = Math.max(0, 3 - newCount)
-    chatInteractionCount.value = {
-      count: newCount,
-      remaining: newRemaining,
-      canSend: newRemaining > 0,
-      isFriend: chatInteractionCount.value.isFriend || false,
-    }
+      chatInteractionCount.value = {
+        count: newCount,
+        remaining: newRemaining,
+        canSend: chatInteractionCount.value.isVendor ? true : (newRemaining > 0),  // 廠商聊天永遠可以發送
+        isFriend: chatInteractionCount.value.isFriend || false,
+        isVendor: chatInteractionCount.value.isVendor || false,
+      }
   }
 }
 
@@ -834,12 +852,14 @@ const loadChatInteractionCount = async (uid, friendUid) => {
     const remaining = typeof data.remaining === 'number' ? data.remaining : Math.max(0, 3 - count)
     const canSend = typeof data.canSend === 'boolean' ? data.canSend : (remaining > 0)
     const isFriend = typeof data.isFriend === 'boolean' ? data.isFriend : false
+    const isVendor = typeof data.isVendor === 'boolean' ? data.isVendor : false
 
     chatInteractionCount.value = {
       count,
       remaining,
-      canSend: canSend && remaining > 0,  // 雙重確保 canSend 正確
-      isFriend
+      canSend: isVendor ? true : (canSend && remaining > 0),  // 廠商聊天永遠可以發送
+      isFriend,
+      isVendor
     }
 
     console.log('[loadChatInteractionCount] 載入對話次數:', {
@@ -921,8 +941,14 @@ const openOrCreateChatRoom = async (user) => {
     window.dispatchEvent(new CustomEvent('new-chat-room'))
   }
 
-  // 載入對話次數
-  await loadChatInteractionCount(currentUid, targetUid)
+  // 載入對話次數 - 廠商聊天不需要載入次數限制
+  if (props.isVendorChat) {
+    // 廠商聊天：設置為無限制
+    chatInteractionCount.value = { count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true }
+  } else {
+    // 載入對話次數（後端會自動檢測是否為廠商）
+    await loadChatInteractionCount(currentUid, targetUid)
+  }
 
   // 從數據庫載入聊天記錄
   await loadChatHistory(currentUid, targetUid)
@@ -1065,11 +1091,11 @@ const openFilePicker = () => {
     alert('⚠️ 群組聊天室暫不支援傳送圖片。')
     return
   }
-  if (!isFriendChat.value) {
+  if (!isFriendChat.value && !isVendorChatRoom.value) {
     alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
     return
   }
-  if (!chatInteractionCount.value.canSend) {
+  if (!isVendorChatRoom.value && !chatInteractionCount.value.canSend) {
     alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
     return
   }
@@ -1112,8 +1138,8 @@ const handleFileSelect = async (event) => {
     return
   }
 
-  // 非好友：檢查對話次數
-  if (!isFriendChat.value) {
+  // 非好友且非廠商：檢查對話次數
+  if (!isFriendChat.value && !isVendorChatRoom.value) {
     if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
       alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
       event.target.value = ''
@@ -1175,9 +1201,11 @@ const handleFileSelect = async (event) => {
       clientId: optimisticId,
     })
 
-    // 記錄對話次數（背景）
-    incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
-      .catch(() => {})
+    // 記錄對話次數（背景）- 廠商聊天不需要記錄
+    if (!isVendorChatRoom.value) {
+      incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
+        .catch(() => {})
+    }
 
     // 保存圖片訊息到資料庫（背景）
     ;(async () => {
@@ -1243,8 +1271,8 @@ const sendMessage = async () => {
     return
   }
 
-  // 非好友：檢查對話次數
-  if (!isFriendChat.value) {
+  // 非好友且非廠商：檢查對話次數
+  if (!isFriendChat.value && !isVendorChatRoom.value) {
     if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
       alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
       return
@@ -1287,9 +1315,11 @@ const sendMessage = async () => {
     clientId: optimisticId,
   })
 
-  // 背景記錄對話次數與保存訊息
-  incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
-    .catch(() => {})
+  // 背景記錄對話次數與保存訊息 - 廠商聊天不需要記錄次數
+  if (!isVendorChatRoom.value) {
+    incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
+      .catch(() => {})
+  }
   ;(async () => {
     const { saveChatMessage } = await import('@/api/profile')
     await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
@@ -1343,7 +1373,14 @@ const handleChatRoomClick = async (room) => {
     // 載入對話次數和聊天記錄
     const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
     if (currentUid) {
-      await loadChatInteractionCount(currentUid, room.uid)
+      // 檢查是否為廠商聊天（通過檢查聊天室標記或從後端 API 返回的 isVendor 標誌）
+      const isVendor = isVendorChatRoom.value
+      if (!isVendor) {
+        await loadChatInteractionCount(currentUid, room.uid)
+      } else {
+        // 廠商聊天：設置為無限制
+        chatInteractionCount.value = { count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true }
+      }
       await loadChatHistory(currentUid, room.uid)
       // 開始輪詢新訊息
       startMessagePolling(currentUid, room.uid)
@@ -2163,13 +2200,13 @@ onUnmounted(() => {
         </div>
 
         <div
-          v-if="!isFriendChat && chatInteractionCount.remaining > 0"
+          v-if="!isFriendChat && !isVendorChatRoom && chatInteractionCount.remaining > 0"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
           💬 目前不是好友，還可以發送 <span class="font-bold text-primary-600">{{ chatInteractionCount.remaining }}</span> 次訊息
         </div>
         <div
-          v-else-if="!isFriendChat && chatInteractionCount.remaining <= 0"
+          v-else-if="!isFriendChat && !isVendorChatRoom && chatInteractionCount.remaining <= 0"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-red-50 border border-red-200 rounded-lg"
         >
           ⚠️ 已達到對話次數上限，請先加對方為好友才能繼續聊天
