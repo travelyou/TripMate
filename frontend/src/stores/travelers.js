@@ -31,30 +31,44 @@ export const useTravelersStore = defineStore('travelers', () => {
       const offset = isLoadMore ? recommendations.value.length : 0
       const limit = 10
 
-      // 呼叫 API
+      // 呼叫 API - 獲取旅伴招募
       const response = await getTravelers({
         limit,
         offset,
       })
 
-      if (response && response.success) {
-        const newData = response.data || []
-
-        // 判斷是否還有下一頁 (如果回傳數量小於 limit，代表沒了)
-        if (newData.length < limit) {
-          hasMore.value = false
+      // 處理 API 回應
+      let newData = []
+      if (response) {
+        // 支援兩種回應格式：{ success: true, data: [...] } 或直接是陣列
+        if (response.success && Array.isArray(response.data)) {
+          newData = response.data
+        } else if (Array.isArray(response)) {
+          // 如果直接返回陣列
+          newData = response
+        } else if (Array.isArray(response.data)) {
+          // 如果沒有 success 欄位但有 data
+          newData = response.data
         }
+      }
 
-        if (isLoadMore) {
-          // [附加模式] 接在舊資料後面
+      // 判斷是否還有下一頁 (如果回傳數量小於 limit，代表沒了)
+      if (newData.length < limit) {
+        hasMore.value = false
+      }
+
+      if (isLoadMore) {
+        // [附加模式] 接在舊資料後面
+        if (newData.length > 0) {
           recommendations.value.push(...newData)
-        } else {
-          // [覆蓋模式]
-          recommendations.value = newData
         }
       } else {
-        // API 失敗或沒資料
-        if (!isLoadMore) recommendations.value = []
+        // [覆蓋模式] - 只有在有資料或初始載入時才覆蓋
+        // 如果已有資料但 API 返回空，保留原有資料（避免因暫時的 API 問題導致資料消失）
+        if (newData.length > 0 || recommendations.value.length === 0) {
+          recommendations.value = newData
+        }
+        // 如果已有資料但 API 返回空，不更新（保留原有資料）
       }
     } catch (err) {
       console.error('載入旅伴推薦失敗：', err)
@@ -68,6 +82,7 @@ export const useTravelersStore = defineStore('travelers', () => {
     recommendations,
     loading,
     hasMore,
+    error,
     loadRecommendations,
   }
 })

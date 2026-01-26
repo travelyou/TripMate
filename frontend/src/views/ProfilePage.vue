@@ -19,6 +19,7 @@ import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
 import FriendListModal from '@/components/profile/FriendListModal.vue'
 import EditProfileModal from '@/components/profile/EditProfileModal.vue'
 import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
+import AvatarPickerModal from '@/components/modals/AvatarPickerModal.vue'
 
 // Tabs
 import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
@@ -119,6 +120,7 @@ const isFriendModalOpen = ref(false)
 const isPersonalityModalOpen = ref(false)
 const isAvatarCropOpen = ref(false)
 const avatarFileToCrop = ref(null)
+const isAvatarPickerOpen = ref(false)
 
 // [NEW] 名片 Modal 狀態
 const isCardSettingsOpen = ref(false)
@@ -539,6 +541,23 @@ const handleAvatarCrop = async (croppedFile) => {
   }
 }
 
+const handleOpenAvatarPicker = () => {
+  isAvatarPickerOpen.value = true
+}
+
+const handleSelectPresetAvatar = async (avatarUrl) => {
+  if (!isCurrentUser.value || !avatarUrl) return
+  try {
+    const { updateUserProfile } = await import('@/api/users')
+    await updateUserProfile(user.value.uid, { avatar: avatarUrl })
+    userStore.updateProfile({ avatar: avatarUrl })
+    isAvatarPickerOpen.value = false
+  } catch (error) {
+    console.error(error)
+    alert('更新頭貼失敗')
+  }
+}
+
 watch(
   () => route.params.uid,
   (newUid, oldUid) => {
@@ -591,6 +610,7 @@ onMounted(() => {
       @add-friend="handleAddFriend"
       @open-card-settings="openCardSettings"
       @open-settings="openSettings"
+      @open-avatar-picker="handleOpenAvatarPicker"
     />
 
     <template v-if="!loading">
@@ -731,6 +751,11 @@ onMounted(() => {
       :image-file="avatarFileToCrop"
       @close="isAvatarCropOpen = false"
       @crop="handleAvatarCrop"
+    />
+    <AvatarPickerModal
+      :is-open="isAvatarPickerOpen"
+      @close="isAvatarPickerOpen = false"
+      @select="handleSelectPresetAvatar"
     />
   </div>
 </template>

@@ -50,16 +50,33 @@ const emit = defineEmits([
   'start-test',
   'open-card-settings',
   'open-settings',
+  'open-avatar-picker', // [NEW] 打开头像选择器
 ])
 
 const fileInputMobile = ref(null)
 const fileInputDesktop = ref(null)
+const showAvatarMenuMobile = ref(false)
+const showAvatarMenuDesktop = ref(false)
 
 const handleFileChange = (event) => {
   const file = event.target.files[0]
   if (file) {
     emit('update-avatar', file)
   }
+  showAvatarMenuMobile.value = false
+  showAvatarMenuDesktop.value = false
+}
+
+const openFileInput = (inputRef) => {
+  inputRef?.click()
+  showAvatarMenuMobile.value = false
+  showAvatarMenuDesktop.value = false
+}
+
+const openAvatarPicker = () => {
+  emit('open-avatar-picker')
+  showAvatarMenuMobile.value = false
+  showAvatarMenuDesktop.value = false
 }
 
 const locationFull = computed(() => {
@@ -86,12 +103,21 @@ const shouldMarquee = computed(() => {
                 v-if="loading"
                 class="w-20 h-20 rounded-full border-4 border-white/60 bg-white/30 animate-pulse"
               ></div>
+              <div
+                v-else-if="isCurrentUser"
+                class="relative cursor-pointer"
+                @click.stop="showAvatarMenuMobile = !showAvatarMenuMobile"
+              >
               <img
-                v-else
-                class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-primary-50"
+                  class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-primary-50 transition-opacity group-hover:opacity-80"
                 :src="user.avatar"
                 alt="Avatar"
               />
+                <div
+                  class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center"
+                >
+                  <Camera class="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               <input
                 ref="fileInputMobile"
                 type="file"
@@ -100,12 +126,37 @@ const shouldMarquee = computed(() => {
                 @change="handleFileChange"
               />
               <button
-                v-if="isCurrentUser && !loading"
-                class="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full border border-white hover:bg-primary-700 transition shadow-lg cursor-pointer"
-                @click="$refs.fileInputMobile.click()"
+                  class="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full border border-white hover:bg-primary-700 transition shadow-lg cursor-pointer z-10"
+                  @click.stop="showAvatarMenuMobile = !showAvatarMenuMobile"
               >
                 <Camera class="w-3 h-3 text-white" />
               </button>
+                <!-- 頭像選擇選單 -->
+                <div
+                  v-if="showAvatarMenuMobile"
+                  class="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-30 min-w-[140px]"
+                  @click.stop
+                >
+                  <button
+                    class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition"
+                    @click.stop="openFileInput(fileInputMobile)"
+                  >
+                    本地上傳
+                  </button>
+                  <button
+                    class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition border-t border-gray-100"
+                    @click.stop="openAvatarPicker"
+                  >
+                    選擇頭像
+                  </button>
+                </div>
+              </div>
+              <img
+                v-else
+                class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover bg-primary-50"
+                :src="user.avatar"
+                alt="Avatar"
+              />
             </div>
             <div
               v-if="loading"
@@ -303,12 +354,21 @@ const shouldMarquee = computed(() => {
               v-if="loading"
               class="w-32 h-32 rounded-full border-4 border-white/60 bg-white/30 animate-pulse"
             ></div>
+            <div
+              v-else-if="isCurrentUser"
+              class="relative cursor-pointer"
+              @click.stop="showAvatarMenuDesktop = !showAvatarMenuDesktop"
+            >
             <img
-              v-else
-              class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-primary-50"
+                class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-primary-50 transition-opacity group-hover:opacity-80"
               :src="user.avatar"
               alt="Avatar"
             />
+              <div
+                class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center"
+              >
+                <Camera class="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             <input
               ref="fileInputDesktop"
               type="file"
@@ -317,12 +377,37 @@ const shouldMarquee = computed(() => {
               @change="handleFileChange"
             />
             <button
-              v-if="isCurrentUser && !loading"
-              class="absolute bottom-2 right-2 p-2 bg-primary-600 rounded-full border-2 border-white hover:bg-primary-700 transition shadow-lg group-hover:scale-110 cursor-pointer"
-              @click="$refs.fileInputDesktop.click()"
+                class="absolute bottom-2 right-2 p-2 bg-primary-600 rounded-full border-2 border-white hover:bg-primary-700 transition shadow-lg group-hover:scale-110 cursor-pointer z-10"
+                @click.stop="showAvatarMenuDesktop = !showAvatarMenuDesktop"
             >
               <Camera class="w-4 h-4 text-white" />
             </button>
+              <!-- 頭像選擇選單 -->
+              <div
+                v-if="showAvatarMenuDesktop"
+                class="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-30 min-w-[140px]"
+                @click.stop
+              >
+                <button
+                  class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition"
+                  @click.stop="openFileInput(fileInputDesktop)"
+                >
+                  本地上傳
+                </button>
+                <button
+                  class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition border-t border-gray-100"
+                  @click.stop="openAvatarPicker"
+                >
+                  選擇頭像
+                </button>
+              </div>
+            </div>
+            <img
+              v-else
+              class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-primary-50"
+              :src="user.avatar"
+              alt="Avatar"
+            />
           </div>
 
           <div
