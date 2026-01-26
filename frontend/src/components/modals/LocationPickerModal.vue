@@ -1,956 +1,380 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
-import { MapPin as MapPinIcon, Search as SearchIcon, X as XIcon, Loader2 } from 'lucide-vue-next'
+import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
+import { loadGoogleMaps } from '@/utils/googleMapLoader'
 
 const props = defineProps({
   isOpen: Boolean,
   initialLocation: {
     type: Object,
-    default: () => null, // { lat: number, lng: number, address: string, name: string, placeId: string }
+    default: () => null, // { lat, lng, address, name, placeId }
   },
 })
 
-const emit = defineEmits(['close', 'select'])
+const emit = defineEmits(['select', 'close'])
 
-const mapContainer = ref(null)
-const searchInput = ref(null)
-const isLoading = ref(true)
-const searchKeyword = ref('')
+const mapRef = ref(null)
+const inputRef = ref(null)
+const selectedPlace = ref(null)
 
+let googleRef = null
 let map = null
 let marker = null
 let autocomplete = null
-let google = null
-
-// 當前選中的地點狀態
-const selectedPlace = ref(null)
-
-// 初始化 Google Maps 配置（在组件挂载时执行）
-onMounted(() => {
-  if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-
-    if (!apiKey) {
-      console.error('[Google Maps] API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY')
-      console.error('[Google Maps] 當前環境變數值:', {
-        hasKey: !!import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-        keyLength: import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.length || 0,
-      })
-      return
-    }
-
-    console.log('[Google Maps] 設定 API Key:', apiKey.substring(0, 10) + '...')
-
-    try {
-      setOptions({
-        apiKey: apiKey,
-        version: 'weekly',
-        libraries: ['places', 'maps', 'marker', 'geocoding', 'routes'],
-        language: 'zh-TW',
-      })
-      window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
-      console.log('[Google Maps] setOptions 設定成功')
-    } catch (error) {
-      console.error('[Google Maps] setOptions 失敗:', error)
-    }
-  }
-})
-
-const initMap = async () => {
-  isLoading.value = true
-
-  // 再次檢查 API Key
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-  if (!apiKey) {
-    console.error('[Google Maps] initMap: API Key 未設定')
-    alert('Google Maps API Key 未設定，請檢查環境變數設定')
-    isLoading.value = false
-    return
-  }
-
-  // 驗證 API Key 格式（有效的 API Key 通常以 AIzaSy 開頭，長度至少 30 個字符）
-  if (apiKey.length < 30 || !apiKey.startsWith('AIza')) {
-    console.warn('[Google Maps] API Key 格式可能不正確')
-    console.warn('[Google Maps] 有效的 API Key 應該以 AIza 開頭，長度至少 30 個字符')
-    console.warn('[Google Maps] 當前 API Key 長度:', apiKey.length)
-    console.warn(
-      '[Google Maps] 當前 API Key 開頭:',
-      apiKey.substring(0, Math.min(10, apiKey.length)),
-    )
-    // 不阻止執行，讓 Google Maps API 自己驗證
-  }
-
-  // 确保 setOptions 已设置
-  if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
-    try {
-      setOptions({
-        apiKey: apiKey,
-        version: 'weekly',
-        libraries: ['places', 'maps', 'marker', 'geocoding', 'routes'],
-        language: 'zh-TW',
-      })
-      window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
-      console.log('[Google Maps] initMap: setOptions 設定成功')
-    } catch (error) {
-      console.error('[Google Maps] initMap: setOptions 失敗:', error)
-      alert('Google Maps 設定失敗：' + error.message)
-      isLoading.value = false
-      return
-    }
-  }
-
-  try {
-    console.log(
-      '[GoogleMaps] 初始化地圖，使用的 API Key:',
-      apiKey ? apiKey.substring(0, 10) + '...' : '未定義',
-    )
-
-    // 載入必要的 Library (平行載入)
-    const [mapsLib, placesLib, markerLib] = await Promise.all([
-      importLibrary('maps'),
-      importLibrary('places'),
-      importLibrary('marker'),
-    ])
-
-    // 從 library 中取得類別
-    const MapClass = mapsLib.Map
-    const AdvancedMarkerElement = markerLib.AdvancedMarkerElement
-    const PinElement = markerLib.PinElement
-    const AutocompleteClass = placesLib.Autocomplete
-    const GeocoderClass = mapsLib.Geocoder // Geocoder 在 maps library 中
-
-    // 預設台北 101
-    const defaultCenter = { lat: 25.033964, lng: 121.564468 }
-    const center = props.initialLocation?.lat
-      ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng }
-      : defaultCenter
-
-    // 建立 google 物件結構，供後續使用
-    window.google = window.google || {}
-    window.google.maps = window.google.maps || {}
-    window.google.maps.places = window.google.maps.places || {}
-    window.google.maps.places.Autocomplete = AutocompleteClass
-    window.google.maps.Geocoder = GeocoderClass
-    window.google.maps.Animation = mapsLib.Animation || {} // Animation 常數
-    window.google.maps.event = mapsLib.event || {} // Event 系統
-
-    // 重設 local 的 google 變數指向 window.google
-    google = window.google
-
-    // 獲取 mapId（從環境變數）
-    // 注意：使用 AdvancedMarkerElement 需要有效的 mapId
-    // 有效的 Map ID 通常是長字符串（至少 10 個字符），例如：8e0a97a1b2c3d4e5f6g7h8i9j0k1l2m
-    // 如果 Map ID 太短或格式不正確，將視為無效並回退到舊版 API
-    // 參考：https://developers.google.com/maps/documentation/javascript/get-map-id
-
-    // 詳細調試：檢查所有可能的環境變數來源
-    console.log('[Google Maps] 環境變數調試:')
-    console.log('[Google Maps] import.meta.env.MODE:', import.meta.env.MODE)
-    console.log('[Google Maps] import.meta.env.DEV:', import.meta.env.DEV)
-    console.log('[Google Maps] import.meta.env.PROD:', import.meta.env.PROD)
-    console.log(
-      '[Google Maps] 所有 VITE_ 開頭的環境變數:',
-      Object.keys(import.meta.env).filter((key) => key.startsWith('VITE_')),
-    )
-
-    const rawMapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
-
-    // 詳細日誌，幫助調試
-    console.log(
-      '[Google Maps] 原始 Map ID 值:',
-      rawMapId ? (rawMapId.length > 20 ? rawMapId.substring(0, 20) + '...' : rawMapId) : '未定義',
-    )
-    console.log('[Google Maps] Map ID 類型:', typeof rawMapId)
-    console.log('[Google Maps] Map ID 長度:', rawMapId?.length || 0)
-    console.log('[Google Maps] Map ID 是否為 undefined:', rawMapId === undefined)
-    console.log('[Google Maps] Map ID 是否為 null:', rawMapId === null)
-    console.log('[Google Maps] Map ID 是否為空字符串:', rawMapId === '')
-
-    // 嘗試從不同來源讀取（調試用）
-    if (!rawMapId) {
-      console.warn('[Google Maps] 嘗試從其他來源讀取 Map ID...')
-      console.warn(
-        '[Google Maps] window.__VITE_GOOGLE_MAPS_MAP_ID__:',
-        window.__VITE_GOOGLE_MAPS_MAP_ID__,
-      )
-    }
-
-    // 清理和驗證 Map ID
-    // 如果 Map ID 包含其他環境變數的內容（格式錯誤），嘗試提取正確的部分
-    let cleanedMapId = rawMapId ? rawMapId.trim() : null
-
-    // 檢查是否包含 API Key（表示格式錯誤，兩個環境變數連在一起了）
-    if (cleanedMapId && cleanedMapId.includes('VITE_GOOGLE_MAPS_API_KEY')) {
-      console.warn('[Google Maps] 檢測到 Map ID 格式錯誤：可能包含其他環境變數')
-      // 嘗試提取 Map ID 部分（在 VITE_GOOGLE_MAPS_API_KEY 之前的部分）
-      const mapIdMatch = cleanedMapId.match(/^([^V]+)/)
-      if (mapIdMatch && mapIdMatch[1]) {
-        cleanedMapId = mapIdMatch[1].trim()
-        console.warn('[Google Maps] 已嘗試修復 Map ID:', cleanedMapId.substring(0, 20) + '...')
-      } else {
-        cleanedMapId = null
-      }
-    }
-
-    // 驗證 Map ID 格式：有效的 Map ID 應該至少 10 個字符
-    let mapId =
-      cleanedMapId && cleanedMapId.length >= 10 && cleanedMapId !== '' ? cleanedMapId : null
-
-    if (!mapId) {
-      if (rawMapId) {
-        console.warn('[Google Maps] Map ID 格式無效或太短:', rawMapId.substring(0, 50))
-        console.warn('[Google Maps] 有效的 Map ID 應該是至少 10 個字符的字符串')
-        console.warn('[Google Maps] 請檢查環境變數 VITE_GOOGLE_MAPS_MAP_ID 的設定格式')
-      } else {
-        console.warn('[Google Maps] 未設定 VITE_GOOGLE_MAPS_MAP_ID')
-      }
-      console.warn('[Google Maps] 將使用舊版 Marker API（會顯示棄用警告，但功能正常）')
-      console.warn(
-        '[Google Maps] 如需使用 AdvancedMarkerElement，請在 Google Cloud Console 創建有效的 Map ID',
-      )
-      console.warn(
-        '[Google Maps] 參考：https://developers.google.com/maps/documentation/javascript/get-map-id',
-      )
-    } else {
-      console.log('[Google Maps] 使用 Map ID:', mapId.substring(0, 15) + '...')
-      console.log('[Google Maps] Map ID 完整長度:', mapId.length)
-    }
-
-    // 構建地圖配置
-    const mapConfig = {
-      center: center,
-      zoom: 15,
-      mapTypeControl: false,
-      fullscreenControl: false,
-      streetViewControl: false,
-    }
-
-    // 只有在有有效的 mapId 時才添加（避免 ApiProjectMapError）
-    if (mapId) {
-      mapConfig.mapId = mapId
-    }
-
-    map = new MapClass(mapContainer.value, mapConfig)
-
-    let errorHandled = false
-    let currentMapId = mapId // 保存 mapId 的引用，以便在錯誤處理中使用
-
-    // 處理 ApiProjectMapError 的函數
-    const handleApiProjectMapError = async () => {
-      // 檢查是否已經處理過（防止重複處理）
-      if (errorHandled) {
-        console.log('[Google Maps] 錯誤已經處理過，跳過重複處理')
-        console.log('[Google Maps] 調試：errorHandled 狀態為 true，可能已被其他處理器設置')
-        return
-      }
-
-      console.log('[Google Maps] 開始執行回退流程...')
-      console.log(
-        '[Google Maps] 當前 Map ID:',
-        currentMapId ? currentMapId.substring(0, 15) + '...' : '無',
-      )
-      console.log('[Google Maps] 調試：設置 errorHandled = true')
-
-      // 立即設置為已處理，防止重複調用
-      errorHandled = true
-
-      try {
-        console.log('[Google Maps] 步驟 1: 清除現有地圖和標記')
-
-        // 清除現有地圖和標記
-        if (marker) {
-          try {
-            // 嘗試移除標記
-            if (marker.map) {
-              marker.map = null
-            }
-            if (marker.setMap && typeof marker.setMap === 'function') {
-              marker.setMap(null)
-            }
-          } catch (markerError) {
-            console.warn('[Google Maps] 清除標記時出錯:', markerError)
-          }
-          marker = null
-        }
-
-        if (map) {
-          // 清理地圖事件監聽器（如果可用）
-          try {
-            if (
-              google &&
-              google.maps &&
-              google.maps.event &&
-              typeof google.maps.event.clearInstanceListeners === 'function'
-            ) {
-              google.maps.event.clearInstanceListeners(map)
-              console.log('[Google Maps] 已清除地圖事件監聽器')
-            } else {
-              console.warn('[Google Maps] clearInstanceListeners 不可用，跳過清理')
-            }
-          } catch (clearError) {
-            console.warn('[Google Maps] 清除地圖事件監聽器時出錯:', clearError)
-          }
-        }
-
-        console.log('[Google Maps] 步驟 2: 重新創建地圖（不使用 Map ID）')
-
-        // 重新創建地圖，不使用 mapId
-        const fallbackConfig = {
-          center: center,
-          zoom: 15,
-          mapTypeControl: false,
-          fullscreenControl: false,
-          streetViewControl: false,
-        }
-        // 明確不使用 mapId
-        delete fallbackConfig.mapId
-
-        console.log('[Google Maps] 步驟 3: 創建新地圖實例')
-        map = new MapClass(mapContainer.value, fallbackConfig)
-        console.log('[Google Maps] 新地圖創建成功')
-
-        currentMapId = null // 清除 mapId，強制使用舊版 Marker
-        mapId = null // 同步更新外部 mapId
-
-        console.log('[Google Maps] 步驟 4: 重新初始化標記（使用舊版 API）')
-        // 重新初始化標記（使用舊版 API）
-        const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
-        if (LegacyMarker) {
-          console.log('[Google Maps] 找到舊版 Marker API，開始創建標記')
-          marker = new LegacyMarker({
-            map: map,
-            position: center,
-            draggable: true,
-            animation: google.maps.Animation?.DROP || null,
-          })
-          console.log('[Google Maps] 舊版 Marker 創建成功')
-
-          console.log('[Google Maps] 步驟 5: 重新設置事件監聽')
-          // 重新設置事件監聽
-          marker.addListener('dragend', () => {
-            const position = marker.getPosition?.()
-            if (position) {
-              geocodePosition(position)
-            }
-          })
-
-          map.addListener('click', (e) => {
-            if (marker.setPosition) {
-              marker.setPosition(e.latLng)
-            }
-            geocodePosition(e.latLng)
-          })
-
-          console.log('[Google Maps] 步驟 6: 重新初始化搜尋框')
-          // 重新初始化搜尋框
-          initAutocomplete()
-
-          console.log('[Google Maps] ✅ 已成功回退到舊版 API（不使用 Map ID）')
-          console.log('[Google Maps] 地圖現在應該可以正常使用了')
-        } else {
-          console.error('[Google Maps] ❌ 舊版 Marker 不可用，無法回退')
-          throw new Error('舊版 Marker API 不可用')
-        }
-      } catch (retryError) {
-        console.error('[Google Maps] ❌ 回退初始化失敗:', retryError)
-        console.error('[Google Maps] 錯誤詳情:', {
-          message: retryError.message,
-          stack: retryError.stack?.substring(0, 300),
-          name: retryError.name,
-        })
-        // 即使回退失敗，也嘗試繼續使用現有地圖
-        console.warn('[Google Maps] 將嘗試繼續使用現有地圖配置')
-        // 設置 isLoading 為 false，讓用戶知道載入已完成（即使有錯誤）
-        isLoading.value = false
-      }
-    }
-
-    // 監聽 window 錯誤事件（捕獲異步 ApiProjectMapError）
-    const errorHandler = (event) => {
-      const errorMsg = event.message || event.error?.message || event.error?.toString() || ''
-      const errorUrl = event.filename || event.source?.location?.href || ''
-      const errorStack = event.error?.stack || ''
-
-      // 詳細日誌 - 記錄所有可能的 ApiProjectMapError 相關錯誤
-      const isApiProjectMapError =
-        errorMsg.includes('ApiProjectMapError') ||
-        errorUrl.includes('api-project-map-error') ||
-        errorStack.includes('ApiProjectMapError') ||
-        errorUrl.includes('error-messages#api-project-map-error')
-
-      if (isApiProjectMapError) {
-        console.error('[Google Maps] 檢測到可能的 ApiProjectMapError')
-        console.error('[Google Maps] 錯誤訊息:', errorMsg)
-        console.error('[Google Maps] 錯誤 URL:', errorUrl)
-        console.error('[Google Maps] 錯誤堆棧:', errorStack.substring(0, 200))
-        console.error(
-          '[Google Maps] 當前 Map ID:',
-          currentMapId ? currentMapId.substring(0, 15) + '...' : '無',
-        )
-        console.error('[Google Maps] errorHandled 狀態:', errorHandled)
-      }
-
-      // 檢查是否是 ApiProjectMapError
-      if (isApiProjectMapError && currentMapId && !errorHandled) {
-        console.warn('[Google Maps] 從 window 錯誤事件檢測到 ApiProjectMapError')
-        console.warn('[Google Maps] Map ID 可能與 API Key 不匹配，或 Map ID 無效')
-        console.warn('[Google Maps] 將自動回退到不使用 Map ID 的配置')
-        // 不要在這裡設置 errorHandled，讓 handleApiProjectMapError 內部設置
-        event.preventDefault() // 阻止錯誤繼續傳播
-        event.stopPropagation() // 阻止事件冒泡
-        // 使用 setTimeout 確保在當前執行上下文完成後再處理
-        setTimeout(() => {
-          handleApiProjectMapError()
-        }, 100)
-      }
-    }
-
-    // 監聽未處理的 Promise rejection
-    const unhandledRejectionHandler = (event) => {
-      const errorMsg = event.reason?.message || event.reason?.toString() || ''
-      const errorStack = event.reason?.stack || ''
-
-      const isApiProjectMapError =
-        errorMsg.includes('ApiProjectMapError') || errorStack.includes('ApiProjectMapError')
-
-      if (isApiProjectMapError && currentMapId && !errorHandled) {
-        console.warn('[Google Maps] 從 Promise rejection 檢測到 ApiProjectMapError')
-        console.warn('[Google Maps] 錯誤原因:', errorMsg)
-        // 不要在這裡設置 errorHandled，讓 handleApiProjectMapError 內部設置
-        event.preventDefault()
-        setTimeout(() => {
-          handleApiProjectMapError()
-        }, 100)
-      }
-    }
-
-    // 監聽 console.error（因為 Google Maps 可能通過 console.error 輸出錯誤）
-    const originalConsoleError = console.error
-    console.error = function (...args) {
-      const errorMsg = args.join(' ')
-      const isApiProjectMapError =
-        errorMsg.includes('ApiProjectMapError') || errorMsg.includes('api-project-map-error')
-
-      if (isApiProjectMapError && currentMapId && !errorHandled) {
-        console.warn('[Google Maps] 從 console.error 檢測到 ApiProjectMapError')
-        console.warn('[Google Maps] 準備執行回退流程...')
-        // 不要在這裡設置 errorHandled，讓 handleApiProjectMapError 內部設置
-        setTimeout(() => {
-          handleApiProjectMapError()
-        }, 100)
-      }
-
-      // 調用原始的 console.error
-      originalConsoleError.apply(console, args)
-    }
-
-    // 使用 capture 模式捕獲所有錯誤
-    window.addEventListener('error', errorHandler, true)
-    // 也監聽 bubbles 模式的錯誤（某些錯誤可能不會觸發 capture）
-    window.addEventListener('error', errorHandler, false)
-    window.addEventListener('unhandledrejection', unhandledRejectionHandler, true)
-
-    console.log('[Google Maps] 錯誤監聽器已設置，等待捕獲 ApiProjectMapError...')
-
-    // 監聽地圖 idle 事件，在地圖載入完成後檢查
-    if (map && map.addListener) {
-      map.addListener('idle', () => {
-        // 地圖載入完成後，檢查是否有錯誤
-        setTimeout(() => {
-          if (currentMapId && !errorHandled) {
-            try {
-              // 嘗試訪問地圖屬性來驗證
-              const zoom = map.getZoom?.()
-              if (zoom === undefined || zoom === null) {
-                console.warn('[Google Maps] 地圖可能未正常載入，可能是 Map ID 問題')
-              }
-            } catch (checkError) {
-              // 如果訪問地圖屬性失敗，可能是 Map ID 問題
-              if (
-                checkError.message?.includes('ApiProjectMapError') ||
-                checkError.toString().includes('ApiProjectMapError')
-              ) {
-                console.warn('[Google Maps] 從地圖屬性檢查檢測到 ApiProjectMapError')
-                // 不要在這裡設置 errorHandled，讓 handleApiProjectMapError 內部設置
-                handleApiProjectMapError()
-              }
-            }
-          }
-        }, 1000)
-      })
-    }
-
-    // 在組件卸載時移除監聽器
-    const cleanup = () => {
-      window.removeEventListener('error', errorHandler, true)
-      window.removeEventListener('error', errorHandler, false)
-      window.removeEventListener('unhandledrejection', unhandledRejectionHandler, true)
-      // 恢復原始的 console.error
-      if (originalConsoleError) {
-        console.error = originalConsoleError
-      }
-    }
-
-    // 存儲清理函數以便後續使用
-    if (!window.__GOOGLE_MAPS_ERROR_HANDLERS__) {
-      window.__GOOGLE_MAPS_ERROR_HANDLERS__ = []
-    }
-    window.__GOOGLE_MAPS_ERROR_HANDLERS__.push(cleanup)
-
-    // 設置延遲檢查，因為 ApiProjectMapError 可能在異步加載時發生
-    setTimeout(() => {
-      // 檢查控制台是否有 ApiProjectMapError（通過檢查地圖狀態）
-      if (map && currentMapId && !errorHandled) {
-        try {
-          const bounds = map.getBounds?.()
-          if (!bounds) {
-            console.warn('[Google Maps] 地圖邊界未設置，可能是 Map ID 問題')
-          }
-        } catch {
-          // 忽略檢查錯誤
-        }
-      }
-    }, 2000)
-
-    // 初始化標記 - 使用 AdvancedMarkerElement（新 API）
-    // 注意：AdvancedMarkerElement 需要有效的 mapId
-    // 如果沒有 mapId 或 mapId 無效，將回退到舊版 Marker（會顯示棄用警告）
-    // 使用 let 以便在錯誤處理中重新賦值
-    let effectiveMapId = mapId
-
-    if (effectiveMapId) {
-      try {
-        const pinElement = new PinElement({
-          background: '#4285F4',
-          borderColor: '#137333',
-          glyphColor: '#ffffff',
-          scale: 1.1,
-        })
-
-        marker = new AdvancedMarkerElement({
-          map: map,
-          position: center,
-          content: pinElement.element,
-          gmpDraggable: true, // 允許拖拉標記
-        })
-        console.log('[Google Maps] AdvancedMarkerElement 初始化成功')
-
-        // 設置延遲檢查，如果之後出現 ApiProjectMapError，會自動回退
-        setTimeout(() => {
-          if (marker && currentMapId && !errorHandled) {
-            try {
-              // 嘗試訪問標記屬性來驗證它是否仍然有效
-              const pos = marker.position
-              if (!pos) {
-                console.warn(
-                  '[Google Maps] AdvancedMarkerElement position 無效，可能是 Map ID 問題',
-                )
-              }
-            } catch (checkError) {
-              const errorMsg = checkError.message || checkError.toString() || ''
-              if (errorMsg.includes('ApiProjectMapError')) {
-                console.warn('[Google Maps] 從標記檢查檢測到 ApiProjectMapError')
-                // 不要在這裡設置 errorHandled，讓 handleApiProjectMapError 內部設置
-                handleApiProjectMapError()
-              }
-            }
-          }
-        }, 3000)
-      } catch (error) {
-        console.error('[Google Maps] AdvancedMarkerElement 初始化失敗:', error)
-        console.warn('[Google Maps] 回退到舊版 Marker API')
-        // 清除 mapId，強制使用舊版 Marker
-        effectiveMapId = null
-        // 回退到舊版 Marker（如果 AdvancedMarkerElement 失敗）
-        const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
-        if (LegacyMarker) {
-          marker = new LegacyMarker({
-            map: map,
-            position: center,
-            draggable: true,
-            animation: google.maps.Animation?.DROP || null,
-          })
-        } else {
-          throw new Error('無法初始化標記：缺少 Map ID 且舊版 Marker 不可用')
-        }
-      }
-    } else {
-      // 沒有 mapId，使用舊版 Marker（會顯示棄用警告，但功能正常）
-      console.warn('[Google Maps] 未設定有效的 Map ID，使用舊版 Marker API（已棄用）')
-      const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
-      if (LegacyMarker) {
-        marker = new LegacyMarker({
-          map: map,
-          position: center,
-          draggable: true,
-          animation: google.maps.Animation?.DROP || null,
-        })
-      } else {
-        throw new Error('無法初始化標記：缺少 Map ID 且舊版 Marker 不可用')
-      }
-    }
-
-    // 如果有初始地點，設置選中狀態
-    if (props.initialLocation) {
-      selectedPlace.value = props.initialLocation
-    }
-
-    // 監聽標記拖拉結束事件，反查地點
-    marker.addListener('dragend', () => {
-      // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 getPosition() 方法
-      const position = marker.position || marker.getPosition?.()
-      if (position) {
-        geocodePosition(position)
+let geocoder = null
+let placesService = null
+let sessionToken = null
+let geocodeTimeout = null
+const geocodeCache = new Map()
+const GEO_CACHE_TTL = 10000
+const mapListeners = []
+
+const DEFAULT_CENTER = { lat: 25.033964, lng: 121.564468 }
+
+const clearMapResources = () => {
+  if (mapListeners.length > 0) {
+    mapListeners.forEach((listener) => {
+      if (listener?.remove) {
+        listener.remove()
+      } else if (googleRef?.maps?.event?.removeListener) {
+        googleRef.maps.event.removeListener(listener)
       }
     })
-
-    // 點擊地圖也能移動標記
-    map.addListener('click', (e) => {
-      // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 setPosition() 方法
-      if (marker.position !== undefined) {
-        marker.position = e.latLng
-      } else if (marker.setPosition) {
-        marker.setPosition(e.latLng)
-      }
-      geocodePosition(e.latLng)
-    })
-
-    // 初始化搜尋框
-    initAutocomplete()
-  } catch (error) {
-    console.error('Google Maps Load Error:', error)
-    const errorMessage = error.message || error.toString()
-    const errorString = JSON.stringify(error, null, 2)
-
-    // 檢查是否是 ApiProjectMapError
-    if (errorMessage.includes('ApiProjectMapError') || errorString.includes('ApiProjectMapError')) {
-      console.warn('[Google Maps] ApiProjectMapError - Map ID 可能無效或不存在')
-      console.warn('[Google Maps] 嘗試不使用 Map ID 重新初始化...')
-
-      // 嘗試重新初始化，不使用 mapId
-      // 需要重新載入 libraries，因為它們在 try 區塊中定義
-      try {
-        const [mapsLib, placesLib, markerLib] = await Promise.all([
-          importLibrary('maps'),
-          importLibrary('places'),
-          importLibrary('marker'),
-        ])
-
-        const MapClass = mapsLib.Map
-        const center = props.initialLocation?.lat
-          ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng }
-          : { lat: 25.033964, lng: 121.564468 }
-
-        const fallbackConfig = {
-          center: center,
-          zoom: 15,
-          mapTypeControl: false,
-          fullscreenControl: false,
-          streetViewControl: false,
-        }
-        // 確保不使用 mapId
-        delete fallbackConfig.mapId
-
-        map = new MapClass(mapContainer.value, fallbackConfig)
-
-        // 建立 google 物件結構
-        window.google = window.google || {}
-        window.google.maps = window.google.maps || {}
-        window.google.maps.places = window.google.maps.places || {}
-        window.google.maps.places.Autocomplete = placesLib.Autocomplete
-        window.google.maps.Geocoder = mapsLib.Geocoder
-        window.google.maps.Animation = mapsLib.Animation || {}
-        window.google.maps.event = mapsLib.event || {}
-        google = window.google
-
-        // 重新初始化標記（使用舊版 API）
-        const LegacyMarker = markerLib.Marker || window.google?.maps?.Marker
-        if (LegacyMarker) {
-          marker = new LegacyMarker({
-            map: map,
-            position: center,
-            draggable: true,
-            animation: google.maps.Animation?.DROP || null,
-          })
-
-          // 設置事件監聽
-          marker.addListener('dragend', () => {
-            const position = marker.getPosition?.()
-            if (position) {
-              geocodePosition(position)
-            }
-          })
-
-          map.addListener('click', (e) => {
-            if (marker.setPosition) {
-              marker.setPosition(e.latLng)
-            }
-            geocodePosition(e.latLng)
-          })
-
-          // 初始化搜尋框
-          initAutocomplete()
-
-          console.log('[Google Maps] 已成功回退到舊版 API，地圖應該可以正常使用')
-          isLoading.value = false
-          return // 成功回退，直接返回
-        }
-      } catch (retryError) {
-        console.error('[Google Maps] 回退初始化也失敗:', retryError)
-      }
-
-      // 如果回退失敗，顯示警告但不阻止用戶
-      console.warn('[Google Maps] 已嘗試自動修復，如果地圖仍無法顯示，請檢查 Map ID')
-    } else if (errorMessage.includes('NoApiKeys') || errorString.includes('NoApiKeys')) {
-      console.error('[Google Maps] NoApiKeys - API Key 可能未正確設定')
-      alert(
-        'Google Maps API Key 設定錯誤\n\n請檢查：\n1. 環境變數 VITE_GOOGLE_MAPS_API_KEY 是否正確設定\n2. API Key 是否完整（應該以 AIzaSy 開頭）\n3. API Key 是否有效\n4. 是否已啟用必要的 API（Maps JavaScript API、Places API 等）\n5. 是否已啟用計費帳戶\n\n詳細錯誤：' +
-          errorMessage,
-      )
-    } else if (errorMessage.includes('RefererNotAllowedMapError')) {
-      alert(
-        'API Key 限制設定錯誤\n\n請在 Google Cloud Console 中添加當前網址到允許清單\n\n詳細錯誤：' +
-          errorMessage,
-      )
-    } else {
-      // 其他錯誤，顯示通用錯誤訊息
-      console.error('[Google Maps] 未知錯誤:', error)
-      alert('Google Maps 載入失敗\n\n詳細錯誤：' + errorMessage)
-    }
-  } finally {
-    isLoading.value = false
+    mapListeners.length = 0
   }
+  googleRef = null
+  marker = null
+  map = null
+  autocomplete = null
+  geocoder = null
+  placesService = null
+  sessionToken = null
 }
 
-const initAutocomplete = () => {
-  if (!searchInput.value || !google || !google.maps || !google.maps.places) {
-    console.warn('[Google Maps] Autocomplete 初始化失敗：google 物件未準備好')
-    return
-  }
-
-  // 注意：google.maps.places.Autocomplete 已被棄用，建議使用 PlaceAutocompleteElement (Web Component)
-  // 但舊版 API 仍然可以正常使用，只是會顯示警告
-  // 如需完全消除警告，需要遷移到 Web Component 實現方式
-  // 參考：https://developers.google.com/maps/documentation/javascript/places-migration-overview
-  autocomplete = new google.maps.places.Autocomplete(searchInput.value, {
-    fields: ['formatted_address', 'geometry', 'name', 'place_id'],
-    strictBounds: false,
-  })
-
-  // 綁定地圖視野，讓搜尋優先顯示目前區域
-  autocomplete.bindTo('bounds', map)
-
-  autocomplete.addListener('place_changed', () => {
-    const place = autocomplete.getPlace()
-
-    if (!place.geometry || !place.geometry.location) {
-      // User entered the name of a Place that was not suggested and
-      // pressed the Enter key, or the Place Details request failed.
-      alert("找不到該地點的詳細資訊：'" + place.name + "'")
-      return
-    }
-
-    // 更新地圖與標記
-    if (place.geometry.viewport) {
-      map.fitBounds(place.geometry.viewport)
-    } else {
-      map.setCenter(place.geometry.location)
-      map.setZoom(17)
-    }
-    // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 setPosition() 方法
-    if (marker.position !== undefined) {
-      marker.position = place.geometry.location
-    } else if (marker.setPosition) {
-      marker.setPosition(place.geometry.location)
-    }
-
-    // 設定選中地點
-    selectedPlace.value = {
-      name: place.name,
-      address: place.formatted_address,
-      lat: place.geometry.location.lat(),
-      lng: place.geometry.location.lng(),
-      placeId: place.place_id,
-    }
-    searchKeyword.value = place.name // 更新輸入框顯示
-  })
+const setSelectedPlace = ({ name, address, lat, lng, placeId }) => {
+  selectedPlace.value = { name, address, lat, lng, placeId }
 }
 
-// 反查座標 (Geocoding)
+const getCacheKey = (lat, lng) => `${lat.toFixed(6)},${lng.toFixed(6)}`
+
+const getCachedPlace = (lat, lng) => {
+  const key = getCacheKey(lat, lng)
+  const cached = geocodeCache.get(key)
+  if (!cached) return null
+  if (Date.now() - cached.timestamp > GEO_CACHE_TTL) {
+    geocodeCache.delete(key)
+    return null
+  }
+  return cached.value
+}
+
+const setCachedPlace = (lat, lng, value) => {
+  const key = getCacheKey(lat, lng)
+  geocodeCache.set(key, { value, timestamp: Date.now() })
+}
+
+const addMapListener = (target, eventName, handler) => {
+  if (!target?.addListener) return
+  const listener = target.addListener(eventName, handler)
+  mapListeners.push(listener)
+}
+
+const debouncedGeocodePosition = (latLng) => {
+  if (geocodeTimeout) {
+    clearTimeout(geocodeTimeout)
+  }
+  geocodeTimeout = setTimeout(() => {
+    geocodePosition(latLng)
+  }, 500)
+}
+
 const geocodePosition = (latLng) => {
-  if (!google || !google.maps || !google.maps.Geocoder) {
-    console.error('[Google Maps] Geocoder 未初始化')
-    return
-  }
+  if (!geocoder) return
 
-  const geocoder = new google.maps.Geocoder()
-
-  // 確保 latLng 是正確格式（可能是 LatLng 物件或 {lat, lng}）
   const location =
     latLng.lat && typeof latLng.lat === 'function' ? latLng : { lat: latLng.lat, lng: latLng.lng }
 
-  geocoder.geocode({ location: location }, (results, status) => {
-    if (status === 'OK' && results[0]) {
-      const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
-      const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
+  const lat = location.lat && typeof location.lat === 'function' ? location.lat() : location.lat
+  const lng = location.lng && typeof location.lng === 'function' ? location.lng() : location.lng
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+  const cached = getCachedPlace(lat, lng)
+  if (cached) {
+    setSelectedPlace(cached)
+    return
+  }
 
-      selectedPlace.value = {
-        name: results[0].address_components[0]?.long_name || '選定位置', // 嘗試抓第一個部分當名稱，或是用地址
-        address: results[0].formatted_address,
-        lat: lat,
-        lng: lng,
-        placeId: results[0].place_id,
+  geocoder.geocode({ location }, async (results, status) => {
+    if (status === 'OK' && results[0]) {
+      const poiResult = results.find((result) =>
+        result.types?.some((type) =>
+          ['point_of_interest', 'establishment', 'premise'].includes(type),
+        ),
+      )
+      const topResult = poiResult || results[0]
+      let placeName = ''
+      let resolvedPlaceId = topResult.place_id || ''
+      let resolvedAddress = topResult.formatted_address || ''
+
+      if (topResult.place_id && placesService) {
+        placeName = await new Promise((resolve) => {
+          placesService.getDetails(
+            {
+              placeId: topResult.place_id,
+              fields: ['name'],
+            },
+            (place, placeStatus) => {
+              if (placeStatus === 'OK' && place?.name) {
+                resolve(place.name)
+              } else {
+                resolve('')
+              }
+            },
+          )
+        })
       }
-      searchKeyword.value = results[0].formatted_address // 更新搜尋框顯示地址
-    } else {
-      console.log('Geocoder failed due to: ' + status)
+
+      if (!placeName && placesService) {
+        const nearby = await new Promise((resolve) => {
+          const supportsRankBy = googleRef?.maps?.places?.RankBy?.DISTANCE
+          const searchOptions = supportsRankBy
+            ? {
+                location: { lat, lng },
+                rankBy: googleRef.maps.places.RankBy.DISTANCE,
+                type: 'establishment',
+              }
+            : {
+                location: { lat, lng },
+                radius: 80,
+                type: 'establishment',
+              }
+
+          placesService.nearbySearch(searchOptions, (resultsList, searchStatus) => {
+            if (searchStatus === 'OK' && resultsList?.length) {
+              resolve(resultsList[0])
+            } else {
+              resolve(null)
+            }
+          })
+        })
+
+        if (nearby?.name) {
+          placeName = nearby.name
+          resolvedPlaceId = nearby.place_id || resolvedPlaceId
+          resolvedAddress = nearby.vicinity || resolvedAddress
+        }
+      }
+
+      if (!placeName) {
+        const poiComponent = topResult.address_components?.find((component) =>
+          component.types?.some((type) =>
+            ['point_of_interest', 'establishment', 'premise'].includes(type),
+          ),
+        )
+        placeName =
+          poiComponent?.long_name || topResult.name || topResult.formatted_address || '選定位置'
+      }
+
+      const placeData = {
+        name: placeName,
+        address: resolvedAddress,
+        lat,
+        lng,
+        placeId: resolvedPlaceId,
+      }
+      setSelectedPlace(placeData)
+      setCachedPlace(lat, lng, placeData)
     }
   })
 }
 
-const confirmSelection = () => {
-  if (selectedPlace.value) {
-    emit('select', selectedPlace.value)
-    emit('close')
+const initAutocomplete = async () => {
+  if (!inputRef.value || !googleRef) return
+
+  if (googleRef.maps.places?.AutocompleteSessionToken) {
+    sessionToken = new googleRef.maps.places.AutocompleteSessionToken()
+  }
+
+  autocomplete = new googleRef.maps.places.Autocomplete(inputRef.value, {
+    fields: ['geometry', 'formatted_address', 'name', 'place_id'],
+    strictBounds: false,
+    ...(sessionToken ? { sessionToken } : {}),
+  })
+
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace()
+    if (!place.geometry || !place.geometry.location) return
+
+    const location = place.geometry.location
+    map.panTo(location)
+    map.setZoom(16)
+    marker.setPosition(location)
+
+    setSelectedPlace({
+      name: place.name || '選定位置',
+      address: place.formatted_address || '',
+      lat: location.lat(),
+      lng: location.lng(),
+      placeId: place.place_id || '',
+    })
+
+    if (googleRef.maps.places?.AutocompleteSessionToken) {
+      sessionToken = new googleRef.maps.places.AutocompleteSessionToken()
+    }
+  })
+}
+
+const initMap = async () => {
+  if (!mapRef.value) {
+    await nextTick()
+  }
+  if (!mapRef.value) return
+
+  googleRef = await loadGoogleMaps()
+
+  await googleRef.maps.importLibrary('maps')
+  await googleRef.maps.importLibrary('places')
+
+  const center = props.initialLocation?.lat
+    ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng }
+    : DEFAULT_CENTER
+
+  map = new googleRef.maps.Map(mapRef.value, {
+    center,
+    zoom: 14,
+  })
+
+  marker = new googleRef.maps.Marker({
+    map,
+    position: center,
+    draggable: true,
+  })
+
+  geocoder = new googleRef.maps.Geocoder()
+  if (googleRef.maps.places?.PlacesService) {
+    placesService = new googleRef.maps.places.PlacesService(map)
+  }
+
+  if (props.initialLocation) {
+    selectedPlace.value = props.initialLocation
+  }
+
+  addMapListener(marker, 'dragend', () => {
+    const position = marker.getPosition()
+    if (position) debouncedGeocodePosition(position)
+  })
+
+  addMapListener(map, 'click', (e) => {
+    marker.setPosition(e.latLng)
+    debouncedGeocodePosition(e.latLng)
+  })
+
+  await initAutocomplete()
+}
+
+const refreshMapState = () => {
+  const center = props.initialLocation?.lat
+    ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng }
+    : DEFAULT_CENTER
+
+  if (!map || !marker) return
+  map.setCenter(center)
+  marker.setPosition(center)
+  if (props.initialLocation) {
+    selectedPlace.value = props.initialLocation
   } else {
-    alert('請先選擇一個地點！')
+    selectedPlace.value = null
+  }
+
+  if (googleRef?.maps?.event?.trigger) {
+    setTimeout(() => {
+      googleRef.maps.event.trigger(map, 'resize')
+      map.setCenter(center)
+    }, 0)
   }
 }
 
-// 監聽 Modal 開啟
+const confirmLocation = () => {
+  if (selectedPlace.value) {
+    emit('select', selectedPlace.value)
+    emit('close')
+    return
+  }
+
+  if (!marker) return
+
+  const pos = marker.getPosition()
+  emit('select', {
+    name: '選定位置',
+    address: '',
+    lat: pos.lat(),
+    lng: pos.lng(),
+    placeId: '',
+  })
+  emit('close')
+}
+
 watch(
   () => props.isOpen,
-  (newVal) => {
-    if (newVal) {
-      // 稍微延遲以確保 DOM 已經 render
+  async (isOpen) => {
+    if (!isOpen) return
+    await nextTick()
+    if (!map) {
       setTimeout(() => {
-        if (!map) {
-          initMap()
-        } else {
-          // 重置地圖狀態
-          const center = props.initialLocation?.lat
-            ? { lat: props.initialLocation.lat, lng: props.initialLocation.lng }
-            : { lat: 25.033964, lng: 121.564468 }
-
-          map.setCenter(center)
-          if (marker) {
-            // AdvancedMarkerElement 使用 position 屬性，舊版 Marker 使用 setPosition() 方法
-            if (marker.position !== undefined) {
-              marker.position = center
-            } else if (marker.setPosition) {
-              marker.setPosition(center)
-            }
-          }
-          searchKeyword.value = props.initialLocation?.name || ''
-          selectedPlace.value = props.initialLocation || null
-
-          // 重新觸發 resize 確保顯示正常
-          if (google && google.maps && google.maps.event) {
-            google.maps.event.trigger(map, 'resize')
-          }
-        }
-      }, 100)
+        if (!map) initMap()
+      }, 0)
+    } else {
+      refreshMapState()
     }
   },
 )
+
+onBeforeUnmount(() => {
+  if (geocodeTimeout) {
+    clearTimeout(geocodeTimeout)
+  }
+  clearMapResources()
+})
 </script>
 
 <template>
   <div
-    v-if="isOpen"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+    v-show="isOpen"
+    class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-4"
   >
     <div
-      class="bg-white rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl overflow-hidden relative"
+      class="flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
     >
-      <!-- Header -->
-      <div class="p-4 border-b flex items-center justify-between bg-white z-10 shrink-0">
-        <h3 class="text-xl font-bold flex items-center gap-2">
-          <MapPinIcon class="w-5 h-5 text-primary-600" />
-          選擇地點
-        </h3>
-        <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="$emit('close')">
-          <XIcon class="w-5 h-5 text-gray-500" />
-        </button>
-      </div>
+      <header class="flex items-center justify-between border-b border-gray-200 px-8 py-3">
+        <h3>選擇地點</h3>
+        <button @click="emit('close')">✕</button>
+      </header>
 
-      <!-- Search Bar Layer (Floating) -->
-      <div class="absolute top-20 left-4 right-4 z-10 sm:w-96">
-        <div class="relative shadow-lg">
-          <input
-            ref="searchInput"
-            v-model="searchKeyword"
-            type="text"
-            class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-            placeholder="搜尋地點 (例如: 台北 101)"
-          />
-          <SearchIcon class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+      <input
+        ref="inputRef"
+        class="mx-8 my-4 rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:shadow-[0_0_0_3px_rgba(37,99,235,0.15)]"
+        placeholder="搜尋地點"
+      />
+
+      <div ref="mapRef" class="h-[520px] min-h-[360px] w-full"></div>
+
+      <footer class="flex items-center justify-between gap-3 border-t border-gray-200 px-8 py-3">
+        <div class="text-xs text-gray-500">
+          <span>請在圖上點選或搜尋地點</span>
         </div>
-      </div>
-
-      <!-- Map Container -->
-      <div class="flex-1 relative bg-gray-100">
-        <div ref="mapContainer" class="w-full h-full"></div>
-
-        <!-- Loading State -->
-        <div
-          v-if="isLoading"
-          class="absolute inset-0 flex items-center justify-center bg-white/80 z-20"
-        >
-          <div class="flex flex-col items-center gap-2">
-            <Loader2 class="w-8 h-8 text-primary-600 animate-spin" />
-            <span class="text-gray-500 font-medium">地圖載入中...</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer / Selected Info -->
-      <div
-        class="p-4 border-t bg-gray-50 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4"
-      >
-        <div class="flex-1 min-w-0">
-          <p v-if="selectedPlace" class="text-sm font-bold text-gray-800 truncate">
-            {{ selectedPlace.name }}
-          </p>
-          <p v-if="selectedPlace" class="text-xs text-gray-500 truncate">
-            {{ selectedPlace.address }}
-          </p>
-          <p v-else class="text-sm text-gray-500 flex items-center gap-1">
-            <MapPinIcon class="w-4 h-4" /> 請在圖上點選或搜尋地點
-          </p>
-        </div>
-        <div class="flex items-center gap-3 w-full sm:w-auto">
+        <div class="flex gap-2">
           <button
-            class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 font-bold hover:bg-gray-100 transition"
-            @click="$emit('close')"
+            class="rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 font-semibold text-gray-600 hover:bg-gray-200"
+            @click="emit('close')"
           >
             取消
           </button>
           <button
-            class="flex-1 sm:flex-none px-8 py-2.5 rounded-xl bg-primary-600 text-white font-bold hover:bg-primary-700 transition shadow-lg shadow-primary-200 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
-            :disabled="!selectedPlace"
-            @click="confirmSelection"
+            class="rounded-lg bg-primary px-4 py-2 font-semibold text-white shadow-lg hover:bg-secondary-700"
+            @click="confirmLocation"
           >
             確定選擇
           </button>
         </div>
-      </div>
+      </footer>
     </div>
   </div>
 </template>
-
-<style scoped>
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-</style>

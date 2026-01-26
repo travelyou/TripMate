@@ -30,8 +30,9 @@ import {
   Footprints as WalkIcon,
   GripVertical as GripVerticalIcon,
   Briefcase as BriefcaseIcon,
+  Heart as HeartIcon,
+  Bookmark as BookmarkIcon,
 } from 'lucide-vue-next'
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import LocationPickerModal from './LocationPickerModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
@@ -41,6 +42,8 @@ import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 import { showAlert, showConfirm, showError, showSuccess } from '@/utils/alert'
 import ImportItineraryModal from './ImportItineraryModal.vue'
+import { loadGoogleMaps } from '@/utils/googleMapLoader'
+
 // --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { Extension } from '@tiptap/core'
@@ -662,10 +665,7 @@ const openLocationPicker = (activity) => {
 const handleLocationSelect = (location) => {
   if (editingActivity.value) {
     editingActivity.value.location = location
-    // 如果標題是空的，自動填入地點名稱
-    if (!editingActivity.value.title) {
-      editingActivity.value.title = location.name
-    }
+    editingActivity.value.title = location.name
   }
 }
 
@@ -674,182 +674,119 @@ const openTransportModal = (index) => {
   isTransportModalOpen.value = true
 }
 
+// 防止重複調用 Directions API
+const isCalculatingRoute = ref(false)
+
 const insertTransportActivity = async () => {
   if (transportTargetIndex.value === -1) return
+
+  // 防止重複調用
+  if (isCalculatingRoute.value) {
+    console.warn('[Google Maps] 正在計算路線中，請稍候...')
+    return
+  }
 
   const index = transportTargetIndex.value
   const origin = currentDay.value.activities[index].location
   const destination = currentDay.value.activities[index + 1].location
 
-  if (!origin || !destination) return
-
-  // 計算路線
-  const result = await getDirections(origin, destination, transportMode.value)
-
-  // 計算新活動的開始時間（上一個活動時間 + 10分鐘緩衝 或者直接用上一個）
-  // 這裡簡單起見，直接使用上一個活動時間，讓使用者自己調整，或是我們也可以自動設為上一個時間
-  const prevTime = currentDay.value.activities[index].time || '09:00'
-
-  let title = '移動'
-  if (transportMode.value === 'DRIVING') title = '開車'
-  else if (transportMode.value === 'WALKING') title = '步行'
-  else if (transportMode.value === 'BICYCLING') title = '騎自行車'
-  else if (transportMode.value === 'TRANSIT') title = '搭乘大眾運輸'
-
-  const durationText = result ? result.text : '未知時間'
-
-  // 建立新活動
-  const newActivity = {
-    id: Date.now(),
-    time: prevTime,
-    title: title,
-    desc: `預估時間：${durationText}`,
-    icon: 'car', // 可以根據模式換 icon
-    isOpen: true,
-    prevTime: prevTime,
-    location: null, // 交通行程本身通常不需要地點，或是可以設為目的地
-  }
-
-  // 插入到兩個活動之間
-  currentDay.value.activities.splice(index + 1, 0, newActivity)
-
-  isTransportModalOpen.value = false
-}
-
-const getDirections = async (origin, destination, mode) => {
-  // 檢查 API Key
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-  if (!apiKey) {
-    console.error(
-      '[Google Maps] getDirections: API Key 未設定，請檢查環境變數 VITE_GOOGLE_MAPS_API_KEY',
-    )
-    return null
-  }
-
-  // 確保 setOptions 只設置一次，並且使用相同的配置
-  if (!window.__GOOGLE_MAPS_SET_OPTIONS_DONE__) {
-    try {
-      console.log('[Google Maps] getDirections: 設定 API Key')
-      setOptions({
-        apiKey: apiKey,
-        version: 'weekly',
-        libraries: ['routes', 'places', 'maps', 'geocoding'],
-        language: 'zh-TW',
-      })
-      window.__GOOGLE_MAPS_SET_OPTIONS_DONE__ = true
-      console.log('[Google Maps] getDirections: setOptions 設定成功')
-    } catch (error) {
-      console.error('[Google Maps] getDirections: setOptions 失敗:', error)
-      return null
-    }
+  if (!origin || !destination) {
+    showAlert('錯誤', '起點或終點資訊不完整，無法計算路線')
+    return
   }
 
   try {
-    // 載入 routes library
-    let routesLib = null
-    let mapsLib = null
+    isCalculatingRoute.value = true
+    console.log('[Google Maps] 開始計算路線...')
 
-    try {
-      routesLib = await importLibrary('routes')
-    } catch (routesError) {
-      console.warn('[Google Maps] routes library 載入失敗，嘗試使用 maps library:', routesError)
-      // 如果 routes library 載入失敗，嘗試從 maps library 取得
-      mapsLib = await importLibrary('maps')
-      routesLib = mapsLib
+    // 計算路線
+    const result = await getDirections(origin, destination, transportMode.value)
+
+    if (!result) {
+      showAlert('提示', '無法計算路線，請檢查起點和終點是否正確，或稍後再試')
+      return
     }
 
-    // 如果還是沒有，載入 maps library 作為備用
-    if (!routesLib) {
-      mapsLib = await importLibrary('maps')
-      routesLib = mapsLib
+    // 計算新活動的開始時間（上一個活動時間 + 10分鐘緩衝 或者直接用上一個）
+    // 這裡簡單起見，直接使用上一個活動時間，讓使用者自己調整，或是我們也可以自動設為上一個時間
+    const prevTime = currentDay.value.activities[index].time || '09:00'
+
+    let title = '移動'
+    if (transportMode.value === 'DRIVING') title = '開車'
+    else if (transportMode.value === 'WALKING') title = '步行'
+    else if (transportMode.value === 'BICYCLING') title = '騎自行車'
+    else if (transportMode.value === 'TRANSIT') title = '搭乘大眾運輸'
+
+    const durationText = result ? result.text : '未知時間'
+
+    // 建立新活動
+    const newActivity = {
+      id: Date.now(),
+      time: prevTime,
+      title: title,
+      desc: `預估時間：${durationText}`,
+      icon: 'car', // 可以根據模式換 icon
+      isOpen: true,
+      prevTime: prevTime,
+      location: null, // 交通行程本身通常不需要地點，或是可以設為目的地
     }
 
-    // 檢查 DirectionsService 是否存在
-    if (!routesLib || !routesLib.DirectionsService) {
-      console.error('[Google Maps] DirectionsService 不可用')
-      return null
-    }
+    // 插入到兩個活動之間
+    currentDay.value.activities.splice(index + 1, 0, newActivity)
 
-    // 確保 window.google.maps 結構存在，以便使用 TravelMode 常數
-    if (!window.google) {
-      window.google = {}
-    }
-    if (!window.google.maps) {
-      window.google.maps = {}
-    }
-
-    // 從 routesLib 或 mapsLib 取得 TravelMode 常數
-    if (routesLib.TravelMode) {
-      window.google.maps.TravelMode = routesLib.TravelMode
-    } else if (mapsLib && mapsLib.TravelMode) {
-      window.google.maps.TravelMode = mapsLib.TravelMode
-    }
-
-    const DirectionsService = routesLib.DirectionsService
-    const service = new DirectionsService()
-
-    // 轉換 travelMode 字串為對應的常數
-    let travelModeConstant
-    if (typeof mode === 'string') {
-      // 優先使用 window.google.maps.TravelMode
-      if (window.google.maps.TravelMode && window.google.maps.TravelMode[mode]) {
-        travelModeConstant = window.google.maps.TravelMode[mode]
-      } else if (routesLib.TravelMode && routesLib.TravelMode[mode]) {
-        travelModeConstant = routesLib.TravelMode[mode]
-      } else {
-        // 如果找不到常數，直接使用字串（API 可能接受字串）
-        travelModeConstant = mode.toUpperCase()
-      }
-    } else {
-      travelModeConstant = mode
-    }
-
-    const request = {
-      origin: { lat: origin.lat, lng: origin.lng },
-      destination: { lat: destination.lat, lng: destination.lng },
-      travelMode: travelModeConstant || mode,
-    }
-
-    return new Promise((resolve) => {
-      service.route(request, (result, status) => {
-        if (
-          status === 'OK' &&
-          result &&
-          result.routes &&
-          result.routes[0] &&
-          result.routes[0].legs &&
-          result.routes[0].legs[0]
-        ) {
-          const leg = result.routes[0].legs[0]
-          resolve(leg.duration) // { text: "10 mins", value: 600 }
-        } else {
-          console.error('[Google Maps] Directions request failed due to:', status)
-          if (status === 'ZERO_RESULTS') {
-            console.warn('[Google Maps] 找不到路線，可能是起點或終點無效')
-          } else if (status === 'REQUEST_DENIED') {
-            console.error('[Google Maps] 請求被拒絕，請檢查：')
-            console.error('  1. API Key 是否正確')
-            console.error('  2. 是否已啟用 Routes API')
-            console.error('  3. 是否已啟用計費帳戶')
-            console.error('  4. API Key 限制設定是否正確')
-          } else if (status === 'OVER_QUERY_LIMIT') {
-            console.error('[Google Maps] API 請求超過配額限制')
-          } else if (status === 'INVALID_REQUEST') {
-            console.error('[Google Maps] 無效的請求，請檢查起點和終點座標')
-          }
-          resolve(null)
-        }
-      })
-    })
+    console.log('[Google Maps] 交通活動已插入')
+    isTransportModalOpen.value = false
   } catch (error) {
-    console.error('[Google Maps] Load Error:', error)
-    return null
+    console.error('[Google Maps] 計算路線時發生錯誤:', error)
+    showError('計算路線失敗', '請稍後再試或手動輸入交通時間')
+  } finally {
+    isCalculatingRoute.value = false
   }
 }
+
+const getDirections = async (origin, destination, mode = 'DRIVING') => {
+  if (directionsCallCount >= DIRECTIONS_LIMIT_PER_SESSION) {
+    console.warn('[Google Maps] 已達到 Directions API 調用限制')
+    return null
+  }
+  directionsCallCount += 1
+
+  // 1️⃣ 等 Google Maps ready（singleton）
+  const google = await loadGoogleMaps()
+
+  // 2️⃣ 只拿你需要的 routes library
+  const { DirectionsService, TravelMode } = await google.maps.importLibrary('routes')
+
+  const service = new DirectionsService()
+
+  // 3️⃣ 回傳 Promise，外面好用
+  return new Promise((resolve) => {
+    service.route(
+      {
+        origin,
+        destination,
+        travelMode: TravelMode[mode],
+      },
+      (result, status) => {
+        if (status === 'OK') {
+          resolve(result.routes[0])
+        } else {
+          console.warn('[Directions failed]', status)
+          resolve(null)
+        }
+      },
+    )
+  })
+}
+
 const removeActivity = (activityIndex) => currentDay.value.activities.splice(activityIndex, 1)
 
 // --- 拖曳排序相關邏輯 ---
 const savedTimes = ref([])
+
+// Directions API 調用計數器（防止過度調用）
+let directionsCallCount = 0
+const DIRECTIONS_LIMIT_PER_SESSION = 50 // 每次會話限制 50 次
 
 const getDisabledHours = (index) => {
   const hours = []
