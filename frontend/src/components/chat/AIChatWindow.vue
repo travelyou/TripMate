@@ -13,6 +13,7 @@ import DOMPurify from 'dompurify'
 
 // 引入設定檔 (請確保您的 aiConfig.js 已改為使用 gemini-pro)
 import { GEMINI_MODEL_NAME, TRIPMATE_SYSTEM_PROMPT } from '@/config/aiConfig'
+import { searchFeatureLocations, searchDiscussionPosts } from '@/api/AiPrompt'
 
 defineEmits(['close'])
 
@@ -107,11 +108,91 @@ const sendMessage = async () => {
   }
 
   try {
-    // 2. 呼叫 AI API
-    const result = await chat.sendMessage(currentInput)
+    // 2. 檢查是否需要查詢功能位置
+    const featureKeywords = [
+      '在哪裡', '哪裡', '如何', '怎麼', '功能', '頁面', '位置', '找到',
+      '討論區', '找旅伴', '行程', '個人', '購物車', '訂單', '收藏', '配對',
+      '滑卡', '許願池', '護照', '聊天', '好友', '發文', '貼文'
+    ]
+    
+    const needsFeatureSearch = featureKeywords.some(keyword => 
+      currentInput.toLowerCase().includes(keyword)
+    )
+
+    // 2.5. 檢查是否需要搜尋文章
+    const searchKeywords = [
+      '有沒有', '有沒有相關', '有沒有關於', '搜尋', '找', '查', '相關的文', '相關文章',
+      '相關貼文', '相關討論', '關於', '的討論', '的文章', '的貼文'
+    ]
+    
+    const needsPostSearch = searchKeywords.some(keyword => 
+      currentInput.toLowerCase().includes(keyword)
+    )
+
+    let enhancedInput = currentInput
+    let featureContext = ''
+    let postSearchContext = ''
+
+    // 如果問題可能涉及功能位置，先查詢相關功能
+    if (needsFeatureSearch) {
+      try {
+        const features = await searchFeatureLocations(currentInput)
+        if (features && features.length > 0) {
+          featureContext = '\n\n【相關功能位置資訊】\n'
+          features.forEach(feature => {
+            featureContext += `* **${feature.feature_name_zh}** (${feature.category})：${feature.description}\n`
+            featureContext += `  - 路徑：${feature.route_path}\n`
+            if (feature.keywords && feature.keywords.length > 0) {
+              featureContext += `  - 關鍵字：${feature.keywords.join(', ')}\n`
+            }
+          })
+          featureContext += '\n請根據以上資訊指引使用者找到相關功能。'
+        }
+      } catch (error) {
+        console.warn('[AI Chat] 查詢功能位置失敗，繼續使用原始問題:', error)
+      }
+    }
+
+    // 如果問題可能涉及搜尋文章，先搜尋相關文章
+    if (needsPostSearch) {
+      try {
+        // 從問題中提取搜尋關鍵字（移除搜尋相關的詞彙）
+        const searchQuery = currentInput
+          .replace(/有沒有|有沒有相關|有沒有關於|搜尋|找|查|相關的|關於|的討論|的文章|的貼文/gi, '')
+          .trim()
+        
+        if (searchQuery) {
+          const posts = await searchDiscussionPosts(searchQuery, 5)
+          if (posts && posts.length > 0) {
+            postSearchContext = '\n\n【搜尋到的相關文章】\n'
+            posts.forEach((post, index) => {
+              postSearchContext += `${index + 1}. **${post.title}**\n`
+              postSearchContext += `   - 分類：${post.category || '未分類'}\n`
+              postSearchContext += `   - 作者：${post.author_name || '匿名'}\n`
+              postSearchContext += `   - 內容預覽：${(post.content || '').substring(0, 100)}${post.content && post.content.length > 100 ? '...' : ''}\n`
+              if (post.tags && post.tags.length > 0) {
+                postSearchContext += `   - 標籤：${post.tags.join(', ')}\n`
+              }
+              postSearchContext += `   - 連結：/discussion/${post.id}\n\n`
+            })
+            postSearchContext += '請根據以上搜尋結果回答使用者，並提供文章連結。如果沒有找到相關文章，請告訴使用者。'
+          } else {
+            postSearchContext = '\n\n【搜尋結果】\n目前沒有找到相關的文章。請告訴使用者沒有找到相關內容，並建議他們可以到討論區發文詢問。'
+          }
+        }
+      } catch (error) {
+        console.warn('[AI Chat] 搜尋文章失敗，繼續使用原始問題:', error)
+      }
+    }
+
+    // 3. 將功能位置資訊和文章搜尋結果加入問題中
+    enhancedInput = currentInput + featureContext + postSearchContext
+
+    // 4. 呼叫 AI API
+    const result = await chat.sendMessage(enhancedInput)
     const responseText = result.response.text()
 
-    // 3. 轉 HTML 並消毒
+    // 5. 轉 HTML 並消毒
     const rawHtml = await marked(responseText)
     const sanitizedHtml = DOMPurify.sanitize(rawHtml)
 

@@ -149,6 +149,7 @@ app.use('/discussions', discussionsRouter)
 app.use('/api/vendors', require('./routes/vendors'))
 app.use('/api/notifications', require('./routes/notifications'))
 app.use('/api/my-itinerary', require('./routes/myItinerary'))
+app.use('/api/ai/features', require('./routes/aiFeatures'))
 
 // 全域錯誤處理
 app.use((err, req, res, next) => {

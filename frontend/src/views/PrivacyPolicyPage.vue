@@ -78,10 +78,11 @@ const policies = [
           <li
             v-for="(line, idx) in policy.content"
             :key="idx"
-            class="flex items-start gap-3 text-lg text-secondary-600 leading-relaxed"
+            class="flex items-start text-lg text-secondary-600 leading-relaxed"
           >
-            <span class="mt-1.5 min-w-[6px] h-1.5 rounded-full bg-slate-400 shrink-0"></span>
+            <span class="mt-1.5 w-2 h-2 rounded-full bg-slate-400 shrink-0 mr-3"></span>
             <span
+              class="flex-1 min-w-0"
               v-html="
                 line.replace(/\*\*(.*?)\*\*/g, '<strong class=\'text-slate-900\'>$1</strong>')
               "

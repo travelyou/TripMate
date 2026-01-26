@@ -97,6 +97,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/vendor/register',
+      name: 'VendorRegister',
+      component: () => import('@/views/VendorRegisterPage.vue'),
+      meta: {
+        hideAd: true,
+        requiresAuth: true,
+      },
+    },
+    {
       path: '/vendor/dashboard',
       name: 'VendorDashboard',
       component: () => import('@/views/VendorDashboardPage.vue'),

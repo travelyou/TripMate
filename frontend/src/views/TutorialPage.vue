@@ -1,21 +1,51 @@
 <script setup>
+/* eslint-disable vue/no-v-html */
 import { useRouter } from 'vue-router'
 import {
-  Map as MapIcon,
-  Users as UsersIcon,
-  MessageCircle as MessageCircleIcon,
   Sparkles as SparklesIcon,
-  Bot as BotIcon,
-  CreditCard as CardIcon,
-  Tent as TentIcon,
+  Users as UsersIcon,
   BookOpen as BookIcon,
   Compass as CompassIcon,
-  PenTool as PenIcon,
+  Calendar as CalendarIcon,
+  Map as MapIcon,
   LayoutGrid as GridIcon,
   User as UserIcon,
 } from 'lucide-vue-next'
 
 const router = useRouter()
+
+// 处理文本中的链接
+const processTextWithLinks = (text) => {
+  // 定义链接映射
+  const linkMap = {
+    '討論區': '/discussion',
+    '找旅伴': '/travelers',
+    '精選行程': '/featured-itinerary',
+  }
+
+  let processed = text
+  // 处理加粗文本中的链接（在 replace 之后处理，因为此时已经是 HTML）
+  Object.keys(linkMap).forEach((key) => {
+    const regex = new RegExp(`<strong class='text-primary-700'>${key}</strong>`, 'g')
+      processed = processed.replace(
+        regex,
+        `<strong class="text-primary-700 cursor-pointer hover:text-primary-800" data-route="${linkMap[key]}">${key}</strong>`
+      )
+  })
+
+  return processed
+}
+
+// 处理链接点击事件
+const handleLinkClick = (event) => {
+  const target = event.target.closest('[data-route]')
+  if (target) {
+    const route = target.getAttribute('data-route')
+    if (route) {
+      router.push(route)
+    }
+  }
+}
 
 const steps = [
   {
@@ -23,9 +53,9 @@ const steps = [
     icon: CompassIcon,
     content: [
       'TripMate 分為三個主要的公開區域，滿足不同需求：',
-      '🗣️ **討論區**：分享遊記、美食情報，或詢問旅遊建議。',
-      '🤝 **找旅伴**：瀏覽網友發起的揪團活動，尋找免費的旅遊夥伴。',
-      '🏆 **精選行程**：由專業旅行社提供的付費行程，省心省力的選擇。',
+      '1. **討論區**：分享遊記、美食情報，或詢問旅遊建議。',
+      '2. **找旅伴**：瀏覽網友發起的揪團活動，尋找免費的旅遊夥伴。',
+      '3. **精選行程**：由專業旅行社提供的付費行程，省心省力的選擇。',
     ],
   },
   {
@@ -35,7 +65,7 @@ const steps = [
     items: [
       {
         name: '我的行程',
-        icon: PenIcon,
+        icon: CalendarIcon,
         color: 'text-indigo-600 bg-indigo-50',
         desc: '你的創作與管理中心。',
         feature: '規劃個人行程 / 管理主揪團',
@@ -45,7 +75,7 @@ const steps = [
       },
       {
         name: '訂單管理',
-        icon: CardIcon,
+        icon: MapIcon,
         color: 'text-amber-600 bg-amber-50',
         desc: '你的購買紀錄。',
         feature: '查看已購買的精選行程',
@@ -59,21 +89,21 @@ const steps = [
     title: '3. 打造最好的旅行名片',
     icon: UserIcon,
     content: [
-      '你的 **個人檔案 (Profile)** 就是在 TripMate 上的名片。',
+      '你的**個人檔案 (Profile)**就是在 TripMate 上的名片。',
       '別人會透過你的靈魂動物、許願池城市以及過去的旅遊護照戳章來認識你。',
       '把檔案填寫完整，能大幅增加找旅伴配對成功的機率喔！',
     ],
     action: { text: '去完善個人檔案', route: '/profile' },
   },
   {
-    title: '4. 右下角四大法寶 (Quick Actions)',
+    title: '4. 右下角懸浮按鈕 (Quick Actions)',
     icon: SparklesIcon,
     content: [
       '不管在哪個頁面，右下角的按鈕隨時待命：',
-      '✍️ **發文 (Post)**：想揪人、想分享、想排行程？按這裡就對了。',
-      '🃏 **抽卡 (Draw)**：隨機抽取一位契合的旅伴，展開奇妙際遇。',
-      '💬 **聊天室 (Chat)**：查看與好友的私訊，或揪團成功後的群組討論。',
-      '🤖 **AI 助手**：旅遊問題或網站操作不會用？問它就對了！',
+      '1. **發文 (Post)**：想揪人、想分享、想排行程？按這裡就對了。',
+      '2. **抽卡 (Draw)**：隨機抽取一位契合的旅伴，展開奇妙際遇。',
+      '3. **聊天室 (Chat)**：查看與好友的私訊，或揪團成功後的群組討論。',
+      '4. **AI 助手(AiChat)**：旅遊問題或網站操作不會用？問它就對了！',
     ],
   },
 ]
@@ -118,26 +148,40 @@ const steps = [
             <li
               v-for="(line, idx) in step.content"
               :key="idx"
-              class="flex items-start gap-3 text-lg text-secondary-600 leading-relaxed"
+              class="flex items-start text-lg text-secondary-600 leading-relaxed"
+              @click="handleLinkClick"
             >
-              <span v-if="line.match(/^.{1,2} /)" class="mt-1.5 shrink-0 text-xl">{{
-                line.split(' ')[0]
-              }}</span>
-
-              <span
-                v-html="
-                  line
-                    .replace(/\*\*(.*?)\*\*/g, '<strong class=\'text-primary-700\'>$1</strong>')
-                    .replace(/^.{1,2} /, '')
-                "
-              ></span>
+              <template v-if="line.match(/^.{1,2} /)">
+                <!-- 有 emoji 的行 -->
+                <span class="shrink-0 text-xl mr-3">{{ line.split(' ')[0] }}</span>
+                <span
+                  class="flex-1 min-w-0"
+                  v-html="
+                    processTextWithLinks(
+                      line
+                        .replace(/\*\*(.*?)\*\*/g, '<strong class=\'text-primary-700\'>$1</strong>')
+                        .replace(/^.{1,2} /, '')
+                    )
+                  "
+                ></span>
+              </template>
+              <template v-else>
+                <span
+                  class="flex-1 min-w-0"
+                  v-html="
+                    processTextWithLinks(
+                      line.replace(/\*\*(.*?)\*\*/g, '<strong class=\'text-primary-700\'>$1</strong>')
+                    )
+                  "
+                ></span>
+              </template>
             </li>
           </ul>
 
           <div v-if="step.action" class="mt-8 pt-4">
             <button
-              @click="router.push(step.action.route)"
               class="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition transform active:scale-95"
+              @click="router.push(step.action.route)"
             >
               {{ step.action.text }}
               <UserIcon class="w-5 h-5" />
@@ -165,10 +209,10 @@ const steps = [
 
             <div class="mt-auto pt-4 border-t border-secondary-50">
               <button
-                @click="router.push(item.route)"
                 class="w-full text-xs font-bold text-primary-600 bg-primary-50 hover:bg-primary-100 py-2.5 px-3 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-2"
+                @click="router.push(item.route)"
               >
-                ✨ {{ item.feature }}
+                 {{ item.feature }}
               </button>
             </div>
           </div>
@@ -179,17 +223,17 @@ const steps = [
         <h3 class="text-2xl font-bold text-primary-700 mb-6">現在，開始你的旅程！</h3>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            @click="router.push('/test')"
             class="bg-yellow-400 hover:bg-yellow-500 text-primary-900 font-bold py-4 px-10 rounded-full shadow-lg transition transform hover:scale-105 flex items-center justify-center gap-2"
+            @click="router.push('/test')"
           >
             <SparklesIcon class="w-5 h-5" />
             測驗靈魂動物
           </button>
           <button
-            @click="router.push('/travelers')"
             class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 px-10 rounded-full shadow-lg transition transform hover:scale-105 flex items-center justify-center gap-2"
+            @click="router.push('/travelers')"
           >
-            <TentIcon class="w-5 h-5" />
+            <UsersIcon class="w-5 h-5" />
             去逛逛找旅伴
           </button>
         </div>

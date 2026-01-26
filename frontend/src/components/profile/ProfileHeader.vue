@@ -39,7 +39,7 @@ const props = defineProps({
   },
 })
 
-// [NEW] 加入 'open-card-settings' 事件
+// [NEW] 加入 'open-card-settings' 和 'open-settings' 事件
 const emit = defineEmits([
   'edit-profile',
   'edit-bio',
@@ -49,6 +49,7 @@ const emit = defineEmits([
   'add-friend',
   'start-test',
   'open-card-settings',
+  'open-settings',
 ])
 
 const fileInputMobile = ref(null)
@@ -244,7 +245,7 @@ const shouldMarquee = computed(() => {
               <button
                 class="p-1 sm:p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
                 title="帳號設定"
-                @click="$emit('edit-profile')"
+                @click="$emit('open-settings')"
               >
                 <Settings class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
@@ -466,7 +467,7 @@ const shouldMarquee = computed(() => {
             <button
               class="p-1.5 md:p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
               title="帳號設定"
-              @click="$emit('edit-profile')"
+              @click="$emit('open-settings')"
             >
               <Settings class="w-4 h-4 md:w-5 md:h-5" />
             </button>
