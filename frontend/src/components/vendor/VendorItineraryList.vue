@@ -119,7 +119,7 @@ const changePage = (page) => {
 
           <!-- 行程資訊 -->
           <div class="p-5 flex-1 flex flex-col">
-            <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">{{ itinerary.name }}</h3>
+            <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">{{ itinerary.title || itinerary.name }}</h3>
             <div class="flex items-center gap-4 mb-2 text-sm text-gray-600">
               <div class="flex items-center gap-1 bg-primary-50 px-3 py-1 rounded-full">
                 <CalendarIcon class="w-4 h-4 text-primary-600" />

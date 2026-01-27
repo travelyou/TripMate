@@ -4,8 +4,8 @@ import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from
 
 defineProps({
   regions: {
-    type: Array,
-    default: () => ['日本', '韓國', '東南亞', '北歐', '東歐', '英國']
+    type: Array, // Array of { name, image }
+    default: () => []
   },
   activeRegion: {
     type: String,
@@ -52,20 +52,7 @@ const scroll = (direction) => {
   });
 };
 
-// Map regions to image URLs //mock data
-const regionImages = {
-  '日本': 'https://images.unsplash.com/photo-1528164344795-46b7f0801a61?q=80&w=800&auto=format&fit=crop',
-  '韓國': 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=800&auto=format&fit=crop',
-  '東南亞': 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=800&auto=format&fit=crop',
-  '北歐': 'https://images.unsplash.com/photo-1548180908-1e434e32d309?q=80&w=800&auto=format&fit=crop',
-  '東歐': 'https://images.unsplash.com/photo-1515091943-9d5c0ad475af?q=80&w=800&auto=format&fit=crop',
-  '英國': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=800&auto=format&fit=crop',
-  'default': 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800&auto=format&fit=crop'
-};
 
-const getRegionImage = (region) => {
-  return regionImages[region] || regionImages['default'];
-};
 </script>
 
 <template>
@@ -117,13 +104,13 @@ const getRegionImage = (region) => {
       <!-- Region Cards -->
       <button
         v-for="region in regions"
-        :key="region"
+        :key="region.name"
         class="relative min-w-[200px] h-[300px] rounded-2xl overflow-hidden shrink-0 snap-start group transition-all duration-300 transform hover:-translate-y-2 hover:shadow-lg border-2 border-primary-100 bg-white/80 shadow-primary-sm"
-        @click="selectRegion(region)"
+        @click="selectRegion(region.name)"
       >
         <!-- Background Image -->
         <img
-          :src="getRegionImage(region)"
+          :src="region.image || 'https://placehold.co/400x600?text=No+Image'"
           class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0 select-none"
         />
 
@@ -132,13 +119,13 @@ const getRegionImage = (region) => {
 
         <!-- Content -->
         <div class="absolute inset-0 flex flex-col items-center justify-end p-8 z-10 select-none">
-          <h3 class="text-2xl font-bold text-white tracking-wider mb-1 drop-shadow-md">{{ region }}</h3>
+          <h3 class="text-2xl font-bold text-white tracking-wider mb-1 drop-shadow-md">{{ region.name }}</h3>
           <div class="w-8 h-1 bg-primary-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
 
         <!-- Active Frame -->
         <div
-            v-if="activeRegion === region"
+            v-if="activeRegion === region.name"
             class="absolute inset-0 border-4 border-primary-500 z-20"
         ></div>
       </button>

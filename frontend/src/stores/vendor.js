@@ -224,15 +224,24 @@ export const useVendorStore = defineStore('vendor', () => {
   }
 
   const fetchVendorPosts = async (id) => {
-    // 移除 Mock Data fallback
     try {
       const res = await getVendorPosts(id)
-      if (res.success) {
-        vendorPosts.value = res.data
+      // Backend returns { data: [...], pagination: {...} } or { success: true, data: [...] }
+      // Check if res has data property directly or if it's nested in success response
+      const posts = res.data || (res.success ? res.data : null)
+
+      if (Array.isArray(posts)) {
+        vendorPosts.value = posts
+      } else if (res.posts) {
+         // Support alternative format if backend returns { posts: [...] }
+         vendorPosts.value = res.posts
       } else {
+        // Fallback or empty
         vendorPosts.value = []
+        console.warn('fetchVendorPosts: Unexpected response format', res)
       }
-    } catch {
+    } catch (e) {
+      console.error('fetchVendorPosts Error:', e)
       vendorPosts.value = []
     }
   }
@@ -240,8 +249,10 @@ export const useVendorStore = defineStore('vendor', () => {
   const fetchVendorItineraries = async (id, filter = {}) => {
     try {
       const res = await getVendorItineraries(id)
-      if (res.success) {
-        let result = res.data
+      const itineraries = res.data || (res.success ? res.data : null)
+
+      if (Array.isArray(itineraries)) {
+        let result = itineraries
         // 前端簡單過濾 (若後端未做)
         if (filter.region && filter.region !== '全部') {
           result = result.filter((item) => item.region === filter.region)
@@ -249,8 +260,10 @@ export const useVendorStore = defineStore('vendor', () => {
         vendorItineraries.value = result
       } else {
         vendorItineraries.value = []
+         console.warn('fetchVendorItineraries: Unexpected response format', res)
       }
-    } catch {
+    } catch (e) {
+      console.error('fetchVendorItineraries Error:', e)
       vendorItineraries.value = []
     }
   }

@@ -74,3 +74,19 @@ export const createItinerary = async (payload) => {
     return { success: false, message: error.response?.data?.message || '建立失敗' }
   }
 }
+
+// 更新行程
+export const updateItinerary = async (id, payload) => {
+  try {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null
+    const response = await axios.put(`${API_BASE_URL}/itineraries/${id}`, payload, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error('Error updating itinerary:', error)
+    return { success: false, message: error.response?.data?.message || '更新失敗' }
+  }
+}

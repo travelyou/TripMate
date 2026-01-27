@@ -23,6 +23,10 @@ const activeTab = ref('basic_info')
 const showItineraryModal = ref(false)
 const showPostModal = ref(false)
 
+// Edit State
+const editItineraryData = ref(null)
+const isItineraryEdit = ref(false)
+
 const vendorId = computed(() => {
   const id = userStore.currentUser?.vendorId || userStore.currentUser?.id || 'vendor001'
   console.log('🔄 [Dashboard] Computed vendorId:', id)
@@ -39,19 +43,38 @@ const handleLogout = () => {
 
 const handleSwitchToFrontend = () => {
   console.log('🚀 handleSwitchToFrontend triggered')
-  // 使用統一的導航 Helper
   const route = getVendorProfileRoute(userStore.currentUser)
   console.log('🚀 handleSwitchToFrontend -> target route:', route)
   router.push(route)
 }
 
 const openItineraryModal = () => {
+  isItineraryEdit.value = false
+  editItineraryData.value = null
+  showItineraryModal.value = true
+}
+
+const handleEditItinerary = (item) => {
+  console.log('✏️ Edit Itinerary:', item)
+  isItineraryEdit.value = true
+  editItineraryData.value = item
   showItineraryModal.value = true
 }
 
 const openPostModal = () => {
   showPostModal.value = true
 }
+
+// ... (success handlers)
+
+// Template changes below
+
+// In TabItineraryList:
+// @edit="handleEditItinerary"
+
+// In ItineraryPostModal:
+// :initial-data="editItineraryData"
+// :is-edit="isItineraryEdit"
 
 const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
@@ -122,7 +145,7 @@ onMounted(async () => {
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                 <TabItineraryList
                   @create="openItineraryModal"
-                  @edit="(item) => console.log('Edit itinerary', item)"
+                  @edit="handleEditItinerary"
                 />
               </div>
             </div>
@@ -150,6 +173,8 @@ onMounted(async () => {
 
     <ItineraryPostModal
       v-if="showItineraryModal"
+      :initial-data="editItineraryData"
+      :is-edit="isItineraryEdit"
       @close="showItineraryModal = false"
       @success="handleItinerarySuccess"
     />
