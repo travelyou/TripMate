@@ -76,9 +76,18 @@ const handleCreatePostFromItinerary = (itinerary) => {
 }
 
 const handleItinerarySuccess = async () => {
+  console.log('✅ [VendorDashboard] 行程創建成功，開始刷新列表...')
   showItineraryModal.value = false
-  await vendorStore.fetchVendorItineraries(vendorId.value)
-  alert('行程發布成功！')
+  editItineraryData.value = null
+  isItineraryEdit.value = false
+  
+  try {
+    await vendorStore.fetchVendorItineraries(vendorId.value)
+    console.log('✅ [VendorDashboard] 行程列表已刷新，目前有', vendorStore.vendorItineraries.length, '個行程')
+  } catch (error) {
+    console.error('❌ [VendorDashboard] 刷新行程列表失敗:', error)
+    alert('行程已創建，但刷新列表時發生錯誤，請手動刷新頁面')
+  }
 }
 
 const handlePostSuccess = async () => {

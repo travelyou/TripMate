@@ -522,6 +522,7 @@ const registerErrors = ref({
                   type="email"
                   placeholder="請輸入電子信箱"
                   @input="loginErrors.email = ''"
+                  @keydown.enter.prevent="handleLogin"
                 />
                 <span v-if="loginErrors.email" class="text-red-500 text-sm">{{
                   loginErrors.email
@@ -636,6 +637,7 @@ const registerErrors = ref({
                   type="text"
                   placeholder="請輸入本名(不公開)"
                   @input="registerErrors.realName = ''"
+                  @keydown.enter.prevent="handleRegister"
                 />
                 <span v-if="registerErrors.realName" class="text-red-500 text-sm">
                   {{ registerErrors.realName }}
@@ -655,6 +657,7 @@ const registerErrors = ref({
                   type="text"
                   placeholder="請輸入使用者暱稱(公開)"
                   @input="registerErrors.nickname = ''"
+                  @keydown.enter.prevent="handleRegister"
                 />
                 <span v-if="registerErrors.nickname" class="text-red-500 text-sm">
                   {{ registerErrors.nickname }}
@@ -674,6 +677,7 @@ const registerErrors = ref({
                   type="email"
                   placeholder="請輸入電子信箱"
                   @input="registerErrors.email = ''"
+                  @keydown.enter.prevent="handleRegister"
                 />
                 <span v-if="registerErrors.email" class="text-red-500 text-sm">
                   {{ registerErrors.email }}
@@ -693,6 +697,7 @@ const registerErrors = ref({
                   type="password"
                   placeholder="6位以上英、數字，必須包含大小寫"
                   @input="registerErrors.password = ''"
+                  @keydown.enter.prevent="handleRegister"
                 />
                 <span v-if="registerErrors.password" class="text-red-500 text-sm">
                   {{ registerErrors.password }}

@@ -40,25 +40,46 @@ const hasChanges = ref(false)
 watch(currentVendor, (vendor) => {
   // 🔧 修復：編輯模式時不要重置表單，避免清空用戶正在編輯的內容
   if (vendor && !isEditing.value) {
+    // 處理 regionTags：支援兩種字段名格式
+    const regionTagsData = vendor.regionTags || vendor.region_tags || []
+    const regionTagsArray = Array.isArray(regionTagsData) ? regionTagsData : []
+
+    console.log('📥 [TabBasicInfo] 載入 vendor 資料:', {
+      id: vendor.id,
+      name: vendor.name,
+      regionTags: regionTagsArray,
+      bannerImage: vendor.bannerImage ? '有資料' : '無資料'
+    })
+
     form.value = {
       name: vendor.name || '',
       slogan: vendor.slogan || '',
       description: vendor.description || '',
-      regionTags: vendor.regionTags || [],
+      regionTags: regionTagsArray,
       avatar: vendor.avatar || '',
       bannerImage: vendor.bannerImage || '',
     }
 
     // 解析主打地區
     try {
-      if (vendor.bannerImage && vendor.bannerImage.startsWith('[')) {
-        mainRegions.value = JSON.parse(vendor.bannerImage)
+      const bannerImageData = vendor.bannerImage || vendor.banner_image || ''
+      if (bannerImageData && typeof bannerImageData === 'string') {
+        if (bannerImageData.startsWith('[') || bannerImageData.startsWith('{')) {
+          mainRegions.value = JSON.parse(bannerImageData)
+          console.log('✅ [TabBasicInfo] 成功解析主打地區:', mainRegions.value)
+        } else {
+          // 如果不是 JSON 格式，初始化為空陣列
+          mainRegions.value = []
+        }
+      } else if (Array.isArray(bannerImageData)) {
+        // 如果已經是陣列，直接使用
+        mainRegions.value = bannerImageData
       } else {
         // 舊資料或空資料，初始化為空陣列
         mainRegions.value = []
       }
-    } catch {
-      console.error('解析主打地區失敗')
+    } catch (err) {
+      console.error('❌ [TabBasicInfo] 解析主打地區失敗:', err, 'bannerImage:', vendor.bannerImage)
       mainRegions.value = []
     }
   }
@@ -243,13 +264,21 @@ const handleSave = async () => {
     bannerImage: JSON.stringify(sanitizedRegions) // 使用清理後的地區資料
   }
 
+  console.log('💾 [TabBasicInfo] 準備儲存資料:', {
+    vendorId: currentVendor.value.id,
+    bannerImage: sanitizedForm.bannerImage,
+    sanitizedRegions: sanitizedRegions,
+    regionTags: sanitizedForm.regionTags
+  })
+
   try {
-    await vendorStore.updateVendorProfile(currentVendor.value.id, sanitizedForm)
+    const result = await vendorStore.updateVendorProfile(currentVendor.value.id, sanitizedForm)
+    console.log('✅ [TabBasicInfo] 儲存成功，返回資料:', result)
     hasChanges.value = false
     isEditing.value = false
     success('儲存成功！')
-  } catch (error) {
-    console.error('儲存失敗:', error)
+  } catch (err) {
+    console.error('儲存失敗:', err)
     error('儲存失敗，請稍後再試')
   } finally {
     saving.value = false

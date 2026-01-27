@@ -27,11 +27,47 @@ const showReviewModal = ref(false)
 
 // Computed
 const mainRegions = computed(() => {
-  if (!currentVendor.value?.bannerImage) return []
+  if (!currentVendor.value) return []
+  
+  const bannerImageData = currentVendor.value.bannerImage || currentVendor.value.banner_image || ''
+  
+  if (!bannerImageData) {
+    console.log('⚠️ [VendorProfilePage] 沒有 bannerImage 資料')
+    return []
+  }
+  
   try {
-    return JSON.parse(currentVendor.value.bannerImage)
+    let parsedData = null
+    
+    if (typeof bannerImageData === 'string') {
+      if (bannerImageData.startsWith('[') || bannerImageData.startsWith('{')) {
+        parsedData = JSON.parse(bannerImageData)
+      } else {
+        console.log('⚠️ [VendorProfilePage] bannerImage 不是 JSON 格式:', bannerImageData)
+        return []
+      }
+    } else if (Array.isArray(bannerImageData)) {
+      parsedData = bannerImageData
+    } else {
+      console.log('⚠️ [VendorProfilePage] bannerImage 格式不正確:', typeof bannerImageData)
+      return []
+    }
+    
+    // 確保是陣列格式
+    const regions = Array.isArray(parsedData) ? parsedData : []
+    
+    // 過濾掉無效的地區（沒有 name 或 image）
+    const validRegions = regions.filter(region => region && region.name && region.image)
+    
+    console.log('✅ [VendorProfilePage] 解析主打地區成功:', {
+      total: regions.length,
+      valid: validRegions.length,
+      regions: validRegions
+    })
+    
+    return validRegions
   } catch (e) {
-    console.error('Failed to parse main regions:', e)
+    console.error('❌ [VendorProfilePage] 解析主打地區失敗:', e, 'bannerImage:', bannerImageData)
     return []
   }
 })
@@ -92,7 +128,7 @@ const handlePageChange = (page) => {
         @edit="handleEdit"
       />
 
-      <!-- 地區篩選器 -->
+      <!-- 地區篩選器 (主打地區) -->
       <VendorRegionSelector
         :regions="mainRegions"
         :active-region="activeRegion"

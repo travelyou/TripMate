@@ -795,7 +795,7 @@ const handleSubmitPost = async (postData) => {
     }
 
     // 調用 API 創建貼文
-    const newPost = await discussionsStore.addPost(submitData)
+    await discussionsStore.addPost(submitData)
 
     // 關閉模態框
     isPostingModalOpen.value = false
@@ -844,7 +844,7 @@ const handleClosePrivateChat = () => {
       >
         <div
           v-if="!isSearchPage && !hideSidebar"
-          class="contents lg:block shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
+          class="contents lg:block shrink-0 sticky top-16 md:top-[72px] h-[calc(100vh-64px)] md:h-[calc(100vh-72px)] overflow-y-auto custom-scrollbar"
         >
           <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
         </div>

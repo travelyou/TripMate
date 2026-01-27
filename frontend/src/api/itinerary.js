@@ -78,6 +78,11 @@ export const createItinerary = async (payload) => {
   try {
     const token = auth.currentUser ? await auth.currentUser.getIdToken() : null
 
+    console.log('📤 [API] 發送創建行程請求:', {
+      url: `${API_BASE_URL}/itineraries`,
+      payload: { ...payload, coverImage: payload.coverImage ? '有圖片' : '無圖片' }
+    })
+
     // 根據你的 CSV 結構，後端需要接收 itinerary (days) 和 packingList
     // payload 應該包含: title, price, ... itinerary: { days: [] }, packingList: []
 
@@ -86,10 +91,27 @@ export const createItinerary = async (payload) => {
         Authorization: token ? `Bearer ${token}` : '',
       },
     })
-    return response.data
+
+    console.log('📥 [API] 創建行程回應:', response.data)
+
+    // 處理後端返回格式：{ success: true, id: xxx } 或 { success: true, data: {...} }
+    const result = response.data
+    if (result.success || result.id) {
+      return { success: true, id: result.id, data: result.data || result }
+    }
+
+    return result
   } catch (error) {
-    console.error('Error creating itinerary:', error)
-    return { success: false, message: error.response?.data?.message || '建立失敗' }
+    console.error('❌ [API] 創建行程錯誤:', error)
+    console.error('錯誤詳情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    })
+    return { 
+      success: false, 
+      message: error.response?.data?.message || error.message || '建立失敗' 
+    }
   }
 }
 

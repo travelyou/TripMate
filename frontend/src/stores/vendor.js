@@ -248,7 +248,10 @@ export const useVendorStore = defineStore('vendor', () => {
 
   const fetchVendorItineraries = async (id, filter = {}) => {
     try {
+      console.log(`🔍 [Vendor Store] 查詢行程列表，vendorId: ${id}`)
       const res = await getVendorItineraries(id)
+      console.log(`📥 [Vendor Store] 行程列表 API 回應:`, res)
+
       const itineraries = res.data || (res.success ? res.data : null)
 
       if (Array.isArray(itineraries)) {
@@ -257,13 +260,14 @@ export const useVendorStore = defineStore('vendor', () => {
         if (filter.region && filter.region !== '全部') {
           result = result.filter((item) => item.region === filter.region)
         }
+        console.log(`✅ [Vendor Store] 成功取得 ${result.length} 筆行程`)
         vendorItineraries.value = result
       } else {
+        console.warn('⚠️ [Vendor Store] 行程列表格式不正確:', res)
         vendorItineraries.value = []
-         console.warn('fetchVendorItineraries: Unexpected response format', res)
       }
     } catch (e) {
-      console.error('fetchVendorItineraries Error:', e)
+      console.error('❌ [Vendor Store] 查詢行程列表錯誤:', e)
       vendorItineraries.value = []
     }
   }
@@ -286,7 +290,29 @@ export const useVendorStore = defineStore('vendor', () => {
 
       // 🔧 直接更新 currentVendor，不要重新 fetch（避免觸發 watch 和頁面重置）
       if (res.data) {
-        currentVendor.value = res.data
+        // 確保字段正確設置（處理 snake_case 和 camelCase）
+        const updatedVendor = {
+          ...res.data,
+          bannerImage: res.data.bannerImage || res.data.banner_image || '',
+          regionTags: res.data.regionTags || res.data.region_tags || [],
+          isBannerVisible: res.data.isBannerVisible !== undefined ? res.data.isBannerVisible : res.data.is_banner_visible,
+          reviewCount: res.data.reviewCount || res.data.review_count || 0,
+          isVerified: res.data.isVerified !== undefined ? res.data.isVerified : res.data.is_verified,
+        }
+        // 移除舊的 snake_case 字段
+        if (updatedVendor.banner_image) delete updatedVendor.banner_image
+        if (updatedVendor.region_tags) delete updatedVendor.region_tags
+        if (updatedVendor.is_banner_visible !== undefined) delete updatedVendor.is_banner_visible
+        if (updatedVendor.review_count !== undefined) delete updatedVendor.review_count
+        if (updatedVendor.is_verified !== undefined) delete updatedVendor.is_verified
+
+        currentVendor.value = updatedVendor
+        console.log('✅ [Vendor Store] 更新後的 vendor 資料:', {
+          id: updatedVendor.id,
+          name: updatedVendor.name,
+          regionTags: updatedVendor.regionTags,
+          bannerImage: updatedVendor.bannerImage ? '有資料' : '無資料'
+        })
       }
 
       return { success: true, data: res.data }

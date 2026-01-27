@@ -509,22 +509,29 @@ const handleFinalSubmit = async () => {
 
     let res
     if (props.isEdit) {
+      console.log('📝 [ItineraryPostModal] 更新行程:', props.initialData.id, payload)
       res = await updateItinerary(props.initialData.id, payload)
     } else {
+      console.log('➕ [ItineraryPostModal] 創建新行程:', payload)
       res = await createItinerary(payload)
     }
 
-    if (res.success) {
+    console.log('📊 [ItineraryPostModal] API 回應:', res)
+
+    if (res.success || res.id) {
       submitProgress.value = 100
       submitStatus.value = props.isEdit ? '更新成功！' : '發布成功！'
-      alert(props.isEdit ? '行程更新成功！' : '精選行程上架成功！')
+      console.log('✅ [ItineraryPostModal] 行程操作成功')
       emit('success')
       emit('close')
     } else {
-      formError.value = res.message || (props.isEdit ? '更新失敗' : '發布失敗')
+      const errorMsg = res.message || (props.isEdit ? '更新失敗' : '發布失敗')
+      console.error('❌ [ItineraryPostModal] 行程操作失敗:', errorMsg, res)
+      formError.value = errorMsg
     }
-  } catch {
-    formError.value = '伺服器錯誤，請稍後再試'
+  } catch (error) {
+    console.error('❌ [ItineraryPostModal] 行程操作異常:', error)
+    formError.value = error.message || '伺服器錯誤，請稍後再試'
   } finally {
     isSubmitting.value = false
   }
