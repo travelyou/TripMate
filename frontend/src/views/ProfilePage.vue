@@ -369,6 +369,11 @@ const loadProfileData = async () => {
             domestic: profileData.visitedPlaces.domestic || [],
             international: profileData.visitedPlaces.international || [],
           }
+          // 同時更新 currentUser.visitedPlaces，確保 CardSettingsModal 可以訪問
+          userStore.currentUser.visitedPlaces = {
+            domestic: profileData.visitedPlaces.domestic || [],
+            international: profileData.visitedPlaces.international || [],
+          }
         }
 
         // [修正] 還原性格測驗結果，讓側邊欄顯示
@@ -710,6 +715,7 @@ onMounted(() => {
       :user="user"
       :wishlist="displayWishlist"
       :is-matching-enabled="isMatchingEnabled"
+      :visited-places="user?.visitedPlaces || userStore.visitedPlaces || { domestic: [], international: [] }"
       @close="isCardSettingsOpen = false"
       @toggle-matching="handleToggleMatching"
       @save="handleSaveCard"

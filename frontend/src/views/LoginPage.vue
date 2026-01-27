@@ -182,25 +182,9 @@ const handleLogin = async () => {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData) {
         // 只使用 Neon 資料庫的 avatar，如果沒有則使用預設頭貼
-        let avatar = neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')
+        const avatar = neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')
           ? neonUserData.avatar
           : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-
-        // 如果資料庫沒有有效的頭像，但 Firebase Auth 有，則同步到資料庫
-        if ((!neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) &&
-            userCredential.user.photoURL &&
-            userCredential.user.photoURL.trim() !== '' &&
-            !userCredential.user.photoURL.includes('dicebear.com')) {
-          avatar = userCredential.user.photoURL
-          try {
-            await createOrUpdateUser({
-              uid: userCredential.user.uid,
-              avatar: avatar
-            })
-          } catch {
-            // 同步失敗但不影響登入
-          }
-        }
 
         applyUserProfileToStore({
           uid: userCredential.user.uid,
@@ -213,26 +197,8 @@ const handleLogin = async () => {
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
-        // 如果資料庫沒有用戶資料，使用 Firebase Auth 的 photoURL 或預設頭貼
-        let avatar = userCredential.user.photoURL &&
-                     userCredential.user.photoURL.trim() !== '' &&
-                     !userCredential.user.photoURL.includes('dicebear.com')
-          ? userCredential.user.photoURL
-          : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-
-        // 如果 Firebase Auth 有頭像，同步到資料庫
-        if (userCredential.user.photoURL &&
-            userCredential.user.photoURL.trim() !== '' &&
-            !userCredential.user.photoURL.includes('dicebear.com')) {
-          try {
-            await createOrUpdateUser({
-              uid: userCredential.user.uid,
-              avatar: avatar
-            })
-          } catch {
-            // 同步失敗但不影響登入
-          }
-        }
+        // 如果資料庫沒有用戶資料，使用預設頭貼
+        const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
 
         applyUserProfileToStore({
           uid: userCredential.user.uid,
@@ -660,6 +626,7 @@ const registerErrors = ref({
                     :type="showLoginPassword ? 'text' : 'password'"
                     placeholder="請輸入密碼"
                     @input="loginErrors.password = ''"
+                    @keydown.enter.prevent="handleLogin"
                   />
                   <button
                     type="button"
@@ -842,6 +809,7 @@ const registerErrors = ref({
                     :type="showRegisterConfirmPassword ? 'text' : 'password'"
                     placeholder="請再次輸入密碼"
                     @input="registerErrors.confirmPassword = ''"
+                    @keydown.enter.prevent="handleRegister"
                   />
                   <button
                     type="button"

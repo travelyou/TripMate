@@ -69,6 +69,14 @@ const processingIds = ref(new Set())
 const myApplication = ref(null)
 const showMenu = ref(false)
 const showShareModal = ref(false)
+const isSubmittingComment = ref(false)
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape') {
+    emit('close')
+  }
+}
 
 // 建立一個本地變數來存「完整資料」
 const localTravelerData = ref({ ...props.traveler })
@@ -266,26 +274,27 @@ const fetchFullTravelerDetails = async () => {
       incrementView(props.traveler.id)
       const commentsData = response.data?.commentsData || response.data?.comments || []
       if (Array.isArray(commentsData)) {
-        localComments.value = commentsData.map((comment) => ({
+        // 先映射评论数据（不设置 replies，让 buildCommentThreads 构建回复树）
+        const mappedComments = commentsData.map((comment) => ({
           id: comment.id,
-          author:
-            comment.author_nickname ||
-            comment.author_name ||
-            comment.author ||
-            comment.author_uid ||
-            '匿名用戶',
+          author_nickname: comment.author_nickname,
+          author_name: comment.author_name,
+          author: comment.author,
           author_uid: comment.author_uid,
-          avatar:
-            comment.author_avatar ||
-            comment.avatar ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_uid}`,
+          author_avatar: comment.author_avatar,
+          avatar: comment.avatar,
           content: comment.content,
-          time: comment.created_at || comment.timestamp || comment.time,
-          likes: comment.likes_count || comment.likes || 0,
-          isLiked: comment.isLiked || false,
+          created_at: comment.created_at,
+          timestamp: comment.timestamp,
+          time: comment.time,
+          likes_count: comment.likes_count,
+          likes: comment.likes,
+          isLiked: comment.isLiked,
           parent_comment_id: comment.parent_comment_id || null,
-          replies: comment.replies || [],
+          // 不设置 replies，让 buildCommentThreads 来构建
         }))
+        // 使用 buildCommentThreads 构建回复树结构
+        localComments.value = buildCommentThreads(mappedComments)
       } else {
         localComments.value = []
       }
@@ -444,6 +453,7 @@ const handleRejectApplication = async (application) => {
 }
 
 const submitComment = async () => {
+  if (isSubmittingComment.value) return
   if (!newComment.value.trim()) return
   if (isExpired.value) return
   if (!userStore.isLoggedIn || !currentUserUid.value) {
@@ -451,6 +461,7 @@ const submitComment = async () => {
     return
   }
   const content = newComment.value.trim()
+  isSubmittingComment.value = true
   try {
     await createComment(props.traveler.id, {
       author_uid: currentUserUid.value,
@@ -470,6 +481,9 @@ const submitComment = async () => {
     commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (error) {
     console.error(error)
+    alert('提交留言失敗，請稍後再試')
+  } finally {
+    isSubmittingComment.value = false
   }
 }
 
@@ -573,10 +587,12 @@ onMounted(async () => {
     }, 500)
   }
   window.addEventListener('likes-updated', handleLikesUpdated)
+  window.addEventListener('keydown', handleEscapeKey)
 })
 
 onUnmounted(() => {
   window.removeEventListener('likes-updated', handleLikesUpdated)
+  window.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
 
@@ -1261,15 +1277,17 @@ onUnmounted(() => {
             v-model="newComment"
             type="text"
             placeholder="發表你的看法..."
-            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400"
-            @keyup.enter="submitComment"
+            :disabled="isSubmittingComment"
+            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            @keyup.enter.prevent="submitComment"
           />
           <button
-            :disabled="!newComment.trim()"
+            :disabled="!newComment.trim() || isSubmittingComment"
             class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
             @click="submitComment"
           >
-            <SendIcon class="w-5 h-5" />
+            <SendIcon v-if="!isSubmittingComment" class="w-5 h-5" />
+            <span v-else class="text-sm">提交中...</span>
           </button>
           </div>
         </div>

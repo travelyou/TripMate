@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useNotificationsStore } from '@/stores/notifications'
 import { Bell as BellIcon, X as XIcon } from 'lucide-vue-next'
 import { formatTime } from '@/utils/time'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -36,6 +37,16 @@ const toggleNotifications = () => {
 const closeNotifications = () => {
   isOpen.value = false
 }
+
+// ESC 鍵關閉功能
+useEscapeKey(
+  () => {
+    closeNotifications()
+  },
+  {
+    condition: () => isOpen.value, // 僅在通知欄打開時才響應 ESC
+  },
+)
 
 const handleNotificationClick = async (notification) => {
   if (isNavigating.value) return

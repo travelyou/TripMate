@@ -449,7 +449,7 @@ const handleFinalSubmit = async () => {
       banner_position_y: Math.round(bannerPositionY.value),
       author_uid: auth.currentUser.uid,
       author_name: userStore.currentUser?.displayName || '匿名',
-      author_avatar: userStore.currentUser?.photoURL,
+      author_avatar: userStore.currentUser?.avatar,
     }
 
     submitProgress.value = 70
@@ -1032,7 +1032,7 @@ if (postData.value.itinerary.days.length === 0) {
             <div class="flex items-center space-x-3 mb-6">
               <img
                 :src="
-                  userStore.currentUser?.photoURL ||
+                  userStore.currentUser?.avatar ||
                   'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
                 "
                 class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"

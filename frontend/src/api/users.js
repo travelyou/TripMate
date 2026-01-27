@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './config'
-import { auth } from '@/firebase/config'
+import { auth, db } from '@/firebase/config'
+import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 
 // 輔助函數：統一將資料轉為前端元件需要的格式
 function normalizeUserData(data) {
@@ -11,12 +12,15 @@ function normalizeUserData(data) {
 
     // 名稱容錯
     displayName: data.displayName || data.display_name || 'User',
-    nickname: data.nickname || data.displayName || data.display_name || '',
+    // 保留資料庫中的 nickname 值（包括 null 和空字符串）
+    nickname: data.nickname !== undefined ? data.nickname : (data.displayName || data.display_name || ''),
+    real_name: data.real_name || data.realName || null,
+    realName: data.realName || data.real_name || null,
 
     // 頭像：統一使用 public.users.avatar（來自資料庫）
-    // 不應該回退到 photoURL，因為那是 Firebase Auth 的，可能不是最新的
-    photoURL: data.photoURL || data.photo_url || '',
-    avatar: data.avatar || '', // 只使用資料庫的 avatar 欄位
+    // 不應該使用 photoURL，因為那是 Firebase Auth 的，可能不是最新的
+    // 保留資料庫中的 avatar 值（包括 null 和空字符串）
+    avatar: data.avatar !== undefined ? data.avatar : '',
 
     // 個人檔案資料
     bio: data.bio || '',
@@ -158,7 +162,58 @@ export async function updateUserProfile(uid, userData) {
     throw error
   }
 
-  return await response.json()
+  const result = await response.json()
+
+  // 同步更新 Firestore（作為備份）
+  try {
+    const userDocRef = doc(db, 'users', uid)
+    const userDoc = await getDoc(userDocRef)
+
+    // 準備要更新的 Firestore 資料（只更新傳入的欄位）
+    const firestoreData = {
+      updatedAt: serverTimestamp(),
+    }
+
+    // 映射欄位名稱（Neon 使用 snake_case，Firestore 使用 camelCase）
+    if (userData.nickname !== undefined) {
+      firestoreData.nickname = userData.nickname
+    }
+    if (userData.avatar !== undefined) {
+      firestoreData.avatar = userData.avatar
+    }
+    if (userData.bio !== undefined) {
+      firestoreData.bio = userData.bio
+    }
+    if (userData.location !== undefined) {
+      firestoreData.location = userData.location
+    }
+    if (userData.spirit_animal !== undefined) {
+      firestoreData.spiritAnimal = userData.spirit_animal
+    }
+    if (userData.real_name !== undefined || userData.realName !== undefined) {
+      firestoreData.realName = userData.real_name || userData.realName
+    }
+
+    if (userDoc.exists()) {
+      await updateDoc(userDocRef, firestoreData)
+      console.log('✅ Firestore 同步更新成功')
+    } else {
+      // 如果 Firestore 文檔不存在，創建一個新的
+      const email = auth.currentUser?.email || ''
+      await setDoc(userDocRef, {
+        uid,
+        email,
+        ...firestoreData,
+        createdAt: serverTimestamp(),
+      })
+      console.log('✅ Firestore 文檔創建成功')
+    }
+  } catch (firestoreError) {
+    // Firestore 更新失敗不影響主要流程，只記錄警告
+    console.warn('⚠️ Firestore 同步更新失敗（不影響主要功能）:', firestoreError)
+  }
+
+  return result
 }
 
 // 取得所有用戶（抽卡用）

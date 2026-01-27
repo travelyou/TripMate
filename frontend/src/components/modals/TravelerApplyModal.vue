@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { X as XIcon, Send as SendIcon } from 'lucide-vue-next'
 import { submitApplication } from '@/api/travelers'
 import { useUserStore } from '@/stores/user'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 const props = defineProps({
   traveler: {
@@ -12,6 +13,16 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'success'])
+
+// 支援 ESC 鍵關閉（提交中時不允許關閉）
+useEscapeKey(
+  () => {
+    handleClose()
+  },
+  {
+    condition: () => !isSubmitting.value,
+  },
+)
 const userStore = useUserStore()
 
 const message = ref('')

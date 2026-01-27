@@ -51,6 +51,14 @@ const replyTarget = ref(null)
 const localPostData = ref({ ...props.post })
 const showMenu = ref(false)
 const showShareModal = ref(false)
+const isSubmittingComment = ref(false)
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape') {
+    emit('close')
+  }
+}
 
 const isAuthor = computed(() => {
   const authorUid = localPostData.value?.author_uid || localPostData.value?.authorUid
@@ -245,6 +253,7 @@ const handleLike = async () => {
 }
 
 const submitComment = async () => {
+  if (isSubmittingComment.value) return
   if (!newComment.value.trim()) return
   if (!currentUserUid.value) {
     alert('請先登入後才能留言')
@@ -252,6 +261,7 @@ const submitComment = async () => {
   }
 
   const content = newComment.value.trim()
+  isSubmittingComment.value = true
   try {
     await createComment(props.post.id, {
       author_uid: currentUserUid.value,
@@ -271,6 +281,8 @@ const submitComment = async () => {
   } catch (error) {
     console.error('提交留言失敗：', error)
     alert('提交留言失敗，請稍後再試')
+  } finally {
+    isSubmittingComment.value = false
   }
 }
 
@@ -377,6 +389,7 @@ onMounted(async () => {
   }
 
   window.addEventListener('likes-updated', handleLikesUpdated)
+  window.addEventListener('keydown', handleEscapeKey)
 
   if (props.scrollToComments) {
     await nextTick()
@@ -395,6 +408,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('likes-updated', handleLikesUpdated)
+  window.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
 
@@ -696,15 +710,17 @@ onUnmounted(() => {
                 v-model="newComment"
                 type="text"
                 placeholder="發表你的看法..."
-                class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 outline-none bg-secondary-50 focus:bg-white transition text-black placeholder-gray-400"
-                @keyup.enter="submitComment"
+                :disabled="isSubmittingComment"
+                class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 outline-none bg-secondary-50 focus:bg-white transition text-black placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                @keyup.enter.prevent="submitComment"
               />
               <button
-                :disabled="!newComment.trim()"
+                :disabled="!newComment.trim() || isSubmittingComment"
                 class="bg-primary-600 text-white px-5 py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50 flex items-center shadow-md"
                 @click="submitComment"
               >
-                <SendIcon class="w-5 h-5" />
+                <SendIcon v-if="!isSubmittingComment" class="w-5 h-5" />
+                <span v-else class="text-sm">提交中...</span>
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import { MapPin as MapPinIcon, Search as SearchIcon, X as XIcon, Loader2 } from 'lucide-vue-next'
 
@@ -12,6 +12,31 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'select'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 const mapContainer = ref(null)
 const searchInput = ref(null)

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   X as XIcon,
   MapPin as MapPinIcon,
@@ -28,9 +28,38 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  visitedPlaces: {
+    type: Object,
+    default: () => ({ domestic: [], international: [] }),
+  },
 })
 
 const emit = defineEmits(['close', 'toggle-matching', 'save'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen && !isUploading.value && !isGalleryUploading.value) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 // --- 狀態控制 ---
 const isEditing = ref(false)
@@ -132,6 +161,17 @@ const cardPreview = computed(() => {
   // 許願球池資料來源整合
   const displayWishlist = props.wishlist?.length ? props.wishlist : props.user.wishlist || []
 
+  // 去過的地方 - 優先使用 props.visitedPlaces，否則使用 user.visitedPlaces
+  // 確保數據格式正確（每個項目需要有 name, date, icon 字段）
+  const rawVisitedPlaces = props.visitedPlaces?.international || props.user?.visitedPlaces?.international || []
+  const displayVisitedPlaces = Array.isArray(rawVisitedPlaces)
+    ? rawVisitedPlaces.map((place) => ({
+        name: place.name || place.location || '',
+        date: place.date || '',
+        icon: place.icon || '✈️',
+      }))
+    : []
+
   return {
     name: props.user.nickname || props.user.name || '使用者',
     age: props.user.age || '—',
@@ -142,6 +182,7 @@ const cardPreview = computed(() => {
     wishlist: displayWishlist,
     tags: displayTags,
     gallery: displayGallery,
+    visitedPlaces: displayVisitedPlaces,
   }
 })
 
@@ -375,6 +416,25 @@ const removeGalleryImage = (idx) => {
                   </div>
                 </div>
               </section>
+
+              <section v-if="cardPreview.visitedPlaces && cardPreview.visitedPlaces.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <MapPinIcon class="w-4 h-4 mr-1 text-green-600" /> 去過的地方 (自主簽證旅行)
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="trip in cardPreview.visitedPlaces"
+                    :key="`${trip.name}-${trip.date}`"
+                    class="px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg text-sm font-bold flex items-center gap-1.5"
+                  >
+                    <span>{{ trip.icon || '✈️' }}</span>
+                    <span>{{ trip.name }}</span>
+                    <span v-if="trip.date" class="text-xs opacity-75">({{ trip.date }})</span>
+                  </span>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -547,6 +607,37 @@ const removeGalleryImage = (idx) => {
 
             <p class="text-xs text-orange-500 font-medium">
               * 許願球池與個人檔案同步，如需修改請至個人檔案頁面。
+            </p>
+          </div>
+
+          <div class="space-y-2 opacity-80">
+            <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <MapPinIcon class="w-4 h-4 text-green-600" />
+              去過的地方 (自主簽證旅行)
+            </label>
+
+            <div
+              class="p-4 bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 min-h-[80px] flex items-center justify-center"
+            >
+              <div
+                v-if="props.visitedPlaces?.international?.length || props.user?.visitedPlaces?.international?.length"
+                class="flex flex-wrap gap-2 justify-center w-full"
+              >
+                <span
+                  v-for="trip in (props.visitedPlaces?.international || props.user?.visitedPlaces?.international || [])"
+                  :key="`${trip.name}-${trip.date}`"
+                  class="px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg text-sm font-bold flex items-center gap-1.5"
+                >
+                  <span>{{ trip.icon || '✈️' }}</span>
+                  <span>{{ trip.name }}</span>
+                  <span v-if="trip.date" class="text-xs opacity-75">({{ trip.date }})</span>
+                </span>
+              </div>
+              <div v-else class="text-xs text-gray-400">尚無去過的地方，請至個人檔案新增。</div>
+            </div>
+
+            <p class="text-xs text-orange-500 font-medium">
+              * 去過的地方與個人檔案同步，如需修改請至個人檔案頁面的「去過的地方」標籤。
             </p>
           </div>
         </div>

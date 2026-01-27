@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { X as XIcon, Link as LinkIcon } from 'lucide-vue-next'
 
 // 引入圖片檔案
@@ -17,6 +17,21 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape') {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleEscapeKey)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 // 統一的分享文案 (包含網址)
 const shareText = computed(() => `我在 TripMate 看到這個超棒的旅遊分享！ ${props.postLink}`)

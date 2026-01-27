@@ -1,7 +1,8 @@
 <script setup>
 import { Star as StarIcon, X as XIcon } from 'lucide-vue-next';
+import { watch, onMounted, onUnmounted } from 'vue';
 
-defineProps({
+const props = defineProps({
   isOpen: {
     type: Boolean,
     required: true
@@ -25,6 +26,31 @@ const emit = defineEmits(['close']);
 const close = () => {
   emit('close');
 };
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen) {
+    close();
+  }
+};
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey);
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey);
+  }
+});
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey);
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey);
+});
 </script>
 
 <template>

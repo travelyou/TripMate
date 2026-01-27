@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { X } from 'lucide-vue-next'
 import {
   getAvatarUrl,
@@ -16,6 +16,31 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'select'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 const selectedCategory = ref(null)
 const searchQuery = ref('')

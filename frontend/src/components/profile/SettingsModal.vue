@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { X, Pencil, Loader2, Eye, EyeOff, Trash2 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { showConfirm } from '@/utils/alert'
@@ -18,6 +18,31 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const userStore = useUserStore()
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen && !saving.email && !saving.password && !saving.realName) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 // 狀態管理
 const isPasswordVerified = ref(false)

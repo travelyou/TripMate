@@ -231,14 +231,14 @@ router.get('/', async (req, res) => {
     }
 
     const result = await queryWithSearchPath(query, params)
-    
+
     const usersWithVisitedPlaces = await Promise.all(
       result.rows.map(async (user) => {
         const visitedPlacesResult = await queryWithSearchPath(
           'SELECT name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
           [user.uid],
         )
-        
+
         const visitedPlaces = {
           domestic: visitedPlacesResult.rows
             .filter((p) => p.type === 'domestic')
@@ -255,14 +255,14 @@ router.get('/', async (req, res) => {
               icon: p.icon,
             })),
         }
-        
+
         return {
           ...user,
           visitedPlaces,
         }
       }),
     )
-    
+
     res.json(usersWithVisitedPlaces)
   } catch (error) {
     res.status(500).json({ error: '獲取用戶列表失敗', details: error.message })
@@ -290,6 +290,8 @@ router.put('/:uid', async (req, res) => {
     const { uid } = req.params
     let {
       nickname,
+      real_name,
+      realName,
       location,
       avatar,
       bio,
@@ -312,13 +314,15 @@ router.put('/:uid', async (req, res) => {
 
     const addUpdate = (field, value) => {
       if (value !== undefined) {
-        setClauses.push(`${field} = COALESCE($${paramIndex}, ${field})`)
-        params.push(value)
+        // 直接更新，不使用 COALESCE，確保空字符串和 null 都能正確更新
+        setClauses.push(`${field} = $${paramIndex}`)
+        params.push(value === '' ? null : value)
         paramIndex++
       }
     }
 
     addUpdate('nickname', nickname)
+    addUpdate('real_name', real_name || realName)
     addUpdate('location', location)
     addUpdate('avatar', avatar)
     addUpdate('bio', bio)

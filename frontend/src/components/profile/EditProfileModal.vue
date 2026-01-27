@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, watch, ref } from 'vue'
+import { reactive, watch, ref, onMounted, onUnmounted } from 'vue'
 import { X, ArrowRight, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -22,6 +22,31 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save', 'save-field', 'update-wishlist'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen && !isSaving.value) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 const editForm = reactive({})
 const savingFields = reactive({

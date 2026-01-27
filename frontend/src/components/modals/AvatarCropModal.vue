@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { X, Loader2 } from 'lucide-vue-next'
 import ImageCrop from '@/components/common/ImageCrop.vue'
 
@@ -20,12 +20,34 @@ const imageCropRef = ref(null)
 const isUploading = ref(false)
 const isReady = ref(false)
 
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen && !isUploading.value) {
+    emit('close')
+  }
+}
+
 watch(() => props.isOpen, (isOpen) => {
-  if (!isOpen) {
+  if (isOpen) {
+    // Modal 打開時添加 ESC 鍵監聽
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    // Modal 關閉時移除 ESC 鍵監聽
+    window.removeEventListener('keydown', handleEscapeKey)
     // Reset upload state when modal closes
     isUploading.value = false
     isReady.value = false
   }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
 })
 
 const handleReady = () => {

@@ -40,6 +40,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
 import { showConfirm, showAlert, showSuccess, showError } from '@/utils/alert'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 const props = defineProps({
   draftData: {
@@ -830,6 +831,19 @@ const handleBeforeUnload = (e) => {
     return e.returnValue
   }
 }
+
+// ESC 鍵關閉功能
+useEscapeKey(
+  () => {
+    handleClose()
+  },
+  {
+    condition: () => {
+      // 在提交中時不允許 ESC 關閉
+      return !isSubmitting.value && !sessionStorage.getItem('is_submitting_discussion_post')
+    },
+  },
+)
 
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)

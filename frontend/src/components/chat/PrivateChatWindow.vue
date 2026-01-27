@@ -6,6 +6,7 @@ import { getProfile } from '@/api/profile'
 import { uploadImage } from '@/api/storage'
 import { useRouter } from 'vue-router'
 import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
 const emit = defineEmits(['close', 'open-chat-room'])
@@ -1233,8 +1234,6 @@ const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text) return
 
-  messageInput.value = ''
-
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !activeChatRoom.value) return
 
@@ -1251,10 +1250,14 @@ const sendMessage = async () => {
       senderUid: currentUid,
     }
 
+    // 先顯示訊息在畫面上
     messages.value.push(userMessage)
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
     window.dispatchEvent(new CustomEvent('message-updated'))
     scrollToBottom()
+
+    // 然後清空輸入框
+    messageInput.value = ''
 
     const groupRoom = groupChatRooms.value.find((room) => room.id === activeChatRoom.value.roomId)
     if (groupRoom) {
@@ -1288,6 +1291,7 @@ const sendMessage = async () => {
     timestamp,
   }
 
+  // 先顯示訊息在畫面上
   messages.value.push(userMessage)
 
   const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
@@ -1306,6 +1310,9 @@ const sendMessage = async () => {
   saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
   window.dispatchEvent(new CustomEvent('message-updated'))
   scrollToBottom()
+
+  // 然後清空輸入框
+  messageInput.value = ''
 
   emitChatSend({
     toUid: activeChatRoom.value.uid,
@@ -1886,6 +1893,11 @@ const cleanupBlobUrls = () => {
   }
 }
 
+// ESC 鍵關閉功能
+useEscapeKey(() => {
+  emit('close')
+})
+
 onMounted(() => {
   cleanupBlobUrls()
   loadFriends()
@@ -2253,6 +2265,7 @@ onUnmounted(() => {
               :disabled="!canSendMessage"
               placeholder="輸入訊息..."
               class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              @keydown.enter.prevent="sendMessage"
             />
             <!-- 貼圖選擇器 -->
             <div
@@ -2379,6 +2392,7 @@ onUnmounted(() => {
               type="text"
               placeholder="輸入群組訊息..."
               class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400"
+              @keydown.enter.prevent="sendMessage"
             />
           </div>
           <button
