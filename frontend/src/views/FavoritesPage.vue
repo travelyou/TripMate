@@ -1,9 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
-import { useUserStore } from '@/stores/user' // 1. 引入 Store
+import { useUserStore } from '@/stores/user'
 import { Heart, MessageCircle, Users, Map } from 'lucide-vue-next'
 import { buildLikeKey, flushPendingLikesNow } from '@/api/likes'
 import { onBeforeRouteUpdate } from 'vue-router'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
 // 引入你的卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
@@ -33,9 +36,67 @@ const filteredItems = computed(() => {
   return items.filter((item) => item.type === activeTab.value)
 })
 
-// --- 事件處理 ---
-const handleCardClick = (item) => {
-  console.log('點擊了卡片:', item.title)
+// --- 詳細內容 Modal 狀態 ---
+const isDiscussionModalOpen = ref(false)
+const isTravelerModalOpen = ref(false)
+const isItineraryModalOpen = ref(false)
+
+const selectedDiscussion = ref(null)
+const selectedTraveler = ref(null)
+const selectedItinerary = ref(null)
+
+const discussionScrollToComments = ref(false)
+const travelerScrollToComments = ref(false)
+const itineraryScrollToComments = ref(false)
+
+const openDiscussionDetail = (post, focusComments = false) => {
+  selectedDiscussion.value = post
+  discussionScrollToComments.value = focusComments
+  isDiscussionModalOpen.value = true
+}
+
+const closeDiscussionDetail = () => {
+  isDiscussionModalOpen.value = false
+  discussionScrollToComments.value = false
+  selectedDiscussion.value = null
+}
+
+const handleDiscussionDeleted = async () => {
+  closeDiscussionDetail()
+  await refreshFavorites()
+}
+
+const openTravelerDetail = (traveler, focusComments = false) => {
+  selectedTraveler.value = traveler
+  travelerScrollToComments.value = focusComments
+  isTravelerModalOpen.value = true
+}
+
+const closeTravelerDetail = () => {
+  isTravelerModalOpen.value = false
+  travelerScrollToComments.value = false
+  selectedTraveler.value = null
+}
+
+const handleTravelerUpdated = async () => {
+  await refreshFavorites()
+}
+
+const openItineraryDetail = (itinerary, focusComments = false) => {
+  selectedItinerary.value = itinerary
+  itineraryScrollToComments.value = focusComments
+  isItineraryModalOpen.value = true
+}
+
+const closeItineraryDetail = () => {
+  isItineraryModalOpen.value = false
+  itineraryScrollToComments.value = false
+  selectedItinerary.value = null
+}
+
+const handleItineraryDeleted = async () => {
+  closeItineraryDetail()
+  await refreshFavorites()
 }
 
 const handleLikesUpdated = (event) => {
@@ -169,23 +230,45 @@ onUnmounted(() => {
           <TravelerCard
             v-if="item.type === 'traveler'"
             :traveler="item"
-            @click="handleCardClick(item)"
+            @open-detail="openTravelerDetail"
           />
 
           <PostCard
             v-else-if="item.type === 'discussion'"
             :post="item"
-            @click="handleCardClick(item)"
+            @click="openDiscussionDetail(item, false)"
+            @comment="openDiscussionDetail(item, true)"
           />
 
           <ItineraryCard
             v-else-if="item.type === 'itinerary'"
             :itinerary="item"
-            @click="handleCardClick(item)"
+            @open-detail="openItineraryDetail"
           />
         </div>
       </TransitionGroup>
     </div>
+    <DiscussionDetailModal
+      v-if="isDiscussionModalOpen && selectedDiscussion"
+      :post="selectedDiscussion"
+      :scroll-to-comments="discussionScrollToComments"
+      @close="closeDiscussionDetail"
+      @deleted="handleDiscussionDeleted"
+    />
+    <TravelerDetailModal
+      v-if="isTravelerModalOpen && selectedTraveler"
+      :traveler="selectedTraveler"
+      :scroll-to-comments="travelerScrollToComments"
+      @close="closeTravelerDetail"
+      @traveler-updated="handleTravelerUpdated"
+    />
+    <ItineraryDetailModal
+      v-if="isItineraryModalOpen && selectedItinerary"
+      :itinerary="selectedItinerary"
+      :scroll-to-comments="itineraryScrollToComments"
+      @close="closeItineraryDetail"
+      @deleted="handleItineraryDeleted"
+    />
   </div>
 </template>
 
