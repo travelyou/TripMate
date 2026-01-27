@@ -274,7 +274,7 @@ export const useVendorStore = defineStore('vendor', () => {
   }
 
   const updateVendorProfile = async (vendorId, profileData) => {
-    loading.value = true
+    // 🔧 不設定全域 loading，避免觸發頁面重新渲染
     error.value = null
     try {
       // 呼叫真實 API 更新廠商資料
@@ -284,15 +284,15 @@ export const useVendorStore = defineStore('vendor', () => {
         throw new Error(res.message || '更新失敗')
       }
 
-      // 更新成功後重新載入廠商資料，確保與後端同步
-      await fetchVendorProfile(vendorId)
+      // 🔧 直接更新 currentVendor，不要重新 fetch（避免觸發 watch 和頁面重置）
+      if (res.data) {
+        currentVendor.value = res.data
+      }
 
       return { success: true, data: res.data }
     } catch (err) {
       error.value = err.message
       throw err
-    } finally {
-      loading.value = false
     }
   }
 
@@ -434,20 +434,31 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  // eslint-disable-next-line no-unused-vars
-  const uploadVendorImage = async (_file, _type) => {
-    // 🔧 修復：不要設定全域 loading，避免觸發整個頁面重新渲染
-    // loading.value = true  ← 移除這行
+  /**
+   * 上傳廠商圖片到 Firebase Storage
+   * @param {File} file - 圖片檔案
+   * @param {string} type - 圖片類型 ('avatar' | 'bannerImage')
+   * @returns {Promise<string>} 圖片 URL
+   */
+  const uploadVendorImage = async (file, type = 'avatar') => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
+      // 引入 Firebase Storage 上傳函數
+      const { uploadImage } = await import('@/api/storage')
 
-      return mockUrl
+      // 根據類型決定儲存資料夾
+      const folder = type === 'avatar' ? 'vendor-avatars' : 'vendor-banners'
+
+      // 上傳到 Firebase Storage
+      const downloadURL = await uploadImage(file, folder)
+
+      console.log(`✅ 廠商${type === 'avatar' ? '頭像' : '圖片'}上傳成功:`, downloadURL)
+
+      return downloadURL
     } catch (err) {
+      console.error('❌ 圖片上傳失敗:', err)
       error.value = err.message
       throw err
     }
-    // finally 也移除，不需要設定 loading 為 false
   }
 
   return {
