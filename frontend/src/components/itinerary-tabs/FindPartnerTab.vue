@@ -20,6 +20,49 @@ const handleClick = (item) => {
   }
 }
 
+// --- 1. 新增：狀態判斷邏輯 ---
+const getTripStatus = (item) => {
+  if (!item.startDate || !item.endDate) return 'unknown'
+
+  // 設定今天日期（清除時間部分，只比對日期）
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const start = new Date(item.startDate)
+  const end = new Date(item.endDate)
+
+  if (today < start) return 'upcoming' // 今天在開始日期之前
+  if (today > end) return 'ended' // 今天在結束日期之後
+  return 'ongoing' // 介於中間 (含當天)
+}
+
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'upcoming':
+      return '即將啟程'
+    case 'ongoing':
+      return '進行中'
+    case 'ended':
+      return '已結束'
+    default:
+      return '日期未定'
+  }
+}
+
+const getStatusClass = (status) => {
+  switch (status) {
+    case 'upcoming':
+      return 'bg-sky-100 text-sky-700 border border-sky-200'
+    case 'ongoing':
+      return 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+    case 'ended':
+      return 'bg-gray-100 text-gray-500 border border-gray-200'
+    default:
+      return 'bg-secondary-100 text-secondary-600 border border-secondary-200'
+  }
+}
+
+// --- 評價 Modal 邏輯 ---
 const isReviewOpen = ref(false)
 const reviewTarget = ref(null)
 const reviewDraft = ref(null)
@@ -98,12 +141,12 @@ const submitReview = () => {
         class="border-2 border-secondary-200 rounded-lg p-4 hover:border-primary-400 hover:bg-primary-50 transition cursor-pointer"
         @click="handleClick(item)"
       >
-        <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+        <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div class="flex-1">
             <h4 class="font-bold text-lg text-secondary-800 mb-1">
               {{ item.title }}
             </h4>
-            <div class="flex items-center text-sm text-secondary-500 mb-3">
+            <div class="flex items-center text-sm text-secondary-500">
               <span
                 class="bg-secondary-100 px-2 py-0.5 rounded text-xs mr-2 border border-secondary-300"
               >
@@ -113,55 +156,39 @@ const submitReview = () => {
             </div>
           </div>
 
-          <div class="text-left sm:text-right sm:min-w-[120px]">
-            <div class="text-xs text-secondary-400 mb-2">狀態</div>
-            <div
-              class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
-              :class="
-                item.status === 'joined'
-                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                  : 'bg-secondary-100 text-secondary-600 border border-secondary-200'
-              "
-            >
-              {{ item.status === 'joined' ? '已參加' : '未參加' }}
-            </div>
-          </div>
-        </div>
-
-        <div v-if="item.status === 'joined'" class="mt-4 pt-3 border-t border-secondary-100">
           <div
-            class="text-sm text-secondary-600 space-y-5 flex flex-col sm:flex-row sm:justify-between sm:items-center"
+            class="text-left sm:text-right sm:min-w-[140px] flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2"
           >
-            <div class="space-y-2">
-              <div class="text-base font-semibold text-secondary-700">評論</div>
-              <div v-if="item.comment" class="text-secondary-600">
-                {{ item.comment }}
-              </div>
-              <div v-else class="text-secondary-400">尚未評論</div>
-              <div v-if="item.comment" class="text-secondary-500">
-                <span
-                  v-if="item.reviewLabel === 'super_like'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-600 border border-rose-200"
-                >
-                  <Heart class="w-3 h-3 fill-current" />
-                  超讚
-                </span>
-                <span
-                  v-else-if="item.reviewLabel === 'like'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-600 border border-blue-200"
-                >
-                  <ThumbsUp class="w-3 h-3 fill-current" />
-                  讚
-                </span>
-                <span v-else class="text-xs text-secondary-400">未標籤</span>
+            <div class="flex flex-col items-end">
+              <div class="text-xs text-secondary-400 mb-0 sm:mb-1 hidden sm:block">狀態</div>
+              <div
+                class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
+                :class="getStatusClass(getTripStatus(item))"
+              >
+                {{ getStatusLabel(getTripStatus(item)) }}
               </div>
             </div>
+
             <button
+              v-if="getTripStatus(item) === 'ended'"
               type="button"
-              class="mt-2 px-3 py-1.5 rounded-lg border border-primary text-primary font-semibold hover:bg-primary-50 transition"
+              class="px-3 py-1.5 text-xs font-bold rounded-full border transition flex items-center gap-1.5 animate-fade-in"
+              :class="
+                item.comment
+                  ? 'bg-secondary-100 text-secondary-500 border-secondary-200 hover:bg-secondary-200'
+                  : 'bg-primary text-white border-primary hover:bg-primary-700 shadow-sm transform hover:scale-105'
+              "
               @click.stop="openReviewModal(item)"
             >
-              {{ item.comment ? '修改評論' : '評論' }}
+              <span v-if="item.comment">已評價</span>
+              <span v-else>評價</span>
+
+              <span v-if="item.comment && item.reviewLabel === 'super_like'">
+                <Heart class="w-3 h-3 fill-current text-rose-400" />
+              </span>
+              <span v-if="item.comment && item.reviewLabel === 'like'">
+                <ThumbsUp class="w-3 h-3 fill-current text-blue-400" />
+              </span>
             </button>
           </div>
         </div>
@@ -229,3 +256,20 @@ const submitReview = () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
