@@ -6,6 +6,9 @@ import { showConfirm, showPrompt } from '@/utils/alert'
 import { fetchPostById } from '@/api/discussions'
 import { getTravelerById } from '@/api/travelers'
 import { getItineraryById } from '@/api/itinerary'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
 // 引入卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
@@ -188,8 +191,52 @@ const currentCategoryName = computed(() => {
   return tab ? tab.label : '收藏'
 })
 
-const handleCardClick = (item) => {
-  console.log('查看收藏內容:', item.title)
+const isDiscussionModalOpen = ref(false)
+const isTravelerModalOpen = ref(false)
+const isItineraryModalOpen = ref(false)
+
+const selectedDiscussion = ref(null)
+const selectedTraveler = ref(null)
+const selectedItinerary = ref(null)
+
+const discussionScrollToComments = ref(false)
+const travelerScrollToComments = ref(false)
+const itineraryScrollToComments = ref(false)
+
+const openDiscussionDetail = (post, focusComments = false) => {
+  selectedDiscussion.value = post
+  discussionScrollToComments.value = !!focusComments
+  isDiscussionModalOpen.value = true
+}
+
+const closeDiscussionDetail = () => {
+  isDiscussionModalOpen.value = false
+  discussionScrollToComments.value = false
+  selectedDiscussion.value = null
+}
+
+const openTravelerDetail = (traveler, focusComments = false) => {
+  selectedTraveler.value = traveler
+  travelerScrollToComments.value = !!focusComments
+  isTravelerModalOpen.value = true
+}
+
+const closeTravelerDetail = () => {
+  isTravelerModalOpen.value = false
+  travelerScrollToComments.value = false
+  selectedTraveler.value = null
+}
+
+const openItineraryDetail = (itinerary, focusComments = false) => {
+  selectedItinerary.value = itinerary
+  itineraryScrollToComments.value = !!focusComments
+  isItineraryModalOpen.value = true
+}
+
+const closeItineraryDetail = () => {
+  isItineraryModalOpen.value = false
+  itineraryScrollToComments.value = false
+  selectedItinerary.value = null
 }
 
 // 統一橘色系樣式
@@ -309,22 +356,41 @@ const getTabStyle = (isActive) => {
           <TravelerCard
             v-if="item.type === 'traveler'"
             :traveler="item"
-            @click="handleCardClick(item)"
+            @open-detail="openTravelerDetail"
           />
 
           <PostCard
             v-else-if="item.type === 'discussion'"
             :post="item"
-            @click="handleCardClick(item)"
+            @click="openDiscussionDetail(item, false)"
+            @comment="openDiscussionDetail(item, true)"
           />
 
           <ItineraryCard
             v-else-if="item.type === 'itinerary'"
             :itinerary="item"
-            @click="handleCardClick(item)"
+            @open-detail="openItineraryDetail"
           />
         </div>
       </TransitionGroup>
+      <DiscussionDetailModal
+        v-if="isDiscussionModalOpen && selectedDiscussion"
+        :post="selectedDiscussion"
+        :scroll-to-comments="discussionScrollToComments"
+        @close="closeDiscussionDetail"
+      />
+      <TravelerDetailModal
+        v-if="isTravelerModalOpen && selectedTraveler"
+        :traveler="selectedTraveler"
+        :scroll-to-comments="travelerScrollToComments"
+        @close="closeTravelerDetail"
+      />
+      <ItineraryDetailModal
+        v-if="isItineraryModalOpen && selectedItinerary"
+        :itinerary="selectedItinerary"
+        :scroll-to-comments="itineraryScrollToComments"
+        @close="closeItineraryDetail"
+      />
     </div>
   </div>
 </template>
