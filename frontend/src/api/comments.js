@@ -17,7 +17,6 @@ export async function createComment(postId, commentData) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('創建留言錯誤：', error)
     throw error
   }
 }
@@ -38,7 +37,6 @@ export async function updateComment(id, content) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('更新留言錯誤：', error)
     throw error
   }
 }
@@ -55,7 +53,6 @@ export async function deleteComment(id) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('刪除留言錯誤：', error)
     throw error
   }
 }
@@ -76,7 +73,6 @@ export async function toggleCommentLike(commentId, action) {
     }
     return await response.json()
   } catch (error) {
-    console.error('更新留言按讚錯誤：', error)
     throw error
   }
 }

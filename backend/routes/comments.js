@@ -6,7 +6,6 @@ const pool = require('../database/connection')
 const { createCommentNotification } = require('../utils/notifications')
 const { getUserInfo } = require('../utils/userInfo')
 
-// GET /api/posts/:postId/comments - 獲取指定貼文的留言
 router.get('/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params
@@ -16,10 +15,8 @@ router.get('/posts/:postId/comments', async (req, res) => {
       return res.status(400).json({ error: '貼文 ID 格式錯誤', details: 'postId 必須是正整數' })
     }
 
-    // 確定 post_type，如果沒有提供 board，默認為 'discussion'
     const postType = board === 'traveler' ? 'traveler' : 'discussion'
 
-    // 檢查貼文是否存在
     let postExists = false
     if (postType === 'discussion') {
       const postCheckQuery = `
@@ -63,12 +60,10 @@ router.get('/posts/:postId/comments', async (req, res) => {
       count: commentsResult.rows.length,
     })
   } catch (error) {
-    console.error('獲取留言失敗：', error)
     res.status(500).json({ error: '獲取留言失敗', details: error?.message || String(error) })
   }
 })
 
-// POST /api/posts/:postId/comments - 創建留言
 router.post('/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params
@@ -78,7 +73,6 @@ router.post('/posts/:postId/comments', async (req, res) => {
     }
     const { author_uid, content, board, author_name, author_avatar, parent_comment_id } = req.body
 
-    // 驗證必填欄位
     if (!author_uid || !content) {
       return res.status(400).json({
         error: '缺少必填欄位',
@@ -86,10 +80,8 @@ router.post('/posts/:postId/comments', async (req, res) => {
       })
     }
 
-    // 確定 post_type，如果沒有提供 board，默認為 'discussion'
     const postType = board === 'traveler' ? 'traveler' : 'discussion'
 
-    // 檢查貼文是否存在
     let postExists = false
     if (postType === 'discussion') {
       const postCheckQuery = `
@@ -114,7 +106,6 @@ router.post('/posts/:postId/comments', async (req, res) => {
       })
     }
 
-    // 插入留言（包含所有必需字段）
     const insertCommentQuery = `
       INSERT INTO public.comments (
         post_id,
@@ -141,9 +132,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
     ])
     const newComment = result.rows[0]
 
-    // 創建回覆通知（不給自己發通知）
     try {
-      // 獲取貼文作者和標題
       let postQuery = ''
       if (postType === 'discussion') {
         postQuery = `SELECT author_uid, title FROM discussion.discussion WHERE id = $1`
@@ -157,22 +146,16 @@ router.post('/posts/:postId/comments', async (req, res) => {
           const postAuthor = postResult.rows[0].author_uid
           const postTitle = postResult.rows[0].title
 
-          // 只有當回覆者不是貼文作者時才發送通知
           if (postAuthor && postAuthor !== author_uid) {
-            // 使用共用函式獲取回覆者資訊
             const commenterInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
 
-            // 如果回覆者資訊中的名稱是 uid，使用匿名用戶
             let commenterName = commenterInfo.name
             if (commenterName === author_uid) {
               commenterName = '匿名用戶'
-              console.warn(`[通知] 回覆者 ${author_uid} 沒有找到 nickname 或 name，使用匿名用戶`)
             }
 
-            // 優先使用 users 表的頭像，如果沒有則使用傳入的 author_avatar
             const commenterAvatar = commenterInfo.avatar || author_avatar
 
-            // 獲取作者的 nickname（用於檢查是否被 tag）
             let authorNickname = null
             try {
               const authorResult = await pool.query(
@@ -183,7 +166,6 @@ router.post('/posts/:postId/comments', async (req, res) => {
                 authorNickname = authorResult.rows[0].nickname
               }
             } catch (authorError) {
-              console.error('獲取作者資訊失敗：', authorError)
             }
 
             await createCommentNotification({
@@ -195,28 +177,24 @@ router.post('/posts/:postId/comments', async (req, res) => {
               commenter_avatar: commenterAvatar,
               comment_content: content,
               post_title: postTitle,
-              author_name: authorNickname, // 傳入作者名稱用於檢查是否被 tag
+              author_name: authorNickname,
             })
           }
         }
       }
     } catch (notifError) {
-      console.error('創建回覆通知失敗（不影響主流程）：', notifError.message)
     }
 
     res.status(201).json(newComment)
   } catch (error) {
-    console.error('創建留言失敗：', error)
     res.status(500).json({ error: '創建留言失敗', details: error?.message || String(error) })
   }
 })
-// PUT /api/comments/:id - 更新留言
 router.put('/comments/:id', async (req, res) => {
   try {
     const { id } = req.params
     const { content } = req.body
 
-    // 驗證必填欄位
     if (!content) {
       return res.status(400).json({
         error: '缺少必填欄位',
@@ -224,13 +202,11 @@ router.put('/comments/:id', async (req, res) => {
       })
     }
 
-    // 檢查留言是否存在
     const checkResult = await pool.query('SELECT id FROM comments WHERE id = $1', [id])
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: '留言不存在' })
     }
 
-    // 更新留言
     const updateQuery = `
       UPDATE comments
       SET content = $1
@@ -243,32 +219,26 @@ router.put('/comments/:id', async (req, res) => {
 
     res.json(updatedComment)
   } catch (error) {
-    console.error('更新留言失敗：', error)
     res.status(500).json({ error: '更新留言失敗', details: error?.message || String(error) })
   }
 })
-// DELETE /api/comments/:id - 刪除留言
 router.delete('/comments/:id', async (req, res) => {
   try {
     const { id } = req.params
 
-    // 檢查留言是否存在
     const checkResult = await pool.query('SELECT id FROM comments WHERE id = $1', [id])
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: '留言不存在' })
     }
 
-    // 刪除留言
     await pool.query('DELETE FROM comments WHERE id = $1', [id])
 
     res.json({ message: '留言已刪除' })
   } catch (error) {
-    console.error('刪除留言失敗：', error)
     res.status(500).json({ error: '刪除留言失敗', details: error?.message || String(error) })
   }
 })
 
-// POST /api/comments/:id/likes - 留言按讚/取消按讚（僅更新 likes_count）
 router.post('/comments/:id/likes', async (req, res) => {
   try {
     const { id } = req.params

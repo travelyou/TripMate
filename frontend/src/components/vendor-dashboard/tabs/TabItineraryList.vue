@@ -19,7 +19,6 @@ const handleDelete = async (id) => {
       await vendorStore.deleteItinerary(id)
       await vendorStore.fetchVendorItineraries(currentVendor.value.id)
     } catch (error) {
-      console.error('刪除失敗:', error)
       alert('刪除失敗，請稍後再試')
     }
   }

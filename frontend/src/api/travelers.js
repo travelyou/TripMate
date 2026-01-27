@@ -24,7 +24,6 @@ export const getTravelers = async (filters = {}) => {
     const response = await axios.get(`${API_BASE_URL}/travelers?${params.toString()}`)
     return response.data
   } catch (error) {
-    console.error('獲取旅伴列表失敗：', error)
     throw error
   }
 }
@@ -35,7 +34,6 @@ export const getTravelerById = async (id, userUid = null) => {
     const response = await axios.get(`${API_BASE_URL}/travelers/${id}${params}`)
     return response.data
   } catch (error) {
-    console.error('獲取旅伴詳情失敗：', error)
     throw error
   }
 }
@@ -44,7 +42,6 @@ export const incrementView = async (id) => {
   try {
     await axios.post(`${API_BASE_URL}/travelers/${id}/view`)
   } catch (error) {
-    console.error('更新瀏覽次數失敗（靜默失敗）:', error)
   }
 }
 
@@ -53,7 +50,6 @@ export const createTraveler = async (data) => {
     const response = await axios.post(`${API_BASE_URL}/travelers`, data)
     return response.data
   } catch (error) {
-    console.error('建立旅伴貼文失敗：', error)
     throw error
   }
 }
@@ -63,7 +59,6 @@ export const updateTraveler = async (id, data) => {
     const response = await axios.put(`${API_BASE_URL}/travelers/${id}`, data)
     return response.data
   } catch (error) {
-    console.error('更新旅伴貼文失敗：', error)
     throw error
   }
 }
@@ -73,7 +68,6 @@ export const deleteTraveler = async (id) => {
     const response = await axios.delete(`${API_BASE_URL}/travelers/${id}`)
     return response.data
   } catch (error) {
-    console.error('刪除旅伴貼文失敗：', error)
     throw error
   }
 }
@@ -95,7 +89,6 @@ export const submitApplication = async (travelerId, message) => {
     })
     return response.data
   } catch (error) {
-    console.error('提交報名失敗：', error)
     throw error
   }
 }
@@ -111,7 +104,6 @@ export const getApplications = async (travelerId) => {
     )
     return response.data
   } catch (error) {
-    console.error('獲取報名列表失敗：', error)
     throw error
   }
 }
@@ -128,7 +120,6 @@ export const acceptApplication = async (travelerId, applicationId) => {
     )
     return response.data
   } catch (error) {
-    console.error('接受報名失敗：', error)
     throw error
   }
 }
@@ -145,7 +136,6 @@ export const rejectApplication = async (travelerId, applicationId) => {
     )
     return response.data
   } catch (error) {
-    console.error('拒絕報名失敗：', error)
     throw error
   }
 }
@@ -164,7 +154,6 @@ export const createGroupChatRoom = async (name, memberUids) => {
     })
     return response.data
   } catch (error) {
-    console.error('創建群組聊天室失敗：', error)
     throw error
   }
 }
@@ -181,7 +170,6 @@ export const getGroupChatRooms = async () => {
     })
     return response.data
   } catch (error) {
-    console.error('獲取群組聊天室列表失敗：', error)
     throw error
   }
 }

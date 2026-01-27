@@ -122,7 +122,6 @@ const handleReviewSubmit = async (payload) => {
   const targetUid = trip.author_uid || trip.authorUid
 
   if (!targetUid) {
-    console.error('行程資料遺失主揪 ID:', trip)
     showAlert('無法確認該行程的主揪，無法評價')
     return
   }

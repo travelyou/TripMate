@@ -32,7 +32,6 @@ const mainRegions = computed(() => {
   const bannerImageData = currentVendor.value.bannerImage || currentVendor.value.banner_image || ''
   
   if (!bannerImageData) {
-    console.log('⚠️ [VendorProfilePage] 沒有 bannerImage 資料')
     return []
   }
   
@@ -43,31 +42,20 @@ const mainRegions = computed(() => {
       if (bannerImageData.startsWith('[') || bannerImageData.startsWith('{')) {
         parsedData = JSON.parse(bannerImageData)
       } else {
-        console.log('⚠️ [VendorProfilePage] bannerImage 不是 JSON 格式:', bannerImageData)
         return []
       }
     } else if (Array.isArray(bannerImageData)) {
       parsedData = bannerImageData
     } else {
-      console.log('⚠️ [VendorProfilePage] bannerImage 格式不正確:', typeof bannerImageData)
       return []
     }
     
-    // 確保是陣列格式
     const regions = Array.isArray(parsedData) ? parsedData : []
     
-    // 過濾掉無效的地區（沒有 name 或 image）
     const validRegions = regions.filter(region => region && region.name && region.image)
-    
-    console.log('✅ [VendorProfilePage] 解析主打地區成功:', {
-      total: regions.length,
-      valid: validRegions.length,
-      regions: validRegions
-    })
     
     return validRegions
   } catch (e) {
-    console.error('❌ [VendorProfilePage] 解析主打地區失敗:', e, 'bannerImage:', bannerImageData)
     return []
   }
 })

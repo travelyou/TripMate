@@ -18,7 +18,6 @@ const checkBannerPositionYAvailable = async () => {
     )
     bannerPositionYAvailable = result.rowCount > 0
   } catch (error) {
-    console.error('[Backend Travelers] 檢查 banner_position_y 欄位失敗:', error)
     bannerPositionYAvailable = false
   }
   return bannerPositionYAvailable
@@ -43,7 +42,6 @@ router.get('/', async (req, res) => {
         t.max_people,
         t.banner_image,
         t.author_uid,
-        -- 一律使用 users 表的最新數據，不使用 travelers 表的舊值
         NULLIF(TRIM(u.nickname), '') as author_name,
         NULLIF(TRIM(u.avatar), '') as author_avatar,
         NULLIF(TRIM(u.spirit_animal), '') as spirit_animal,
@@ -167,7 +165,6 @@ router.get('/', async (req, res) => {
       total: result.rowCount,
     })
   } catch (error) {
-    console.error('獲取旅伴列表錯誤：', error)
     res.status(500).json({
       success: false,
       message: '獲取旅伴列表失敗',
@@ -206,7 +203,6 @@ router.post('/:id/view', async (req, res) => {
       message: '瀏覽次數已更新',
     })
   } catch (error) {
-    console.error('更新瀏覽次數錯誤：', error)
     res.status(500).json({
       success: false,
       message: '更新瀏覽次數失敗',
@@ -298,7 +294,6 @@ const ensureUsersTable = async () => {
   try {
     await pool.query(`SELECT 1 FROM public.users LIMIT 1`)
   } catch (error) {
-    console.warn('users 表不存在或無法訪問：', error.message)
   }
 }
 
@@ -377,12 +372,10 @@ router.post('/:id/applications', async (req, res) => {
         }
       }
     } catch (notifError) {
-      console.error('創建找旅伴申請通知失敗（不影響主流程）：', notifError)
     }
 
     res.json({ success: true, data: result.rows[0] })
   } catch (error) {
-    console.error('提交報名失敗:', error)
     res.status(500).json({ success: false, message: '提交報名失敗', error: error.message })
   }
 })
@@ -445,12 +438,10 @@ router.get('/:id/applications', async (req, res) => {
       return res.json({ success: true, data: result.rows })
     }
   } catch (error) {
-    console.error('獲取報名列表失敗:', error)
     res.status(500).json({ success: false, message: '獲取報名列表失敗', error: error.message })
   }
 })
 
-// 接受报名
 router.post('/:id/applications/:applicationId/accept', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -478,7 +469,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
       return res.status(403).json({ success: false, message: '只有作者可以接受報名' })
     }
 
-    // 更新报名状态
     const updateResult = await client.query(
       `UPDATE travelers.traveler_applications
        SET status = 'accepted', updated_at = NOW()
@@ -546,7 +536,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
       [roomId, application.author_uid]
     )
 
-    // 获取所有已接受的报名者，确保他们都在群组中
     const acceptedApps = await client.query(
       `SELECT author_uid FROM travelers.traveler_applications
        WHERE traveler_id = $1 AND status = 'accepted'`,
@@ -572,7 +561,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
     })
   } catch (error) {
     await client.query('ROLLBACK')
-    console.error('接受報名失敗:', error)
     res.status(500).json({ success: false, message: '接受報名失敗', error: error.message })
   } finally {
     client.release()
@@ -646,7 +634,6 @@ router.post('/group-chat-rooms', async (req, res) => {
       client.release()
     }
   } catch (error) {
-    console.error('創建群組聊天室失敗:', error)
     res.status(500).json({ success: false, message: '創建群組聊天室失敗', error: error.message })
   }
 })
@@ -681,7 +668,6 @@ router.get('/group-chat-rooms', async (req, res) => {
 
     res.json({ success: true, data: result.rows })
   } catch (error) {
-    console.error('獲取群組聊天室列表失敗:', error)
     res.status(500).json({ success: false, message: '獲取群組聊天室列表失敗', error: error.message })
   }
 })
@@ -741,7 +727,6 @@ router.patch('/group-chat-rooms/:roomId', async (req, res) => {
 
     res.json({ success: true, data: updateResult.rows[0] })
   } catch (error) {
-    console.error('更新群組聊天室失敗：', error)
     res.status(500).json({ success: false, message: '更新群組聊天室失敗', error: error.message })
   }
 })
@@ -797,7 +782,6 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
       data: memberResult.rows[0] || { user_uid: member_uid, name: member_uid, nickname: null, avatar: null },
     })
   } catch (error) {
-    console.error('新增群組成員失敗：', error)
     res.status(500).json({ success: false, message: '新增群組成員失敗', error: error.message })
   }
 })
@@ -836,7 +820,6 @@ router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
 
     res.json({ success: true, data: messagesResult.rows })
   } catch (error) {
-    console.error('獲取群組聊天記錄失敗：', error)
     res.status(500).json({ success: false, message: '獲取群組聊天記錄失敗', error: error.message })
   }
 })
@@ -895,12 +878,10 @@ router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('獲取群組成員失敗：', error)
     res.status(500).json({ success: false, message: '獲取群組成員失敗', error: error.message })
   }
 })
 
-// 移除群組成員（作者權限）
 router.post('/group-chat-rooms/:roomId/members/:memberUid/remove', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()
@@ -945,12 +926,10 @@ router.post('/group-chat-rooms/:roomId/members/:memberUid/remove', async (req, r
 
     res.json({ success: true, data: { user_uid: memberUid } })
   } catch (error) {
-    console.error('移除群組成員失敗：', error)
     res.status(500).json({ success: false, message: '移除群組成員失敗', error: error.message })
   }
 })
 
-// 發送群組訊息
 router.post('/group-chat-rooms/:roomId/messages', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()
@@ -987,18 +966,15 @@ router.post('/group-chat-rooms/:roomId/messages', async (req, res) => {
 
     res.json({ success: true, data: insertResult.rows[0] })
   } catch (error) {
-    console.error('發送群組訊息失敗：', error)
     res.status(500).json({ success: false, message: '發送群組訊息失敗', error: error.message })
   }
 })
 
-// 拒绝报名
 router.post('/:id/applications/:applicationId/reject', async (req, res) => {
   try {
     const { id, applicationId } = req.params
     const { user_uid } = req.body
 
-    // 验证是否为作者
     const travelerResult = await pool.query(
       `SELECT author_uid FROM travelers.travelers WHERE id = $1 AND deleted_at IS NULL`,
       [id]
@@ -1012,7 +988,6 @@ router.post('/:id/applications/:applicationId/reject', async (req, res) => {
       return res.status(403).json({ success: false, message: '只有作者可以拒絕報名' })
     }
 
-    // 更新报名状态
     const updateResult = await pool.query(
       `UPDATE travelers.traveler_applications
        SET status = 'rejected', updated_at = NOW()
@@ -1027,7 +1002,6 @@ router.post('/:id/applications/:applicationId/reject', async (req, res) => {
 
     res.json({ success: true, data: updateResult.rows[0] })
   } catch (error) {
-    console.error('拒絕報名失敗:', error)
     res.status(500).json({ success: false, message: '拒絕報名失敗', error: error.message })
   }
 })
@@ -1172,7 +1146,6 @@ router.get('/:id', async (req, res) => {
       data: fullData,
     })
   } catch (error) {
-    console.error('獲取旅伴詳情錯誤：', error)
     res.status(500).json({
       success: false,
       message: '獲取旅伴詳情失敗',
@@ -1227,7 +1200,6 @@ router.post('/', async (req, res) => {
             finalSpiritAnimal = userQuery.rows[0].spirit_animal
           }
         } catch {
-          // Silent fail
         }
       }
 
@@ -1298,13 +1270,6 @@ router.post('/', async (req, res) => {
               [travelerId, dayNumber, dayDate, dayActivities],
             )
           } catch (insertError) {
-            console.error(`[Backend Travelers POST] 插入行程第 ${i + 1} 天失敗:`, {
-              dayNumber,
-              date: dayDate,
-              error: insertError.message,
-              code: insertError.code,
-              detail: insertError.detail,
-            })
             throw new Error(`插入行程第 ${i + 1} 天失敗: ${insertError.message}`)
           }
         }
@@ -1328,13 +1293,11 @@ router.post('/', async (req, res) => {
       res.status(201).json({ success: true, message: '旅伴貼文建立成功', data: { id: travelerId } })
     } catch (error) {
       await client.query('ROLLBACK')
-      console.error('[Backend Travelers POST] 資料庫錯誤，已回滾')
       throw error
     } finally {
       client.release()
     }
   } catch (error) {
-    console.error('[Backend Travelers POST] 錯誤:', error)
     res.status(500).json({
       success: false,
       message: '建立旅伴貼文失敗',
@@ -1440,12 +1403,10 @@ router.put('/:id', async (req, res) => {
       client.release()
     }
   } catch (error) {
-    console.error(error)
     res.status(500).json({ success: false, message: '更新失敗', error: error.message })
   }
 })
 
-// DELETE /api/travelers/:id - 刪除貼文（必須放在最後，避免與其他路由衝突）
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params

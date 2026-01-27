@@ -2,18 +2,15 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
-// 先不做登入：固定 user_id=1（之後再換成 req.user.id）
 const getUserId = (req) => 1
 
 async function getOrCreateActiveCartId(userId) {
-  // 先找 active cart
   const found = await pool.query(
     `SELECT id FROM commerce.carts WHERE user_id=$1 AND status='active' LIMIT 1`,
     [userId],
   )
   if (found.rows.length) return found.rows[0].id
 
-  // 沒有就建一台
   const created = await pool.query(
     `INSERT INTO commerce.carts(user_id,status) VALUES($1,'active') RETURNING id`,
     [userId],
@@ -21,7 +18,6 @@ async function getOrCreateActiveCartId(userId) {
   return created.rows[0].id
 }
 
-// GET /api/cart/items -> 回購物車 items（只有 itineraryId + persons）
 router.get('/items', async (req, res) => {
   try {
     const userId = getUserId(req)
@@ -37,12 +33,10 @@ router.get('/items', async (req, res) => {
 
     return res.json({ ok: true, items: r.rows })
   } catch (err) {
-    console.error('[GET /api/cart/items] error:', err)
     return res.status(500).json({ ok: false, message: 'server error' })
   }
 })
 
-// POST /api/cart/items { itineraryId, persons? } -> 加入/累加
 router.post('/items', async (req, res) => {
   try {
     const userId = getUserId(req)
@@ -55,7 +49,6 @@ router.post('/items', async (req, res) => {
       return res.status(400).json({ ok: false, message: '人數要是正數' })
     }
 
-    // upsert：同 itinerary 就累加 persons
     await pool.query(
       `INSERT INTO commerce.cart_items(cart_id, itinerary_id, persons)
       VALUES ($1, $2, $3)
@@ -67,12 +60,10 @@ router.post('/items', async (req, res) => {
 
     return res.json({ ok: true })
   } catch (err) {
-    console.error('[POST /api/cart/items] error:', err)
     return res.status(500).json({ ok: false, message: 'server error' })
   }
 })
 
-// PATCH /api/cart/items/:itineraryId { persons } -> 改人數
 router.patch('/items/:itineraryId', async (req, res) => {
   try {
     const userId = getUserId(req)
@@ -94,12 +85,10 @@ router.patch('/items/:itineraryId', async (req, res) => {
 
     return res.json({ ok: true, updated: r.rowCount })
   } catch (err) {
-    console.error('[PATCH /api/cart/items/:itineraryId] error:', err)
     return res.status(500).json({ ok: false, message: 'server error' })
   }
 })
 
-// DELETE /api/cart/items/:itineraryId -> 移除
 router.delete('/items/:itineraryId', async (req, res) => {
   try {
     const userId = getUserId(req)
@@ -116,7 +105,6 @@ router.delete('/items/:itineraryId', async (req, res) => {
 
     return res.json({ ok: true, deleted: r.rowCount })
   } catch (err) {
-    console.error('[DELETE /api/cart/items/:itineraryId] error:', err)
     return res.status(500).json({ ok: false, message: 'server error' })
   }
 })

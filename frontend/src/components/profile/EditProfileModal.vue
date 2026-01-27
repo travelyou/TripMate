@@ -132,7 +132,6 @@ async function saveField(fieldName) {
     
     emit('save-field', { field: fieldName, data: fieldData })
   } catch (error) {
-    console.error(`保存 ${fieldName} 失敗：`, error)
   } finally {
     savingFields[fieldName] = false
   }

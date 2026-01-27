@@ -7,13 +7,11 @@ const resetLoaderIfNeeded = (apiKey) => {
       const scripts = document.querySelectorAll('script[src*="maps.googleapis.com/maps/api/js"]')
       scripts.forEach((script) => script.parentNode?.removeChild(script))
     } catch (error) {
-      console.warn('[Google Maps] 清理舊 Script 失敗:', error)
     }
 
     try {
       if (window.google) delete window.google
     } catch (error) {
-      console.warn('[Google Maps] 移除 google 物件失敗:', error)
       window.google = undefined
     }
 
@@ -27,8 +25,6 @@ export function loadGoogleMaps() {
   const apiKeyRaw = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   const apiKey = typeof apiKeyRaw === 'string' ? apiKeyRaw.replace(/^\uFEFF/, '').trim() : ''
   if (!apiKey) {
-    console.error('[Google Maps] 未讀到 VITE_GOOGLE_MAPS_API_KEY')
-    console.error('[Google Maps] 請確認 frontend/.env 並重啟前端 dev server')
     throw new Error('Missing Google Maps API key')
   }
 
@@ -46,7 +42,6 @@ export function loadGoogleMaps() {
       }
     })
   } catch (error) {
-    console.warn('[Google Maps] 檢查舊 Script 失敗:', error)
   }
 
   resetLoaderIfNeeded(apiKey)

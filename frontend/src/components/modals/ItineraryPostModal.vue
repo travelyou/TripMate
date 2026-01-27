@@ -30,8 +30,8 @@ import { createItinerary, updateItinerary } from '@/api/itinerary'
 
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
+import DOMPurify from 'dompurify'
 
-// --- Tiptap 相關引入 ---
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
@@ -62,7 +62,6 @@ const formError = ref('')
 const isSubmitting = ref(false)
 const CHARACTER_LIMIT = 50000
 
-// ★ 新增：分類選項 (與找旅伴一致)
 const categories = [
   '國內旅遊',
   '日韓旅遊',
@@ -74,7 +73,6 @@ const categories = [
   '其他',
 ]
 
-// 表單資料結構
 const postData = ref({
   category: '',
   title: '',
@@ -92,7 +90,6 @@ const postData = ref({
   packingList: [],
 })
 
-// Banner 相關
 const bannerPreview = ref('')
 const bannerFileInput = ref(null)
 const bannerFile = ref(null)
@@ -107,7 +104,6 @@ const editorFileInputRef = ref(null)
 const activeDayIndex = ref(0)
 const tagSearch = ref('')
 
-// --- Helper ---
 const getTodayString = () => {
   const d = new Date()
   const year = d.getFullYear()
@@ -117,7 +113,6 @@ const getTodayString = () => {
 }
 const minDate = getTodayString()
 
-// --- Banner 拖曳邏輯 ---
 const startDragBanner = (event) => {
   isDraggingBanner.value = true
   dragStartY.value = event.clientY
@@ -136,7 +131,6 @@ const stopDragBanner = () => {
   isDraggingBanner.value = false
 }
 
-// --- 顏色選擇器 ---
 const showColorPicker = ref(false)
 const commonColors = [
   '#000000',
@@ -162,7 +156,6 @@ const setColor = (color) => {
   showColorPicker.value = false
 }
 
-// --- Tiptap 設定 ---
 const ResetStyleOnEnter = Extension.create({
   name: 'resetStyleOnEnter',
   addPriority: 1000,
@@ -193,7 +186,6 @@ const editor = useEditor({
   content: postData.value.description,
   extensions: [
     StarterKit.configure({
-      // 明確排除 underline，避免與單獨添加的 Underline extension 衝突
       underline: false,
     }),
     Underline,
@@ -250,7 +242,6 @@ onBeforeUnmount(() => {
   editor.value?.destroy()
 })
 
-// --- Banner 處理 ---
 const triggerBannerSelect = () => bannerFileInput.value?.click()
 
 const handleBannerSelect = async (event) => {
@@ -286,7 +277,6 @@ const removeBanner = () => {
   bannerPositionY.value = 50
 }
 
-// --- 驗證邏輯 ---
 const validateBasic = () => {
   if (!postData.value.category) return '請選擇分類'
   if (!postData.value.title) return '請輸入行程標題'
@@ -316,7 +306,6 @@ const validateBasic = () => {
   return ''
 }
 
-// --- 日期與天數計算邏輯 ---
 const calculateDuration = () => {
   if (postData.value.start_date && postData.value.end_date) {
     const start = new Date(postData.value.start_date)
@@ -360,6 +349,10 @@ const currentDay = computed(() => {
   return postData.value.itinerary.days[activeDayIndex.value] || { day: 1, activities: [] }
 })
 
+const sanitizedDescription = computed(() => {
+  return DOMPurify.sanitize(postData.value.description || '')
+})
+
 const addActivity = () => {
   if (!currentDay.value.activities) currentDay.value.activities = []
   currentDay.value.activities.push({
@@ -372,14 +365,12 @@ const addActivity = () => {
 }
 const removeActivity = (index) => currentDay.value.activities.splice(index, 1)
 
-// --- 打包清單邏輯 ---
 const addPackingCategory = () => postData.value.packingList.push({ category: '新分類', items: [] })
 const removePackingCategory = (index) => postData.value.packingList.splice(index, 1)
 const addPackingItem = (catIndex) => postData.value.packingList[catIndex].items.push('')
 const removePackingItem = (catIndex, itemIndex) =>
   postData.value.packingList[catIndex].items.splice(itemIndex, 1)
 
-// --- 標籤邏輯 ---
 const addTag = (tagText) => {
   const clean = tagText.replace(/^#/, '').trim()
   if (!clean) return
@@ -398,7 +389,6 @@ const addTag = (tagText) => {
 }
 const removeTag = (index) => postData.value.tags.splice(index, 1)
 
-// --- 步驟控制 ---
 const nextStep = () => {
   if (isUploading.value || isSubmitting.value) return
 
@@ -432,7 +422,6 @@ const prevStep = () => {
   else if (currentStep.value === 'itinerary') currentStep.value = 'basic'
 }
 
-// Watch initialData for Edit Mode
 watch(
   () => props.initialData,
   (newData) => {
@@ -454,17 +443,14 @@ watch(
         packingList: newData.packingList || [],
       }
 
-      // Restore Banner Preview if existing
       if (postData.value.coverImage) {
         bannerPreview.value = postData.value.coverImage
       }
 
-      // Ensure itinerary days are initialized
       if (!postData.value.itinerary.days || postData.value.itinerary.days.length === 0) {
         updateItineraryDays(postData.value.durationDays)
       }
 
-      // Update Editor Content
       if (editor.value) {
         editor.value.commands.setContent(postData.value.description)
       }
@@ -473,8 +459,6 @@ watch(
   { immediate: true, deep: true }
 )
 
-
-// --- 送出表單 ---
 const handleFinalSubmit = async () => {
   if (!auth.currentUser) {
     formError.value = '請先登入'
@@ -509,35 +493,27 @@ const handleFinalSubmit = async () => {
 
     let res
     if (props.isEdit) {
-      console.log('📝 [ItineraryPostModal] 更新行程:', props.initialData.id, payload)
       res = await updateItinerary(props.initialData.id, payload)
     } else {
-      console.log('➕ [ItineraryPostModal] 創建新行程:', payload)
       res = await createItinerary(payload)
     }
-
-    console.log('📊 [ItineraryPostModal] API 回應:', res)
 
     if (res.success || res.id) {
       submitProgress.value = 100
       submitStatus.value = props.isEdit ? '更新成功！' : '發布成功！'
-      console.log('✅ [ItineraryPostModal] 行程操作成功')
       emit('success')
       emit('close')
     } else {
       const errorMsg = res.message || (props.isEdit ? '更新失敗' : '發布失敗')
-      console.error('❌ [ItineraryPostModal] 行程操作失敗:', errorMsg, res)
       formError.value = errorMsg
     }
   } catch (error) {
-    console.error('❌ [ItineraryPostModal] 行程操作異常:', error)
     formError.value = error.message || '伺服器錯誤，請稍後再試'
   } finally {
     isSubmitting.value = false
   }
 }
 
-// 初始化
 if (postData.value.itinerary.days.length === 0) {
   postData.value.itinerary.days.push({ day: 1, activities: [] })
 }
@@ -611,8 +587,8 @@ if (postData.value.itinerary.days.length === 0) {
             >
             <select
               id="category"
-              name="category"
               v-model="postData.category"
+              name="category"
               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:outline-none transition bg-white"
               :class="{ 'border-red-500': !postData.category && formError }"
             >
@@ -638,8 +614,8 @@ if (postData.value.itinerary.days.length === 0) {
             </div>
             <input
               id="title"
-              name="title"
               v-model="postData.title"
+              name="title"
               type="text"
               placeholder="例如：京都深度五日遊"
               :class="[
@@ -691,8 +667,8 @@ if (postData.value.itinerary.days.length === 0) {
             </button>
             <input
               id="bannerFile"
-              name="bannerFile"
               ref="bannerFileInput"
+              name="bannerFile"
               type="file"
               accept="image/*"
               class="hidden"
@@ -738,52 +714,52 @@ if (postData.value.itinerary.days.length === 0) {
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().toggleBold().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('bold') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="粗體"
+                  @click="editor.chain().focus().toggleBold().run()"
                 >
                   <BoldIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleItalic().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('italic') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="斜體"
+                  @click="editor.chain().focus().toggleItalic().run()"
                 >
                   <ItalicIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().toggleUnderline().run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive('underline') }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="底線"
+                  @click="editor.chain().focus().toggleUnderline().run()"
                 >
                   <UnderlineIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="editor.chain().focus().setTextAlign('left').run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'left' }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="靠左"
+                  @click="editor.chain().focus().setTextAlign('left').run()"
                 >
                   <AlignLeftIcon class="w-4 h-4" />
                 </button>
                 <button
-                  @click="editor.chain().focus().setTextAlign('center').run()"
                   :class="{ 'bg-gray-200 text-black': editor.isActive({ textAlign: 'center' }) }"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="置中"
+                  @click="editor.chain().focus().setTextAlign('center').run()"
                 >
                   <AlignCenterIcon class="w-4 h-4" />
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <div class="relative">
                   <button
-                    @click="toggleColorPicker"
                     class="p-2 rounded hover:bg-gray-200 flex items-center"
                     title="文字顏色"
+                    @click="toggleColorPicker"
                   >
                     <PaletteIcon class="w-4 h-4" />
                     <div
@@ -800,9 +776,9 @@ if (postData.value.itinerary.days.length === 0) {
                     <button
                       v-for="color in commonColors"
                       :key="color"
-                      @click="setColor(color)"
                       class="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 shadow-sm"
                       :style="{ backgroundColor: color }"
+                      @click="setColor(color)"
                     ></button>
                   </div>
                   <div
@@ -813,7 +789,6 @@ if (postData.value.itinerary.days.length === 0) {
                 </div>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="setFontKai"
                   :class="{
                     'bg-gray-200 text-black': editor.isActive('textStyle', {
                       fontFamily: 'BiauKai, DFKai-SB, 標楷體',
@@ -821,24 +796,25 @@ if (postData.value.itinerary.days.length === 0) {
                   }"
                   class="p-2 rounded hover:bg-gray-200 flex items-center gap-1"
                   title="標楷體"
+                  @click="setFontKai"
                 >
                   <TypeIcon class="w-4 h-4" /><span class="text-xs font-bold">楷</span>
                 </button>
                 <div class="w-px h-4 bg-gray-300 mx-1"></div>
                 <button
-                  @click="triggerEditorImageUpload"
                   class="p-2 rounded hover:bg-gray-200 text-gray-600"
                   title="插入圖片"
+                  @click="triggerEditorImageUpload"
                 >
                   <ImageIcon class="w-4 h-4" />
                 </button>
                 <input
                   id="editorFile"
+                  ref="editorFileInputRef"
                   name="editorFile"
                   type="file"
-                  ref="editorFileInputRef"
-                  class="hidden"
                   accept="image/*"
+                  class="hidden"
                   @change="handleEditorImageSelect"
                 />
               </div>
@@ -856,8 +832,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <DollarSignIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   id="price"
-                  name="price"
                   v-model.number="postData.price"
+                  name="price"
                   type="number"
                   min="0"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
@@ -871,8 +847,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <BuildingIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   id="agencyName"
-                  name="agencyName"
                   v-model="postData.agencyName"
+                  name="agencyName"
                   maxlength="15"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
                   placeholder="例如：雄獅旅遊"
@@ -888,8 +864,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   id="start_date"
-                  name="start_date"
                   v-model="postData.start_date"
+                  name="start_date"
                   type="date"
                   :min="minDate"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
@@ -902,8 +878,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   id="end_date"
-                  name="end_date"
                   v-model="postData.end_date"
+                  name="end_date"
                   type="date"
                   :min="postData.start_date || minDate"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
@@ -919,8 +895,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <MapPinIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   id="location"
-                  name="location"
                   v-model="postData.location"
+                  name="location"
                   maxlength="10"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
                   placeholder="例如：日本關西"
@@ -933,8 +909,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <UsersIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
                   id="max_people"
-                  name="max_people"
                   v-model.number="postData.max_people"
+                  name="max_people"
                   type="number"
                   min="1"
                   max="999"
@@ -967,7 +943,7 @@ if (postData.value.itinerary.days.length === 0) {
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <div class="mb-4 font-bold text-gray-700 flex justify-between">
               <span>正在編輯 Day {{ currentDay.day }}</span>
-              <span class="text-sm text-gray-400" v-if="postData.start_date">{{
+              <span v-if="postData.start_date" class="text-sm text-gray-400">{{
                 new Date(
                   new Date(postData.start_date).getTime() + activeDayIndex * 86400000,
                 ).toLocaleDateString()
@@ -982,34 +958,34 @@ if (postData.value.itinerary.days.length === 0) {
                 <div class="flex justify-between mb-2">
                   <input
                     :id="`activity-time-${aIdx}`"
-                    :name="`activity-time-${aIdx}`"
                     v-model="act.time"
+                    :name="`activity-time-${aIdx}`"
                     type="time"
                     class="bg-gray-100 rounded px-2 font-bold text-gray-700"
                   />
-                  <button @click="removeActivity(aIdx)" class="text-gray-400 hover:text-red-500">
+                  <button class="text-gray-400 hover:text-red-500" @click="removeActivity(aIdx)">
                     <TrashIcon class="w-4 h-4" />
                   </button>
                 </div>
                 <input
                   :id="`activity-title-${aIdx}`"
-                  :name="`activity-title-${aIdx}`"
                   v-model="act.title"
+                  :name="`activity-title-${aIdx}`"
                   placeholder="活動標題"
                   class="w-full font-bold mb-1 border-b border-transparent focus:border-primary-300 outline-none"
                 />
                 <textarea
                   :id="`activity-desc-${aIdx}`"
-                  :name="`activity-desc-${aIdx}`"
                   v-model="act.desc"
+                  :name="`activity-desc-${aIdx}`"
                   placeholder="詳細描述..."
                   class="w-full text-sm text-gray-600 resize-none outline-none bg-transparent"
                 ></textarea>
               </div>
             </div>
             <button
-              @click="addActivity"
               class="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold hover:border-primary-400 hover:text-primary-600 transition"
+              @click="addActivity"
             >
               + 新增活動
             </button>
@@ -1023,8 +999,8 @@ if (postData.value.itinerary.days.length === 0) {
               <p class="text-xs text-gray-500">幫旅客列出這趟旅程必備的物品</p>
             </div>
             <button
-              @click="addPackingCategory"
               class="text-primary-600 font-bold hover:bg-primary-50 px-3 py-1 rounded transition"
+              @click="addPackingCategory"
             >
               <PlusIcon class="inline w-4 h-4" /> 新增分類
             </button>
@@ -1036,15 +1012,15 @@ if (postData.value.itinerary.days.length === 0) {
               class="p-4 border border-gray-200 rounded-xl bg-gray-50 relative group"
             >
               <button
-                @click="removePackingCategory(cIdx)"
                 class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                @click="removePackingCategory(cIdx)"
               >
                 <XIcon class="w-4 h-4" />
               </button>
               <input
                 :id="`packing-category-${cIdx}`"
-                :name="`packing-category-${cIdx}`"
                 v-model="cat.category"
+                :name="`packing-category-${cIdx}`"
                 class="font-bold text-primary-700 w-full mb-3 border-b border-dashed border-gray-300 focus:border-primary-500 outline-none bg-transparent"
                 placeholder="分類名稱 (例如：衣物)"
               />
@@ -1057,21 +1033,21 @@ if (postData.value.itinerary.days.length === 0) {
                   <CheckSquareIcon class="w-4 h-4 text-gray-300 mr-2 flex-shrink-0" />
                   <input
                     :id="`packing-item-${cIdx}-${iIdx}`"
-                    :name="`packing-item-${cIdx}-${iIdx}`"
                     v-model="cat.items[iIdx]"
+                    :name="`packing-item-${cIdx}-${iIdx}`"
                     class="text-sm text-gray-600 w-full outline-none"
                     placeholder="物品名稱"
                   />
                   <button
-                    @click="removePackingItem(cIdx, iIdx)"
                     class="text-gray-300 hover:text-red-400 ml-2"
+                    @click="removePackingItem(cIdx, iIdx)"
                   >
                     <XIcon class="w-3 h-3" />
                   </button>
                 </div>
                 <button
-                  @click="addPackingItem(cIdx)"
                   class="text-xs font-bold text-primary-500 mt-2 hover:underline"
+                  @click="addPackingItem(cIdx)"
                 >
                   + 新增物品
                 </button>
@@ -1084,8 +1060,8 @@ if (postData.value.itinerary.days.length === 0) {
           <div class="relative mb-6">
             <input
               id="tagSearch"
-              name="tagSearch"
               v-model="tagSearch"
+              name="tagSearch"
               type="text"
               placeholder="輸入標籤..."
               class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none focus:border-primary-500"
@@ -1143,10 +1119,12 @@ if (postData.value.itinerary.days.length === 0) {
               </div>
             </div>
 
+            <!-- eslint-disable vue/no-v-html -->
             <div
               class="prose prose-lg max-w-none mb-8 text-secondary-700 leading-relaxed"
-              v-html="postData.description"
+              v-html="sanitizedDescription"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <div class="bg-white p-3 rounded-lg border-2 border-secondary-200 shadow-sm">
@@ -1260,7 +1238,6 @@ if (postData.value.itinerary.days.length === 0) {
   background: #94a3b8;
 }
 
-/* Tiptap Styles */
 :deep(.ProseMirror) {
   outline: none;
   min-height: 300px;

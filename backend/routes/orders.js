@@ -1,16 +1,10 @@
 ﻿const express = require('express')
 const router = express.Router()
-const pool = require('../database/connection') // 你們 connection.js export 的 pool
+const pool = require('../database/connection')
 const { authenticate } = require('../middleware/auth')
 
 router.use(authenticate)
 
-/**
- * 輔助函式：安全地解析 JSON 字串
- * @param {string|object} jsonString - 要解析的 JSON 字串或已解析的物件
- * @param {string} fieldName - 欄位名稱（用於日誌）
- * @returns {object|null} - 解析後的物件或 null
- */
 function parseJSON(jsonString, fieldName) {
   if (typeof jsonString !== 'string') {
     return jsonString || null
@@ -18,7 +12,6 @@ function parseJSON(jsonString, fieldName) {
   try {
     return JSON.parse(jsonString)
   } catch (error) {
-    console.error(`Failed to parse ${fieldName}:`, error.message)
     return null
   }
 }
@@ -31,29 +24,15 @@ function generateOrderNo() {
   return `TM-${date}-${time}-${rand}`
 }
 
-/**
- * POST /api/orders/from-cart
- * body: { itineraryId?, contact?, emergencyContact?, paymentMethod? }
- *
- * 流程：
- * 1) 讀取 active cart 的 cart_items（預設 user_id=1）
- * 2) 選擇要結帳的 itinerary（若未提供 itineraryId，取第一筆）
- * 3) 後端查 itinerary.itineraries 拿 price/title
- * 4) 建立 commerce.orders（PENDING）
- * 5) （可選）建立 commerce.payments（INIT）
- * 6) 從購物車移除該項目（或改成清空整車）
- */
 router.post('/from-cart', async (req, res) => {
   const client = await pool.connect()
   try {
     const { itineraryId, contact, emergencyContact } = req.body || {}
 
-    // 先不做登入：固定 user_id=1（之後換成 req.user.id / Firebase uid）
     const userId = 1
 
     await client.query('BEGIN')
 
-    // 1) 找 active cart（沒有就代表購物車是空的）
     const cartR = await client.query(
       `SELECT id
       FROM commerce.carts
@@ -71,7 +50,6 @@ router.post('/from-cart', async (req, res) => {
 
     const cartId = cartR.rows[0].id
 
-    // 2) 讀 cart_items：可指定 itineraryId，不指定就取第一筆
     if (!itineraryId) {
       await client.query('ROLLBACK')
       return res.status(400).json({
@@ -104,7 +82,6 @@ router.post('/from-cart', async (req, res) => {
       return res.status(400).json({ ok: false, message: '購物車內的行程人數無效' })
     }
 
-    // 3) 後端查 itinerary（用你現有 schema：itinerary.itineraries）
     const itR = await client.query(
       `SELECT id, title, price, status
       FROM itinerary.itineraries
@@ -120,7 +97,6 @@ router.post('/from-cart', async (req, res) => {
     const unitPrice = Number(itinerary.price)
     const amount = unitPrice * p
 
-    // 4) 建立訂單
     const orderNo = generateOrderNo()
     const userUid = req.user?.uid || null
 
@@ -144,7 +120,6 @@ router.post('/from-cart', async (req, res) => {
 
     const order = orderIns.rows[0]
 
-    // 6) 從購物車移除該項（你們一次只結帳一個行程，移除該項就好）
     await client.query(
       `DELETE FROM commerce.cart_items
       WHERE cart_id=$1 AND itinerary_id=$2
@@ -153,7 +128,6 @@ router.post('/from-cart', async (req, res) => {
       [cartId, itinerary.id],
     )
 
-    // （可選）如果購物車已空，把 carts.status 改掉，避免一直 active
     const left = await client.query(`SELECT 1 FROM commerce.cart_items WHERE cart_id=$1 LIMIT 1`, [
       cartId,
     ])
@@ -181,21 +155,11 @@ router.post('/from-cart', async (req, res) => {
     })
   } catch (err) {
     await client.query('ROLLBACK')
-    console.error('[POST /api/orders/from-cart] error:', err)
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   } finally {
     client.release()
   }
 })
-
-/**
- * POST /api/orders
- * body: { itineraryId, persons, contact, emergencyContact }
- * 建單流程：
- * 1) 查 itinerary.itineraries 取得 price/title
- * 2) 後端計算 amount
- * 3) 寫入 commerce.orders
- */
 
 router.post('/', async (req, res) => {
   try {
@@ -212,7 +176,6 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ ok: false, message: '人數必須為正整數' })
     }
 
-    // 1) 後端查 itinerary（注意：你們行程表在 itinerary schema）
     const it = await pool.query(
       'SELECT id, title, price, status FROM itinerary.itineraries WHERE id = $1',
       [itineraryId],
@@ -226,10 +189,8 @@ router.post('/', async (req, res) => {
     const unitPrice = Number(itinerary.price)
     const amount = unitPrice * p
 
-    // 2) 建立訂單（寫入 commerce.orders）
     const orderNo = generateOrderNo()
 
-    // 若尚未接登入，先存 null；之後可以換成 Firebase uid
     const userUid = req.user?.uid || null
 
     const insert = await pool.query(
@@ -266,15 +227,10 @@ router.post('/', async (req, res) => {
       },
     })
   } catch (err) {
-    console.error('[POST /api/orders] error:', err)
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   }
 })
 
-/**
- * GET /api/orders
- * query: userUid?, limit?
- */
 router.get('/', async (req, res) => {
   try {
     const { userUid: userUidQuery } = req.query || {}
@@ -357,14 +313,9 @@ router.get('/', async (req, res) => {
 
     return res.json({ ok: true, orders })
   } catch (err) {
-    console.error('[GET /api/orders] error:', err)
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   }
 })
-/**
- * GET /api/orders/:id
- * 用途：前端 Step5 Done 查詢訂單狀態/金額/行程資訊
- */
 
 router.get('/:id', async (req, res) => {
   try {
@@ -373,7 +324,6 @@ router.get('/:id', async (req, res) => {
       return res.status(400).json({ ok: false, message: '訂單 ID 無效' })
     }
 
-    // 訂單主檔 + 行程資訊（跨 schema join）
     const q = await pool.query(
       `SELECT
         o.id,
@@ -405,7 +355,6 @@ router.get('/:id', async (req, res) => {
     const contact = parseJSON(row.contact_json, 'contact_json')
     const emergencyContact = parseJSON(row.emergency_contact_json, 'emergency_contact_json')
 
-    // （可選）把付款狀態也帶回來：取最新一筆 payment
     const p = await pool.query(
       `SELECT id, provider, method, amount, status, created_at
       FROM commerce.payments
@@ -454,7 +403,6 @@ router.get('/:id', async (req, res) => {
         : null,
     })
   } catch (err) {
-    console.error('[GET /api/orders/:id] error:', err)
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   }
 })

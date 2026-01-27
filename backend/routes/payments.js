@@ -29,16 +29,10 @@ function linepayHeaders({ channelSecret, uri, body }) {
   }
 }
 
-// 測試 router 是否有正常運作
 router.get('/test', (req, res) => {
   res.json({ ok: true, message: 'payments 路由運作中' })
 })
 
-/**
- * POST /api/payments/report-bank
- * body: { orderId, last5 }
- * 記錄銀行轉帳帳號末 5 碼到 payer_meta
- */
 router.post('/report-bank', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -96,25 +90,12 @@ router.post('/report-bank', async (req, res) => {
     try {
       await client.query('ROLLBACK')
     } catch (rollbackErr) {
-      console.error('[POST /api/payments/report-bank] ROLLBACK failed:', rollbackErr)
     }
-    console.error('[POST /api/payments/report-bank] error:', err)
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   } finally {
     client.release()
   }
 })
-
-/**
- * POST /api/payments/create
- * 前端帶：orderId, paymentMethod
- * 後端回：paymentUrl（先用 mock）
- *
- * 這裡會：
- * 1) 檢查 commerce.orders 是否存在
- * 2) 建立一筆 commerce.payments（INIT）
- * 3) 回傳 mock 付款網址
- */
 
 router.post('/create', async (req, res) => {
   const client = await pool.connect()
@@ -127,7 +108,6 @@ router.post('/create', async (req, res) => {
 
     await client.query('BEGIN')
 
-    // 1) 確認訂單存在（並鎖定，避免同時付款/重複付款）
     const o = await client.query(
       `SELECT id, amount, status
         FROM commerce.orders
@@ -143,13 +123,11 @@ router.post('/create', async (req, res) => {
 
     const order = o.rows[0]
 
-    // 若已付款，避免重複建立付款單
     if (order.status === 'PAID') {
       await client.query('ROLLBACK')
       return res.status(409).json({ ok: false, message: '訂單已付款' })
     }
 
-    // 2) 建立 payment（INIT）
     const pay = await client.query(
       `INSERT INTO commerce.payments (order_id, provider, method, amount, status)
         VALUES ($1, $2, $3, $4, 'INIT')
@@ -163,7 +141,6 @@ router.post('/create', async (req, res) => {
       return res.status(500).json({ ok: false, message: '建立付款單失敗' })
     }
 
-    // ===== BANK 轉帳：登記付款方式但維持未付款 =====
     if (paymentMethod === 'bank') {
       await client.query(
         `UPDATE commerce.payments
@@ -189,7 +166,6 @@ router.post('/create', async (req, res) => {
       })
     }
 
-    // ===== LINE PAY 分流 =====
     if (paymentMethod === 'linepay') {
       const publicBase = process.env.PUBLIC_BASE_URL
       const apiBase = process.env.LINEPAY_API_BASE || 'https://sandbox-api-pay.line.me'
@@ -241,11 +217,9 @@ router.post('/create', async (req, res) => {
 
       const raw = lpRes.data
 
-      // 1) 先用正則「以字串」抓 transactionId（不經 JSON.parse → 不會變 number）
       const mTid = raw.match(/"transactionId"\s*:\s*(\d{10,30})/)
       const transactionId = mTid ? mTid[1] : ''
 
-      // 2) 其他欄位可以再 JSON.parse（就算 transactionId 會失真也沒關係，我們不用它）
       let lp
       try {
         lp = JSON.parse(raw)
@@ -274,7 +248,6 @@ router.post('/create', async (req, res) => {
         })
       }
 
-      // 把 transactionId 存回 payment
       await client.query(
         `UPDATE commerce.payments
         SET transaction_id=$1, updated_at=NOW()
@@ -293,7 +266,6 @@ router.post('/create', async (req, res) => {
       })
     }
 
-    // ===== 非 LINE PAY（mock / credit / bank ...）=====
     await client.query('COMMIT')
 
     return res.json({
@@ -307,23 +279,12 @@ router.post('/create', async (req, res) => {
     try {
       await client.query('ROLLBACK')
     } catch (rollbackErr) {
-      console.error('[POST /api/payments/create] ROLLBACK failed:', rollbackErr)
     }
-    console.error('[POST /api/payments/create] error:', err)
     return res.status(500).json({ ok: false, message: err?.message || '伺服器錯誤' })
   } finally {
     client.release()
   }
 })
-
-/**
- * GET /api/payments/mock-pay?paymentId=xxx
- * 模擬使用者完成付款
- *
- * 這裡會：
- * 1) 把最新一筆該訂單的 payment 改成 PAID
- * 2) 把 commerce.orders.status 改成 PAID
- */
 
 router.get('/mock-pay', async (req, res) => {
   const client = await pool.connect()
@@ -333,7 +294,6 @@ router.get('/mock-pay', async (req, res) => {
 
     await client.query('BEGIN')
 
-    // 1) 鎖定這筆 payment，並取得 orderId
     const p = await client.query(
       `SELECT id, order_id AS "orderId", status
         FROM commerce.payments
@@ -348,13 +308,11 @@ router.get('/mock-pay', async (req, res) => {
 
     const payment = p.rows[0]
 
-    // 已付款就不重複
     if (payment.status === 'PAID') {
       await client.query('ROLLBACK')
       return res.status(409).json({ ok: false, message: '付款已完成', paymentId })
     }
 
-    // 2) 鎖定訂單
     const o = await client.query(
       `SELECT id, status
         FROM commerce.orders
@@ -367,7 +325,6 @@ router.get('/mock-pay', async (req, res) => {
       return res.status(404).json({ ok: false, message: '此付款找不到對應的訂單' })
     }
 
-    // 3) 更新 payment 為 PAID
     await client.query(
       `UPDATE commerce.payments
         SET status='PAID', updated_at=NOW()
@@ -375,7 +332,6 @@ router.get('/mock-pay', async (req, res) => {
       [paymentId],
     )
 
-    // 4) 更新 order 為 PAID
     await client.query(
       `UPDATE commerce.orders
         SET status='PAID', updated_at=NOW()
@@ -395,25 +351,12 @@ router.get('/mock-pay', async (req, res) => {
     try {
       await client.query('ROLLBACK')
     } catch (e) {
-      console.error('[mock-pay] rollback error:', e)
     }
-    console.error('[GET /api/payments/mock-pay] error:', err)
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
   } finally {
     client.release()
   }
 })
-
-/**
- * GET /api/payments/linepay/confirm?orderId=xxx&paymentId=yyy
- * 使用者從 LINE Pay 付款頁面完成付款後會被導回這裡
- *
- * 這裡會：
- * 1) 呼叫 LINE Pay confirm API
- * 2) 把 commerce.payments 改成 PAID
- * 3) 把 commerce.orders.status 改成 PAID
- * 4) 導回前端 Step5
- */
 
 router.get('/linepay/confirm', async (req, res) => {
   const client = await pool.connect()
@@ -423,7 +366,6 @@ router.get('/linepay/confirm', async (req, res) => {
 
     await client.query('BEGIN')
 
-    // 鎖 payment + 取 transaction_id
     const p = await client.query(
       `SELECT id, order_id AS "orderId", amount, status, transaction_id
     FROM commerce.payments
@@ -437,7 +379,6 @@ router.get('/linepay/confirm', async (req, res) => {
     const pay = p.rows[0]
     if (!pay.transaction_id) throw new Error('付款資料缺少 transaction_id')
 
-    // Confirm
     const apiBase = process.env.LINEPAY_API_BASE || 'https://sandbox-api-pay.line.me'
     const uri = `/v3/payments/${pay.transaction_id}/confirm`
 
@@ -455,7 +396,6 @@ router.get('/linepay/confirm', async (req, res) => {
       await client.query('ROLLBACK')
       return res.status(400).send(lp?.returnMessage || 'LINE Pay confirm failed')
     }
-    // 更新 payment + order
     await client.query(
       `UPDATE commerce.payments
     SET status = 'PAID',
@@ -476,7 +416,6 @@ router.get('/linepay/confirm', async (req, res) => {
 
     await client.query('COMMIT')
 
-    // 導回前端 Step5
     return res.redirect(
       `${getFrontendBaseUrl()}/checkout/step5?orderId=${encodeURIComponent(pay.orderId)}`,
     )
@@ -484,22 +423,12 @@ router.get('/linepay/confirm', async (req, res) => {
     try {
       await client.query('ROLLBACK')
     } catch (rollbackErr) {
-      console.error('[linepay/confirm] ROLLBACK failed:', rollbackErr.message)
     }
-    console.error('[linepay/confirm] error:', e.message)
     return res.status(500).send('server error')
   } finally {
     client.release()
   }
 })
-
-/**
- * GET /api/payments/linepay/cancel?orderId=xxx&paymentId=yyy
- * 使用者從 LINE Pay 付款頁面取消付款會被導回這裡
- *
- * 這裡會：
- * 1) 導回前端 Step4
- */
 
 router.get('/linepay/cancel', async (req, res) => {
   const { orderId } = req.query || {}
@@ -507,12 +436,6 @@ router.get('/linepay/cancel', async (req, res) => {
     `${getFrontendBaseUrl()}/checkout/step4?orderId=${encodeURIComponent(orderId || '')}`,
   )
 })
-
-/**
- * POST /api/payments/webhook
- * 真金流會呼叫這支（server-to-server）
- * 目前先印出來確認「收得到」
- */
 
 router.post('/webhook', (req, res) => {
   res.json({ ok: true })

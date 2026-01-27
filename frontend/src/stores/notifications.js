@@ -41,8 +41,6 @@ export const useNotificationsStore = defineStore('notifications', {
           this.lastFetchTime = Date.now()
         }
       } catch (error) {
-        console.error('獲取通知列表失敗：', error.message)
-        // 發生錯誤時設置為空數組，避免阻塞應用
         this.notifications = []
       } finally {
         this.isLoading = false
@@ -58,8 +56,6 @@ export const useNotificationsStore = defineStore('notifications', {
           this.unreadCount = response.count || 0
         }
       } catch (error) {
-        console.error('獲取未讀通知數量失敗：', error.message)
-        // 發生錯誤時設置為 0，避免阻塞應用
         this.unreadCount = 0
       }
     },
@@ -77,7 +73,6 @@ export const useNotificationsStore = defineStore('notifications', {
           }
         }
       } catch (error) {
-        console.error('標記通知已讀失敗：', error)
       }
     },
 
@@ -91,7 +86,6 @@ export const useNotificationsStore = defineStore('notifications', {
           this.unreadCount = 0
         }
       } catch (error) {
-        console.error('標記所有通知已讀失敗：', error)
       }
     },
 
@@ -111,7 +105,6 @@ export const useNotificationsStore = defineStore('notifications', {
           }
         }
       } catch (error) {
-        console.error('刪除通知失敗：', error)
       }
     },
 

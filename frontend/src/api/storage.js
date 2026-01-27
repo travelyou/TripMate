@@ -37,7 +37,6 @@ export async function uploadImage(file, folder = 'posts', onProgress = null) {
           }
         },
         (error) => {
-          console.error('圖片上傳失敗：', error)
           reject(new Error('圖片上傳失敗：' + (error?.message || String(error))))
         },
         async () => {
@@ -52,7 +51,6 @@ export async function uploadImage(file, folder = 'posts', onProgress = null) {
       )
     })
   } catch (error) {
-    console.error('圖片上傳失敗：', error)
     throw new Error('圖片上傳失敗：' + (error?.message || String(error)))
   }
 }
@@ -79,7 +77,6 @@ export async function uploadMultipleImages(files, folder = 'posts', onProgress =
 
     return results
   } catch (error) {
-    console.error('批量圖片上傳失敗：', error)
     throw new Error('批量圖片上傳失敗：' + error.message)
   }
 }
@@ -107,10 +104,8 @@ export async function deleteImage(filePath, folder = 'posts') {
     // 創建儲存路徑引用
     const storageRef = ref(storage, storagePath)
 
-    // 刪除文件
     await deleteObject(storageRef)
   } catch (error) {
-    console.error('圖片刪除失敗：', error)
     throw new Error('圖片刪除失敗：' + error.message)
   }
 }

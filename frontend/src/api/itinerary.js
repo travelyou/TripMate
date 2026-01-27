@@ -9,7 +9,6 @@ export const getItineraries = async (filters = {}) => {
     const response = await axios.get(`${API_BASE_URL}/itineraries`, { params: filters })
     return response.data
   } catch (error) {
-    console.error('Error fetching itineraries:', error)
     return { success: false, data: [] }
   }
 }
@@ -68,7 +67,6 @@ export const getItineraryById = async (id) => {
     }
     */
   } catch (error) {
-    console.error(`Error fetching itinerary ${id}:`, error)
     return { success: false, message: '無法讀取行程資料' }
   }
 }
@@ -78,23 +76,12 @@ export const createItinerary = async (payload) => {
   try {
     const token = auth.currentUser ? await auth.currentUser.getIdToken() : null
 
-    console.log('📤 [API] 發送創建行程請求:', {
-      url: `${API_BASE_URL}/itineraries`,
-      payload: { ...payload, coverImage: payload.coverImage ? '有圖片' : '無圖片' }
-    })
-
-    // 根據你的 CSV 結構，後端需要接收 itinerary (days) 和 packingList
-    // payload 應該包含: title, price, ... itinerary: { days: [] }, packingList: []
-
     const response = await axios.post(`${API_BASE_URL}/itineraries`, payload, {
       headers: {
         Authorization: token ? `Bearer ${token}` : '',
       },
     })
 
-    console.log('📥 [API] 創建行程回應:', response.data)
-
-    // 處理後端返回格式：{ success: true, id: xxx } 或 { success: true, data: {...} }
     const result = response.data
     if (result.success || result.id) {
       return { success: true, id: result.id, data: result.data || result }
@@ -102,12 +89,6 @@ export const createItinerary = async (payload) => {
 
     return result
   } catch (error) {
-    console.error('❌ [API] 創建行程錯誤:', error)
-    console.error('錯誤詳情:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    })
     return { 
       success: false, 
       message: error.response?.data?.message || error.message || '建立失敗' 
@@ -126,7 +107,6 @@ export const updateItinerary = async (id, payload) => {
     })
     return response.data
   } catch (error) {
-    console.error('Error updating itinerary:', error)
     return { success: false, message: error.response?.data?.message || '更新失敗' }
   }
 }

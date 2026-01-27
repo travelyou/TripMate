@@ -22,7 +22,6 @@ export async function searchFeatureLocations(query, category = null) {
     const data = await response.json()
     return data.success ? data.data : []
   } catch (error) {
-    console.error('[AI Features] 搜尋功能位置錯誤:', error)
     return []
   }
 }
@@ -42,7 +41,6 @@ export async function getAllFeatureLocations() {
     const data = await response.json()
     return data.success ? data.data : []
   } catch (error) {
-    console.error('[AI Features] 獲取所有功能位置錯誤:', error)
     return []
   }
 }
@@ -70,7 +68,6 @@ export async function searchDiscussionPosts(query, limit = 5) {
     const data = await response.json()
     return data.posts || []
   } catch (error) {
-    console.error('[AI Prompt] 搜尋文章錯誤:', error)
     return []
   }
 }

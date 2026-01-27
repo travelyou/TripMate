@@ -16,7 +16,6 @@ export async function getNotifications(uid, limit = 50, offset = 0) {
     })
     return response.data
   } catch (error) {
-    console.error('獲取通知列表失敗：', error)
     throw error
   }
 }
@@ -29,7 +28,6 @@ export async function getUnreadCount(uid) {
     const response = await http.get(`/notifications/${uid}/unread-count`)
     return response.data
   } catch (error) {
-    console.error('獲取未讀通知數量失敗：', error)
     throw error
   }
 }
@@ -42,7 +40,6 @@ export async function markAsRead(notificationId) {
     const response = await http.patch(`/notifications/${notificationId}/read`)
     return response.data
   } catch (error) {
-    console.error('標記通知已讀失敗：', error)
     throw error
   }
 }
@@ -55,7 +52,6 @@ export async function markAllAsRead(uid) {
     const response = await http.patch(`/notifications/${uid}/read-all`)
     return response.data
   } catch (error) {
-    console.error('標記所有通知已讀失敗：', error)
     throw error
   }
 }
@@ -68,7 +64,6 @@ export async function deleteNotification(notificationId) {
     const response = await http.delete(`/notifications/${notificationId}`)
     return response.data
   } catch (error) {
-    console.error('刪除通知失敗：', error)
     throw error
   }
 }

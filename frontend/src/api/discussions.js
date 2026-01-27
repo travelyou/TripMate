@@ -32,7 +32,6 @@ export async function fetchPosts(params = {}) {
   }
 }
 
-// ... (其他函式 fetchPostById, createPost, updatePost, deletePost 保持不變)
 export async function fetchPostById(id) {
   try {
     const url = `${API_BASE_URL}/discussions/${id}`
@@ -45,7 +44,6 @@ export async function fetchPostById(id) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('[API] fetchPostById 錯誤:', error)
     throw error
   }
 }
@@ -63,14 +61,12 @@ export async function createPost(postData) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      console.error('[API] createPost 錯誤回應:', errorData)
       throw new Error(errorData.error || errorData.details || '創建貼文失敗')
     }
 
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('[API] createPost 錯誤:', error)
     throw error
   }
 }
@@ -93,7 +89,6 @@ export async function updatePost(id, postData) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('[API] updatePost 錯誤:', error)
     throw error
   }
 }
@@ -112,7 +107,6 @@ export async function deletePost(id) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('[API] deletePost 錯誤:', error)
     throw error
   }
 }

@@ -56,7 +56,6 @@ const sendToggleLikeNow = async (postId, authorUid, board, options = {}) => {
     try {
       token = await auth.currentUser.getIdToken()
     } catch (tokenError) {
-      console.warn('[Likes API] 獲取 token 失敗:', tokenError)
     }
   }
 
@@ -82,7 +81,6 @@ const sendToggleLikeNow = async (postId, authorUid, board, options = {}) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-    console.error('[Likes API] 錯誤響應:', errorData)
     throw new Error(errorData.error || errorData.details || '按讚操作失敗')
   }
 
@@ -109,7 +107,6 @@ const flushPendingLike = async (key, force = false, options = {}) => {
     )
     updateCache(key, result)
   } catch (error) {
-    console.error('[Likes API] flush 失敗:', error)
   }
 }
 
@@ -200,7 +197,6 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
       try {
         token = await auth.currentUser.getIdToken()
       } catch (tokenError) {
-        console.warn('[Likes API] 獲取 token 失敗:', tokenError)
       }
     }
 
@@ -216,7 +212,6 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      console.error('[Likes API] 錯誤響應:', errorData)
       throw new Error(errorData.error || errorData.details || '獲取按讚資訊失敗')
     }
 
@@ -230,7 +225,6 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
       error.message.includes('NetworkError') ||
       error.message.includes('404')
     ) {
-      console.warn(`獲取按讚資訊失敗，返回默認值。貼文 ID: ${postId}`, error.message)
       const fallback = {
         likesCount: 0,
         isLiked: false,
@@ -242,7 +236,6 @@ export async function getLikesInfo(postId, authorUid = null, board = 'discussion
       return fallback
     }
 
-    console.error('獲取按讚資訊錯誤：', error)
     const fallback = {
       likesCount: 0,
       isLiked: false,

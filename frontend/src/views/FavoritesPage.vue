@@ -51,7 +51,6 @@ const itineraryScrollToComments = ref(false)
 
 const openDiscussionDetail = (post, focusComments = false) => {
   if (!post) {
-    console.warn('openDiscussionDetail: post is null or undefined')
     return
   }
   selectedDiscussion.value = post

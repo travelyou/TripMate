@@ -78,7 +78,7 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }))
 app.get('/', (req, res) => {
   res.json({
     message: 'TripMate 後端 API 服務',
-    environment: process.env.VERCEL ? 'Vercel Serverless' : 'Server/Local', // 方便你確認目前跑在哪裡
+    environment: process.env.VERCEL ? 'Vercel Serverless' : 'Server/Local',
     endpoints: {
       test: '/api/test',
       testDb: '/api/test-db',
@@ -137,7 +137,6 @@ app.use('/api/my-itinerary', require('./routes/myItinerary'))
 app.use('/api/ai/features', require('./routes/aiFeatures'))
 app.use('/api/reviews', reviewsRouter)
 
-// 全域錯誤處理
 app.use((err, req, res, next) => {
   const origin = req.headers.origin
   if (origin) {
@@ -188,31 +187,23 @@ app.use((req, res) => {
   })
 })
 
-// 2. 修改：只在非 Vercel 環境下啟動監聽 (Zeabur/Local 依然會執行這裡)
 if (!process.env.VERCEL) {
   const http = require('http')
   const { initWebSocket } = require('./websocket')
 
-  // 創建 HTTP 服務器
   const server = http.createServer(app)
 
-  // 初始化 WebSocket 服務器
   initWebSocket(server)
 
   server.listen(PORT, HOST, () => {
-    console.log(`伺服器連接成功在 http://${HOST}:${PORT}`)
-    console.log(`允許的 CORS 來源: ${allowedOrigins.join(', ')}`)
   })
 }
 
-// 3. 修改：匯出 app 供 Vercel Serverless Function 使用
 module.exports = app
 
-// 4. 設置定時任務：檢查找旅伴到期提醒（僅在非 Vercel 環境運行）
 if (!process.env.VERCEL) {
   const { checkAndSendTravelerReminders } = require('./utils/travelerReminders')
 
-  // 每天凌晨 1 點執行一次
   const scheduleReminderCheck = () => {
     const now = new Date()
     const nextCheck = new Date()
@@ -225,18 +216,15 @@ if (!process.env.VERCEL) {
 
     setTimeout(() => {
       checkAndSendTravelerReminders()
-      // 設置每天執行一次
       setInterval(checkAndSendTravelerReminders, 24 * 60 * 60 * 1000)
     }, msUntilNext)
   }
 
-  // 立即執行一次（用於測試）
   if (process.env.NODE_ENV === 'development') {
     setTimeout(() => {
       checkAndSendTravelerReminders()
-    }, 5000) // 5秒後執行，確保資料庫連接已建立
+    }, 5000)
   }
 
-  // 設置定時任務
   scheduleReminderCheck()
 }

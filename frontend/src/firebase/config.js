@@ -21,8 +21,6 @@ if (import.meta.env.DEV) {
     .map(([key]) => key)
 
   if (missingFields.length > 0) {
-    console.warn('Firebase 配置缺失：', missingFields.join(', '))
-    console.warn('請檢查 .env 文件中的環境變數設置')
   }
 }
 
@@ -34,11 +32,6 @@ let analytics = null
 try {
   analytics = getAnalytics(app)
 } catch (error) {
-  if (import.meta.env.DEV) {
-    console.warn('Firebase Analytics 初始化失敗（開發環境中這是正常的）：', error.message)
-  } else {
-    console.error('Firebase Analytics 初始化失敗：', error)
-  }
 }
 
 export const auth = getAuth(app)

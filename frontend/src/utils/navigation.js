@@ -14,8 +14,5 @@ export const getVendorProfileRoute = (user) => {
     return { name: 'VendorProfile', params: { id: targetId } }
   }
 
-  // Fallback to dashboard if absolutely no ID found
-  // 但通常不應該發生
-  console.warn('⚠️ getVendorProfileRoute: No target ID found for user', user)
   return { name: 'VendorDashboard' }
 }

@@ -125,14 +125,14 @@ const mobileNavItems = computed(() => {
     { name: 'travelers', label: '找伴', icon: UsersIcon },
     { name: 'featured_itinerary', label: '精選', icon: MapIcon },
   ]
-  
+
   // 只有非廠商用戶才顯示"行程"菜單
   if (!isVendor.value) {
     items.push({ name: 'itinerary_menu', label: '行程', icon: CalendarIcon })
   }
-  
+
   items.push({ name: 'menu', label: '更多', icon: MenuIcon })
-  
+
   return items
 })
 

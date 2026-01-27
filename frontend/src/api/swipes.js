@@ -17,7 +17,6 @@ export async function likeSwipe(uid, targetUid) {
 
     return await response.json()
   } catch (error) {
-    console.error('抽卡喜歡錯誤：', error)
     throw error
   }
 }

@@ -68,7 +68,6 @@ const upsertAcceptedFriend = async (uid, targetUid) => {
   )
 }
 
-// POST /api/swipes/like - 抽卡喜歡（若互相喜歡，自動成為好友）
 router.post('/like', async (req, res) => {
   try {
     const { uid, target_uid } = req.body
@@ -100,7 +99,6 @@ router.post('/like', async (req, res) => {
     if (matched) {
       await upsertAcceptedFriend(uid, target_uid)
 
-      // 獲取雙方用戶資訊以創建通知
       const [userResult, targetResult] = await Promise.all([
         pool.query('SELECT uid, nickname, real_name, avatar FROM public.users WHERE uid = $1', [uid]),
         pool.query('SELECT uid, nickname, real_name, avatar FROM public.users WHERE uid = $1', [target_uid]),
@@ -113,7 +111,6 @@ router.post('/like', async (req, res) => {
         const userDisplayName = user.nickname || user.real_name || '旅伴'
         const targetDisplayName = target.nickname || target.real_name || '旅伴'
 
-        // 為雙方創建通知
         await Promise.all([
           createNotification({
             user_uid: uid,
@@ -141,7 +138,6 @@ router.post('/like', async (req, res) => {
 
     res.json({ success: true, matched })
   } catch (error) {
-    console.error('抽卡喜歡失敗：', error)
     res.status(500).json({
       error: '抽卡喜歡失敗',
       message: error.message || '未知錯誤',

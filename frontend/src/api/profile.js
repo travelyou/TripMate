@@ -14,7 +14,6 @@ export async function getProfile(uid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('獲取個人檔案錯誤：', error)
     throw error
   }
 }
@@ -36,7 +35,6 @@ export async function addVisitedPlace(uid, placeData) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('新增去過的地方錯誤：', error)
     throw error
   }
 }
@@ -54,7 +52,6 @@ export async function removeVisitedPlace(uid, id) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('刪除去過的地方錯誤：', error)
     throw error
   }
 }
@@ -76,7 +73,6 @@ export async function addWishlistItem(uid, item) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('新增許願球池項目錯誤：', error)
     throw error
   }
 }
@@ -94,7 +90,6 @@ export async function removeWishlistItem(uid, id) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('刪除許願球池項目錯誤：', error)
     throw error
   }
 }
@@ -116,7 +111,6 @@ export async function updateWishlist(uid, items) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('更新許願球池錯誤：', error)
     throw error
   }
 }
@@ -138,7 +132,6 @@ export async function addFriend(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('加好友錯誤：', error)
     throw error
   }
 }
@@ -156,7 +149,6 @@ export async function cancelFriendRequest(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('取消好友請求錯誤：', error)
     throw error
   }
 }
@@ -174,7 +166,6 @@ export async function acceptFriendRequest(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('接受好友請求錯誤：', error)
     throw error
   }
 }
@@ -192,7 +183,6 @@ export async function rejectFriendRequest(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('拒絕好友請求錯誤：', error)
     throw error
   }
 }
@@ -210,7 +200,6 @@ export async function removeFriend(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('解除好友關係錯誤：', error)
     throw error
   }
 }
@@ -226,7 +215,6 @@ export async function getFriendRequests(uid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('獲取好友請求列表錯誤：', error)
     throw error
   }
 }
@@ -242,7 +230,6 @@ export async function getChatInteractionCount(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('獲取對話次數錯誤：', error)
     return { count: 0, remaining: 3, canSend: true }
   }
 }
@@ -260,7 +247,6 @@ export async function incrementChatInteraction(uid, friendUid) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('增加對話次數錯誤：', error)
     throw error
   }
 }
@@ -276,9 +262,7 @@ export async function saveChatMessage(uid, friendUid, content) {
       body: JSON.stringify({ content }),
     })
     if (!response.ok) {
-      // 如果是 404，可能是路由未註冊或表不存在，返回一個模擬的成功響應
       if (response.status === 404) {
-        console.warn('保存聊天訊息：路由可能未註冊，訊息不會持久化')
         return {
           success: true,
           message: {
@@ -296,8 +280,6 @@ export async function saveChatMessage(uid, friendUid, content) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('保存聊天訊息錯誤：', error)
-    // 即使保存失敗，也返回一個模擬響應，讓前端可以繼續顯示訊息
     return {
       success: true,
       message: {
@@ -316,9 +298,7 @@ export async function getChatMessages(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-messages/${friendUid}`)
     if (!response.ok) {
-      // 如果是 404，可能是表不存在或路由未註冊，返回空數組
       if (response.status === 404) {
-        console.warn('獲取聊天記錄：表可能不存在或路由未註冊，返回空數組')
         return []
       }
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
@@ -327,8 +307,6 @@ export async function getChatMessages(uid, friendUid) {
     const data = await response.json()
     return data.messages || []
   } catch (error) {
-    console.error('獲取聊天記錄錯誤：', error)
-    // 即使出錯也返回空數組，不影響用戶體驗
     return []
   }
 }

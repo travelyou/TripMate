@@ -521,7 +521,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
     async saveResult(resultOverride = null) {
       const result = resultOverride || this.result
       if (!result) {
-        console.error('無法儲存測驗結果：測驗結果為空')
         return false
       }
 
@@ -529,7 +528,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
       const uid =
         userStore.firebaseUser?.uid || userStore.currentUser?.uid || userStore.currentUser?.id
       if (!uid) {
-        console.error('無法儲存測驗結果：用戶未登入')
         return false
       }
 
@@ -543,8 +541,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
             spirit_animal: spiritAnimalValue,
           })
         } catch (neonError) {
-          console.error('更新 Neon 資料庫失敗:', neonError)
-          // 繼續嘗試更新 Firestore，不直接返回失敗
         }
 
         // 2. 更新 Firestore
@@ -574,8 +570,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
             })
           }
         } catch (firestoreError) {
-          console.error('更新 Firestore 失敗:', firestoreError)
-          // 如果 Firestore 也失敗，返回失敗
           throw firestoreError
         }
 
@@ -590,14 +584,11 @@ export const usePersonalityStore = defineStore('personalityTest', {
           try {
             await userStore.loadUserProfile(uid)
           } catch (loadError) {
-            console.warn('重新載入用戶資料失敗，但不影響保存結果:', loadError)
           }
         }
 
         return true
       } catch (error) {
-        const errorMessage = error.message || error.response?.data?.error || '未知錯誤'
-        console.error('儲存測驗結果到資料庫失敗:', errorMessage)
         return false
       }
     },

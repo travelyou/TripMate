@@ -77,7 +77,6 @@ export const checkoutStore = reactive({
         const c = this.cartItems.find((x) => Number(x.itineraryId) === Number(itineraryId))
         if (c) c.persons = persons
       } catch (e) {
-        console.error('[syncPersons] failed:', e)
         this.cartError = e?.message || '更新人數失敗'
         // 失敗就以 DB 為準重抓，避免 UI/DB 不一致
         await this.loadCartFromDb()
@@ -152,7 +151,6 @@ export const checkoutStore = reactive({
         this.selectedCartTourId = this.tourGroups[0]?.id ?? null
       }
     } catch (e) {
-      console.error('[loadCartFromDb] failed:', e)
       this.cartError = e?.message || '載入購物車失敗'
       this.tourGroups = []
       this.selectedCartTourId = null
@@ -204,7 +202,6 @@ export const checkoutStore = reactive({
         await this.loadCartFromDb()
       }
     } catch (e) {
-      console.error('[addToCart] failed:', e)
       this.cartError = e?.message || '加入購物車失敗'
       // 4. Revert on error - resync with backend
       await this.loadCartFromDb()
@@ -239,7 +236,6 @@ export const checkoutStore = reactive({
       await removeCartItem(id)
       this.cartItems = this.cartItems.filter((c) => Number(c.itineraryId) !== Number(id))
     } catch (e) {
-      console.error('[removeTour] failed:', e)
       this.cartError = e?.message || '移除購物車項目失敗'
       await this.loadCartFromDb()
     }

@@ -4,7 +4,6 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
-// 確保通知表存在
 const ensureNotificationsTable = async () => {
   try {
     await pool.query(
@@ -36,12 +35,10 @@ const ensureNotificationsTable = async () => {
       `CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications(created_at DESC)`,
     )
   } catch (error) {
-    console.error('[Notifications] 創建通知表或索引失敗：', error.message)
     throw error
   }
 }
 
-// 創建通知
 router.post('/', async (req, res) => {
   try {
     await ensureNotificationsTable()
@@ -88,7 +85,6 @@ router.post('/', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] })
   } catch (error) {
-    console.error('創建通知失敗：', error)
     res.status(500).json({
       success: false,
       error: '創建通知失敗',
@@ -97,18 +93,14 @@ router.post('/', async (req, res) => {
   }
 })
 
-// 獲取用戶通知列表
 router.get('/:uid', async (req, res) => {
   const { uid } = req.params
   const { limit = 50, offset = 0 } = req.query
 
   try {
-    // 確保通知表存在
     try {
       await ensureNotificationsTable()
     } catch (tableError) {
-      console.error('[Notifications] 創建/檢查通知表失敗：', tableError)
-      // 即使表創建失敗，仍然嘗試查詢（可能表已存在但檢查失敗）
     }
 
     const result = await pool.query(
@@ -121,9 +113,6 @@ router.get('/:uid', async (req, res) => {
 
     res.json({ success: true, data: result.rows })
   } catch (error) {
-    console.error('[Notifications] 獲取通知列表失敗：', error.message)
-
-    // 如果是表不存在的錯誤，返回空數組而不是錯誤
     if (error.code === '42P01') {
       return res.json({ success: true, data: [] })
     }
@@ -137,16 +126,13 @@ router.get('/:uid', async (req, res) => {
   }
 })
 
-// 獲取未讀通知數量
 router.get('/:uid/unread-count', async (req, res) => {
   const { uid } = req.params
 
   try {
-    // 確保通知表存在
     try {
       await ensureNotificationsTable()
     } catch (tableError) {
-      console.error('[Notifications] 創建/檢查通知表失敗：', tableError)
     }
 
     const result = await pool.query(
@@ -156,11 +142,8 @@ router.get('/:uid/unread-count', async (req, res) => {
     )
 
     const count = parseInt(result.rows[0]?.count || 0)
-    res.json({ success: true, count: Math.min(count, 99) }) // 最多顯示99
+    res.json({ success: true, count: Math.min(count, 99) })
   } catch (error) {
-    console.error('[Notifications] 獲取未讀通知數量失敗：', error)
-
-    // 如果是表不存在的錯誤，返回 0
     if (error.code === '42P01') {
       return res.json({ success: true, count: 0 })
     }
@@ -174,7 +157,6 @@ router.get('/:uid/unread-count', async (req, res) => {
   }
 })
 
-// 標記通知為已讀
 router.patch('/:id/read', async (req, res) => {
   try {
     await ensureNotificationsTable()
@@ -198,7 +180,6 @@ router.patch('/:id/read', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] })
   } catch (error) {
-    console.error('標記通知已讀失敗：', error)
     res.status(500).json({
       success: false,
       error: '標記通知已讀失敗',
@@ -207,7 +188,6 @@ router.patch('/:id/read', async (req, res) => {
   }
 })
 
-// 標記所有通知為已讀
 router.patch('/:uid/read-all', async (req, res) => {
   try {
     await ensureNotificationsTable()
@@ -227,7 +207,6 @@ router.patch('/:uid/read-all', async (req, res) => {
       count: result.rows.length,
     })
   } catch (error) {
-    console.error('標記所有通知已讀失敗：', error)
     res.status(500).json({
       success: false,
       error: '標記所有通知已讀失敗',
@@ -236,7 +215,6 @@ router.patch('/:uid/read-all', async (req, res) => {
   }
 })
 
-// 刪除通知
 router.delete('/:id', async (req, res) => {
   try {
     await ensureNotificationsTable()
@@ -257,7 +235,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true })
   } catch (error) {
-    console.error('刪除通知失敗：', error)
     res.status(500).json({
       success: false,
       error: '刪除通知失敗',

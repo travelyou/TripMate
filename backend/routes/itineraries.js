@@ -4,12 +4,9 @@ const pool = require('../database/connection')
 
 const { authenticate } = require('../middleware/auth')
 
-// 1. 取得所有行程 (列表頁用)
 router.get('/', async (req, res) => {
   try {
     const { ids, board } = req.query || {}
-
-    // 忽略 board 參數（如果有的話，不影響查詢）
 
     if (ids) {
       const idList = String(ids)
@@ -59,16 +56,13 @@ router.get('/', async (req, res) => {
 
     res.json({ success: true, data })
   } catch (err) {
-    console.error('查詢行程列表失敗:', err)
     res.status(500).json({ success: false, message: 'Server Error' })
   }
 })
 
-// 2. 取得單一行程詳細資料
 router.get('/:id', async (req, res) => {
   const { id } = req.params
 
-  // 驗證 ID 格式
   if (!id || (isNaN(Number(id)) && !id.match(/^[0-9a-f-]{36}$/i))) {
     return res.status(400).json({
       success: false,
@@ -131,12 +125,9 @@ router.get('/:id', async (req, res) => {
 
     res.json({ success: true, data: fullData })
   } catch (err) {
-    console.error('查詢單一行程失敗:', err)
     res.status(500).json({ success: false, message: 'Server Error' })
   }
 })
-
-// 3. 建立新行程
 
 router.post('/', authenticate, async (req, res) => {
   const client = await pool.connect()
@@ -153,10 +144,8 @@ router.post('/', authenticate, async (req, res) => {
       itinerary,
       packingList,
       tags,
-      // 如果前端有傳 vendor_id，也可以在這裡解構出來，若沒有則使用 req.user.uid
     } = req.body
 
-    // 驗證必填
     if (!start_date || !end_date) {
       return res.status(400).json({ success: false, message: '請提供開始與結束日期' })
     }
@@ -170,7 +159,6 @@ router.post('/', authenticate, async (req, res) => {
       RETURNING id
     `
 
-    // 這裡使用 req.user.uid (來自 authenticate 中間件解析後的結果)
     const itineraryValues = [
       title,
       description,
@@ -188,11 +176,9 @@ router.post('/', authenticate, async (req, res) => {
     const itineraryResult = await client.query(insertItineraryQuery, itineraryValues)
     const newItineraryId = itineraryResult.rows[0].id
 
-    // 每日行程
     if (itinerary && itinerary.days) {
       const dayInsertQuery = `INSERT INTO itinerary.itinerary_days (itinerary_id, day_number, activities, created_at) VALUES ($1, $2, $3, NOW())`
       for (const day of itinerary.days) {
-        // 確保 activities 是正確的 JSON 格式
         const activitiesJson =
           typeof day.activities === 'string' ? day.activities : JSON.stringify(day.activities)
 
@@ -200,7 +186,6 @@ router.post('/', authenticate, async (req, res) => {
       }
     }
 
-    // 打包清單
     if (packingList) {
       const packingInsertQuery = `INSERT INTO itinerary.itinerary_packing_lists (itinerary_id, category, items, created_at) VALUES ($1, $2, $3, NOW())`
       for (const list of packingList) {
@@ -214,7 +199,6 @@ router.post('/', authenticate, async (req, res) => {
     res.json({ success: true, message: '建立成功', id: newItineraryId })
   } catch (err) {
     await client.query('ROLLBACK')
-    console.error('建立行程失敗:', err)
     res.status(500).json({ success: false, message: 'Create failed', error: err.message })
   } finally {
     client.release()

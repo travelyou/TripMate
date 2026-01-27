@@ -106,7 +106,6 @@ const hydrateItem = async (item) => {
       })
     }
   } catch (error) {
-    console.error('[Collections] 載入收藏內容失敗:', error)
   } finally {
     unmarkLoading(key)
   }
