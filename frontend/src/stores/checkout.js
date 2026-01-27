@@ -4,7 +4,7 @@ import axios from 'axios'
 import { API_BASE_URL } from '@/api/config'
 
 // 你現有的 API（購物車與行程）
-import { fetchItinerariesByIds } from '@/api/itineraries'
+import { fetchItinerariesByIds } from '@/api/itinerary'
 import { fetchCartItems, addCartItem, updateCartItemPersons, removeCartItem } from '@/api/cart'
 
 function toDateRange(it) {
