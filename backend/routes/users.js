@@ -50,89 +50,38 @@ router.post('/', async (req, res) => {
 
     let finalVendorId = vendor_id
 
+    // 根據角色決定是否需要 vendor_id
     if (finalRole === 'user' || finalRole === 'admin') {
       finalVendorId = null
     } else if (finalRole === 'vendor') {
-      console.log('🏢 [Backend] 開始創建 vendor 記錄...')
+      // 使用重構後的 vendor 創建邏輯
       try {
-        const vendorName = nickname || email?.split('@')[0] || '未命名廠商'
-        const vendorAvatar = avatar || null
+        const { createVendor } = require('../utils/vendorHelper')
 
-        await pool.query(`
-          CREATE SEQUENCE IF NOT EXISTS vendor_id_seq;
-        `)
-
-        const initSeqResult = await pool.query(`
-          SELECT last_value, is_called FROM vendor_id_seq;
-        `)
-
-        if (!initSeqResult.rows[0].is_called || initSeqResult.rows[0].last_value <= 1) {
-          const maxIdResult = await pool.query(`
-            SELECT MAX(CAST(SUBSTRING(id FROM 'vendor-(\\d+)') AS INTEGER)) as max_num
-            FROM vendors
-            WHERE id ~ '^vendor-\\d+$'
-          `)
-          const maxNum = maxIdResult.rows[0]?.max_num || 0
-          if (maxNum > 0) {
-            await pool.query(`SELECT setval('vendor_id_seq', $1, true)`, [maxNum])
-          }
-        }
-
-        const maxRetries = 5
-        let retryCount = 0
-        let createdVendorId = null
-
-        while (retryCount < maxRetries && !createdVendorId) {
-          try {
-            const seqResult = await pool.query("SELECT nextval('vendor_id_seq') AS next_val")
-            const nextNumber = parseInt(seqResult.rows[0].next_val, 10)
-            const newVendorId = `vendor-${String(nextNumber).padStart(3, '0')}`
-
-            console.log('🆔 [Backend] 嘗試創建 vendor ID:', newVendorId)
-
-            const insertVendorQuery = `
-              INSERT INTO vendors (id, name, avatar, created_at, updated_at)
-              VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-              RETURNING id
-            `
-
-            await pool.query(insertVendorQuery, [newVendorId, vendorName, vendorAvatar])
-            createdVendorId = newVendorId
-            finalVendorId = newVendorId
-
-            console.log('✅ [Backend] Vendor 記錄創建成功:', newVendorId)
-          } catch (insertError) {
-            if (insertError.code === '23505') {
-              retryCount++
-              console.log(`⚠️ [Backend] Vendor ID 衝突，重試 ${retryCount}/${maxRetries}`)
-              if (retryCount >= maxRetries) {
-                throw new Error('無法生成唯一的 vendor_id，請稍後再試')
-              }
-              await new Promise((resolve) => setTimeout(resolve, 50 * Math.pow(2, retryCount - 1)))
-            } else {
-              console.error('❌ [Backend] Vendor 創建失敗:', insertError)
-              throw insertError
-            }
-          }
-        }
-
-        if (!createdVendorId) {
-          console.error('❌ [Backend] 未能創建 vendor ID')
-          return res.status(500).json({
-            error: '創建廠商記錄失敗',
-            message: '無法生成唯一的 vendor_id，請稍後再試',
-          })
-        }
+        finalVendorId = await createVendor({
+          name: nickname,
+          avatar: avatar,
+          email: email
+        })
       } catch (vendorCreateError) {
         console.error('❌ [Backend] Vendor 創建錯誤:', vendorCreateError)
-        return res.status(500).json({
+
+        // 安全的錯誤回應（不暴露內部細節）
+        const errorResponse = {
           error: '創建廠商記錄失敗',
-          message: vendorCreateError.message || '無法創建廠商記錄',
-          details: vendorCreateError.detail || String(vendorCreateError),
-          code: vendorCreateError.code,
-        })
+          message: '無法創建廠商記錄，請稍後再試'
+        }
+
+        // 僅開發環境回傳詳細錯誤
+        if (process.env.NODE_ENV === 'development') {
+          errorResponse.details = vendorCreateError.message
+          errorResponse.code = vendorCreateError.code
+        }
+
+        return res.status(500).json(errorResponse)
       }
     }
+
 
     const existingUser = await pool.query('SELECT uid, role, vendor_id FROM users WHERE uid = $1', [
       uid,
