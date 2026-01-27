@@ -105,16 +105,29 @@ router.get('/:id/posts', async (req, res) => {
 
     console.log(`📋 [Vendors] 取得廠商貼文 - ID: ${id}, 頁數: ${page}, 每頁: ${limit}`)
 
-    // 1. 查詢總數
+    // 1. 先解析真實的 uid (因為 discussion 表存的是 author_uid = users.uid)
+    let targetUid = id
+    try {
+      const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 LIMIT 1`
+      const userResult = await pool.query(userQuery, [id])
+      if (userResult.rows.length > 0) {
+        targetUid = userResult.rows[0].uid
+        console.log(`✅ [Vendors] Get Posts - ID 轉換: ${id} -> ${targetUid}`)
+      }
+    } catch (e) {
+      console.warn('⚠️ [Vendors] Get Posts - ID 轉換失敗，使用原始 ID:', e.message)
+    }
+
+    // 2. 查詢總數
     const countQuery = `
       SELECT COUNT(*) as total
       FROM discussion.discussion
       WHERE author_uid = $1
     `
-    const countResult = await pool.query(countQuery, [id])
+    const countResult = await pool.query(countQuery, [targetUid])
     const total = parseInt(countResult.rows[0].total)
 
-    // 2. 查詢資料（含分頁）
+    // 3. 查詢資料（含分頁）
     const query = `
       SELECT
         d.id,
@@ -139,7 +152,7 @@ router.get('/:id/posts', async (req, res) => {
       LIMIT $2 OFFSET $3
     `
 
-    const result = await pool.query(query, [id, limit, offset])
+    const result = await pool.query(query, [targetUid, limit, offset])
 
     console.log(`✅ [Vendors] 找到 ${result.rows.length} 筆貼文（共 ${total} 筆）`)
 
@@ -205,13 +218,27 @@ router.get('/:id/itineraries', async (req, res) => {
       `📋 [Vendors] 取得廠商行程 - ID: ${id}, 頁數: ${page}, 地區: ${region || '全部'}`,
     )
 
-    // 1. 查詢總數
+    // 1. 先解析真實的 uid (因為 itineraries 表存的是 author_uid = users.uid)
+    // 傳進來的 id 可能是 uid 也可能是 vendor_id
+    let targetUid = id
+    try {
+      const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 LIMIT 1`
+      const userResult = await pool.query(userQuery, [id])
+      if (userResult.rows.length > 0) {
+        targetUid = userResult.rows[0].uid
+        console.log(`✅ [Vendors] ID 轉換: ${id} -> ${targetUid}`)
+      }
+    } catch (e) {
+      console.warn('⚠️ [Vendors] ID 轉換失敗，使用原始 ID:', e.message)
+    }
+
+    // 2. 查詢總數
     let countQuery = `
       SELECT COUNT(*) as total
       FROM itinerary.itineraries
       WHERE author_uid = $1
     `
-    const countParams = [id]
+    const countParams = [targetUid]
 
     if (region && region !== '全部') {
       countQuery += ` AND location = $2`
@@ -221,7 +248,7 @@ router.get('/:id/itineraries', async (req, res) => {
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].total)
 
-    // 2. 查詢資料（含分頁）
+    // 3. 查詢資料（含分頁）
     let query = `
       SELECT
         id,
@@ -242,7 +269,7 @@ router.get('/:id/itineraries', async (req, res) => {
       WHERE author_uid = $1
     `
 
-    const params = [id]
+    const params = [targetUid]
     let paramIndex = 2
 
     if (region && region !== '全部') {
