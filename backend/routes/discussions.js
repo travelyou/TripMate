@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       paramIndex++
     }
 
-    // 添加搜索功能：搜索标题、内容、标签
+    // [修正] 搜尋功能改用 u.nickname 而不是 d.author_name
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`
       whereClause += ` AND (
@@ -45,6 +45,7 @@ router.get('/', async (req, res) => {
       paramIndex++
     }
 
+    // [修正] SQL 移除 d.author_name, d.author_avatar，完全改用 users 表的資料
     const discussionsQuery = `
       SELECT
         d.id,
@@ -80,31 +81,35 @@ router.get('/', async (req, res) => {
 
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
 
-    // 查詢總數
-    let countQuery = 'SELECT COUNT(*) FROM discussion.discussion WHERE deleted_at IS NULL'
+    // [修正] 總數查詢也要 JOIN users 才能搜尋作者名
+    let countQuery = `
+      SELECT COUNT(*)
+      FROM discussion.discussion d
+      LEFT JOIN users u ON d.author_uid = u.uid
+      WHERE d.deleted_at IS NULL
+    `
     let countParams = []
     let countParamIndex = 1
 
     if (author_uid) {
-      countQuery += ` AND author_uid = $${countParamIndex}`
+      countQuery += ` AND d.author_uid = $${countParamIndex}`
       countParams.push(author_uid)
       countParamIndex++
     }
 
     if (category && category !== '全部') {
-      countQuery += ` AND category = $${countParamIndex}`
+      countQuery += ` AND d.category = $${countParamIndex}`
       countParams.push(category)
       countParamIndex++
     }
 
-    // 添加搜索功能到总数查询
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`
       countQuery += ` AND (
-        title ILIKE $${countParamIndex}
-        OR content ILIKE $${countParamIndex}
+        d.title ILIKE $${countParamIndex}
+        OR d.content ILIKE $${countParamIndex}
         OR EXISTS (
-          SELECT 1 FROM unnest(tags) AS tag
+          SELECT 1 FROM unnest(d.tags) AS tag
           WHERE tag ILIKE $${countParamIndex}
         )
         OR EXISTS (
@@ -121,12 +126,11 @@ router.get('/', async (req, res) => {
     const discussions = discussionsResult.rows.map((discussion) => {
       const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
       const cleanImageUrls = Array.isArray(discussion.image_urls)
-        ? discussion.image_urls.filter(url => isValidImageUrl(url))
+        ? discussion.image_urls.filter((url) => isValidImageUrl(url))
         : []
 
       return {
         ...discussion,
-        // 確保使用 users 表的數據（nickname, avatar, spirit_animal）
         author_avatar: discussion.author_avatar || null,
         author_name: discussion.author_name || null,
         author_spirit_animal: discussion.author_spirit_animal || null,
@@ -168,7 +172,6 @@ router.post('/', async (req, res) => {
       tags = [],
     } = req.body
 
-    // 必填檢查
     if (!author_uid || !title || !content) {
       return res.status(400).json({ error: '缺少必填欄位 (author_uid, title, content)' })
     }
@@ -195,11 +198,9 @@ router.post('/', async (req, res) => {
     ])
 
     const newDiscussion = discussionResult.rows[0]
-    console.log('✅ [Backend POST / Step 5] 插入成功！')
-    console.log('📊 [Backend POST / Success] 新討論 ID:', newDiscussion.id)
-    console.log('📊 [Backend POST / Success] 創建時間:', newDiscussion.created_at)
+    console.log('✅ [Backend POST /] 插入成功，ID:', newDiscussion.id)
 
-    // 回傳最新作者資料，確保頭貼與個人檔案一致
+    // 回傳完整資料（包含 JOIN 的 user 資訊）
     const discussionQuery = `
       SELECT
         d.id,
@@ -225,7 +226,6 @@ router.post('/', async (req, res) => {
     const enrichedResult = await pool.query(discussionQuery, [newDiscussion.id])
     const enrichedDiscussion = enrichedResult.rows[0] || newDiscussion
 
-    console.log('🟢 [Backend POST /] ========== 完成 ==========')
     res.status(201).json(enrichedDiscussion)
   } catch (error) {
     console.error('❌ [Backend POST /] 錯誤:', error)
@@ -245,6 +245,7 @@ router.get('/:id', async (req, res) => {
 
     // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
     // 一律使用 users 表的數據，不使用 discussion 表的舊值
+    // [修正] 移除 d.author_name 等欄位，改用 users 表
     const discussionQuery = `
       SELECT
         d.id,
@@ -283,16 +284,13 @@ router.get('/:id', async (req, res) => {
     }
 
     const discussion = discussionResult.rows[0]
-    console.log('🔵 [Backend GET /:id] 找到討論:', discussion.title)
-    console.log('🔵 [Backend GET /:id] author_avatar:', discussion.author_avatar || 'NULL')
-    console.log('🔵 [Backend GET /:id] author_uid:', discussion.author_uid)
 
-    // 獲取留言，JOIN users 表獲取最新用戶資訊
+    // 獲取留言，JOIN users 表
     const commentsResult = await pool.query(
       `SELECT
         c.*,
-        COALESCE(u.nickname, c.author_name) as author_nickname,
-        COALESCE(u.avatar, c.author_avatar) as author_avatar,
+        u.nickname as author_nickname,
+        u.avatar as author_avatar,
         u.spirit_animal as author_spirit_animal
       FROM public.comments c
       LEFT JOIN users u ON c.author_uid = u.uid
@@ -301,10 +299,9 @@ router.get('/:id', async (req, res) => {
       [idNum],
     )
 
-    // 🔧 過濾無效的圖片 URL（blob 和 data URL）
     const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
     const cleanImageUrls = Array.isArray(discussion.image_urls)
-      ? discussion.image_urls.filter(url => isValidImageUrl(url))
+      ? discussion.image_urls.filter((url) => isValidImageUrl(url))
       : []
 
     const detailedDiscussion = {

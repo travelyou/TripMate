@@ -81,8 +81,7 @@ const user = computed(() => {
       }
     )
   }
-  // 如果是查看自己檔案，直接返回 currentUser，不清空 viewingUser 以保持資料一致性
-  // 但確保返回的是最新的 currentUser
+  // 如果是查看自己檔案，直接返回 currentUser
   return userStore.currentUser || null
 })
 
@@ -227,7 +226,7 @@ const handleSaveCard = async (formData) => {
   }
 }
 
-// [修正] 個人檔案編輯 (帳號層級 + 許願球池 + 標籤)
+// 個人檔案編輯 (帳號層級 + 許願球池 + 標籤)
 const handleSaveProfile = async (formData) => {
   if (!isCurrentUser.value || !user.value?.uid) return
 
@@ -244,10 +243,10 @@ const handleSaveProfile = async (formData) => {
       location: profileData.location,
       avatar: profileData.avatar,
       bio: profileData.bio, // 這是個人檔案的 bio
-      tags: tags || [], // [修正] 這裡要存個人檔案的 tags
+      tags: tags || [], // 這裡要存個人檔案的 tags
     })
 
-    // 3. [修正] 更新許願球池 (這段之前漏掉了！)
+    // 3. 更新許願球池
     const newWishlist = Array.isArray(wishlist) ? wishlist : []
     await updateWishlist(user.value.uid, newWishlist)
 
@@ -334,7 +333,7 @@ const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
 
-// 資料載入
+// [修正] 資料載入 - 確保 reviews 被正確存入
 const loadProfileData = async () => {
   const uidToLoad = route.params.uid || userStore.currentUser?.uid
   if (!uidToLoad) return
@@ -354,9 +353,13 @@ const loadProfileData = async () => {
       })
     }
 
-    const { fetchPosts } = await import('@/api/discussions')
-    const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
-    if (postsRes?.posts) userPosts.value = postsRes.posts
+    try {
+      const { fetchPosts } = await import('@/api/discussions')
+      const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
+      if (postsRes?.posts) userPosts.value = postsRes.posts
+    } catch (e) {
+      console.warn('貼文載入失敗，跳過', e)
+    }
 
     if (profileData) {
       if (typeof profileData.user.is_matching_enabled !== 'undefined') {
@@ -373,14 +376,20 @@ const loadProfileData = async () => {
           friends: profileData.friends,
           wishlist: profileData.wishlist,
           visitedPlaces: profileData.visitedPlaces || { domestic: [], international: [] },
+          // [修正] 明確存入 reviews
+          reviews: profileData.reviews || [],
         }
-        // 這裡不需要還原性格測驗，看別人不用看那麼細
       } else {
-        // 查看自己檔案：更新 userStore，並清空 viewingUser
+        // 查看自己檔案：更新 userStore
         viewingUser.value = null
         userStore.setUserProfile(profileData.user)
         userStore.wishlist = profileData.wishlist
         userStore.currentUser.friends = profileData.friends
+
+        // [修正] 將 reviews 存入 currentUser 物件中 (以便 computed user 能讀取到)
+        if (userStore.currentUser) {
+          userStore.currentUser.reviews = profileData.reviews || []
+        }
 
         // 更新 visitedPlaces
         if (profileData.visitedPlaces) {
@@ -395,7 +404,7 @@ const loadProfileData = async () => {
           }
         }
 
-        // [修正] 還原性格測驗結果，讓側邊欄顯示
+        // 還原性格測驗結果
         const hasPersonality = personalityStore.savedResult || personalityStore.result
         if (!hasPersonality && userStore.currentUser?.spiritAnimal) {
           personalityStore.hydrateResultFromSpiritAnimal(userStore.currentUser.spiritAnimal)
@@ -470,7 +479,7 @@ const handleAddVisitedPlace = async (placeData) => {
     const { addVisitedPlace } = await import('@/api/profile')
     const result = await addVisitedPlace(user.value.uid, placeData)
 
-    // 更新 Store（使用 API 返回的完整資料，包含 id）
+    // 更新 Store
     userStore.addVisitedPlace(
       {
         id: result.id,
@@ -478,7 +487,7 @@ const handleAddVisitedPlace = async (placeData) => {
         date: result.date || placeData.date,
         icon: result.icon || placeData.icon,
       },
-      placeData.type
+      placeData.type,
     )
 
     // 重新載入資料以確保同步
@@ -497,13 +506,13 @@ const handleRemoveVisitedPlace = async ({ type, index }) => {
     const { removeVisitedPlace } = await import('@/api/profile')
 
     // 獲取要刪除的項目 ID
-    const places = type === 'domestic'
-      ? user.value.visitedPlaces?.domestic || []
-      : user.value.visitedPlaces?.international || []
+    const places =
+      type === 'domestic'
+        ? user.value.visitedPlaces?.domestic || []
+        : user.value.visitedPlaces?.international || []
 
     if (index >= 0 && index < places.length) {
       const place = places[index]
-      // 使用 id 刪除
       if (place.id) {
         await removeVisitedPlace(user.value.uid, place.id)
       } else {
@@ -513,7 +522,6 @@ const handleRemoveVisitedPlace = async ({ type, index }) => {
       }
     }
 
-    // 重新載入資料以確保同步
     await loadProfileData()
   } catch (error) {
     console.error('刪除去過的地方失敗：', error)
@@ -625,14 +633,17 @@ watch(
 )
 
 // 監聽路由查詢參數變化（用於處理通知跳轉）
-watch(() => route.query.openFriends, (shouldOpen) => {
-  if (shouldOpen === 'true') {
-    nextTick(() => {
-      isFriendModalOpen.value = true
-      router.replace({ path: '/profile', query: {} })
-    })
-  }
-})
+watch(
+  () => route.query.openFriends,
+  (shouldOpen) => {
+    if (shouldOpen === 'true') {
+      nextTick(() => {
+        isFriendModalOpen.value = true
+        router.replace({ path: '/profile', query: {} })
+      })
+    }
+  },
+)
 
 onMounted(() => {
   nextTick(() => {
@@ -717,7 +728,11 @@ onMounted(() => {
               :posts="activeTabsData.posts"
               @open-detail="openDetail"
             />
-            <TabReviews v-if="activeTab === 'reviews'" :reviews="activeTabsData.reviews" />
+            <TabReviews
+              v-if="activeTab === 'reviews'"
+              :reviews="activeTabsData.reviews"
+              :user="user"
+            />
             <TabDrafts v-if="activeTab === 'drafts'" />
           </div>
         </div>
