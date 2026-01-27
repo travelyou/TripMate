@@ -1013,7 +1013,7 @@ router.get('/:uid', async (req, res) => {
       email: f.email,
     }))
 
-    // 5. [重點修改] 獲取評價 (新增 JOIN travelers 以取得標題)
+    // 5. [修正] 獲取評價 (同時獲取「收到的」與「給出的」)
     const reviewsResult = await pool.query(
       `SELECT r.*,
               u1.nickname as author_name, u1.avatar as author_avatar,
@@ -1023,13 +1023,15 @@ router.get('/:uid', async (req, res) => {
        JOIN users u1 ON r.author_uid = u1.uid
        JOIN users u2 ON r.target_uid = u2.uid
        LEFT JOIN travelers.travelers t ON r.trip_id = t.id
-       WHERE r.target_uid = $1
+       WHERE r.target_uid = $1 OR r.author_uid = $1
        ORDER BY r.created_at DESC`,
       [uid],
     )
 
     const reviews = reviewsResult.rows.map((r) => ({
       id: r.id,
+      authorUid: r.author_uid,
+      targetUid: r.target_uid,
       author: r.author_name,
       target: r.target_name,
       avatar: r.author_avatar,
