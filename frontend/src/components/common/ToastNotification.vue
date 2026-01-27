@@ -36,19 +36,19 @@ const getIconColor = (type) => {
 </script>
 
 <template>
-  <div class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+  <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none">
     <transition-group name="toast">
       <div
         v-for="toast in toasts"
         :key="toast.id"
         :class="[
-          'flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-2 pointer-events-auto',
-          'animate-slide-in-right min-w-[300px] max-w-[400px]',
+          'flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border-2 pointer-events-auto',
+          'animate-slide-in-down min-w-[400px] max-w-[600px]',
           getColorClasses(toast.type)
         ]"
       >
-        <component :is="getIcon(toast.type)" :class="['w-5 h-5 flex-shrink-0', getIconColor(toast.type)]" />
-        <span class="font-medium text-sm">{{ toast.message }}</span>
+        <component :is="getIcon(toast.type)" :class="['w-6 h-6 flex-shrink-0', getIconColor(toast.type)]" />
+        <span class="font-semibold text-base">{{ toast.message }}</span>
       </div>
     </transition-group>
   </div>
@@ -56,7 +56,7 @@ const getIconColor = (type) => {
 
 <style scoped>
 .toast-enter-active {
-  animation: slide-in 0.3s ease-out;
+  animation: slide-in 0.4s ease-out;
 }
 
 .toast-leave-active {
@@ -65,22 +65,22 @@ const getIconColor = (type) => {
 
 @keyframes slide-in {
   from {
-    transform: translateX(100%);
+    transform: translateY(-100%) translateX(-50%);
     opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateY(0) translateX(-50%);
     opacity: 1;
   }
 }
 
 @keyframes slide-out {
   from {
-    transform: translateX(0);
+    transform: translateY(0) translateX(-50%);
     opacity: 1;
   }
   to {
-    transform: translateX(100%);
+    transform: translateY(-100%) translateX(-50%);
     opacity: 0;
   }
 }
