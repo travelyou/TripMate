@@ -1077,6 +1077,8 @@ router.get('/:uid', async (req, res) => {
         uid: user.uid,
         email: user.email,
         nickname: user.nickname,
+        real_name: user.real_name,
+        realName: user.real_name,
         location: user.location || '台灣',
         avatar: user.avatar,
         bio: user.bio,

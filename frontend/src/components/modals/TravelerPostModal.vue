@@ -1302,8 +1302,7 @@ const executeSubmit = async () => {
       banner_position_y: Math.round(bannerPositionY.value),
       author_uid: auth.currentUser.uid,
       author_name: userStore.userProfile?.name || userStore.userProfile?.nickname || '匿名',
-      author_avatar:
-        userStore.userProfile?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
+      author_avatar: userStore.userProfile?.avatar || null,
       spirit_animal: userStore.userProfile?.spiritAnimal || null,
       status: postData.value.status || '招募中',
     }
@@ -2330,10 +2329,8 @@ onBeforeUnmount(() => {
               <h1 class="text-3xl font-black text-secondary-900 mb-4">{{ postData.title }}</h1>
               <div class="flex items-center space-x-3 mb-4">
                 <img
-                  :src="
-                    userStore.userProfile?.avatar ||
-                    'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
-                  "
+                  v-if="userStore.userProfile?.avatar"
+                  :src="userStore.userProfile.avatar"
                   class="w-12 h-12 rounded-full object-cover border-2 border-secondary-200"
                 />
                 <div>

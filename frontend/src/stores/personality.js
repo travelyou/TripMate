@@ -520,7 +520,10 @@ export const usePersonalityStore = defineStore('personalityTest', {
     },
     async saveResult(resultOverride = null) {
       const result = resultOverride || this.result
-      if (!result) return false
+      if (!result) {
+        console.error('無法儲存測驗結果：測驗結果為空')
+        return false
+      }
 
       const userStore = useUserStore()
       const uid =
@@ -533,43 +536,69 @@ export const usePersonalityStore = defineStore('personalityTest', {
       const spiritAnimalValue = `${result.animalEmoji} ${result.animalName}`
 
       try {
+        // 1. 先更新 Neon 資料庫
         const { updateUserProfile } = await import('@/api/users')
-        await updateUserProfile(uid, {
-          spirit_animal: spiritAnimalValue,
-        })
-
-        const userDocRef = doc(db, 'users', uid)
-        const userDoc = await getDoc(userDocRef)
-        if (userDoc.exists()) {
-          await updateDoc(userDocRef, {
-            spiritAnimal: spiritAnimalValue,
-            updatedAt: serverTimestamp(),
+        try {
+          await updateUserProfile(uid, {
+            spirit_animal: spiritAnimalValue,
           })
-        } else {
-          const email =
-            userStore.firebaseUser?.email || userStore.currentUser?.email || auth.currentUser?.email
-          const nickname =
-            userStore.currentUser?.nickname ||
-            userStore.currentUser?.name ||
-            auth.currentUser?.displayName ||
-            '用戶'
-          await setDoc(userDocRef, {
-            uid,
-            email: email || '',
-            nickname,
-            spiritAnimal: spiritAnimalValue,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
+        } catch (neonError) {
+          console.error('更新 Neon 資料庫失敗:', neonError)
+          // 繼續嘗試更新 Firestore，不直接返回失敗
         }
 
+        // 2. 更新 Firestore
+        try {
+          const userDocRef = doc(db, 'users', uid)
+          const userDoc = await getDoc(userDocRef)
+          if (userDoc.exists()) {
+            await updateDoc(userDocRef, {
+              spiritAnimal: spiritAnimalValue,
+              updatedAt: serverTimestamp(),
+            })
+          } else {
+            const email =
+              userStore.firebaseUser?.email || userStore.currentUser?.email || auth.currentUser?.email
+            const nickname =
+              userStore.currentUser?.nickname ||
+              userStore.currentUser?.name ||
+              auth.currentUser?.displayName ||
+              '用戶'
+            await setDoc(userDocRef, {
+              uid,
+              email: email || '',
+              nickname,
+              spiritAnimal: spiritAnimalValue,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          }
+        } catch (firestoreError) {
+          console.error('更新 Firestore 失敗:', firestoreError)
+          // 如果 Firestore 也失敗，返回失敗
+          throw firestoreError
+        }
+
+        // 3. 更新本地 store
         this.savedResult = result
         userStore.updateProfile({
           spiritAnimal: spiritAnimalValue,
         })
+
+        // 4. 重新載入用戶資料以確保同步
+        if (typeof userStore.loadUserProfile === 'function') {
+          try {
+            await userStore.loadUserProfile(uid)
+          } catch (loadError) {
+            console.warn('重新載入用戶資料失敗，但不影響保存結果:', loadError)
+          }
+        }
+
         return true
       } catch (error) {
         console.error('儲存測驗結果到資料庫失敗:', error)
+        const errorMessage = error.message || error.response?.data?.error || '未知錯誤'
+        console.error('錯誤詳情:', errorMessage)
         return false
       }
     },

@@ -98,6 +98,14 @@
           </div>
         </div>
 
+        <div v-else-if="isSearching" class="flex flex-col items-center justify-center mt-20 space-y-4">
+          <div class="relative w-16 h-16">
+            <div class="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
+          </div>
+          <p class="text-secondary-500 font-medium">正在搜尋中...</p>
+        </div>
+
         <div v-else-if="filteredResults.length === 0" class="text-center mt-20 text-secondary-500">
           <p class="text-lg">
             找不到與「<span class="text-primary-600 font-bold">{{ searchQuery }}</span
@@ -266,6 +274,7 @@ const selectedPost = ref(null)
 const searchInput = ref(null)
 const searchQuery = ref('')
 const hasSearched = ref(false)
+const isSearching = ref(false)
 const activeTab = ref('all')
 const activeSubFilters = ref(['全部']) // 陣列但只允許單選
 
@@ -434,8 +443,8 @@ const allData = computed(() => {
   }
   if (users.value && users.value.length > 0) {
     users.value.forEach((user) => {
-      // 過濾有效的頭像 URL
-      const avatarUrl = user.avatar || user.photoURL
+      // 過濾有效的頭像 URL（只使用資料庫的 avatar）
+      const avatarUrl = user.avatar
       const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
                          !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
                          (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
@@ -659,10 +668,23 @@ watch(
   },
 )
 
-const performSearch = () => {
+const performSearch = async () => {
   if (!searchQuery.value.trim()) return
+  
+  // 顯示 loading 動畫
+  isSearching.value = true
   hasSearched.value = true
   currentPage.value = 1
+  
+  // 添加短暫延遲以顯示 loading 動畫（提升用戶體驗）
+  // 如果搜索結果計算很快，至少顯示 300ms 的 loading
+  await new Promise(resolve => setTimeout(resolve, 300))
+  
+  // 等待下一個 tick 確保 computed 已經更新
+  await new Promise(resolve => setTimeout(resolve, 50))
+  
+  // 隱藏 loading 動畫
+  isSearching.value = false
 }
 
 const clearSearch = () => {

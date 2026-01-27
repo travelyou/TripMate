@@ -8,6 +8,7 @@ import {
   MapPin as MapPinIcon,
 } from 'lucide-vue-next'
 import { useMyItineraryStore } from '@/stores/myItinerary'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 // 定義 Emit，讓父層知道要開哪個視窗
 const emit = defineEmits(['close', 'open-discussion', 'open-traveler', 'submit-post'])
@@ -302,6 +303,11 @@ const handleClose = () => {
   cleanupPreviews()
   emit('close')
 }
+
+// ESC 鍵關閉功能
+useEscapeKey(() => {
+  handleClose()
+})
 
 // 清理預覽 URL（組件卸載時）
 onUnmounted(() => {

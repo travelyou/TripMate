@@ -142,7 +142,7 @@
               <div class="p-3 border border-secondary-100">
                 <p class="text-xs font-bold text-secondary-700">
                   {{
-                    userStore.isLoggedIn ? `Hi, ${userStore.userProfile.name}` : '歡迎來到 TripMate'
+                    userStore.isLoggedIn ? `Hi, ${userStore.userProfile.nickname || userStore.userProfile.name || '用戶'}` : '歡迎來到 TripMate'
                   }}
                 </p>
               </div>

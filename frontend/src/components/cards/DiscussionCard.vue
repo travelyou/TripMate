@@ -11,6 +11,7 @@ import {
   Trash2,
   Share2,
   Flag,
+  User,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
@@ -291,11 +292,19 @@ onUnmounted(() => {
 
     <div class="flex items-center space-x-3 mb-4">
       <img
+        v-if="post.avatar"
         :src="post.avatar"
         class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
         alt="作者頭像"
         @click="handleAvatarClick"
       />
+      <div
+        v-else
+        class="w-10 h-10 rounded-full bg-gray-200 border-2 border-gray-200 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-primary-500 transition"
+        @click="handleAvatarClick"
+      >
+        <User class="w-6 h-6 text-gray-400" />
+      </div>
       <div>
         <div class="flex items-center space-x-2">
           <span

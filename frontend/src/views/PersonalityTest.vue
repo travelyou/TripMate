@@ -12,12 +12,18 @@ const step = computed(() => store.step) // 當前測驗階段
 const result = computed(() => store.result) // 測驗結果
 
 const handleSave = async () => {
-  const saved = await store.saveResult()
-  if (!saved) {
-    alert('儲存失敗，請確認已登入且後端服務正常')
-    return
+  try {
+    const saved = await store.saveResult()
+    if (!saved) {
+      alert('儲存失敗，請確認已登入且後端服務正常。如果問題持續，請重新整理頁面後再試。')
+      return
+    }
+    alert('性格測驗結果已成功儲存！')
+    router.push('/profile')
+  } catch (error) {
+    console.error('儲存性格測驗結果時發生錯誤:', error)
+    alert('儲存失敗，請稍後再試。如果問題持續，請聯繫管理員。')
   }
-  router.push('/profile')
 }
 </script>
 

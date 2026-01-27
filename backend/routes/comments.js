@@ -45,9 +45,15 @@ router.get('/posts/:postId/comments', async (req, res) => {
     }
 
     const commentsResult = await pool.query(
-      `SELECT * FROM public.comments
-       WHERE post_id = $1 AND post_type = $2 AND deleted_at IS NULL
-       ORDER BY created_at ASC`,
+      `SELECT
+        c.*,
+        COALESCE(u.nickname, c.author_name) as author_name,
+        COALESCE(u.avatar, c.author_avatar) as author_avatar,
+        u.spirit_animal as author_spirit_animal
+      FROM public.comments c
+      LEFT JOIN public.users u ON c.author_uid = u.uid
+      WHERE c.post_id = $1 AND c.post_type = $2 AND c.deleted_at IS NULL
+      ORDER BY c.created_at ASC`,
       [postIdNum, postType],
     )
 

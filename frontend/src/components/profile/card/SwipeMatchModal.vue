@@ -10,6 +10,7 @@ import {
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { getAllUsers } from '@/api/users'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 // ... (參數設定省略，保持不變)
 const SWIPE_THRESHOLD = 100
@@ -21,7 +22,13 @@ const MAX_DAILY_SWIPES = 5
 const REAPPEAR_DAYS = 90
 const REAPPEAR_MS = REAPPEAR_DAYS * 24 * 60 * 60 * 1000
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
+
+// ESC 鍵關閉功能
+useEscapeKey(() => {
+  emit('close')
+})
+
 const userStore = useUserStore()
 const candidates = ref([])
 const isLoading = ref(true)
@@ -337,6 +344,19 @@ const loadCandidates = async (uid, state = swipeState.value) => {
   isLoading.value = true
   const seq = ++loadSeq.value
   try {
+    // 確保好友列表已載入（如果還沒有載入）
+    if (!userStore.currentUser?.friends || userStore.currentUser.friends.length === 0) {
+      try {
+        const { getProfile } = await import('@/api/profile')
+        const profileData = await getProfile(uid)
+        if (profileData?.friends) {
+          userStore.currentUser.friends = profileData.friends
+        }
+      } catch (error) {
+        console.warn('[SwipeMatch] 載入好友列表失敗，將繼續使用現有列表:', error)
+      }
+    }
+
     const allUsers = await getAllUsers()
     if (seq !== loadSeq.value) return
     const rejections = state?.rejections || {}
@@ -347,6 +367,16 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         ? userStore.currentUser.wishlist
         : []
 
+    // 獲取當前用戶的好友列表（好友對象有 id 或 uid 字段）
+    const currentUserFriends = Array.isArray(userStore.currentUser?.friends)
+      ? userStore.currentUser.friends.map((f) => f.uid || f.id).filter(Boolean)
+      : []
+
+    // 調試日誌：確認好友列表
+    if (currentUserFriends.length > 0) {
+      console.log('[SwipeMatch] 當前好友列表:', currentUserFriends)
+    }
+
     const filtered = allUsers
       .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
       .filter((user) => {
@@ -356,6 +386,21 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         return !rejectedAt || rejectedAt < cutoff
       })
       .filter((user) => (user.is_matching_enabled ?? true) === true)
+      // 過濾掉已經是好友的用戶
+      .filter((user) => {
+        const userId = user.uid || user.id
+        if (!userId) return false
+        const isFriend = currentUserFriends.includes(userId)
+        if (isFriend) {
+          console.log('[SwipeMatch] 已過濾好友:', userId, user.nickname || user.name)
+        }
+        return !isFriend
+      })
+      // 過濾掉已經是廠商的用戶
+      .filter((user) => {
+        const userRole = user.role
+        return userRole !== 'vendor'
+      })
       .map(mapUserToCandidate)
 
     if (seq !== loadSeq.value) return

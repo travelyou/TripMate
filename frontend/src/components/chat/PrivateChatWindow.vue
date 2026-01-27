@@ -6,6 +6,7 @@ import { getProfile } from '@/api/profile'
 import { uploadImage } from '@/api/storage'
 import { useRouter } from 'vue-router'
 import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
 // 定義事件：通知父層關閉視窗和打開聊天室
 const emit = defineEmits(['close', 'open-chat-room'])
@@ -1233,8 +1234,6 @@ const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text) return
 
-  messageInput.value = ''
-
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid || !activeChatRoom.value) return
 
@@ -1251,10 +1250,14 @@ const sendMessage = async () => {
       senderUid: currentUid,
     }
 
+    // 先顯示訊息在畫面上
     messages.value.push(userMessage)
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
     window.dispatchEvent(new CustomEvent('message-updated'))
     scrollToBottom()
+
+    // 然後清空輸入框
+    messageInput.value = ''
 
     const groupRoom = groupChatRooms.value.find((room) => room.id === activeChatRoom.value.roomId)
     if (groupRoom) {
@@ -1288,6 +1291,7 @@ const sendMessage = async () => {
     timestamp,
   }
 
+  // 先顯示訊息在畫面上
   messages.value.push(userMessage)
 
   const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
@@ -1306,6 +1310,9 @@ const sendMessage = async () => {
   saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
   window.dispatchEvent(new CustomEvent('message-updated'))
   scrollToBottom()
+
+  // 然後清空輸入框
+  messageInput.value = ''
 
   emitChatSend({
     toUid: activeChatRoom.value.uid,
@@ -1771,10 +1778,27 @@ const handleChatReceived = (event) => {
     chatRoomsList.value.unshift(room)
   }
 
+  // 優先從 localStorage 讀取已保存的消息（MainLayout 可能已經保存了）
+  const storedMessages = loadMessagesFromStorage(fromUid)
+  // 合併內存中的消息和 localStorage 中的消息，去重後使用最新的列表
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
+  const allExistingMessages = [...storedMessages]
 
-  // 改進的去重檢查：檢查 ID、內容和時間戳
-  const exists = roomMessages.some(msg => {
+  // 將內存中不在 localStorage 的消息也加入檢查列表
+  roomMessages.forEach(msg => {
+    const alreadyInStored = allExistingMessages.some(stored => {
+      if (stored.id && msg.id && stored.id === msg.id) return true
+      return stored.content === msg.content &&
+             stored.timestamp === msg.timestamp &&
+             stored.isImage === msg.isImage
+    })
+    if (!alreadyInStored) {
+      allExistingMessages.push(msg)
+    }
+  })
+
+  // 改進的去重檢查：檢查 ID、內容和時間戳（同時檢查內存和 localStorage 中的消息）
+  const exists = allExistingMessages.some(msg => {
     // 檢查 ID 是否相同
     if (msg.id && incomingMessage.id && msg.id === incomingMessage.id) {
       return true
@@ -1787,26 +1811,33 @@ const handleChatReceived = (event) => {
   })
 
   if (!exists) {
-    roomMessages.push({
+    // 使用最新的消息列表（優先使用 localStorage 中的）
+    const latestMessages = storedMessages.length > 0 ? storedMessages : roomMessages
+    const updatedMessages = [...latestMessages, {
       ...incomingMessage,
       type: 'friend',
-    })
+    }]
+    room.messages = updatedMessages
     console.log(`[handleChatReceived] 新增訊息：從 ${fromUid}`)
   } else {
     console.log(`[handleChatReceived] 忽略重複訊息：從 ${fromUid}`)
+    // 如果是重複訊息，但需要更新內存中的消息列表以保持同步
+    if (storedMessages.length > 0) {
+      room.messages = storedMessages
+    }
     return // 如果是重複訊息，直接返回，不進行後續處理
   }
 
-  room.messages = roomMessages
+  // room.messages 已經在上面更新了
   room.lastMessage = incomingMessage.isImage ? '傳送了圖片' : (incomingMessage.content || '新訊息')
   room.lastMessageTime = '剛剛'
   room.lastMessageTimestamp = new Date(incomingMessage.timestamp || new Date().toISOString()).getTime()
 
   const isActiveRoom = activeChatRoom.value?.uid === fromUid
   if (isActiveRoom) {
-    messages.value = roomMessages
+    messages.value = room.messages
     if (activeChatRoom.value) {
-      activeChatRoom.value.messages = roomMessages
+      activeChatRoom.value.messages = room.messages
     }
     if (currentUid) {
       const unreadKey = `unread_${currentUid}_${fromUid}`
@@ -1817,11 +1848,11 @@ const handleChatReceived = (event) => {
     room.unreadCount = 0
     scrollToBottom()
   } else {
-    updateUnreadCount(fromUid, roomMessages)
+    updateUnreadCount(fromUid, room.messages)
   }
 
   persistChatRooms()
-  saveMessagesToStorage(fromUid, roomMessages)
+  saveMessagesToStorage(fromUid, room.messages)
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
@@ -1861,6 +1892,11 @@ const cleanupBlobUrls = () => {
     console.warn('清理 blob URL 失敗：', error)
   }
 }
+
+// ESC 鍵關閉功能
+useEscapeKey(() => {
+  emit('close')
+})
 
 onMounted(() => {
   cleanupBlobUrls()
@@ -2229,6 +2265,7 @@ onUnmounted(() => {
               :disabled="!canSendMessage"
               placeholder="輸入訊息..."
               class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              @keydown.enter.prevent="sendMessage"
             />
             <!-- 貼圖選擇器 -->
             <div
@@ -2355,6 +2392,7 @@ onUnmounted(() => {
               type="text"
               placeholder="輸入群組訊息..."
               class="w-full px-4 py-2.5 border border-secondary-200 rounded-full focus:border-primary-500 focus:outline-none text-sm bg-white text-black placeholder-gray-400"
+              @keydown.enter.prevent="sendMessage"
             />
           </div>
           <button

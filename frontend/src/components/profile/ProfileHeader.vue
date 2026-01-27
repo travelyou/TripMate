@@ -117,6 +117,8 @@ const shouldMarquee = computed(() => {
                 alt="Avatar"
               />
               <input
+                id="profile-header-avatar-input-mobile"
+                name="avatar-mobile"
                 ref="fileInputMobile"
                 type="file"
                 accept="image/*"
@@ -193,7 +195,7 @@ const shouldMarquee = computed(() => {
                         v-if="loading"
                         class="inline-block h-4 w-24 bg-white/30 rounded animate-pulse"
                       ></span>
-                      <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
+                      <span v-else>{{ user.nickname || user.name || '用戶' }}</span>
                     </h1>
                     <span
                       class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white/10 rounded text-[10px] sm:text-xs font-medium text-white border border-white/20 inline-flex items-center overflow-hidden relative max-w-full sm:max-w-[120px]"
@@ -364,6 +366,8 @@ const shouldMarquee = computed(() => {
               alt="Avatar"
             />
             <input
+              id="profile-header-avatar-input-desktop"
+              name="avatar-desktop"
               ref="fileInputDesktop"
               type="file"
               accept="image/*"
@@ -436,7 +440,7 @@ const shouldMarquee = computed(() => {
                 v-if="loading"
                 class="inline-block h-6 w-48 bg-white/30 rounded animate-pulse"
               ></span>
-              <span v-else>{{ user.name || user.nickname || '用戶' }}</span>
+              <span v-else>{{ user.nickname || user.name || '用戶' }}</span>
             </h1>
             <span
               class="px-2 md:px-3 lg:px-4 py-0.5 md:py-1 lg:py-1.5 bg-white/10 rounded text-[10px] md:text-xs lg:text-sm font-medium text-white border border-white/20 flex items-center shrink-0 overflow-hidden relative max-w-[150px] md:max-w-[180px] lg:max-w-[200px]"

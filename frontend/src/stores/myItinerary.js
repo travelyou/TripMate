@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import dayjs from 'dayjs' // 確保已安裝並引入 dayjs
 import {
   createMyItinerary,
+  updateMyItinerary,
   getPersonalItineraries,
   getJoinedItineraries,
   deleteMyItinerary,
@@ -56,7 +57,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   const saveItinerary = async (itineraryData, uid) => {
     if (!uid) return { success: false, message: '使用者未登入' }
     const payload = {
-      user_uid: uid,
       title: itineraryData.title,
       location: itineraryData.location || '',
       start_date: itineraryData.startDate,
@@ -65,14 +65,49 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       packing_list: itineraryData.packingList,
     }
     try {
-      const res = await createMyItinerary(payload)
-      if (res.success) {
-        await loadPersonalData(uid)
-        return { success: true }
+      // 如果有 id，表示是編輯現有行程，使用更新 API
+      if (itineraryData.id) {
+        const res = await updateMyItinerary(itineraryData.id, payload)
+        if (res.success) {
+          await loadPersonalData(uid)
+          return { success: true }
+        }
+        return { success: false, message: res.message || '更新失敗' }
+      } else {
+        // 沒有 id，表示是新行程，使用創建 API
+        const res = await createMyItinerary({
+          ...payload,
+          user_uid: uid,
+        })
+        if (res.success) {
+          await loadPersonalData(uid)
+          return { success: true }
+        }
+        return { success: false, message: res.message || '創建失敗' }
       }
-      return { success: false, message: res.message }
     } catch (error) {
-      return { success: false, message: '儲存失敗' }
+      console.error('儲存行程失敗:', error)
+      console.error('錯誤詳情:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+      })
+      
+      // 提取錯誤訊息
+      let errorMessage = '儲存失敗'
+      if (error.response?.data) {
+        errorMessage = error.response.data.error || error.response.data.message || errorMessage
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      // 如果是網路錯誤
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        errorMessage = '無法連接到伺服器，請檢查網路連線'
+      }
+      
+      return { success: false, message: errorMessage }
     }
   }
 

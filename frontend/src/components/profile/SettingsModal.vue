@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { X, Pencil, Loader2, Eye, EyeOff, Trash2 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { showConfirm } from '@/utils/alert'
@@ -18,6 +18,31 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const userStore = useUserStore()
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen && !saving.email && !saving.password && !saving.realName) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 // 狀態管理
 const isPasswordVerified = ref(false)
@@ -248,6 +273,8 @@ const handleDeleteAccount = async () => {
             <label class="block text-sm font-medium text-secondary-700 mb-2">密碼</label>
             <div class="relative">
               <input
+                id="settings-verify-password"
+                name="verify-password"
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
                 class="w-full px-4 py-2 pr-12 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
@@ -314,6 +341,8 @@ const handleDeleteAccount = async () => {
             </div>
             <div v-else class="space-y-3">
               <input
+                id="settings-email"
+                name="email"
                 v-model="formData.email"
                 type="email"
                 class="w-full px-4 py-2 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
@@ -358,6 +387,8 @@ const handleDeleteAccount = async () => {
                 <label class="block text-sm font-medium text-secondary-700 mb-2">新密碼</label>
                 <div class="relative">
                   <input
+                    id="settings-new-password"
+                    name="new-password"
                     v-model="formData.newPassword"
                     :type="showNewPassword ? 'text' : 'password'"
                     class="w-full px-4 py-2 pr-12 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
@@ -377,6 +408,8 @@ const handleDeleteAccount = async () => {
                 <label class="block text-sm font-medium text-secondary-700 mb-2">確認新密碼</label>
                 <div class="relative">
                   <input
+                    id="settings-confirm-password"
+                    name="confirm-password"
                     v-model="formData.confirmPassword"
                     :type="showConfirmPassword ? 'text' : 'password'"
                     class="w-full px-4 py-2 pr-12 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
@@ -428,6 +461,8 @@ const handleDeleteAccount = async () => {
             </div>
             <div v-else class="space-y-3">
               <input
+                id="settings-real-name"
+                name="real-name"
                 v-model="formData.realName"
                 type="text"
                 class="w-full px-4 py-2 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"

@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, watch, ref } from 'vue'
+import { reactive, watch, ref, onMounted, onUnmounted } from 'vue'
 import { X, ArrowRight, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -22,6 +22,31 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save', 'save-field', 'update-wishlist'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape' && props.isOpen && !isSaving.value) {
+    emit('close')
+  }
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onMounted(() => {
+  if (props.isOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 const editForm = reactive({})
 const savingFields = reactive({
@@ -199,10 +224,13 @@ function restoreStamp(key) {
               <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.name || '').length }}/35</span>
             </div>
             <input
+              id="edit-profile-name"
+              name="name"
               v-model="editForm.name"
               type="text"
               maxlength="35"
               class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-black border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border placeholder-gray-400"
+              @keyup.enter="save"
             />
           </div>
           <div class="min-w-0 w-full">
@@ -211,11 +239,14 @@ function restoreStamp(key) {
               <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.location || '').length }}/35</span>
             </div>
             <input
+              id="edit-profile-location"
+              name="location"
               v-model="editForm.location"
               type="text"
               placeholder="台灣"
               maxlength="35"
               class="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-black border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none box-border placeholder-gray-400"
+              @keyup.enter="save"
             />
           </div>
           <div class="md:col-span-2 min-w-0 w-full">
@@ -224,6 +255,8 @@ function restoreStamp(key) {
               <span class="text-[10px] sm:text-xs text-secondary-500 flex-shrink-0 whitespace-nowrap">{{ (editForm.bio || '').length }}/200</span>
             </div>
             <textarea
+              id="edit-profile-bio"
+              name="bio"
               v-model="editForm.bio"
               rows="3"
               maxlength="200"
@@ -248,6 +281,8 @@ function restoreStamp(key) {
             </div>
             <div class="relative">
                <input
+                id="edit-profile-tag-input"
+                name="tag-input"
                 v-model="tagInputValue"
                 :placeholder="editForm.tags?.length >= 5 ? '已達標籤上限 (5/5)' : '輸入標籤按 Enter 新增 (最多10字，例如：登山、攝影)'"
                 maxlength="10"
@@ -289,6 +324,8 @@ function restoreStamp(key) {
           </div>
           <div class="relative">
             <input
+              id="edit-profile-wishlist-input"
+              name="wishlist-input"
               v-model="wishlistInputValue"
               :placeholder="editForm.wishlist?.length >= 5 ? '已達許願上限 (5/5)' : '輸入許願內容按 Enter 新增 (最多10字)'"
               maxlength="10"

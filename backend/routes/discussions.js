@@ -36,7 +36,10 @@ router.get('/', async (req, res) => {
           SELECT 1 FROM unnest(d.tags) AS tag
           WHERE tag ILIKE $${paramIndex}
         )
-        OR u.nickname ILIKE $${paramIndex}
+        OR EXISTS (
+          SELECT 1 FROM public.users u2
+          WHERE u2.uid = d.author_uid AND u2.nickname ILIKE $${paramIndex}
+        )
       )`
       queryParams.push(searchTerm)
       paramIndex++
@@ -56,9 +59,9 @@ router.get('/', async (req, res) => {
         d.updated_at,
         d.deleted_at,
         d.banner,
-        u.avatar as author_avatar,
-        u.nickname as author_name,
-        u.spirit_animal as author_spirit_animal,
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l
@@ -70,7 +73,7 @@ router.get('/', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
-      LEFT JOIN users u ON d.author_uid = u.uid
+      LEFT JOIN public.users u ON d.author_uid = u.uid
       WHERE ${whereClause}
       ORDER BY d.created_at DESC
       LIMIT $1 OFFSET $2
@@ -109,7 +112,10 @@ router.get('/', async (req, res) => {
           SELECT 1 FROM unnest(d.tags) AS tag
           WHERE tag ILIKE $${countParamIndex}
         )
-        OR u.nickname ILIKE $${countParamIndex}
+        OR EXISTS (
+          SELECT 1 FROM public.users u2
+          WHERE u2.uid = author_uid AND u2.nickname ILIKE $${countParamIndex}
+        )
       )`
       countParams.push(searchTerm)
       countParamIndex++
@@ -158,7 +164,6 @@ router.post('/', async (req, res) => {
   try {
     const {
       author_uid,
-      // [修正] 移除 author_name, author_avatar 接收，這些應該從 users 表讀取
       category,
       title,
       content,
@@ -174,7 +179,6 @@ router.post('/', async (req, res) => {
     const tagsArray = Array.isArray(tags) ? tags : []
     const imageUrlsArray = Array.isArray(image_urls) ? image_urls : []
 
-    // [修正] INSERT 不再寫入 author_name, author_avatar, spirit_animal
     const insertDiscussionQuery = `
       INSERT INTO discussion.discussion (
         author_uid, category, title, content, tags, banner, image_urls
@@ -210,9 +214,9 @@ router.post('/', async (req, res) => {
         d.updated_at,
         d.deleted_at,
         d.banner,
-        u.avatar as author_avatar,
-        u.nickname as author_name,
-        u.spirit_animal as author_spirit_animal,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
         0 as likes_count,
         0 as comments_count
       FROM discussion.discussion d
@@ -239,6 +243,8 @@ router.get('/:id', async (req, res) => {
       return res.status(400).json({ error: '討論 ID 格式錯誤', details: 'id 必須是正整數' })
     }
 
+    // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
+    // 一律使用 users 表的數據，不使用 discussion 表的舊值
     // [修正] 移除 d.author_name 等欄位，改用 users 表
     const discussionQuery = `
       SELECT
@@ -253,9 +259,9 @@ router.get('/:id', async (req, res) => {
         d.updated_at,
         d.deleted_at,
         d.banner,
-        u.avatar as author_avatar,
-        u.nickname as author_name,
-        u.spirit_animal as author_spirit_animal,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l

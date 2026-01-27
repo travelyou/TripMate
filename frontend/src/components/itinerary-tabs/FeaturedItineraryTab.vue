@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { reportBankTransfer } from '@/api/payments'
 import { Calendar as CalendarIcon, Star as StarIcon } from 'lucide-vue-next'
 
@@ -194,13 +194,36 @@ const hasEmergencyContactInfo = (target) => {
   return !!(ec && (ec.name || ec.phone))
 }
 
-watch(isDetailOpen, (open) => {
-  document.body.style.overflow = open ? 'hidden' : ''
+// ESC 鍵關閉所有彈窗
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape') {
+    if (isDetailOpen.value) {
+      closeDetailModal()
+    } else if (isRatingOpen.value) {
+      closeRatingModal()
+    } else if (isBankInfoOpen.value) {
+      closeBankInfo()
+    } else if (isReportOpen.value) {
+      closeReportModal()
+    }
+  }
+}
+
+// 監聽所有彈窗狀態，動態添加/移除 ESC 鍵監聽器
+watch([isDetailOpen, isRatingOpen, isBankInfoOpen, isReportOpen], ([detail, rating, bank, report]) => {
+  const anyOpen = detail || rating || bank || report
+  document.body.style.overflow = anyOpen ? 'hidden' : ''
+  if (anyOpen) {
+    window.addEventListener('keydown', handleEscapeKey)
+  } else {
+    window.removeEventListener('keydown', handleEscapeKey)
+  }
 })
 
-// 確保元件卸載時還原 body 的滾動狀態
+// 確保元件卸載時還原 body 的滾動狀態和移除事件監聽器
 onUnmounted(() => {
   document.body.style.overflow = ''
+  window.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
 

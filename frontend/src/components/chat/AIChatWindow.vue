@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { ref, nextTick, onMounted } from 'vue'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 import {
   X as XIcon,
   Send as SendIcon,
@@ -15,7 +16,12 @@ import DOMPurify from 'dompurify'
 import { GEMINI_MODEL_NAME, TRIPMATE_SYSTEM_PROMPT } from '@/config/aiConfig'
 import { searchFeatureLocations, searchDiscussionPosts } from '@/api/AiPrompt'
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
+
+// ESC 鍵關閉功能
+useEscapeKey(() => {
+  emit('close')
+})
 
 const messageInput = ref('')
 const messagesContainer = ref(null)

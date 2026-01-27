@@ -247,8 +247,11 @@ router.get('/user/:uid', async (req, res) => {
           i.start_date,
           i.end_date,
           COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
+          COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
           i.agency_name,
           i.author_uid,
+          i.vendor_id,
+          COALESCE(i.banner_position_y, 50) AS banner_position_y,
           i.created_at,
           'itinerary' as type,
           u.nickname,
@@ -259,7 +262,7 @@ router.get('/user/:uid', async (req, res) => {
           (SELECT COUNT(*) FROM public.comments WHERE post_id = i.id AND post_type = 'itinerary' AND deleted_at IS NULL) as comments_count
         FROM public.likes l
         JOIN itinerary.itineraries i ON l.post_id = i.id
-        LEFT JOIN users u ON i.author_uid = u.uid
+        LEFT JOIN public.users u ON i.author_uid = u.uid
         WHERE l.author_uid = $1 AND l.board = 'itinerary'
         ORDER BY l.created_at DESC
       `
@@ -326,11 +329,18 @@ router.get('/user/:uid', async (req, res) => {
     res.json(favorites)
   } catch (error) {
     console.error('獲取收藏失敗：', error)
-    const errorResponse = { error: '獲取收藏失敗' }
-    if (process.env.NODE_ENV !== 'production') {
-      errorResponse.details = error?.message || String(error)
-    }
-    res.status(500).json(errorResponse)
+    console.error('錯誤詳情：', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      query: board === 'itinerary' ? 'itinerary query' : board === 'traveler' ? 'traveler query' : 'discussion query',
+    })
+    res.status(500).json({
+      error: '獲取收藏失敗',
+      details: error.message || String(error),
+      code: error.code,
+    })
   }
 })
 

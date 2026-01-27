@@ -476,6 +476,8 @@ router.put('/:uid', async (req, res) => {
     const { uid } = req.params
     let {
       nickname,
+      real_name,
+      realName,
       location,
       avatar,
       bio,
@@ -515,39 +517,26 @@ router.put('/:uid', async (req, res) => {
     const params = [uid]
     let paramIndex = 2
 
-    if (nickname !== undefined) {
-      setClauses.push(`nickname = COALESCE($${paramIndex}, nickname)`)
-      params.push(nickname)
-      paramIndex++
+    const addUpdate = (field, value) => {
+      if (value !== undefined) {
+        // 直接更新，不使用 COALESCE，確保空字符串和 null 都能正確更新
+        setClauses.push(`${field} = $${paramIndex}`)
+        params.push(value === '' ? null : value)
+        paramIndex++
+      }
     }
 
-    if (location !== undefined) {
-      setClauses.push(`location = COALESCE($${paramIndex}, location, '台灣')`)
-      params.push(location)
-      paramIndex++
-    }
+    addUpdate('nickname', nickname)
+    addUpdate('real_name', real_name || realName)
+    addUpdate('location', location)
+    addUpdate('avatar', avatar)
+    addUpdate('bio', bio)
+    addUpdate('spirit_animal', spirit_animal)
 
-    if (avatar !== undefined) {
-      setClauses.push(`avatar = COALESCE($${paramIndex}, avatar)`)
-      params.push(avatar)
-      paramIndex++
-    }
-
-    if (bio !== undefined) {
-      setClauses.push(`bio = COALESCE($${paramIndex}, bio)`)
-      params.push(bio)
-      paramIndex++
-    }
-
-    if (spirit_animal !== undefined) {
-      setClauses.push(`spirit_animal = COALESCE($${paramIndex}, spirit_animal)`)
-      params.push(spirit_animal)
-      paramIndex++
-    }
-
-    if (email !== undefined) {
-      setClauses.push(`email = COALESCE($${paramIndex}, email)`)
-      params.push(email)
+    if (Object.prototype.hasOwnProperty.call(req.body, 'tags')) {
+      const val = Array.isArray(tags) ? tags : []
+      setClauses.push(`tags = $${paramIndex}`)
+      params.push(val)
       paramIndex++
     }
 

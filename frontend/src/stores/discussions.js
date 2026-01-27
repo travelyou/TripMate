@@ -55,8 +55,8 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       author_uid: post.author_uid,
       spiritAnimal: post.author_spirit_animal || '',
       // 後端返回的 author_avatar 是 Firebase Storage URL（從 Neon 資料庫的 users.avatar 欄位）
-      avatar:
-        post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_uid}`,
+      // 只使用資料庫中的頭像，如果沒有則為 null（不顯示默認頭像）
+      avatar: post.author_avatar || null,
       time: formatTime(post.created_at),
       title: post.title,
       content: post.content,
@@ -261,5 +261,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     addPost,
     editPost,
     removePost,
+    transformPost,
   }
 })

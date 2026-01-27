@@ -1,11 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
 import {
   X as XIcon,
   Trash2 as TrashIcon,
   Plus as PlusIcon,
-  Clock as ClockIcon,
   CheckSquare as CheckSquareIcon,
   Save as SaveIcon,
   Map as MapIcon,
@@ -17,6 +16,21 @@ import { showConfirm, showAlert } from '@/utils/alert'
 
 const props = defineProps({ itinerary: { type: Object, required: true } })
 const emit = defineEmits(['close', 'save', 'delete', 'save-draft'])
+
+// ESC 鍵關閉功能
+const handleEscapeKey = (event) => {
+  if (event.key === 'Escape') {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleEscapeKey)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 
 // 深拷貝一份資料進行編輯，避免直接修改 props
 const localItinerary = ref(JSON.parse(JSON.stringify(props.itinerary)))
@@ -212,7 +226,6 @@ const handleDelete = async () => {
                 <div class="flex flex-col gap-3">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 text-primary-600 font-black">
-                      <ClockIcon class="w-5 h-5" />
                       <input
                         v-model="activity.time"
                         type="time"

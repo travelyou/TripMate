@@ -703,6 +703,7 @@ onUnmounted(() => {
   }
 })
 
+// 監聽用戶 UID 變化，建立 WebSocket 連接
 watch(
   () => userStore.currentUser?.uid || userStore.currentUser?.id,
   (uid) => {
@@ -711,6 +712,24 @@ watch(
       return
     }
     connectChatSocket(uid)
+  },
+  { immediate: true },
+)
+
+// 監聽認證狀態，確保在用戶登入後建立 WebSocket 連接
+watch(
+  () => [userStore.authReady, userStore.isLoggedIn, userStore.currentUser?.uid || userStore.currentUser?.id],
+  ([authReady, isLoggedIn, uid]) => {
+    // 當認證已準備好且用戶已登入且有 UID 時，確保建立連接
+    if (authReady && isLoggedIn && uid) {
+      // 如果還沒有連接，或者連接的 UID 不匹配，則建立連接
+      if (!chatSocket || chatSocketUid !== uid) {
+        connectChatSocket(uid)
+      }
+    } else if (!isLoggedIn || !uid) {
+      // 如果用戶未登入或沒有 UID，則斷開連接
+      disconnectChatSocket()
+    }
   },
   { immediate: true },
 )

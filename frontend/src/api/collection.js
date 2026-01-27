@@ -8,7 +8,6 @@ const getAuthToken = async () => {
 }
 
 export const saveToCollection = async (userUid, postId, postType, categoryId = null) => {
-  try {
     const token = await getAuthToken()
     const response = await fetch(`${API_BASE_URL}/collection`, {
       method: 'POST',
@@ -25,18 +24,15 @@ export const saveToCollection = async (userUid, postId, postType, categoryId = n
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || '收藏失敗')
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || errorData.error || '收藏失敗')
     }
 
-    return await response.json()
-  } catch (error) {
-    throw error
-  }
+  const result = await response.json()
+  return result.data || result
 }
 
 export const removeFromCollection = async (userUid, postId, postType) => {
-  try {
     const token = await getAuthToken()
     const response = await fetch(`${API_BASE_URL}/collection`, {
       method: 'DELETE',
@@ -52,18 +48,15 @@ export const removeFromCollection = async (userUid, postId, postType) => {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || '取消收藏失敗')
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || errorData.error || '取消收藏失敗')
     }
 
-    return await response.json()
-  } catch (error) {
-    throw error
-  }
+  const result = await response.json()
+  return result.data || result
 }
 
 export const getUserCollections = async (userUid, categoryId = null) => {
-  try {
     const token = await getAuthToken()
     const url = categoryId
       ? `${API_BASE_URL}/collection/user/${userUid}?category_id=${categoryId}`
@@ -77,15 +70,12 @@ export const getUserCollections = async (userUid, categoryId = null) => {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || '獲取收藏列表失敗')
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || errorData.error || '獲取收藏列表失敗')
     }
 
     const result = await response.json()
     return result.data || []
-  } catch (error) {
-    throw error
-  }
 }
 
 export const checkIsCollected = async (userUid, postId, postType) => {
@@ -103,13 +93,12 @@ export const checkIsCollected = async (userUid, postId, postType) => {
     )
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || '檢查收藏狀態失敗')
+      return false
     }
 
     const result = await response.json()
     return result.isCollected || false
-  } catch (error) {
+  } catch {
     return false
   }
 }
