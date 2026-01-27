@@ -5,10 +5,7 @@ const router = express.Router()
 const pool = require('../database/connection')
 const { isValidImageUrl } = require('../utils/imageUtils')
 
-// GET /api/discussions - 獲取所有討論
 router.get('/', async (req, res) => {
-  console.log('🔵 [Backend GET /] ========== 開始 ==========')
-
   try {
     const { page = 1, limit = 10, category, author_uid, search } = req.query
     const offset = (page - 1) * limit
@@ -45,9 +42,6 @@ router.get('/', async (req, res) => {
       paramIndex++
     }
 
-    console.log('🔵 [Backend GET / Step 2] WHERE 子句:', whereClause)
-    console.log('🔵 [Backend GET / Step 2] 查詢參數:', queryParams)
-
     const discussionsQuery = `
       SELECT
         d.id,
@@ -83,8 +77,6 @@ router.get('/', async (req, res) => {
       LIMIT $1 OFFSET $2
     `
 
-    console.log('🔵 [Backend GET / Step 3] 執行查詢')
-    console.log('🔵 [Backend GET / Step 3] SQL 查詢:', discussionsQuery.substring(0, 200) + '...')
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
 
     // 查詢總數
@@ -122,32 +114,7 @@ router.get('/', async (req, res) => {
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
 
-    // 處理結果
-    // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
     const discussions = discussionsResult.rows.map((discussion) => {
-      // 調試：檢查每個貼文的 author_avatar
-      if (!discussion.author_avatar) {
-        console.log(
-          `⚠️ [Backend GET / Step 4] 貼文 ID ${discussion.id} (UID: ${discussion.author_uid}) 沒有 author_avatar`,
-        )
-        console.log(`⚠️ [Backend GET / Step 4] 貼文的所有欄位:`, Object.keys(discussion))
-        console.log(
-          `⚠️ [Backend GET / Step 4] 貼文的完整資料:`,
-          JSON.stringify(discussion, null, 2),
-        )
-      }
-
-      // 調試：記錄第一個貼文的完整資料
-      if (discussion.id === discussionsResult.rows[0].id) {
-        console.log(`🔵 [Backend GET / Step 4] 第一個貼文的完整資料:`)
-        console.log(`  - author_avatar: ${discussion.author_avatar || 'NULL'}`)
-        console.log(`  - author_name: ${discussion.author_name || 'NULL'}`)
-        console.log(`  - author_spirit_animal: ${discussion.author_spirit_animal || 'NULL'}`)
-        console.log(`  - old_author_avatar: ${discussion.old_avatar || 'NULL'}`)
-        console.log(`  - 所有欄位:`, Object.keys(discussion))
-      }
-
-      // 🔧 過濾掉無效的圖片 URL
       const cleanBanner = isValidImageUrl(discussion.banner) ? discussion.banner : null
       const cleanImageUrls = Array.isArray(discussion.image_urls)
         ? discussion.image_urls.filter(url => isValidImageUrl(url))

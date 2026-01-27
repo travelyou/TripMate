@@ -10,8 +10,6 @@ import {
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { getAllUsers } from '@/api/users'
-// [修正] 更新路徑
-import WishBallPool from '@/components/profile/WishBallPool.vue'
 
 // ... (參數設定省略，保持不變)
 const SWIPE_THRESHOLD = 100
@@ -84,10 +82,11 @@ const isOutOfCards = computed(() => !isLoading.value && !currentCard.value)
 const isFinished = computed(() => isLimitReached.value || isOutOfCards.value)
 const isProcessing = ref(false)
 const loadSeq = ref(0)
-const isDetailOpen = ref(true)
 
 const startX = ref(0)
+const startY = ref(0)
 const currentX = ref(0)
+const currentY = ref(0)
 const isDragging = ref(false)
 const cardElement = ref(null)
 
@@ -130,7 +129,6 @@ const autoSwipeDirection = ref(null)
 const handleButtonClick = (direction) => {
   if (isFinished.value || !currentCard.value || autoSwipeDirection.value || isProcessing.value)
     return
-  isDetailOpen.value = false
   isProcessing.value = true
   autoSwipeDirection.value = direction
   finishSwipe(direction)
@@ -141,32 +139,65 @@ const onTouchStart = (e) => {
     isFinished.value ||
     !currentCard.value ||
     autoSwipeDirection.value ||
-    isDetailOpen.value ||
     isProcessing.value
   )
     return
+
+  // 檢查是否點擊在按鈕上，如果是則不處理拖拽
+  const target = e.target
+  const actionButtons = target.closest('.action-btn-nope, .action-btn-like')
+  const closeButton = target.closest('button[title="停止抽卡"]')
+
+  if (actionButtons || closeButton) {
+    return
+  }
+
+  // 正常拖拽邏輯
   isDragging.value = true
-  startX.value = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX
-  currentX.value = startX.value
+  const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX
+  const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY
+  startX.value = clientX
+  startY.value = clientY
+  currentX.value = clientX
+  currentY.value = clientY
 }
 
 const onTouchMove = (e) => {
   if (!isDragging.value) return
   const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX
-  currentX.value = clientX
+  const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY
+  const deltaX = Math.abs(clientX - startX.value)
+  const deltaY = Math.abs(clientY - startY.value)
+
+  // 如果是水平滑動（水平移動大於垂直移動），則阻止預設行為並更新位置
+  if (deltaX > deltaY && deltaX > 10) {
+    e.preventDefault() // 防止頁面滾動
+    currentX.value = clientX
+    currentY.value = clientY
+  }
 }
 
 const onTouchEnd = () => {
   if (!isDragging.value) return
   isDragging.value = false
   const xDiff = currentX.value - startX.value
-  if (xDiff > SWIPE_THRESHOLD) {
-    handleButtonClick('right')
-  } else if (xDiff < -SWIPE_THRESHOLD) {
-    handleButtonClick('left')
+  const yDiff = currentY.value - startY.value
+
+  // 只處理水平滑動（水平移動大於垂直移動）
+  if (Math.abs(xDiff) > Math.abs(yDiff)) {
+    if (xDiff > SWIPE_THRESHOLD) {
+      handleButtonClick('right')
+    } else if (xDiff < -SWIPE_THRESHOLD) {
+      handleButtonClick('left')
+    } else {
+      // 重置位置
+      currentX.value = startX.value
+      currentY.value = startY.value
+    }
   } else {
-    currentX.value = 0
-    startX.value = 0
+    // 重置位置
+    currentX.value = startX.value
+    currentY.value = startY.value
   }
 }
 
@@ -235,6 +266,23 @@ const shuffle = (list) => {
   return result
 }
 
+// 許願球池標籤顏色配置（與名片編輯一致）
+const STATIC_BALL_STYLES = [
+  'bg-red-50 text-red-600 border-red-100',
+  'bg-orange-50 text-orange-600 border-orange-100',
+  'bg-amber-50 text-amber-600 border-amber-100',
+  'bg-green-50 text-green-600 border-green-100',
+  'bg-teal-50 text-teal-600 border-teal-100',
+  'bg-blue-50 text-blue-600 border-blue-100',
+  'bg-indigo-50 text-indigo-600 border-indigo-100',
+  'bg-purple-50 text-purple-600 border-purple-100',
+  'bg-pink-50 text-pink-600 border-pink-100',
+]
+
+const getBallStyle = (index) => {
+  return STATIC_BALL_STYLES[index % STATIC_BALL_STYLES.length]
+}
+
 const mapUserToCandidate = (user) => {
   const uid = user.uid || user.id
   const displayName =
@@ -259,6 +307,15 @@ const mapUserToCandidate = (user) => {
 
   const gallery = Array.isArray(user.gallery) ? user.gallery.slice(0, 3) : []
 
+  // 4. 去過的地方(自主簽證旅行) - 從 visitedPlaces.international 獲取
+  const pastTrips = Array.isArray(user.visitedPlaces?.international)
+    ? user.visitedPlaces.international.map((place) => ({
+        name: place.name || '',
+        date: place.date || '',
+        icon: place.icon || '✈️',
+      }))
+    : []
+
   return {
     id: uid,
     uid,
@@ -272,7 +329,7 @@ const mapUserToCandidate = (user) => {
     activities: [],
     tags,
     gallery,
-    pastTrips: [],
+    pastTrips,
   }
 }
 
@@ -341,12 +398,6 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => currentCard.value,
-  (card) => {
-    if (card) isDetailOpen.value = true
-  },
-)
 </script>
 
 <template>
@@ -389,200 +440,162 @@ watch(
         @touchmove="onTouchMove"
         @touchend="onTouchEnd"
       >
-        <div class="relative h-[60%] w-full overflow-hidden bg-gray-100">
-          <img
-            :src="currentCard.image"
-            :alt="currentCard.name"
-            class="w-full h-full object-cover pointer-events-none"
-          />
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"
-          ></div>
-          <button
-            class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-secondary-600 border border-white/80 backdrop-blur-md flex items-center justify-center hover:bg-white transition shadow-sm"
-            title="停止抽卡"
-            @click="$emit('close')"
-          >
-            <XIcon class="w-5 h-5" />
-          </button>
-
-          <div class="absolute top-4 left-4">
-            <span
-              class="inline-flex items-center px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-white text-primary-700 text-xs font-bold shadow-sm"
-            >
-              {{ currentCard.spiritAnimal }}
-            </span>
-          </div>
-
-          <div class="absolute bottom-0 left-0 p-5 text-white w-full pointer-events-none">
-            <h2 class="text-3xl font-black mb-1 flex items-end gap-2 drop-shadow-md">
-              {{ currentCard.name }}
-              <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
-            </h2>
-            <div class="flex items-center text-sm font-bold opacity-90">
-              <MapPinIcon class="w-4 h-4 mr-1 text-primary-200 fill-primary-200" />
-              {{ currentCard.location }}
-            </div>
-          </div>
-
-          <div
-            v-if="swipeFeedback === 'like'"
-            class="absolute top-10 right-10 border-4 border-green-400 text-green-400 px-4 py-2 rounded-xl text-3xl font-black -rotate-12 uppercase tracking-widest opacity-80 scale-125 z-20"
-          >
-            LIKE
-          </div>
-          <div
-            v-if="swipeFeedback === 'nope'"
-            class="absolute top-10 left-10 border-4 border-red-500 text-red-500 px-4 py-2 rounded-xl text-3xl font-black rotate-12 uppercase tracking-widest opacity-80 scale-125 z-20"
-          >
-            NOPE
-          </div>
-        </div>
-
-        <div class="flex-1 flex flex-col p-5 bg-white">
-          <div class="mb-4 pointer-events-none">
-            <p class="text-xs font-bold text-gray-400 mb-2 flex items-center">
-              <SparklesIcon class="w-3 h-3 mr-1" /> 也想去的地方 (城市/國家)
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="place in currentCard.wishlist"
-                :key="place"
-                class="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-bold border border-primary-100"
+        <div class="overflow-y-auto flex-1 bg-gray-50 detail-scrollbar">
+          <div class="bg-white min-h-full">
+            <div class="relative h-96 w-full overflow-hidden bg-gray-200">
+              <img
+                :src="currentCard.image"
+                :alt="currentCard.name"
+                class="w-full h-full object-cover"
+              />
+              <div
+                class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
+              ></div>
+              <button
+                class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-secondary-600 border border-white/80 backdrop-blur-md flex items-center justify-center hover:bg-white transition z-50 shadow-sm"
+                title="停止抽卡"
+                @click.stop="$emit('close')"
               >
-                {{ place }}
-              </span>
-            </div>
-          </div>
+                <XIcon class="w-5 h-5" />
+              </button>
 
-          <div class="mb-auto pointer-events-none">
-            <p class="text-gray-600 text-sm leading-relaxed line-clamp-2">
-              {{ currentCard.bio }}
-            </p>
-          </div>
+              <div class="absolute top-4 left-4">
+                <span
+                  class="inline-flex items-center px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-white text-primary-700 text-xs font-bold shadow-sm"
+                >
+                  {{ currentCard.spiritAnimal }}
+                </span>
+              </div>
 
-          <div class="flex justify-center items-center gap-6 mt-4" @touchstart.stop @mousedown.stop>
-            <button class="action-btn-nope" @click.stop="handleButtonClick('left')">
-              <XIcon class="w-8 h-8 pointer-events-none" />
-            </button>
-            <button class="action-btn-like" @click.stop="handleButtonClick('right')">
-              <HeartIcon class="w-8 h-8 fill-current pointer-events-none" />
-            </button>
-          </div>
-        </div>
-
-        <Transition name="slide-up">
-          <div
-            v-if="isDetailOpen"
-            class="absolute inset-0 bg-white z-50 flex flex-col rounded-2xl overflow-hidden"
-            @mousedown.stop
-            @touchstart.stop
-          >
-            <div class="overflow-y-auto flex-1 bg-gray-50 detail-scrollbar">
-              <div class="bg-white pb-10 min-h-full">
-                <div class="relative h-96 w-full overflow-hidden bg-gray-200">
-                  <img
-                    :src="currentCard.image"
-                    :alt="currentCard.name"
-                    class="w-full h-full object-cover"
-                  />
-                  <div
-                    class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"
-                  ></div>
-                  <button
-                    class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-secondary-600 border border-white/80 backdrop-blur-md flex items-center justify-center hover:bg-white transition z-50 shadow-sm"
-                    @click="$emit('close')"
-                  >
-                    <XIcon class="w-5 h-5" />
-                  </button>
-
-                  <div class="absolute bottom-0 left-0 p-6 text-white w-full">
-                    <h2 class="text-3xl font-black mb-1 flex items-end gap-2 drop-shadow-md">
-                      {{ currentCard.name }}
-                      <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
-                    </h2>
-                    <div class="flex items-center text-sm font-bold opacity-90">
-                      <MapPinIcon class="w-4 h-4 mr-1 text-primary-200" />
-                      {{ currentCard.location }}
-                    </div>
-                  </div>
+              <div class="absolute bottom-0 left-0 p-6 text-white w-full">
+                <h2 class="text-3xl font-black mb-1 flex items-end gap-2 drop-shadow-md">
+                  {{ currentCard.name }}
+                  <span class="text-xl font-medium opacity-90">{{ currentCard.age }}</span>
+                </h2>
+                <div class="flex items-center text-sm font-bold opacity-90">
+                  <MapPinIcon class="w-4 h-4 mr-1 text-primary-200" />
+                  {{ currentCard.location }}
                 </div>
+              </div>
 
-                <div class="p-6 space-y-8">
-                  <section>
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-                      關於我
-                    </h3>
-                    <p class="text-gray-700 leading-relaxed text-base">{{ currentCard.bio }}</p>
-                  </section>
-                  <section v-if="currentCard.tags && currentCard.tags.length">
-                    <h3
-                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
-                    >
-                      <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 旅行風格
-                    </h3>
-                    <div class="flex flex-wrap gap-2">
-                      <span
-                        v-for="act in currentCard.tags"
-                        :key="act"
-                        class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
-                      >
-                        #{{ act }}
-                      </span>
-                    </div>
-                  </section>
-
-                  <section v-if="currentCard.gallery && currentCard.gallery.length">
-                    <h3
-                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
-                    >
-                      <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
-                    </h3>
-                    <div class="grid grid-cols-3 gap-2">
-                      <div
-                        v-for="(photo, idx) in currentCard.gallery"
-                        :key="photo || idx"
-                        class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
-                      >
-                        <img :src="photo" class="w-full h-full object-cover" />
-                      </div>
-                    </div>
-                  </section>
-
-                  <section v-if="currentCard.wishlist && currentCard.wishlist.length">
-                    <h3
-                      class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
-                    >
-                      <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
-                    </h3>
-                    <div
-                      class="h-48 rounded-2xl overflow-hidden shadow-inner bg-gray-50 border border-gray-100"
-                    >
-                      <WishBallPool :wishlist="currentCard.wishlist" />
-                    </div>
-                  </section>
-                </div>
+              <div
+                v-if="swipeFeedback === 'like'"
+                class="absolute top-10 right-10 border-4 border-green-400 text-green-400 px-4 py-2 rounded-xl text-3xl font-black -rotate-12 uppercase tracking-widest opacity-80 scale-125 z-20"
+              >
+                LIKE
+              </div>
+              <div
+                v-if="swipeFeedback === 'nope'"
+                class="absolute top-10 left-10 border-4 border-red-500 text-red-500 px-4 py-2 rounded-xl text-3xl font-black rotate-12 uppercase tracking-widest opacity-80 scale-125 z-20"
+              >
+                NOPE
               </div>
             </div>
 
-            <div
-              class="sticky bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-white via-white to-transparent flex justify-center gap-12 border-t border-secondary-100/60 backdrop-blur-sm z-40"
-            >
-              <button
-                class="action-btn-nope scale-110 shadow-md"
-                @click="handleButtonClick('left')"
-              >
-                <XIcon class="w-7 h-7 pointer-events-none" />
-              </button>
-              <button
-                class="action-btn-like scale-110 shadow-primary-sm"
-                @click="handleButtonClick('right')"
-              >
-                <HeartIcon class="w-7 h-7 fill-current pointer-events-none" />
-              </button>
+            <div class="p-6 space-y-8">
+              <section>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  關於我
+                </h3>
+                <p class="text-gray-700 leading-relaxed text-base">{{ currentCard.bio }}</p>
+              </section>
+
+              <section v-if="currentCard.wishlist && currentCard.wishlist.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <SparklesIcon class="w-4 h-4 mr-1 text-primary-500" /> 想去的地方 (許願球池)
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="(place, index) in currentCard.wishlist"
+                    :key="place"
+                    :class="[
+                      'px-4 py-1.5 rounded-full text-sm font-bold border shadow-sm',
+                      getBallStyle(index),
+                    ]"
+                  >
+                    {{ place }}
+                  </span>
+                </div>
+              </section>
+
+              <section v-if="currentCard.tags && currentCard.tags.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <TentIcon class="w-4 h-4 mr-1 text-green-600" /> 旅行風格
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="act in currentCard.tags"
+                    :key="act"
+                    class="px-3 py-1.5 border border-secondary-200 bg-secondary-50 text-secondary-700 rounded-lg text-sm font-bold"
+                  >
+                    #{{ act }}
+                  </span>
+                </div>
+              </section>
+
+              <section v-if="currentCard.gallery && currentCard.gallery.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <CameraIcon class="w-4 h-4 mr-1" /> 旅遊相簿
+                </h3>
+                <div class="grid grid-cols-3 gap-2">
+                  <div
+                    v-for="(photo, idx) in currentCard.gallery"
+                    :key="photo || idx"
+                    class="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                  >
+                    <img :src="photo" class="w-full h-full object-cover" />
+                  </div>
+                </div>
+              </section>
+
+              <section v-if="currentCard.pastTrips && currentCard.pastTrips.length">
+                <h3
+                  class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center"
+                >
+                  <MapPinIcon class="w-4 h-4 mr-1 text-green-600" /> 去過的地方 (自主簽證旅行)
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="trip in currentCard.pastTrips"
+                    :key="`${trip.name}-${trip.date}`"
+                    class="px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg text-sm font-bold flex items-center gap-1.5"
+                  >
+                    <span>{{ trip.icon || '✈️' }}</span>
+                    <span>{{ trip.name }}</span>
+                    <span v-if="trip.date" class="text-xs opacity-75">({{ trip.date }})</span>
+                  </span>
+                </div>
+              </section>
             </div>
           </div>
-        </Transition>
+        </div>
+
+        <div
+          class="sticky bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-white via-white to-transparent flex justify-center gap-12 border-t border-secondary-100/60 backdrop-blur-sm z-40"
+        >
+          <button
+            class="action-btn-nope scale-110 shadow-md"
+            @click.stop="handleButtonClick('left')"
+            @touchstart.stop
+            @mousedown.stop
+          >
+            <XIcon class="w-7 h-7 pointer-events-none" />
+          </button>
+          <button
+            class="action-btn-like scale-110 shadow-primary-sm"
+            @click.stop="handleButtonClick('right')"
+            @touchstart.stop
+            @mousedown.stop
+          >
+            <HeartIcon class="w-7 h-7 fill-current pointer-events-none" />
+          </button>
+        </div>
       </div>
       <div
         v-else

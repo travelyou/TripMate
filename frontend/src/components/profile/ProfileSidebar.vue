@@ -30,6 +30,21 @@ const handleEditWishlist = () => {
 const handleOpenPersonalityResult = () => {
   emit('open-personality-result')
 }
+
+// 許願球池標籤顏色配置
+const getWishlistTagColor = (index) => {
+  const colors = [
+    { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+    { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+    { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+    { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+    { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+    { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+    { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+    { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+  ]
+  return colors[index % colors.length]
+}
 </script>
 
 <template>
@@ -95,7 +110,7 @@ const handleOpenPersonalityResult = () => {
           <Pencil class="w-4 h-4" />
         </button>
       </div>
-      <!-- Ball Container -->
+      <!-- Ball Container - 動態球池，無論是自己還是別人的檔案都顯示 -->
       <WishBallPool :wishlist="wishlist" />
     </div>
   </div>

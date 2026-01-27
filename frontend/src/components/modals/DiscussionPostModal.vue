@@ -928,7 +928,7 @@ onMounted(() => {
               type="text"
               placeholder="輸入一個吸引人的標題..."
               :class="[
-                'w-full p-3 border-2 rounded-xl focus:outline-none transition',
+                'w-full p-3 border-2 rounded-xl focus:outline-none transition text-black',
                 errors.title
                   ? 'border-red-500 focus:border-red-500'
                   : 'border-gray-200 focus:border-primary-500',
@@ -1389,6 +1389,7 @@ onMounted(() => {
   min-height: 300px;
   line-height: 1.5;
   font-size: 16px;
+  color: #111827;
 }
 
 :deep(.ProseMirror p) {

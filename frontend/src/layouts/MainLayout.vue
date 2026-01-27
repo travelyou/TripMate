@@ -57,6 +57,7 @@ const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
 const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
+const openChatIsVendor = ref(false) // 是否為廠商聊天
 const unreadMessageCount = ref(0) // 未讀訊息總數
 const incomingMessageToasts = ref([])
 let incomingToastTimer = null
@@ -267,13 +268,11 @@ const handleIncomingChatMessage = (payload) => {
   if (!currentUid) return
   const fromUid = payload.fromUid || payload.sender_uid
   if (!fromUid) return
-  
-  // 防止處理自己發送的訊息（應該已經在發送時處理過了）
+
   if (fromUid === currentUid) {
-    console.log('[handleIncomingChatMessage] 忽略自己發送的訊息')
     return
   }
-  
+
   const mappedMessage = {
     id: payload.clientId || payload.id || Date.now(),
     type: 'friend',
@@ -297,7 +296,7 @@ const handleIncomingChatMessage = (payload) => {
     rooms.unshift(room)
   }
   const storedMessages = Array.isArray(room.messages) ? room.messages : []
-  
+
   // 檢查訊息是否已存在，避免重複
   const exists = storedMessages.some(msg => {
     if (msg.id && mappedMessage.id && msg.id === mappedMessage.id) {
@@ -308,12 +307,11 @@ const handleIncomingChatMessage = (payload) => {
     const sameType = msg.isImage === mappedMessage.isImage
     return sameContent && sameTimestamp && sameType
   })
-  
+
   if (exists) {
-    console.log('[handleIncomingChatMessage] 忽略重複訊息')
     return
   }
-  
+
   storedMessages.push(mappedMessage)
   room.messages = storedMessages
   const preview = mappedMessage.isImage ? '傳送了圖片' : mappedMessage.content
@@ -432,6 +430,9 @@ const handleQuickAction = () => {
     isMobileActionMenuOpen.value = false
     return
   }
+  if (userStore.isVendor) {
+    return
+  }
   isSwipeModalOpen.value = true
   isMobileActionMenuOpen.value = false
 }
@@ -441,6 +442,7 @@ const handleTogglePrivateChat = (user = null) => {
     isAiChatOpen.value = false
     isMobileActionMenuOpen.value = false
     openChatWithUser.value = null
+    openChatIsVendor.value = false
     return
   }
   if (user) {
@@ -458,10 +460,12 @@ const handleOpenChat = (event) => {
     isAiChatOpen.value = false
     isMobileActionMenuOpen.value = false
     openChatWithUser.value = null
+    openChatIsVendor.value = false
     return
   }
   if (event.detail && event.detail.user) {
     openChatWithUser.value = event.detail.user
+    openChatIsVendor.value = event.detail.isVendor || false
     isPrivateChatOpen.value = true
     isAiChatOpen.value = false
     isMobileActionMenuOpen.value = false
@@ -615,13 +619,13 @@ const handleChatSend = (event) => {
   const detail = event.detail || {}
   const toUid = detail.toUid
   if (!toUid) return
-  
+
   // 防止發送訊息給自己
   if (toUid === currentUid) {
     console.warn('⚠️ 不能發送訊息給自己')
     return
   }
-  
+
   sendChatSocketMessage({
     type: 'chat_message',
     fromUid: currentUid,
@@ -730,12 +734,8 @@ const handleToggleAiChat = () => {
   isMobileActionMenuOpen.value = false
 }
 
-// 處理發文提交
 const handleSubmitPost = async (postData) => {
   try {
-    console.log('MainLayout 收到發文請求:', postData)
-
-    // 檢查用戶是否已登入
     const firebaseUser = auth.currentUser
     const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
 
@@ -825,6 +825,7 @@ const handleSubmitPost = async (postData) => {
 const handleClosePrivateChat = () => {
   isPrivateChatOpen.value = false
   openChatWithUser.value = null
+  openChatIsVendor.value = false
 }
 </script>
 
@@ -957,7 +958,11 @@ const handleClosePrivateChat = () => {
               </div>
               <span class="text-lg font-bold text-gray-700">發布</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group relative" @click="handleQuickAction">
+            <button
+              v-if="!userStore.isVendor"
+              class="flex flex-col items-center gap-2 group relative"
+              @click="handleQuickAction"
+            >
               <div
                 class="w-14 h-14 bg-primary-600 rounded-2xl border border-secondary-200 shadow-primary-sm flex items-center justify-center group-active:translate-y-0.5 group-active:shadow-none transition relative"
               >
@@ -1005,10 +1010,14 @@ const handleClosePrivateChat = () => {
     <PrivateChatWindow
       v-if="isPrivateChatOpen"
       :open-chat-with-user="openChatWithUser"
+      :is-vendor-chat="openChatIsVendor"
       @close="handleClosePrivateChat"
     />
     <AIChatWindow v-if="isAiChatOpen" @close="isAiChatOpen = false" />
-    <SwipeMatchModal v-if="isSwipeModalOpen" @close="isSwipeModalOpen = false" />
+    <SwipeMatchModal
+      v-if="isSwipeModalOpen && !userStore.isVendor"
+      @close="isSwipeModalOpen = false"
+    />
   </div>
 
   <Transition name="fade">

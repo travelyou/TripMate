@@ -19,6 +19,7 @@ import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
 import FriendListModal from '@/components/profile/FriendListModal.vue'
 import EditProfileModal from '@/components/profile/EditProfileModal.vue'
 import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
+import AvatarPickerModal from '@/components/modals/AvatarPickerModal.vue'
 
 // Tabs
 import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
@@ -50,6 +51,7 @@ const isCurrentUser = computed(() => {
 
 const viewingUser = ref(null)
 const user = computed(() => {
+  // 如果是查看他人檔案
   if (targetUid.value && targetUid.value !== userStore.currentUser?.uid) {
     return (
       viewingUser.value || {
@@ -77,7 +79,9 @@ const user = computed(() => {
       }
     )
   }
-  return viewingUser.value || userStore.currentUser
+  // 如果是查看自己檔案，直接返回 currentUser，不清空 viewingUser 以保持資料一致性
+  // 但確保返回的是最新的 currentUser
+  return userStore.currentUser || null
 })
 
 const personalityResult = computed(() => personalityStore.savedResult || personalityStore.result)
@@ -116,6 +120,7 @@ const isFriendModalOpen = ref(false)
 const isPersonalityModalOpen = ref(false)
 const isAvatarCropOpen = ref(false)
 const avatarFileToCrop = ref(null)
+const isAvatarPickerOpen = ref(false)
 
 // [NEW] 名片 Modal 狀態
 const isCardSettingsOpen = ref(false)
@@ -155,6 +160,9 @@ const stats = computed(() => ({
 // --- Methods ---
 
 const openCardSettings = () => {
+  if (userStore.isVendor) {
+    return
+  }
   isCardSettingsOpen.value = true
 }
 
@@ -335,17 +343,32 @@ const loadProfileData = async () => {
         isMatchingEnabled.value = profileData.user.is_matching_enabled
       }
 
-      if (!isCurrentUser.value) {
+      // 檢查是否為當前用戶
+      const isCurrentUserProfile = uidToLoad === userStore.currentUser?.uid
+
+      if (!isCurrentUserProfile) {
+        // 查看他人檔案：更新 viewingUser
         viewingUser.value = {
           ...profileData.user,
           friends: profileData.friends,
           wishlist: profileData.wishlist,
+          visitedPlaces: profileData.visitedPlaces || { domestic: [], international: [] },
         }
         // 這裡不需要還原性格測驗，看別人不用看那麼細
       } else {
+        // 查看自己檔案：更新 userStore，並清空 viewingUser
+        viewingUser.value = null
         userStore.setUserProfile(profileData.user)
         userStore.wishlist = profileData.wishlist
         userStore.currentUser.friends = profileData.friends
+
+        // 更新 visitedPlaces
+        if (profileData.visitedPlaces) {
+          userStore.visitedPlaces = {
+            domestic: profileData.visitedPlaces.domestic || [],
+            international: profileData.visitedPlaces.international || [],
+          }
+        }
 
         // [修正] 還原性格測驗結果，讓側邊欄顯示
         const hasPersonality = personalityStore.savedResult || personalityStore.result
@@ -407,6 +430,65 @@ const handleUpdateWishlist = (nextWishlist) => {
   userStore.wishlist = Array.isArray(nextWishlist) ? nextWishlist : []
 }
 
+// 處理新增去過的地方
+const handleAddVisitedPlace = async (placeData) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
+
+  try {
+    const { addVisitedPlace } = await import('@/api/profile')
+    const result = await addVisitedPlace(user.value.uid, placeData)
+
+    // 更新 Store（使用 API 返回的完整資料，包含 id）
+    userStore.addVisitedPlace(
+      {
+        id: result.id,
+        name: result.name || placeData.name,
+        date: result.date || placeData.date,
+        icon: result.icon || placeData.icon,
+      },
+      placeData.type
+    )
+
+    // 重新載入資料以確保同步
+    await loadProfileData()
+  } catch (error) {
+    console.error('新增去過的地方失敗：', error)
+    alert(error.message || '新增失敗，請稍後再試')
+  }
+}
+
+// 處理刪除去過的地方
+const handleRemoveVisitedPlace = async ({ type, index }) => {
+  if (!isCurrentUser.value || !user.value?.uid) return
+
+  try {
+    const { removeVisitedPlace } = await import('@/api/profile')
+
+    // 獲取要刪除的項目 ID
+    const places = type === 'domestic'
+      ? user.value.visitedPlaces?.domestic || []
+      : user.value.visitedPlaces?.international || []
+
+    if (index >= 0 && index < places.length) {
+      const place = places[index]
+      // 使用 id 刪除
+      if (place.id) {
+        await removeVisitedPlace(user.value.uid, place.id)
+      } else {
+        console.warn('無法刪除：缺少項目 ID')
+        alert('無法刪除：缺少項目 ID，請重新載入頁面後再試')
+        return
+      }
+    }
+
+    // 重新載入資料以確保同步
+    await loadProfileData()
+  } catch (error) {
+    console.error('刪除去過的地方失敗：', error)
+    alert(error.message || '刪除失敗，請稍後再試')
+  }
+}
+
 const handlePostEdit = () => {
   isDetailModalOpen.value = false
 }
@@ -462,9 +544,31 @@ const handleAvatarCrop = async (croppedFile) => {
   }
 }
 
+const handleOpenAvatarPicker = () => {
+  isAvatarPickerOpen.value = true
+}
+
+const handleSelectPresetAvatar = async (avatarUrl) => {
+  if (!isCurrentUser.value || !avatarUrl) return
+  try {
+    const { updateUserProfile } = await import('@/api/users')
+    await updateUserProfile(user.value.uid, { avatar: avatarUrl })
+    userStore.updateProfile({ avatar: avatarUrl })
+    isAvatarPickerOpen.value = false
+  } catch (error) {
+    console.error(error)
+    alert('更新頭貼失敗')
+  }
+}
+
 watch(
   () => route.params.uid,
-  () => {
+  (newUid, oldUid) => {
+    // 當從他人檔案切換回自己檔案時，清空 viewingUser
+    const currentUid = userStore.currentUser?.uid
+    if (oldUid && oldUid !== currentUid && (!newUid || newUid === currentUid)) {
+      viewingUser.value = null
+    }
     loadProfileData()
   },
   { immediate: true },
@@ -509,6 +613,7 @@ onMounted(() => {
       @add-friend="handleAddFriend"
       @open-card-settings="openCardSettings"
       @open-settings="openSettings"
+      @open-avatar-picker="handleOpenAvatarPicker"
     />
 
     <template v-if="!loading">
@@ -548,6 +653,8 @@ onMounted(() => {
               v-if="activeTab === 'visited_places'"
               :visited-places="user.visitedPlaces"
               :is-current-user="isCurrentUser"
+              @add-place="handleAddVisitedPlace"
+              @remove-place="handleRemoveVisitedPlace"
             />
             <TabHostedTrips
               v-if="activeTab === 'hosted_trips'"
@@ -647,6 +754,11 @@ onMounted(() => {
       :image-file="avatarFileToCrop"
       @close="isAvatarCropOpen = false"
       @crop="handleAvatarCrop"
+    />
+    <AvatarPickerModal
+      :is-open="isAvatarPickerOpen"
+      @close="isAvatarPickerOpen = false"
+      @select="handleSelectPresetAvatar"
     />
   </div>
 </template>

@@ -1,6 +1,9 @@
 ﻿<script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Calendar as CalendarIcon, Heart, ThumbsUp } from 'lucide-vue-next'
+
+const router = useRouter()
 
 defineProps({
   itineraries: {
@@ -10,6 +13,12 @@ defineProps({
 })
 
 const emit = defineEmits(['update'])
+
+const handleClick = (item) => {
+  if (item.id) {
+    router.push(`/travelers/${item.id}`)
+  }
+}
 
 const isReviewOpen = ref(false)
 const reviewTarget = ref(null)
@@ -86,7 +95,8 @@ const submitReview = () => {
       <div
         v-for="item in itineraries"
         :key="item.id"
-        class="border-2 border-secondary-200 rounded-lg p-4 hover:border-primary-400 hover:bg-primary-50 transition"
+        class="border-2 border-secondary-200 rounded-lg p-4 hover:border-primary-400 hover:bg-primary-50 transition cursor-pointer"
+        @click="handleClick(item)"
       >
         <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
           <div class="flex-1">
@@ -149,7 +159,7 @@ const submitReview = () => {
             <button
               type="button"
               class="mt-2 px-3 py-1.5 rounded-lg border border-primary text-primary font-semibold hover:bg-primary-50 transition"
-              @click="openReviewModal(item)"
+              @click.stop="openReviewModal(item)"
             >
               {{ item.comment ? '修改評論' : '評論' }}
             </button>

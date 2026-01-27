@@ -4,19 +4,12 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 const { createLikeNotification } = require('../utils/notifications')
-const { getUserInfo } = require('../utils/userInfo')
 
-// POST /api/likes - 按讚/取消按讚
 router.post('/', async (req, res) => {
-  console.log('🔵 [Backend Likes POST] ========== 開始 ==========')
-  console.log('🔵 [Backend Likes POST] Body:', req.body)
-
   try {
     const { post_id, author_uid, board } = req.body
 
-    // 驗證必填欄位
     if (!post_id || !author_uid || !board) {
-      console.log('❌ [Backend Likes POST] 缺少必填欄位')
       return res.status(400).json({
         error: '缺少必填欄位',
         required: ['post_id', 'author_uid', 'board'],
@@ -25,16 +18,12 @@ router.post('/', async (req, res) => {
 
     const postIdNum = Number(post_id)
     if (!Number.isInteger(postIdNum) || postIdNum <= 0) {
-      console.log('❌ [Backend Likes POST] post_id 格式錯誤:', post_id)
       return res.status(400).json({
         error: 'post_id 格式錯誤',
         details: 'post_id 必須是正整數',
       })
     }
 
-    console.log('🔵 [Backend Likes POST] 檢查是否已按讚')
-
-    // 驗證 post_id 是否存在於對應的表中
     let postExists = false
     if (board === 'discussion') {
       const postCheckQuery = `
@@ -65,14 +54,12 @@ router.post('/', async (req, res) => {
     }
 
     if (!postExists) {
-      console.log('❌ [Backend Likes POST] 貼文不存在:', { post_id: postIdNum, board })
       return res.status(404).json({
         error: '貼文不存在',
         details: `找不到 ID 為 ${postIdNum} 的 ${board} 貼文`,
       })
     }
 
-    // 檢查是否已經按讚（先檢查是否有 (post_id, author_uid) 的記錄，不管 board）
     const checkQuery = `
       SELECT id, board FROM public.likes
       WHERE post_id = $1 AND author_uid = $2
@@ -83,11 +70,8 @@ router.post('/', async (req, res) => {
     let likesCount = 0
 
     if (checkResult.rows.length > 0) {
-      // 已經存在記錄，檢查 board 是否匹配
       const existingRecord = checkResult.rows[0]
       if (existingRecord.board === board) {
-        // board 匹配，取消按讚
-        console.log('🔵 [Backend Likes POST] 取消按讚')
         const deleteQuery = `
           DELETE FROM public.likes
           WHERE post_id = $1 AND author_uid = $2
@@ -95,8 +79,6 @@ router.post('/', async (req, res) => {
         await pool.query(deleteQuery, [postIdNum, author_uid])
         liked = false
       } else {
-        // board 不匹配，更新 board 字段
-        console.log('🔵 [Backend Likes POST] 更新 board 字段')
         const updateQuery = `
           UPDATE public.likes
           SET board = $1, created_at = CURRENT_TIMESTAMP
@@ -106,8 +88,6 @@ router.post('/', async (req, res) => {
         liked = true
       }
     } else {
-      // 尚未按讚，嘗試新增按讚
-      console.log('🔵 [Backend Likes POST] 新增按讚')
       try {
         const insertQuery = `
           INSERT INTO public.likes (post_id, author_uid, board, created_at)
@@ -116,10 +96,7 @@ router.post('/', async (req, res) => {
         await pool.query(insertQuery, [postIdNum, author_uid, board])
         liked = true
       } catch (insertError) {
-        // 處理不同的錯誤類型
         if (insertError.code === '23505') {
-          // 唯一約束衝突，更新記錄
-          console.log('🔵 [Backend Likes POST] 檢測到唯一約束衝突，更新記錄')
           const updateQuery = `
             UPDATE public.likes
             SET board = $1, created_at = CURRENT_TIMESTAMP
@@ -128,26 +105,17 @@ router.post('/', async (req, res) => {
           await pool.query(updateQuery, [board, postIdNum, author_uid])
           liked = true
         } else if (insertError.code === '23503') {
-          // 外鍵約束違反 - 這表示外鍵約束只指向 discussion 表
-          // 對於 traveler 類型的帖子，我們需要跳過外鍵檢查
-          console.log('⚠️ [Backend Likes POST] 檢測到外鍵約束違反，嘗試使用不同的方法')
-
-          // 由於外鍵約束的限制，我們需要檢查是否可以通過其他方式插入
-          // 或者提供更友好的錯誤信息
           throw new Error(
             `無法為 ${board} 類型的帖子創建按讚記錄。` +
-              `數據庫外鍵約束只支持 discussion 類型的帖子。` +
-              `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
+            `數據庫外鍵約束只支持 discussion 類型的帖子。` +
+            `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
           )
         } else {
-          // 其他錯誤，重新拋出
           throw insertError
         }
       }
     }
 
-    // 查詢更新後的按讚總數
-    console.log('🔵 [Backend Likes POST] 查詢按讚總數')
     const countQuery = `
       SELECT COUNT(*) as count FROM public.likes
       WHERE post_id = $1 AND board = $2
@@ -155,41 +123,48 @@ router.post('/', async (req, res) => {
     const countResult = await pool.query(countQuery, [postIdNum, board])
     likesCount = parseInt(countResult.rows[0].count) || 0
 
-    // 如果按讚成功，創建通知（不給自己發通知）
     if (liked) {
       try {
-        // 獲取貼文作者和標題
         let postQuery = ''
         if (board === 'discussion') {
           postQuery = `SELECT author_uid, title FROM discussion.discussion WHERE id = $1`
         } else if (board === 'traveler') {
           postQuery = `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`
         }
-        
+
         if (postQuery) {
           const postResult = await pool.query(postQuery, [postIdNum])
+
           if (postResult.rows.length > 0) {
             const postAuthor = postResult.rows[0].author_uid
             const postTitle = postResult.rows[0].title
-            
-            // 只有當按讚者不是貼文作者時才發送通知
+
             if (postAuthor && postAuthor !== author_uid) {
-              // 使用共用函式獲取按讚者資訊
-              const likerInfo = await getUserInfo(author_uid)
-              
-              // 確保不會使用 uid 作為名稱（除非真的沒有其他選擇）
-              if (likerInfo.name === author_uid) {
-                console.warn(`[通知] 按讚者 ${author_uid} 沒有找到 nickname 或 name，使用 uid 作為名稱`)
+              let likerName = null
+              let likerAvatar = null
+
+              try {
+                const userResult = await pool.query(
+                  `SELECT nickname, avatar FROM public.users WHERE uid = $1`,
+                  [author_uid]
+                )
+
+                if (userResult.rows.length > 0) {
+                  const user = userResult.rows[0]
+                  likerName = (user.nickname && user.nickname.trim() !== '') ? user.nickname : null
+                  likerAvatar = (user.avatar && user.avatar.trim() !== '') ? user.avatar : null
+                }
+              } catch (error) {
+                console.error('查詢用戶資訊失敗:', error.message)
               }
-              
-              // 創建通知
+
               await createLikeNotification({
                 user_uid: postAuthor,
                 post_id: postIdNum,
                 board,
                 liker_uid: author_uid,
-                liker_name: likerInfo.name,
-                liker_avatar: likerInfo.avatar,
+                liker_name: likerName,
+                liker_avatar: likerAvatar,
                 post_title: postTitle,
               })
             }
@@ -200,18 +175,12 @@ router.post('/', async (req, res) => {
       }
     }
 
-    console.log('✅ [Backend Likes POST] 成功，liked:', liked, 'count:', likesCount)
-
     res.json({
       liked,
       likesCount,
     })
   } catch (error) {
-    console.error('❌ [Backend Likes POST] 錯誤:', error)
-    console.error('❌ [Backend Likes POST] 錯誤堆疊:', error.stack)
-    console.error('❌ [Backend Likes POST] 錯誤代碼:', error.code)
-    console.error('❌ [Backend Likes POST] 錯誤詳情:', error.detail)
-    console.error('❌ [Backend Likes POST] 請求 Body:', req.body)
+    console.error('按讚操作失敗：', error)
     res.status(500).json({
       error: '按讚操作失敗',
       details: error?.message || String(error),
@@ -221,19 +190,12 @@ router.post('/', async (req, res) => {
   }
 })
 
-// GET /api/likes/user/:uid - 獲取用戶收藏列表 (這是新增的，為了 FavoritesPage)
 router.get('/user/:uid', async (req, res) => {
-  console.log('🔵 [Backend Likes GET User] 獲取用戶收藏:', req.params.uid)
-
   try {
     const { uid } = req.params
-    const { board } = req.query // 例如 ?board=discussion
+    const { board } = req.query
 
     if (!uid) return res.status(400).json({ error: '缺少 UID' })
-
-    // 這裡我們需要 JOIN discussion 表來拿到文章詳細資料
-    // 注意：這裡假設你主要先做 discussion 的收藏。
-    // 如果要支援 traveler 或 itinerary，這裡的 SQL 需要根據 board 參數動態調整 JOIN 的表
 
     let query = ''
     let params = [uid]
@@ -289,12 +251,14 @@ router.get('/user/:uid', async (req, res) => {
           i.agency_name,
           i.author_uid,
           i.vendor_id,
+          i.banner_position_y,
           'itinerary' as type,
           u.nickname,
           u.avatar,
           u.spirit_animal,
           l.created_at as liked_at,
-          (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count
+          (SELECT COUNT(*) FROM public.likes WHERE post_id = i.id AND board = 'itinerary') as likes_count,
+          (SELECT COUNT(*) FROM public.comments WHERE post_id = i.id AND post_type = 'itinerary' AND deleted_at IS NULL) as comments_count
         FROM public.likes l
         JOIN itinerary.itineraries i ON l.post_id = i.id
         LEFT JOIN users u ON i.author_uid = u.uid
@@ -307,7 +271,6 @@ router.get('/user/:uid', async (req, res) => {
 
     const result = await pool.query(query, params)
 
-    // 整理回傳格式以符合前端 Card
     const favorites = result.rows.map((row) => {
       const baseData = {
         id: row.id,
@@ -338,6 +301,7 @@ router.get('/user/:uid', async (req, res) => {
 
       if (row.type === 'itinerary') {
         baseData.coverImage = row.cover_image || null
+        baseData.description = row.content || ''
         baseData.price = row.price ?? null
         baseData.category = row.category || null
         baseData.destinations = row.location ? [row.location] : row.destinations || []
@@ -347,26 +311,24 @@ router.get('/user/:uid', async (req, res) => {
         baseData.agencyName = row.agency_name || null
         baseData.author_uid = row.author_uid || null
         baseData.vendor_id = row.vendor_id || null
+        baseData.banner_position_y = row.banner_position_y ?? 50
+        baseData.isLiked = true
+        baseData.comments_count = parseInt(row.comments_count) || 0
       }
 
       return baseData
     })
 
-    console.log(`✅ [Backend Likes GET User] 找到 ${favorites.length} 筆收藏`)
     res.json(favorites)
   } catch (error) {
-    console.error('❌ [Backend Likes GET User] 錯誤:', error)
+    console.error('獲取收藏失敗：', error)
     res.status(500).json({ error: '獲取收藏失敗' })
   }
 })
 
-// GET /api/likes/:postId - 獲取單篇文章按讚資訊
 router.get('/:postId', async (req, res, next) => {
-  console.log('🔵 [Backend Likes GET] ========== 開始 ==========')
-
   try {
     const { postId } = req.params
-    // board 預設 discussion，避免前端漏帶就直接 400
     const boardRaw = req.query?.board
     const board = typeof boardRaw === 'string' && boardRaw.trim() ? boardRaw.trim() : 'discussion'
 
@@ -382,10 +344,8 @@ router.get('/:postId', async (req, res, next) => {
       })
     }
 
-    // 若有人誤打 /api/likes/user 這類，交給前面更明確的路由或 404
     if (postId === 'user') return next()
 
-    // 一次查 likesCount + isLiked，減少 DB roundtrip（對併發 8 筆請求比較友善）
     const query = `
       SELECT
         (SELECT COUNT(*)::int FROM public.likes WHERE post_id = $1 AND board = $2) AS likes_count,
@@ -407,7 +367,7 @@ router.get('/:postId', async (req, res, next) => {
       isLiked: !!row.is_liked,
     })
   } catch (error) {
-    console.error('❌ [Backend Likes GET] 錯誤:', error)
+    console.error('獲取按讚資訊失敗：', error)
     res.status(500).json({
       error: '獲取按讚資訊失敗',
       details: error?.message || String(error),

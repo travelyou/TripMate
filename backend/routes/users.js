@@ -4,35 +4,180 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
-// POST: 創建用戶 (保持原樣，省略...)
-router.post('/', async (req, res) => {
-  // ... (保留你原本的 POST 邏輯)
+async function queryWithSearchPath(queryText, params) {
   try {
-    // 簡單範例，請保留你原本的完整代碼
-    const { uid, email, is_matching_enabled } = req.body
-    if (!uid || !email) return res.status(400).json({ error: 'Missing fields' })
-    const existing = await pool.query('SELECT * FROM users WHERE uid=$1', [uid])
-    if (existing.rows.length > 0) res.json(existing.rows[0])
-    else {
-      await pool.query(
-        'INSERT INTO users (uid, email, is_matching_enabled) VALUES ($1, $2, COALESCE($3, true))',
-        [uid, email, is_matching_enabled],
-      )
-      res.status(201).json({ uid, email })
+    await pool.query('SET search_path TO public, travelers, discussion')
+    return await pool.query(queryText, params)
+  } catch (error) {
+    console.warn('⚠️ 設置 search_path 失敗，直接執行查詢:', error.message)
+    return await pool.query(queryText, params)
+  }
+}
+
+router.post('/', async (req, res) => {
+  try {
+    const {
+      uid,
+      email,
+      nickname,
+      real_name,
+      avatar,
+      bio,
+      spirit_animal,
+      role,
+      vendor_id,
+      location,
+      is_matching_enabled,
+    } = req.body
+
+    if (!uid || !email) {
+      return res.status(400).json({ error: 'Missing required fields: uid and email' })
     }
+
+    const existing = await queryWithSearchPath('SELECT uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at FROM users WHERE uid=$1', [uid])
+
+    if (existing.rows.length > 0) {
+      const updateFields = []
+      const updateValues = []
+      let paramIndex = 1
+
+      if (nickname !== undefined) {
+        updateFields.push(`nickname = $${paramIndex}`)
+        updateValues.push(nickname || null)
+        paramIndex++
+      }
+      if (real_name !== undefined) {
+        updateFields.push(`real_name = $${paramIndex}`)
+        updateValues.push(real_name || null)
+        paramIndex++
+      }
+      if (avatar !== undefined) {
+        updateFields.push(`avatar = $${paramIndex}`)
+        updateValues.push(avatar)
+        paramIndex++
+      }
+      if (bio !== undefined) {
+        updateFields.push(`bio = $${paramIndex}`)
+        updateValues.push(bio || null)
+        paramIndex++
+      }
+      if (spirit_animal !== undefined) {
+        updateFields.push(`spirit_animal = $${paramIndex}`)
+        updateValues.push(spirit_animal || null)
+        paramIndex++
+      }
+      if (role !== undefined) {
+        const validRole = (role === 'vendor' || role === 'user' || role === 'admin') ? role : 'user'
+        updateFields.push(`role = $${paramIndex}`)
+        updateValues.push(validRole)
+        paramIndex++
+      }
+      if (vendor_id !== undefined) {
+        updateFields.push(`vendor_id = $${paramIndex}`)
+        updateValues.push(vendor_id)
+        paramIndex++
+      }
+      if (location !== undefined) {
+        updateFields.push(`location = $${paramIndex}`)
+        updateValues.push(location || null)
+        paramIndex++
+      }
+      if (is_matching_enabled !== undefined) {
+        updateFields.push(`is_matching_enabled = $${paramIndex}`)
+        updateValues.push(is_matching_enabled)
+        paramIndex++
+      }
+
+      if (updateFields.length > 0) {
+        updateFields.push('updated_at = CURRENT_TIMESTAMP')
+        updateValues.push(uid)
+        const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE uid = $${paramIndex} RETURNING uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at`
+        const result = await queryWithSearchPath(updateQuery, updateValues)
+        const updatedUser = result.rows[0]
+
+        const responseData = {
+          uid: updatedUser.uid,
+          email: updatedUser.email,
+          nickname: updatedUser.nickname,
+          real_name: updatedUser.real_name,
+          avatar: updatedUser.avatar,
+          bio: updatedUser.bio,
+          spirit_animal: updatedUser.spirit_animal,
+          role: updatedUser.role,
+          vendor_id: updatedUser.vendor_id,
+          location: updatedUser.location,
+          is_matching_enabled: updatedUser.is_matching_enabled,
+          created_at: updatedUser.created_at,
+          updated_at: updatedUser.updated_at
+        }
+
+        return res.json({ data: responseData })
+      }
+
+      return res.json({ data: existing.rows[0] })
+    }
+
+    const insertQuery = `
+      INSERT INTO users (
+        uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at
+    `
+
+    const validRole = (role === 'vendor' || role === 'user' || role === 'admin') ? role : 'user'
+
+    const processValue = (value) => {
+      if (value === undefined) return null
+      if (value === null) return null
+      if (typeof value === 'string' && value.trim() === '') return null
+      return value
+    }
+
+    const insertValues = [
+      uid,
+      email,
+      processValue(nickname),
+      processValue(real_name),
+      processValue(avatar),
+      processValue(bio),
+      processValue(spirit_animal),
+      validRole,
+      processValue(vendor_id),
+      processValue(location),
+      is_matching_enabled,
+    ]
+
+    const result = await queryWithSearchPath(insertQuery, insertValues)
+    const insertedUser = result.rows[0]
+
+    const responseData = {
+      uid: insertedUser.uid,
+      email: insertedUser.email,
+      nickname: insertedUser.nickname,
+      real_name: insertedUser.real_name,
+      avatar: insertedUser.avatar,
+      bio: insertedUser.bio,
+      spirit_animal: insertedUser.spirit_animal,
+      role: insertedUser.role,
+      vendor_id: insertedUser.vendor_id,
+      location: insertedUser.location,
+      is_matching_enabled: insertedUser.is_matching_enabled,
+      created_at: insertedUser.created_at,
+      updated_at: insertedUser.updated_at
+    }
+
+    res.status(201).json({ data: responseData })
   } catch (e) {
+    console.error('Create/Update User Error:', e)
     res.status(500).json({ error: e.message })
   }
 })
 
-// GET: 獲取所有用戶 (抽卡列表)
-// [修正] 加入 gallery
 router.get('/', async (req, res) => {
   try {
     const { role, page = 1, limit = 20 } = req.query
     const offset = (parseInt(page) - 1) * parseInt(limit)
 
-    // [修正] 加上 gallery
     let query = `
       SELECT
         u.uid,
@@ -85,31 +230,61 @@ router.get('/', async (req, res) => {
       params.push(parseInt(limit), offset)
     }
 
-    const result = await pool.query(query, params)
-    res.json(result.rows)
+    const result = await queryWithSearchPath(query, params)
+    
+    const usersWithVisitedPlaces = await Promise.all(
+      result.rows.map(async (user) => {
+        const visitedPlacesResult = await queryWithSearchPath(
+          'SELECT name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
+          [user.uid],
+        )
+        
+        const visitedPlaces = {
+          domestic: visitedPlacesResult.rows
+            .filter((p) => p.type === 'domestic')
+            .map((p) => ({
+              name: p.name,
+              date: p.date,
+              icon: p.icon,
+            })),
+          international: visitedPlacesResult.rows
+            .filter((p) => p.type === 'international')
+            .map((p) => ({
+              name: p.name,
+              date: p.date,
+              icon: p.icon,
+            })),
+        }
+        
+        return {
+          ...user,
+          visitedPlaces,
+        }
+      }),
+    )
+    
+    res.json(usersWithVisitedPlaces)
   } catch (error) {
     res.status(500).json({ error: '獲取用戶列表失敗', details: error.message })
   }
 })
 
-// GET: 獲取單一用戶
 router.get('/:uid', async (req, res) => {
   try {
     const { uid } = req.params
-    // 使用 SELECT * 確保抓到 gallery
-    const result = await pool.query('SELECT * FROM users WHERE uid = $1', [uid])
+    const result = await queryWithSearchPath('SELECT uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at, tags, card_bio, card_photo, card_tags, gallery FROM users WHERE uid = $1', [uid])
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' })
     }
-    res.json(result.rows[0])
+
+    res.json({ data: result.rows[0] })
   } catch (error) {
+    console.error('獲取用戶資料失敗:', error)
     res.status(500).json({ error: '獲取用戶資料失敗', details: error.message })
   }
 })
 
-// PUT: 更新用戶資料
-// [修正] 加入 gallery 更新邏輯
 router.put('/:uid', async (req, res) => {
   try {
     const { uid } = req.params
@@ -123,7 +298,7 @@ router.put('/:uid', async (req, res) => {
       card_bio,
       card_photo,
       card_tags,
-      gallery, // [NEW] 接收 gallery
+      gallery,
       is_matching_enabled,
     } = req.body
 
@@ -156,7 +331,6 @@ router.put('/:uid', async (req, res) => {
       paramIndex++
     }
 
-    // 卡片資料
     if (card_bio !== undefined) {
       setClauses.push(`card_bio = $${paramIndex}`)
       params.push(card_bio)
@@ -174,7 +348,6 @@ router.put('/:uid', async (req, res) => {
       paramIndex++
     }
 
-    // [NEW] Gallery
     if (gallery !== undefined) {
       const val = Array.isArray(gallery) ? gallery : []
       setClauses.push(`gallery = $${paramIndex}`)
@@ -197,7 +370,7 @@ router.put('/:uid', async (req, res) => {
       RETURNING *
     `
 
-    const result = await pool.query(updateQuery, params)
+    const result = await queryWithSearchPath(updateQuery, params)
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' })
@@ -210,13 +383,11 @@ router.put('/:uid', async (req, res) => {
   }
 })
 
-// PATCH role (保持原樣)
 router.patch('/:uid/role', async (req, res) => {
-  // ... 原本邏輯
   try {
     const { uid } = req.params
     const { role, vendor_id } = req.body
-    await pool.query('UPDATE users SET role=$2, vendor_id=$3 WHERE uid=$1', [uid, role, vendor_id])
+    await queryWithSearchPath('UPDATE users SET role=$2, vendor_id=$3 WHERE uid=$1', [uid, role, vendor_id])
     res.json({ success: true })
   } catch (e) {
     res.status(500).json({ error: e.message })

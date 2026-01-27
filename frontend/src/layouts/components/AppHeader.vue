@@ -270,9 +270,11 @@ const goToVendorProfile = () => {
   }
 }
 
-const hasCartItems = computed(
-  () => (checkoutStore.cartItems?.length ?? 0) > 0 || checkoutStore.tourGroups.length > 0,
-)
+const hasCartItems = computed(() => {
+  const hasItems = (checkoutStore.cartItems?.length ?? 0) > 0 || checkoutStore.tourGroups.length > 0
+  // 只有在有商品且未查看過購物車時才顯示紅點
+  return hasItems && !checkoutStore.hasViewedCart
+})
 
 const handleDesktopSearch = () => {
   if (!headerSearchQuery.value.trim()) return

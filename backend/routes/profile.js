@@ -343,8 +343,8 @@ router.post('/:uid/friends', async (req, res) => {
       
       if (requesterResult.rows.length > 0) {
         const requester = requesterResult.rows[0]
-        // 優先使用 nickname，如果沒有則使用 name，最後使用 uid
-        const requesterName = requester.nickname || requester.name || requester.uid
+        // 優先使用 nickname，如果沒有則使用 uid
+        const requesterName = requester.nickname || requester.uid
         await createFriendRequestNotification({
           user_uid: friend_uid,
           requester_uid: uid,
@@ -503,11 +503,8 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
     )
 
     if (checkRequest.rows.length === 0) {
-      console.log(`[acceptFriendRequest] 找不到待接受的好友請求: uid=${uid}, friend_uid=${friend_uid}`)
       return res.status(404).json({ error: '找不到待接受的好友請求' })
     }
-
-    console.log(`[acceptFriendRequest] 找到請求，準備更新: ${JSON.stringify(checkRequest.rows[0])}`)
 
     // 更新狀態為 accepted（friend_uid 發送給 uid 的請求）
     let updateQuery
@@ -530,8 +527,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
       return res.status(404).json({ error: '更新好友請求狀態失敗' })
     }
 
-    console.log(`[acceptFriendRequest] ✅ 成功更新好友請求: ${JSON.stringify(result.rows[0])}`)
-
     // 刪除聊天對話次數限制（因為已經成為好友）
     try {
       const tableCheck = await pool.query(
@@ -545,7 +540,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
               OR (user_uid = $2 AND friend_uid = $1)`,
           [uid, friend_uid],
         )
-        console.log(`[acceptFriendRequest] ✅ 已清除聊天次數限制`)
       }
     } catch (clearError) {
       console.warn(`[acceptFriendRequest] ⚠️ 清除聊天次數失敗:`, clearError.message)
@@ -608,7 +602,16 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
 
-    // 先檢查是否為好友關係（如果是好友，則不受3次限制）
+    const vendorCheck = await pool.query(
+      `SELECT role FROM public.users WHERE uid = $1`,
+      [friend_uid],
+    )
+    const isVendor = vendorCheck.rows.length > 0 && vendorCheck.rows[0].role === 'vendor'
+
+    if (isVendor) {
+      return res.json({ count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true })
+    }
+
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -618,7 +621,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     let isFriend = false
     if (hasStatus) {
-      // 檢查雙向好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE ((user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1))
@@ -627,7 +629,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       )
       isFriend = friendCheck.rows.length > 0
     } else {
-      // 沒有 status 欄位時，檢查是否存在任何好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
@@ -636,7 +637,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       isFriend = friendCheck.rows.length > 0
     }
 
-    // 如果是好友，直接返回允許發送（不受3次限制）
     if (isFriend) {
       return res.json({ count: 0, remaining: 999, canSend: true, isFriend: true })
     }
@@ -681,7 +681,16 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
   try {
     const { uid, friend_uid } = req.params
 
-    // 先檢查是否為好友關係（如果是好友，則不受3次限制，不需要記錄次數）
+    const vendorCheck = await pool.query(
+      `SELECT role FROM public.users WHERE uid = $1`,
+      [friend_uid],
+    )
+    const isVendor = vendorCheck.rows.length > 0 && vendorCheck.rows[0].role === 'vendor'
+
+    if (isVendor) {
+      return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true })
+    }
+
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -691,7 +700,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     let isFriend = false
     if (hasStatus) {
-      // 檢查雙向好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE ((user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1))
@@ -700,7 +708,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       )
       isFriend = friendCheck.rows.length > 0
     } else {
-      // 沒有 status 欄位時，檢查是否存在任何好友關係
       const friendCheck = await pool.query(
         `SELECT * FROM friends
          WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
@@ -709,7 +716,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       isFriend = friendCheck.rows.length > 0
     }
 
-    // 如果是好友，直接返回允許發送（不需要記錄次數）
     if (isFriend) {
       return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: true })
     }
@@ -741,13 +747,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       [uid, friend_uid],
     )
 
-    console.log(
-      `[incrementChatInteraction] UPDATE 嘗試: uid=${uid}, friend_uid=${friend_uid}, rowCount=${result.rowCount}`,
-    )
-
-    // 如果沒有更新任何記錄（rowCount === 0），則插入新記錄
     if (result.rowCount === 0 || result.rows.length === 0) {
-      console.log(`[incrementChatInteraction] 記錄不存在，執行 INSERT`)
       try {
         result = await pool.query(
           `INSERT INTO chat_interactions (user_uid, friend_uid, message_count, created_at, updated_at)
@@ -755,10 +755,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
            RETURNING message_count`,
           [uid, friend_uid],
         )
-        console.log(`[incrementChatInteraction] INSERT 成功: count=${result.rows[0]?.message_count}`)
       } catch (insertError) {
-        // 如果 INSERT 失敗（可能是因為唯一約束），再次嘗試 UPDATE
-        console.log(`[incrementChatInteraction] INSERT 失敗，重新嘗試 UPDATE: ${insertError.message}`)
         result = await pool.query(
           `UPDATE chat_interactions
            SET message_count = message_count + 1, updated_at = CURRENT_TIMESTAMP
@@ -766,15 +763,10 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
            RETURNING message_count`,
           [uid, friend_uid],
         )
-        console.log(`[incrementChatInteraction] 重新 UPDATE 結果: rowCount=${result.rowCount}, count=${result.rows[0]?.message_count}`)
       }
-    } else {
-      console.log(`[incrementChatInteraction] UPDATE 成功: count=${result.rows[0]?.message_count}`)
     }
 
-    // 最終驗證：確保我們獲取到了正確的值
     if (!result.rows || result.rows.length === 0 || !result.rows[0]?.message_count) {
-      console.error(`[incrementChatInteraction] ⚠️ 結果異常，重新查詢數據庫`)
       const finalCheck = await pool.query(
         `SELECT message_count FROM chat_interactions
          WHERE user_uid = $1 AND friend_uid = $2`,
@@ -782,16 +774,12 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       )
       if (finalCheck.rows.length > 0) {
         result.rows = [{ message_count: finalCheck.rows[0].message_count }]
-        console.log(`[incrementChatInteraction] 重新查詢得到的 count=${result.rows[0].message_count}`)
       }
     }
 
-    // 確保獲取正確的 count 值
     let count = parseInt(result.rows[0]?.message_count) || 0
 
-    // 驗證：如果 count 看起來不對，重新查詢一次
     if (count === 0) {
-      console.log(`[incrementChatInteraction] ⚠️ count 為 0 但記錄存在，重新查詢`)
       const verifyResult = await pool.query(
         `SELECT message_count FROM chat_interactions
          WHERE user_uid = $1 AND friend_uid = $2`,
@@ -799,16 +787,11 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       )
       if (verifyResult.rows.length > 0) {
         count = parseInt(verifyResult.rows[0].message_count) || 0
-        console.log(`[incrementChatInteraction] 重新查詢得到的 count=${count}`)
       }
     }
 
     const remaining = Math.max(0, 3 - count)
     const canSend = remaining > 0
-
-    console.log(
-      `[incrementChatInteraction] 最終結果: uid=${uid}, friend_uid=${friend_uid}, count=${count}, remaining=${remaining}, canSend=${canSend}`,
-    )
 
     res.json({ success: true, count, remaining, canSend })
   } catch (error) {
@@ -1018,7 +1001,7 @@ router.get('/:uid', async (req, res) => {
     const user = userResult.rows[0]
 
     const visitedPlacesResult = await pool.query(
-      'SELECT name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
+      'SELECT id, name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
       [uid],
     )
 
@@ -1026,6 +1009,7 @@ router.get('/:uid', async (req, res) => {
       domestic: visitedPlacesResult.rows
         .filter((p) => p.type === 'domestic')
         .map((p) => ({
+          id: p.id,
           name: p.name,
           date: p.date,
           icon: p.icon,
@@ -1033,6 +1017,7 @@ router.get('/:uid', async (req, res) => {
       international: visitedPlacesResult.rows
         .filter((p) => p.type === 'international')
         .map((p) => ({
+          id: p.id,
           name: p.name,
           date: p.date,
           icon: p.icon,

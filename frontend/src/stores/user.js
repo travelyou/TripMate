@@ -6,6 +6,12 @@ import { getUserProfile } from '@/api/users'
 import { auth, db } from '@/firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
+import {
+  saveToCollection as apiSaveToCollection,
+  removeFromCollection as apiRemoveFromCollection,
+  getUserCollections,
+  checkIsCollected,
+} from '@/api/collection'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref({
@@ -51,7 +57,7 @@ export const useUserStore = defineStore('user', () => {
     if (!targetUid) return
 
     try {
-      const [discussionResponse, travelerResponse] = await Promise.all([
+      const [discussionResponse, travelerResponse, itineraryResponse] = await Promise.all([
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
             params: { board: 'discussion' },
@@ -60,6 +66,11 @@ export const useUserStore = defineStore('user', () => {
         axios
           .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
             params: { board: 'traveler' },
+          })
+          .catch(() => ({ data: [] })),
+        axios
+          .get(`${API_BASE_URL}/likes/user/${targetUid}`, {
+            params: { board: 'itinerary' },
           })
           .catch(() => ({ data: [] })),
       ])
@@ -72,10 +83,13 @@ export const useUserStore = defineStore('user', () => {
         ...item,
         type: 'traveler',
       }))
+      const normalizedItinerary = (itineraryResponse.data || []).map((item) => ({
+        ...item,
+        type: 'itinerary',
+      }))
 
-      favorites.value = [...normalizedDiscussion, ...normalizedTraveler]
+      favorites.value = [...normalizedDiscussion, ...normalizedTraveler, ...normalizedItinerary]
     } catch (error) {
-      console.error('獲取收藏失敗:', error)
     }
   }
 
@@ -97,15 +111,20 @@ export const useUserStore = defineStore('user', () => {
 
     try {
       const targetUid = currentUser.value.uid || currentUser.value.id
+      let board = 'discussion'
+      if (itemType === 'traveler') {
+        board = 'traveler'
+      } else if (itemType === 'itinerary') {
+        board = 'itinerary'
+      }
       await axios.post(`${API_BASE_URL}/likes`, {
         post_id: item.id,
         author_uid: targetUid,
-        board: itemType === 'traveler' ? 'traveler' : 'discussion',
+        board: board,
       })
 
       await fetchFavorites()
     } catch (error) {
-      console.error('按讚 API 失敗，正在回滾...', error)
       if (action === 'remove') {
         favorites.value.push({ ...item, type: itemType })
         if (item.likes !== undefined) item.likes++
@@ -129,6 +148,8 @@ export const useUserStore = defineStore('user', () => {
     { id: 'domestic', name: '國內旅遊', items: [] },
     { id: 'international', name: '國外旅遊', items: [] },
   ])
+
+  const collectionCache = ref(new Map())
 
   const participatedTrips = ref([])
 
@@ -208,19 +229,82 @@ export const useUserStore = defineStore('user', () => {
     isCollectionModalOpen.value = true
   }
 
-  const saveToCategory = (categoryId, item = null) => {
-    const targetItem = item || pendingCollectionItem.value
-    if (!targetItem) return
+  const fetchCollections = async (userUid) => {
+    if (!userUid) return
 
-    const category = collectionCategories.value.find((c) => c.id === categoryId)
-    if (category) {
-      const exists = category.items.some(
-        (i) => i.id === targetItem.id && i.type === targetItem.type,
-      )
-      if (!exists) category.items.push(targetItem)
+    try {
+      const collections = await getUserCollections(userUid)
+      collectionCache.value.clear()
+
+      collectionCategories.value.forEach((cat) => {
+        cat.items = []
+      })
+
+      collections.forEach((save) => {
+        const categoryId = save.category_id || 'default'
+        const category = collectionCategories.value.find((c) => c.id === categoryId)
+        if (category) {
+          const cacheKey = `${save.post_type}:${save.post_id}`
+          collectionCache.value.set(cacheKey, {
+            id: save.post_id,
+            type: save.post_type,
+            category_id: save.category_id,
+          })
+
+          const exists = category.items.some(
+            (i) => i.id === save.post_id && i.type === save.post_type,
+          )
+          if (!exists) {
+            category.items.push({
+              id: save.post_id,
+              type: save.post_type,
+              category_id: save.category_id,
+            })
+          }
+        }
+      })
+    } catch (error) {
     }
-    isCollectionModalOpen.value = false
-    pendingCollectionItem.value = null
+  }
+
+  const saveToCategory = async (categoryId, item = null) => {
+    const targetItem = item || pendingCollectionItem.value
+    if (!targetItem || !currentUser.value.uid) return
+
+    try {
+      await apiSaveToCollection(
+        currentUser.value.uid,
+        targetItem.id,
+        targetItem.type || 'discussion',
+        categoryId === 'default' ? null : categoryId,
+      )
+
+      const category = collectionCategories.value.find((c) => c.id === categoryId)
+      if (category) {
+        const exists = category.items.some(
+          (i) => i.id === targetItem.id && i.type === targetItem.type,
+        )
+        if (!exists) {
+          category.items.push({
+            id: targetItem.id,
+            type: targetItem.type || 'discussion',
+            category_id: categoryId === 'default' ? null : categoryId,
+          })
+        }
+      }
+
+      const cacheKey = `${targetItem.type || 'discussion'}:${targetItem.id}`
+      collectionCache.value.set(cacheKey, {
+        id: targetItem.id,
+        type: targetItem.type || 'discussion',
+        category_id: categoryId === 'default' ? null : categoryId,
+      })
+
+      isCollectionModalOpen.value = false
+      pendingCollectionItem.value = null
+    } catch (error) {
+      alert('收藏失敗，請稍後再試')
+    }
   }
 
   const createCategoryAndSave = (name) => {
@@ -229,24 +313,40 @@ export const useUserStore = defineStore('user', () => {
     saveToCategory(newId)
   }
 
-  const removeFromCollection = (item, categoryId = null) => {
+  const removeFromCollection = async (item, categoryId = null) => {
+    if (!currentUser.value.uid) return
+
     const itemType = item.type || 'discussion'
-    if (categoryId) {
-      const category = collectionCategories.value.find((c) => c.id === categoryId)
-      if (category) {
-        const index = category.items.findIndex((i) => i.id === item.id && i.type === itemType)
-        if (index > -1) category.items.splice(index, 1)
+
+    try {
+      await apiRemoveFromCollection(currentUser.value.uid, item.id, itemType)
+
+      if (categoryId) {
+        const category = collectionCategories.value.find((c) => c.id === categoryId)
+        if (category) {
+          const index = category.items.findIndex((i) => i.id === item.id && i.type === itemType)
+          if (index > -1) category.items.splice(index, 1)
+        }
+      } else {
+        collectionCategories.value.forEach((cat) => {
+          const index = cat.items.findIndex((i) => i.id === item.id && i.type === itemType)
+          if (index > -1) cat.items.splice(index, 1)
+        })
       }
-    } else {
-      collectionCategories.value.forEach((cat) => {
-        const index = cat.items.findIndex((i) => i.id === item.id && i.type === itemType)
-        if (index > -1) cat.items.splice(index, 1)
-      })
+
+      const cacheKey = `${itemType}:${item.id}`
+      collectionCache.value.delete(cacheKey)
+    } catch (error) {
+      alert('取消收藏失敗，請稍後再試')
     }
   }
 
   const isCollected = (item) => {
     const itemType = item.type || 'discussion'
+    const cacheKey = `${itemType}:${item.id}`
+    if (collectionCache.value.has(cacheKey)) {
+      return true
+    }
     return collectionCategories.value.some((cat) =>
       cat.items.some((i) => i.id === item.id && i.type === itemType),
     )
@@ -259,33 +359,30 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const updateProfile = (newData) => {
-    // 確保 name 和 nickname 同步更新
     if (newData.nickname !== undefined) {
       currentUser.value = {
         ...currentUser.value,
         ...newData,
-        name: newData.nickname, // 同步更新 name
+        name: newData.nickname,
         nickname: newData.nickname,
       }
     } else if (newData.name !== undefined) {
       currentUser.value = {
         ...currentUser.value,
         ...newData,
-        nickname: newData.name, // 同步更新 nickname
+        nickname: newData.name,
         name: newData.name,
       }
     } else {
       currentUser.value = { ...currentUser.value, ...newData }
     }
 
-    // 如果更新了頭貼，保存到 localStorage
     if (newData.avatar !== undefined && currentUser.value.uid) {
       try {
         if (newData.avatar && typeof newData.avatar === 'string' && newData.avatar.trim() !== '') {
           localStorage.setItem(`user_avatar_${currentUser.value.uid}`, newData.avatar)
         }
       } catch (e) {
-        console.warn('保存頭貼到 localStorage 失敗:', e)
       }
     }
   }
@@ -317,53 +414,40 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
-      // 正確處理頭貼：只有在 avatar 為 null、undefined 或空字串時才使用默認值
       let avatarValue = profileData.avatar
 
-      // 如果傳入的 avatar 有效，使用它並保存到 localStorage
       if (avatarValue && typeof avatarValue === 'string' && avatarValue.trim() !== '') {
-        // 保存到 localStorage 作為備份
         if (profileData.uid) {
           try {
             localStorage.setItem(`user_avatar_${profileData.uid}`, avatarValue)
           } catch (e) {
-            console.warn('保存頭貼到 localStorage 失敗:', e)
           }
         }
       } else {
-        // 如果沒有傳入有效的 avatar，嘗試從 localStorage 恢復
         if (profileData.uid) {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${profileData.uid}`)
-            // 檢查用戶是否曾經換過頭貼（localStorage 中是否有非 dicebear 的頭貼）
             const hasCustomAvatar =
               savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')
 
             if (savedAvatar && savedAvatar.trim() !== '') {
-              // 如果有保存的頭貼，使用它（無論是否為 dicebear）
               avatarValue = savedAvatar
             } else if (
               currentUser.value.avatar &&
               currentUser.value.avatar.trim() !== '' &&
               !currentUser.value.avatar.includes('dicebear.com')
             ) {
-              // 如果當前用戶已有自定義頭貼，保留它並保存到 localStorage
               avatarValue = currentUser.value.avatar
               try {
                 localStorage.setItem(`user_avatar_${profileData.uid}`, avatarValue)
               } catch (e) {
-                console.warn('保存頭貼到 localStorage 失敗:', e)
               }
             } else if (hasCustomAvatar) {
-              // 如果曾經有自定義頭貼但現在沒有，保持空值（不顯示默認頭貼）
               avatarValue = savedAvatar || ''
             } else {
-              // 只有從未換過頭貼時，才使用默認頭貼
               avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
             }
           } catch (e) {
-            console.warn('從 localStorage 載入頭貼失敗:', e)
-            // 如果載入失敗，嘗試使用當前用戶的頭貼，如果沒有則使用默認值
             avatarValue =
               currentUser.value.avatar ||
               (profileData.uid
@@ -433,7 +517,6 @@ export const useUserStore = defineStore('user', () => {
         const neonUserData = await getUserProfile(uid)
 
         if (neonUserData) {
-          // 檢查是否需要從 localStorage 恢復頭貼
           let avatar =
             neonUserData.avatar &&
             typeof neonUserData.avatar === 'string' &&
@@ -446,17 +529,12 @@ export const useUserStore = defineStore('user', () => {
             try {
               const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
               if (savedAvatar && savedAvatar.trim() !== '') {
-                // 如果 localStorage 中有頭貼（無論是否為 dicebear），都使用它
-                // 這表示用戶曾經設置過頭貼，不應該再使用默認頭貼
                 avatar = savedAvatar
-                // 只有非 dicebear 的頭貼才需要同步到資料庫
                 if (!savedAvatar.includes('dicebear.com')) {
                   avatarFromLocalStorage = true
                 }
               }
-              // 如果 localStorage 中沒有頭貼，avatar 保持 undefined，讓 setUserProfile 決定是否使用默認頭貼
             } catch (e) {
-              console.warn('從 localStorage 恢復頭貼失敗:', e)
             }
           }
 
@@ -477,7 +555,6 @@ export const useUserStore = defineStore('user', () => {
             is_matching_enabled: neonUserData.is_matching_enabled,
           })
 
-          // 如果頭貼是從 localStorage 恢復的，同步到資料庫
           if (avatarFromLocalStorage && avatar && avatar.trim() !== '') {
             try {
               const { createOrUpdateUser } = await import('@/api/users')
@@ -485,9 +562,7 @@ export const useUserStore = defineStore('user', () => {
                 uid: uid,
                 avatar: avatar,
               })
-              console.log('已將 localStorage 中的頭貼同步到資料庫')
             } catch (e) {
-              console.warn('同步頭貼到資料庫失敗:', e)
             }
           }
           return
@@ -498,7 +573,6 @@ export const useUserStore = defineStore('user', () => {
           neonError.message?.includes('Not Found') ||
           neonError.response?.status === 404
         if (!is404Error) {
-          console.error('[User Store] 從 Neon 載入失敗，嘗試從 Firestore 載入：', neonError)
         }
       }
 
@@ -518,16 +592,12 @@ export const useUserStore = defineStore('user', () => {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
             if (savedAvatar && savedAvatar.trim() !== '') {
-              // 如果 localStorage 中有頭貼（無論是否為 dicebear），都使用它
               avatar = savedAvatar
-              // 只有非 dicebear 的頭貼才需要同步到資料庫
               if (!savedAvatar.includes('dicebear.com')) {
                 avatarFromLocalStorage = true
               }
             }
-            // 如果 localStorage 中沒有頭貼，avatar 保持 undefined
           } catch (e) {
-            console.warn('從 localStorage 恢復頭貼失敗:', e)
           }
         }
 
@@ -535,7 +605,6 @@ export const useUserStore = defineStore('user', () => {
           uid: uid,
           email: firebaseUser.value?.email || '',
           ...userData,
-          // 確保 avatar 處理一致：如果是空字串則傳遞 undefined，讓 setUserProfile 處理
           avatar:
             userData.avatar && typeof userData.avatar === 'string' && userData.avatar.trim() !== ''
               ? userData.avatar
@@ -544,7 +613,6 @@ export const useUserStore = defineStore('user', () => {
           vendorId: userData.vendorId || null,
         })
 
-        // 如果頭貼是從 localStorage 恢復的，同步到資料庫
         if (avatarFromLocalStorage && avatar && avatar.trim() !== '') {
           try {
             const { createOrUpdateUser } = await import('@/api/users')
@@ -552,13 +620,10 @@ export const useUserStore = defineStore('user', () => {
               uid: uid,
               avatar: avatar,
             })
-            console.log('已將 localStorage 中的頭貼同步到資料庫')
           } catch (e) {
-            console.warn('同步頭貼到資料庫失敗:', e)
           }
         }
       } else {
-        // 如果 Firestore 中沒有用戶資料，嘗試從 localStorage 恢復頭貼
         try {
           const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
           if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
@@ -626,6 +691,7 @@ export const useUserStore = defineStore('user', () => {
         }
 
         await fetchFavorites()
+        await fetchCollections(user.uid)
       } catch (error) {
         const is404Error = error.message?.includes('404') || error.message?.includes('Not Found')
         if (!is404Error) {
@@ -711,6 +777,7 @@ export const useUserStore = defineStore('user', () => {
     createCategoryAndSave,
     removeFromCollection,
     isCollected,
+    fetchCollections,
     updateProfile,
     addVisitedPlace,
     toggleWishlist,

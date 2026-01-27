@@ -7,9 +7,8 @@ import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 import { storeToRefs } from 'pinia'
-import { fetchPostById } from '@/api/discussions' // [新增] 直接引入
+import { fetchPostById } from '@/api/discussions'
 
-// 引入組件
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
@@ -25,31 +24,31 @@ const { drafts } = storeToRefs(myItineraryStore)
 
 const currentUserUid = ref(null)
 
-// --- 篩選狀態 ---
 const filterOptions = ref(DISCUSSION_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
 
-// --- 分頁狀態 ---
 const currentPage = ref(1)
 const hasMore = ref(true)
 const loadMoreTrigger = ref(null)
 let observer = null
 
-// [重點修改] 支援單一貼文顯示的載入邏輯
 const loadDiscussionsData = async (isLoadMore = false) => {
   if (discussionsStore.loading) return
 
   try {
-    // 1. 如果網址有指定 ID 且不是「載入更多」模式
     if (route.params.id && !isLoadMore) {
       setAppLoading(true)
       const post = await fetchPostById(route.params.id)
       if (post) {
-        // 強制將列表清空，只放入這單一篇貼文
         discussionsStore.discussions = [post]
-        hasMore.value = false // 單篇模式下禁止無限捲動
+        hasMore.value = false
         selectedPost.value = post
-        isDetailModalOpen.value = true // 自動開啟 Modal
+        isDetailModalOpen.value = true
+
+        const shouldScroll = route.query.scrollTo === 'comments'
+        if (shouldScroll) {
+          shouldScrollToComments.value = true
+        }
       } else {
         discussionsStore.discussions = []
         hasMore.value = false
@@ -57,8 +56,6 @@ const loadDiscussionsData = async (isLoadMore = false) => {
       setAppLoading(false)
       return
     }
-
-    // 2. 如果網址沒有 ID，執行原本的全列表載入邏輯
     if (!isLoadMore) {
       currentPage.value = 1
       hasMore.value = true
@@ -84,17 +81,15 @@ const loadDiscussionsData = async (isLoadMore = false) => {
   }
 }
 
-// 監聽網址 ID 變化：當從 /discussion/77 回到 /discussion 時，重新載入全列表
 watch(
   () => route.params.id,
-  (newId) => {
+  () => {
     loadDiscussionsData(false)
   },
   { immediate: true },
 )
 
 watch(activeFilter, () => {
-  // 如果正在單篇模式，切換分類應回到主列表
   if (route.params.id) {
     router.push('/discussion')
   } else {
@@ -116,7 +111,6 @@ onMounted(async () => {
   observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
-      // 只有在非單篇模式 (hasMore 為 true) 且捲動到底部時觸發
       if (entry.isIntersecting && hasMore.value && !discussionsStore.loading) {
         loadDiscussionsData(true)
       }
@@ -134,7 +128,6 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
-// 監聽路由變化
 watch(
   () => route.query.openDraft,
   (newDraftId) => {
@@ -146,7 +139,6 @@ watch(
   },
 )
 
-// 監聽 query 參數變化，處理通知跳轉等情況
 watch(() => route.query.postId, async (newPostId) => {
   if (newPostId) {
     await nextTick()
@@ -162,15 +154,12 @@ watch(() => route.query.editPost, (newPostId) => {
   }
 })
 
-// 發文成功後的回調
 const handlePostSuccess = async () => {
   isPostingModalOpen.value = false
   postToEdit.value = null
-  // 發文成功後，重新整理列表 (回到第一頁)
   loadDiscussionsData(false)
 }
 
-// --- 模態框狀態管理 ---
 const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
@@ -185,7 +174,6 @@ const setAppLoading = (active) => {
 }
 
 const openDiscussionDetailModal = (post, focusComment = false) => {
-  // 透過路由變更來觸發 watch 並更新網址
   router.push({
     path: `/discussion/${post.id}`,
     query: focusComment ? { scrollTo: 'comments' } : {},
@@ -195,7 +183,6 @@ const openDiscussionDetailModal = (post, focusComment = false) => {
 const closeDiscussionDetailModal = () => {
   isDetailModalOpen.value = false
   selectedPost.value = null
-  // 關閉 Modal 時將網址重置，觸發 watch 重新載入全列表
   router.push('/discussion')
 }
 
@@ -214,7 +201,6 @@ const handleCardEdit = (post) => {
   nextTick(() => setAppLoading(false))
 }
 
-const handleCardDelete = () => loadDiscussionsData(false)
 const handleDetailDeleted = () => loadDiscussionsData(false)
 const handlePostModalClose = () => {
   isPostingModalOpen.value = false
@@ -269,12 +255,10 @@ const tryOpenSharedPost = async () => {
   }
   if (!postId) return
   
-  // 防止重複打開
   if (isDetailModalOpen.value && String(selectedPost.value?.id) === String(postId)) {
     return
   }
   
-  // 檢查是否需要滾動到留言區
   const shouldScroll = route.query.scrollToComments === 'true'
   
   setAppLoading(true)
@@ -290,7 +274,6 @@ const tryOpenSharedPost = async () => {
       postToOpen = await fetchPostById(postId)
       } catch (apiError) {
         console.error('API 獲取貼文失敗：', apiError)
-        // 清除 URL 參數
         await router.replace({ path: '/discussion', query: {}, hash: '' })
         await showError('無法找到該貼文，可能已被刪除或不存在')
         return
@@ -298,21 +281,15 @@ const tryOpenSharedPost = async () => {
     }
     
     if (postToOpen) {
-      // 先清除 URL 參數，避免重複觸發
       await router.replace({ path: '/discussion', query: {}, hash: '' })
-      
-      // 確保 URL 更新後再打開模態框
       await nextTick()
-      
       openDiscussionDetailModal(postToOpen, shouldScroll)
     } else {
-      // 清除 URL 參數
       await router.replace({ path: '/discussion', query: {}, hash: '' })
       await showError('無法找到該貼文')
     }
   } catch (error) {
     console.error('開啟分享貼文失敗：', error)
-    // 清除 URL 參數
     await router.replace({ path: '/discussion', query: {}, hash: '' }).catch(() => {})
     await showError('開啟貼文時發生錯誤，請稍後再試')
   } finally {
@@ -437,8 +414,8 @@ const tryOpenEditPost = async () => {
   <DiscussionPostModal
     v-if="isPostingModalOpen"
     :post-to-edit="postToEdit"
-    @close="handlePostModalClose"
     :draft-data="selectedDraft"
+    @close="handlePostModalClose"
     @success="handlePostSuccess"
   />
   <DiscussionDetailModal

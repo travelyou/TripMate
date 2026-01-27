@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { onAuthStateChanged } from 'firebase/auth'
 import {
@@ -19,14 +19,12 @@ import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsM
 
 import { useDiscussionsStore } from '@/stores/discussions'
 import { useTravelersStore } from '@/stores/travelers'
-import { useUserStore } from '@/stores/user'
 import { auth } from '@/firebase/config'
 import { fetchPostById } from '@/api/discussions'
 import { getTravelerById } from '@/api/travelers'
 
 const discussionsStore = useDiscussionsStore()
 const travelersStore = useTravelersStore()
-const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -35,7 +33,6 @@ const setAppLoading = (active) => {
 }
 
 const currentUserUid = ref(null)
-let likeSyncTimer = null
 
 // --- Modal 狀態管理 ---
 const isModalOpen = ref(false)
@@ -131,7 +128,9 @@ onMounted(async () => {
       { rootMargin: '150px' },
     )
     if (discussionTrigger.value) discussionObserver.observe(discussionTrigger.value)
-  } catch (error) {}
+  } catch (error) {
+    console.error('載入首頁資料失敗:', error)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -139,7 +138,7 @@ onBeforeUnmount(() => {
 })
 
 // --- 互動邏輯：更新 URL 而不跳轉頁面 ---
-const openDiscussionDetailModal = (post, focusComment = false) => {
+const openDiscussionDetailModal = (post) => {
   router.push({ query: { ...route.query, postId: post.id } })
 }
 
@@ -243,10 +242,12 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
 <template>
   <div class="p-4">
     <div class="w-full min-w-0">
+      <!-- 旅伴推薦區塊 - 始終顯示 -->
       <div
-        class="my-4 p-4 relative group bg-white border-4 border-primary shadow-primary-tall rounded-xl"
+        class="my-4 p-4 relative group bg-white border-4 border-primary shadow-primary-tall rounded-xl min-h-[200px]"
       >
         <h2 class="inline-flex items-center text-2xl font-bold text-primary px-5 py-2">旅伴推薦</h2>
+
 
         <button
           class="absolute left-2 top-[60%] -translate-y-1/2 z-20 bg-white/90 p-2 rounded-full shadow-xl opacity-0 group-hover:opacity-100 transition duration-300"
@@ -266,6 +267,19 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
           class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
           @scroll="handleScroll"
         >
+          <!-- 載入中狀態 -->
+          <div
+            v-if="travelersStore.loading && travelersStore.recommendations.length === 0"
+            class="flex space-x-4 w-full"
+          >
+            <div
+              v-for="n in 3"
+              :key="n"
+              class="flex-shrink-0 w-[32%] min-w-56 h-48 rounded-2xl bg-gray-200 animate-pulse"
+            ></div>
+          </div>
+
+          <!-- 推薦卡片 -->
           <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
@@ -302,12 +316,34 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
               </div>
             </div>
           </div>
+
+          <!-- 載入更多指示器 -->
+          <div
+            v-if="travelersStore.loading && travelersStore.recommendations.length > 0"
+            class="flex-shrink-0 w-32 h-48 flex items-center justify-center"
+          >
+            <Loader2Icon class="w-8 h-8 text-primary animate-spin" />
+          </div>
+
+          <!-- 結束標記 -->
           <div
             v-if="!travelersStore.hasMore && travelersStore.recommendations.length > 0"
             class="flex-shrink-0 w-8 h-48 flex items-center justify-center text-gray-300 text-xs font-bold tracking-widest"
             style="writing-mode: vertical-rl"
           >
             THE END
+          </div>
+
+          <!-- 空狀態 -->
+          <div
+            v-if="!travelersStore.loading && travelersStore.recommendations.length === 0"
+            class="flex-shrink-0 w-full h-48 flex flex-col items-center justify-center text-gray-400"
+          >
+            <UsersIcon class="w-12 h-12 mb-2 opacity-50" />
+            <p class="text-sm font-medium">目前沒有推薦的旅伴</p>
+            <p v-if="travelersStore.error" class="text-xs text-red-400 mt-2">
+              載入失敗，請重新整理頁面
+            </p>
           </div>
         </div>
       </div>

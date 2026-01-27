@@ -225,6 +225,36 @@ const jumpToComments = async () => {
   }
 }
 
+const handleVendorConsultation = async () => {
+  if (!userStore.isLoggedIn) {
+    await showAlert('請先登入後才能諮詢')
+    router.push('/login')
+    return
+  }
+
+  const authorUid = localItineraryData.value?.author_uid || localItineraryData.value?.authorUid
+  if (!authorUid) {
+    await showError('無法找到廠商資訊')
+    return
+  }
+
+  const vendorInfo = {
+    uid: authorUid,
+    name: localItineraryData.value?.author_name || localItineraryData.value?.authorName || '廠商',
+    nickname: localItineraryData.value?.author_name || localItineraryData.value?.authorName || '廠商',
+    avatar: localItineraryData.value?.author_avatar || localItineraryData.value?.authorAvatar || '',
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('open-chat', {
+      detail: {
+        user: vendorInfo,
+        isVendor: true,
+      },
+    }),
+  )
+}
+
 const handleAddToCart = async () => {
   if (isAddingToCart.value) return
   if (!localItineraryData.value?.id) return
@@ -569,6 +599,7 @@ onUnmounted(() => {
               <div class="w-full lg:w-auto flex gap-3 lg:ml-auto justify-start">
                 <button
                   class="bg-primary-600 text-white px-6 py-3 rounded-full font-bold hover:bg-primary-700 transition shadow-md flex items-center"
+                  @click="handleVendorConsultation"
                 >
                   立即諮詢
                 </button>

@@ -24,6 +24,7 @@ export const checkoutStore = reactive({
 
   isCartLoading: false,
   cartError: '',
+  hasViewedCart: false, // 是否已經查看過購物車（用於控制紅點顯示）
 
   // debounce 同步 persons 用
   _personsSyncTimers: new Map(), // key: itineraryId, value: timeoutId
@@ -192,6 +193,9 @@ export const checkoutStore = reactive({
         }
       }
 
+      // 有新商品加入購物車時，重置已查看狀態，讓紅點重新顯示
+      this.hasViewedCart = false
+
       // 2. Call API
       await addCartItem({ itineraryId: numItineraryId, persons })
 
@@ -243,6 +247,11 @@ export const checkoutStore = reactive({
 
   selectCartTourId(id) {
     this.selectedCartTourId = id
+  },
+
+  // 標記購物車已查看（用於隱藏紅點）
+  markCartAsViewed() {
+    this.hasViewedCart = true
   },
 
   // =========================

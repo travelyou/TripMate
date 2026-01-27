@@ -28,7 +28,6 @@ router.get('/', async (req, res) => {
   try {
     const { status, location, category, author_uid, limit = 20, offset = 0 } = req.query
 
-    // ★ 修改：加上別名 t
     let query = `
       SELECT
         t.id,
@@ -51,7 +50,12 @@ router.get('/', async (req, res) => {
         t.saves_count,
         t.views_count,
         t.created_at,
-        t.updated_at
+        t.updated_at,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM public.comments c
+          WHERE c.post_id = t.id AND c.post_type = 'traveler' AND c.deleted_at IS NULL
+        ), 0) as comments_count
       FROM travelers.travelers t
       LEFT JOIN public.users u ON t.author_uid = u.uid
       WHERE t.deleted_at IS NULL
@@ -149,6 +153,7 @@ router.get('/', async (req, res) => {
         avatar: row.author_avatar,
         spiritAnimal: row.spirit_animal,
         likes: row.likes_count || 0,
+        comments: row.comments_count || 0,
         saves_count: row.saves_count || 0,
         views_count: row.views_count || 0,
         updated_at: row.updated_at,
@@ -209,8 +214,6 @@ router.post('/:id/view', async (req, res) => {
   }
 })
 
-// 报名相关路由（必须在 /:id 之前，避免路由冲突）
-// 确保报名表存在
 const ensureApplicationsTable = async () => {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS travelers.traveler_applications (
@@ -235,12 +238,10 @@ const ensureApplicationsTable = async () => {
   )
 }
 
-// 確保 chat schema 存在
 const ensureChatSchema = async () => {
   await pool.query(`CREATE SCHEMA IF NOT EXISTS chat`)
 }
 
-// 确保群组聊天室表存在
 const ensureGroupChatRoomsTable = async () => {
   await ensureChatSchema()
   await pool.query(
@@ -295,8 +296,6 @@ const ensureGroupChatMessagesTable = async () => {
 }
 
 const ensureUsersTable = async () => {
-  // users 表已經存在於主資料庫中，這裡只需要驗證
-  // 不需要創建新表，避免與現有的 users 表衝突
   try {
     await pool.query(`SELECT 1 FROM public.users LIMIT 1`)
   } catch (error) {
@@ -304,7 +303,6 @@ const ensureUsersTable = async () => {
   }
 }
 
-// 提交报名
 router.post('/:id/applications', async (req, res) => {
   try {
     await ensureApplicationsTable()
@@ -320,7 +318,6 @@ router.post('/:id/applications', async (req, res) => {
       return res.status(400).json({ success: false, message: '訊息長度不能超過200字' })
     }
 
-    // 检查是否已经报名过（pending或accepted状态）
     const existingApp = await pool.query(
       `SELECT id, status FROM travelers.traveler_applications
        WHERE traveler_id = $1 AND author_uid = $2 AND status IN ('pending', 'accepted')`,
@@ -336,7 +333,6 @@ router.post('/:id/applications', async (req, res) => {
       }
     }
 
-    // 如果之前被拒绝，允许重新报名（删除旧记录）
     const rejectedApp = await pool.query(
       `SELECT id FROM travelers.traveler_applications
        WHERE traveler_id = $1 AND author_uid = $2 AND status = 'rejected'`,
@@ -344,7 +340,6 @@ router.post('/:id/applications', async (req, res) => {
     )
 
     if (rejectedApp.rows.length > 0) {
-      // 删除旧的被拒绝的报名记录，允许重新报名
       await pool.query(
         `DELETE FROM travelers.traveler_applications WHERE id = $1`,
         [rejectedApp.rows[0].id]
@@ -358,9 +353,7 @@ router.post('/:id/applications', async (req, res) => {
       [id, author_uid, author_name || '匿名用戶', author_avatar, message]
     )
 
-    // 創建找旅伴申請通知
     try {
-      // 獲取旅伴招募貼文作者和標題
       const travelerResult = await pool.query(
         `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`,
         [id]
@@ -370,12 +363,8 @@ router.post('/:id/applications', async (req, res) => {
         const travelerAuthor = travelerResult.rows[0].author_uid
         const travelerTitle = travelerResult.rows[0].title
         
-        // 只有當申請者不是貼文作者時才發送通知
         if (travelerAuthor && travelerAuthor !== author_uid) {
-          // 使用共用函式獲取申請者資訊
           const applicantInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
-          
-          // 優先使用 users 表的頭像，如果沒有則使用傳入的 author_avatar
           const applicantAvatar = applicantInfo.avatar || author_avatar
           
           await createTravelerApplicationNotification({
@@ -399,7 +388,6 @@ router.post('/:id/applications', async (req, res) => {
   }
 })
 
-// 获取报名列表
 router.get('/:id/applications', async (req, res) => {
   try {
     const { id } = req.params
@@ -409,7 +397,6 @@ router.get('/:id/applications', async (req, res) => {
       return res.status(400).json({ success: false, message: '缺少user_uid參數' })
     }
 
-    // 验证贴文是否存在
     const travelerResult = await pool.query(
       `SELECT author_uid FROM travelers.travelers WHERE id = $1 AND deleted_at IS NULL`,
       [id]
@@ -421,7 +408,6 @@ router.get('/:id/applications', async (req, res) => {
 
     const authorUid = travelerResult.rows[0].author_uid
 
-    // 如果是作者，返回所有报名列表
     if (user_uid === authorUid) {
       const result = await pool.query(
         `SELECT id, author_uid, author_name, author_avatar, message, status, created_at
@@ -432,7 +418,6 @@ router.get('/:id/applications', async (req, res) => {
       )
       return res.json({ success: true, data: result.rows })
     } else {
-      // 如果不是作者，只返回自己的报名信息
       const result = await pool.query(
         `SELECT id, author_uid, author_name, author_avatar, message, status, created_at
          FROM travelers.traveler_applications
@@ -458,7 +443,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
     const { id, applicationId } = req.params
     const { user_uid } = req.body
 
-    // 验证是否为作者
     const travelerResult = await client.query(
       `SELECT author_uid, title, max_people, status
        FROM travelers.travelers
@@ -513,7 +497,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
       [currentPeople, shouldFull, id],
     )
 
-    // 检查是否已存在群组聊天室
     let roomResult = await client.query(
       `SELECT id FROM chat.group_chat_rooms WHERE traveler_id = $1`,
       [id]
@@ -521,7 +504,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
 
     let roomId
     if (roomResult.rows.length === 0) {
-      // 创建新的群组聊天室
       const newRoomResult = await client.query(
         `INSERT INTO chat.group_chat_rooms (traveler_id, name, created_by)
          VALUES ($1, $2, $3)
@@ -530,7 +512,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
       )
       roomId = newRoomResult.rows[0].id
 
-      // 添加作者为群组成员
       await client.query(
         `INSERT INTO chat.group_chat_members (room_id, user_uid)
          VALUES ($1, $2)
@@ -541,7 +522,6 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
       roomId = roomResult.rows[0].id
     }
 
-    // 添加被接受的报名者为群组成员
     await client.query(
       `INSERT INTO chat.group_chat_members (room_id, user_uid)
        VALUES ($1, $2)
@@ -582,7 +562,78 @@ router.post('/:id/applications/:applicationId/accept', async (req, res) => {
   }
 })
 
-// 获取用户的群组聊天室列表
+router.post('/group-chat-rooms', async (req, res) => {
+  try {
+    await ensureGroupChatRoomsTable()
+
+    const { user_uid, name, member_uids } = req.body
+    if (!user_uid) {
+      return res.status(400).json({ success: false, message: '缺少user_uid參數' })
+    }
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: '群組名稱不能為空' })
+    }
+    if (!Array.isArray(member_uids) || member_uids.length === 0) {
+      return res.status(400).json({ success: false, message: '至少需要選擇一個好友' })
+    }
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      const roomResult = await client.query(
+        `INSERT INTO chat.group_chat_rooms (traveler_id, name, created_by)
+         VALUES (NULL, $1, $2)
+         RETURNING id, name, avatar, created_by, created_at`,
+        [name.trim(), user_uid]
+      )
+
+      const room = roomResult.rows[0]
+
+      await client.query(
+        `INSERT INTO chat.group_chat_members (room_id, user_uid)
+         VALUES ($1, $2)
+         ON CONFLICT (room_id, user_uid) DO NOTHING`,
+        [room.id, user_uid]
+      )
+
+      for (const memberUid of member_uids) {
+        if (memberUid !== user_uid) {
+          await client.query(
+            `INSERT INTO chat.group_chat_members (room_id, user_uid)
+             VALUES ($1, $2)
+             ON CONFLICT (room_id, user_uid) DO NOTHING`,
+            [room.id, memberUid]
+          )
+        }
+      }
+
+      await client.query('COMMIT')
+
+      res.json({
+        success: true,
+        data: {
+          id: room.id,
+          name: room.name,
+          avatar: room.avatar,
+          created_by: room.created_by,
+          created_at: room.created_at,
+          traveler_id: null,
+        },
+        message: '群組聊天室創建成功',
+      })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error) {
+    console.error('創建群組聊天室失敗:', error)
+    res.status(500).json({ success: false, message: '創建群組聊天室失敗', error: error.message })
+  }
+})
+
 router.get('/group-chat-rooms', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()
@@ -618,7 +669,6 @@ router.get('/group-chat-rooms', async (req, res) => {
   }
 })
 
-// 更新群組聊天室資訊（僅作者）
 router.patch('/group-chat-rooms/:roomId', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()
@@ -679,7 +729,6 @@ router.patch('/group-chat-rooms/:roomId', async (req, res) => {
   }
 })
 
-// 新增群組成員（作者權限）
 router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()
@@ -736,7 +785,6 @@ router.post('/group-chat-rooms/:roomId/members', async (req, res) => {
   }
 })
 
-// 獲取群組聊天記錄
 router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()
@@ -776,7 +824,6 @@ router.get('/group-chat-rooms/:roomId/messages', async (req, res) => {
   }
 })
 
-// 獲取群組成員清單
 router.get('/group-chat-rooms/:roomId/members', async (req, res) => {
   try {
     await ensureGroupChatRoomsTable()

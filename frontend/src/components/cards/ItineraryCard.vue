@@ -64,7 +64,6 @@ const itemData = computed(() => ({
   price: props.itinerary.price,
 }))
 
-// --- HTML 轉純文字 ---
 const previewContent = computed(() => {
   if (!props.itinerary.description) return ''
   let content = props.itinerary.description
@@ -201,7 +200,6 @@ const handleDelete = async (e) => {
   }
 }
 
-// [修正] 修改複製連結格式為路徑形式，並修正 ID 抓取
 const handleShare = async (e) => {
   e.stopPropagation()
   closeMenu()
@@ -399,6 +397,14 @@ onUnmounted(() => {
 
           <button
             class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
+            @click.stop="emit('open-detail', props.itinerary, true)"
+          >
+            <MessageCircleIcon class="w-4 h-4" />
+            <span class="font-bold">{{ props.itinerary.comments_count || props.itinerary.comments || 0 }}</span>
+          </button>
+
+          <button
+            class="flex items-center space-x-1 transition p-1 rounded-md hover:bg-secondary-50"
             :class="userStore.isCollected(itemData) ? 'text-primary-600' : 'hover:text-primary-600'"
             @click.stop="
               userStore.isCollected(itemData)
@@ -420,15 +426,6 @@ onUnmounted(() => {
             @click.stop="emit('open-share', props.itinerary.id)"
           >
             <Share class="w-4 h-4" />
-          </button>
-        </div>
-
-        <div class="flex items-center space-x-2 text-secondary-400">
-          <button
-            class="p-1.5 hover:bg-secondary-50 rounded-full hover:text-secondary-600 transition"
-            @click.stop="emit('open-detail', props.itinerary, true)"
-          >
-            <MessageCircleIcon class="w-4 h-4" />
           </button>
         </div>
       </div>

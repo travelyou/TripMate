@@ -214,9 +214,9 @@ async function createLikeNotification({ user_uid, post_id, board, liker_uid, lik
     sender_name: liker_name,
     sender_avatar: liker_avatar,
     link: board === 'discussion'
-      ? `/discussion?postId=${post_id}`
+      ? `/discussion/${post_id}`
       : board === 'traveler'
-      ? `/travelers?postId=${post_id}`
+      ? `/travelers/${post_id}`
       : null,
   }, true) // 啟用合併功能
 }
@@ -245,8 +245,8 @@ async function createCommentNotification({
   commenter_name,
   commenter_avatar,
   comment_content,
-  post_title, // eslint-disable-line no-unused-vars
-  author_name // 作者名稱，用於檢查是否被 tag
+  post_title,
+  author_name
 }) {
   const boardName = board === 'discussion' ? '討論' : board === 'traveler' ? '找旅伴' : '貼文'
   const contentPreview = comment_content?.substring(0, 50) || '回覆了你的貼文'
@@ -265,9 +265,9 @@ async function createCommentNotification({
     sender_name: commenter_name,
     sender_avatar: commenter_avatar,
     link: board === 'discussion'
-      ? `/discussion?postId=${post_id}`
+      ? `/discussion/${post_id}`
       : board === 'traveler'
-      ? `/travelers?postId=${post_id}`
+      ? `/travelers/${post_id}`
       : null,
   }, !mentionedAuthor) // 如果 tag 了作者，不合併（創建獨立通知）；否則合併
 }
@@ -316,7 +316,7 @@ async function createTravelerApplicationNotification({
     sender_uid: applicant_uid,
     sender_name: applicant_name,
     sender_avatar: applicant_avatar,
-    link: `/travelers?postId=${traveler_id}`,
+    link: `/travelers/${traveler_id}`,
   })
 }
 

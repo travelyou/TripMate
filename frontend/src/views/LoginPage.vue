@@ -122,11 +122,10 @@ const handleLogin = async () => {
         }
         await setDoc(userDocRef, userData)
       }
-    } catch (error) {
-      console.error('獲取 Firestore 用戶資料失敗：', error)
+    } catch {
+      // Firestore 讀取失敗，繼續使用其他資料來源
     }
 
-    // 自動修復：檢查並同步Neon資料庫
     try {
       const userRole = userData.role || 'user'
       const vendorId =
@@ -134,18 +133,15 @@ const handleLogin = async () => {
           ? null
           : userData.vendorId || userData.vendor_id || null
 
-      // 先檢查Neon中是否存在用戶
       let neonUserExists = false
       try {
         const neonUser = await getUserProfile(userCredential.user.uid)
         neonUserExists = neonUser && neonUser.uid
-      } catch (checkError) {
-        console.log('檢查 Neon 用戶時出錯（可能不存在）：', checkError)
+      } catch {
+        // 檢查失敗，繼續處理
       }
 
-      // 如果Neon中不存在，嘗試創建/更新
       if (!neonUserExists) {
-        console.log('檢測到 Neon 資料庫中沒有用戶資料，正在自動修復...')
         try {
           await createOrUpdateUser({
             uid: userCredential.user.uid,
@@ -158,13 +154,10 @@ const handleLogin = async () => {
             role: userRole,
             vendor_id: vendorId,
           })
-          console.log('✅ 自動修復成功：Neon 資料庫已同步')
-        } catch (syncError) {
-          console.error('⚠️ 自動修復失敗（但不影響登入）：', syncError)
-          // 不阻止登入，但記錄錯誤
+        } catch {
+          // 同步失敗但不影響登入
         }
       } else {
-        // 如果存在，嘗試更新（確保資料是最新的）
         try {
           await createOrUpdateUser({
             uid: userCredential.user.uid,
@@ -177,12 +170,12 @@ const handleLogin = async () => {
             role: userRole,
             vendor_id: vendorId,
           })
-        } catch (updateError) {
-          console.error('更新 Neon 資料庫失敗（但不影響登入）：', updateError)
+        } catch {
+          // 更新失敗但不影響登入
         }
       }
-    } catch (syncError) {
-      console.error('同步到 Neon 資料庫失敗（但不影響登入）：', syncError)
+    } catch {
+      // 同步失敗但不影響登入
     }
 
     try {
@@ -191,25 +184,18 @@ const handleLogin = async () => {
         // 優先級順序：1. Neon 資料庫 2. Firebase Auth photoURL 3. Firestore 4. localStorage 5. 默認頭貼
         let avatar = null
 
-        // 1. 優先使用 Neon 資料庫中的頭貼（排除 dicebear 默認頭貼）
         if (neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')) {
           avatar = neonUserData.avatar
-          console.log('✅ 使用 Neon 資料庫中的頭貼')
         }
 
-        // 2. 如果沒有，嘗試使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
         if (!avatar && userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
-          console.log('✅ 使用 Firebase Auth 的 photoURL')
         }
 
-        // 3. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
         if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
           avatar = userData.avatar
-          console.log('✅ 使用 Firestore 的頭貼')
         }
 
-        // 4. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
         let avatarFromLocalStorage = false
         if (!avatar) {
           try {
@@ -217,52 +203,42 @@ const handleLogin = async () => {
             if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
               avatar = savedAvatar
               avatarFromLocalStorage = true
-              console.log('✅ 使用 localStorage 中的頭貼')
             }
-          } catch (e) {
-            console.warn('從 localStorage 恢復頭貼失敗:', e)
+          } catch {
+            // localStorage 讀取失敗，使用預設頭貼
           }
         }
 
-        // 5. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
         if (!avatar) {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
         }
 
-        // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
         if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
-          // 保存到 localStorage
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-            console.log('✅ 已保存頭貼到 localStorage')
-          } catch (e) {
-            console.warn('保存頭貼到 localStorage 失敗:', e)
+          } catch {
+            // localStorage 保存失敗，繼續處理
           }
 
-          // 如果頭貼是從 localStorage 恢復的，或者資料庫中沒有，同步到資料庫
           if (avatarFromLocalStorage || !neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) {
             try {
               await createOrUpdateUser({
                 uid: userCredential.user.uid,
                 avatar: avatar
               })
-              console.log('✅ 已將頭貼同步到 Neon 資料庫')
-            } catch (e) {
-              console.warn('同步頭貼到資料庫失敗:', e)
+            } catch {
+              // 同步失敗但不影響登入
             }
           }
 
-          // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
           if (userCredential.user.photoURL !== avatar) {
             try {
               const { updateProfile } = await import('firebase/auth')
               await updateProfile(userCredential.user, {
                 photoURL: avatar
               })
-              console.log('✅ 已更新 Firebase Auth 的 photoURL')
-            } catch (e) {
-              console.warn('更新 Firebase Auth photoURL 失敗:', e)
+            } catch {
+              // 更新失敗但不影響登入
             }
           }
         }
@@ -278,71 +254,55 @@ const handleLogin = async () => {
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
-        // 如果 Neon 中沒有資料，使用以下優先級：1. Firebase Auth photoURL 2. Firestore 3. localStorage 4. 默認頭貼
         let avatar = null
 
-        // 1. 優先使用 Firebase Auth 的 photoURL（排除 dicebear 默認頭貼）
         if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
-          console.log('✅ 使用 Firebase Auth 的 photoURL')
         }
 
-        // 2. 如果沒有，使用 Firestore 的頭貼（排除 dicebear 默認頭貼）
         if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
           avatar = userData.avatar
-          console.log('✅ 使用 Firestore 的頭貼')
         }
 
-        // 3. 如果沒有，嘗試從 localStorage 恢復（排除 dicebear 默認頭貼）
         if (!avatar) {
           try {
             const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
             if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
               avatar = savedAvatar
-              console.log('✅ 使用 localStorage 中的頭貼')
             }
-          } catch (e) {
-            console.warn('從 localStorage 恢復頭貼失敗:', e)
+          } catch {
+            // localStorage 讀取失敗，使用預設頭貼
           }
         }
 
-        // 4. 只有在所有地方都沒有非默認頭貼時，才使用默認頭貼
         if (!avatar) {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-          console.log('⚠️ 使用默認頭貼（所有資料源都沒有自定義頭貼）')
         }
 
-        // 如果有有效的頭貼（非默認頭貼），保存到 localStorage 和資料庫
         if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
-          // 保存到 localStorage
           try {
             localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-            console.log('✅ 已保存頭貼到 localStorage')
-          } catch (e) {
-            console.warn('保存頭貼到 localStorage 失敗:', e)
+          } catch {
+            // localStorage 保存失敗，繼續處理
           }
 
-          // 同步到資料庫
           try {
             await createOrUpdateUser({
               uid: userCredential.user.uid,
               avatar: avatar
             })
-            console.log('✅ 已將頭貼同步到 Neon 資料庫')
-          } catch (e) {
-            console.warn('同步頭貼到資料庫失敗:', e)
+          } catch {
+            // 同步失敗但不影響登入
           }
 
-          // 如果 Firebase Auth 的 photoURL 與當前頭貼不同，更新 Firebase Auth
           if (userCredential.user.photoURL !== avatar) {
             try {
               const { updateProfile } = await import('firebase/auth')
               await updateProfile(userCredential.user, {
                 photoURL: avatar
               })
-              console.log('✅ 已更新 Firebase Auth 的 photoURL')
-            } catch (e) {
-              console.warn('更新 Firebase Auth photoURL 失敗:', e)
+            } catch {
+              // 更新失敗但不影響登入
             }
           }
         }
@@ -355,55 +315,44 @@ const handleLogin = async () => {
           role: userData.role || 'user',
         })
       }
-    } catch (loadError) {
-      console.error('從 Neon 載入用戶資料失敗，使用 Firestore 資料：', loadError)
-      // 如果載入失敗，使用 Firestore 的資料
+    } catch {
       let avatar = userData.avatar && userData.avatar.trim() !== ''
         ? userData.avatar
         : null
 
-      // 如果 Firestore 中也沒有，嘗試從 localStorage 恢復
       let avatarFromLocalStorage = false
       if (!avatar) {
         try {
           const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
           if (savedAvatar && savedAvatar.trim() !== '') {
-            // 如果 localStorage 中有頭貼，使用它（無論是否為 dicebear）
             avatar = savedAvatar
-            // 只有非 dicebear 的頭貼才需要同步到資料庫
             if (!savedAvatar.includes('dicebear.com')) {
               avatarFromLocalStorage = true
             }
           } else {
-            // 如果 localStorage 中沒有頭貼，表示用戶從未換過頭貼，使用默認頭貼
             avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
           }
-        } catch (e) {
-          console.warn('從 localStorage 恢復頭貼失敗:', e)
-          // 如果載入失敗，使用默認頭貼
+        } catch {
           avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
         }
       }
 
-      // 如果有有效的頭貼，保存到 localStorage
       if (avatar && avatar.trim() !== '') {
         try {
           localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-        } catch (e) {
-          console.warn('保存頭貼到 localStorage 失敗:', e)
+        } catch {
+          // localStorage 保存失敗，繼續處理
         }
       }
 
-      // 如果頭貼是從 localStorage 恢復的，同步到資料庫
       if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
         try {
           await createOrUpdateUser({
             uid: userCredential.user.uid,
             avatar: avatar
           })
-          console.log('已將 localStorage 中的頭貼同步到資料庫')
-        } catch (e) {
-          console.warn('同步頭貼到資料庫失敗:', e)
+        } catch {
+          // 同步失敗但不影響登入
         }
       }
 
@@ -417,7 +366,6 @@ const handleLogin = async () => {
     }
 
     userStore.login()
-    console.log('🚀 正在跳轉到首頁...')
     router.push('/')
   } catch (error) {
     console.error('登入失敗：', error.code, error.message)
@@ -523,6 +471,9 @@ const handleRegister = async () => {
     let userCredential = null
     let userData = null
 
+    const selectedRole = registerForm.value.role
+    const finalRole = (selectedRole === 'vendor' || selectedRole === 'user') ? selectedRole : 'user'
+
     try {
       // 先創建Firebase用戶
       userCredential = await createUserWithEmailAndPassword(
@@ -538,47 +489,93 @@ const handleRegister = async () => {
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
         bio: '',
         spiritAnimal: '',
+        role: finalRole,
         createdAt: new Date(),
       }
 
       // 創建Firestore用戶資料
       await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
-      // 嘗試同步到Neon資料庫
-      const finalRole = registerForm.value.role || 'user'
-      const vendorId = finalRole === 'vendor' ? null : null
+      // 嘗試同步到Neon資料庫（必須成功，否則註冊失敗）
+      const vendorId = null
 
       try {
-        await createOrUpdateUser({
+        const neonUserData = {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
-          nickname: userData.nickname,
-          real_name: userData.realName,
-          avatar: userData.avatar,
-          bio: userData.bio,
-          spirit_animal: userData.spiritAnimal,
+          nickname: userData.nickname || null,
+          real_name: userData.realName || null,
+          avatar: userData.avatar || null,
+          bio: userData.bio || null,
+          spirit_animal: userData.spiritAnimal || null,
           role: finalRole,
-          vendor_id: vendorId,
-        })
+          vendor_id: vendorId || null,
+        }
+
+        const neonResponse = await createOrUpdateUser(neonUserData)
+
+        if (!neonResponse || !neonResponse.uid) {
+          throw new Error('Neon 資料庫未成功創建用戶資料')
+        }
+
+        if (!neonResponse.role) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          try {
+            const retryResponse = await createOrUpdateUser(neonUserData)
+            if (retryResponse && retryResponse.role) {
+              Object.assign(neonResponse, retryResponse)
+            }
+          } catch {
+            // 重試失敗，繼續流程
+          }
+        }
+
         neonUserCreated = true
         userStore.markAsRecentlyRegistered(userCredential.user.uid)
       } catch (syncError) {
-        console.error('同步到 Neon 資料庫失敗，開始回滾：', syncError)
+        console.error('同步到 Neon 資料庫失敗，開始回滾 Firebase：', syncError)
+        let rollbackErrors = []
 
-        // 回滾：刪除Firebase用戶和Firestore資料
         try {
           // 刪除Firestore資料
           await deleteDoc(doc(db, 'users', userCredential.user.uid))
+          console.log('✅ 已刪除 Firestore 資料')
         } catch (firestoreError) {
-          console.error('刪除 Firestore 資料失敗：', firestoreError)
+          console.error('❌ 刪除 Firestore 資料失敗：', firestoreError)
+          rollbackErrors.push('Firestore 資料刪除失敗')
         }
 
         try {
           // 刪除Firebase用戶
           await deleteUser(userCredential.user)
+          console.log('✅ 已刪除 Firebase 用戶')
         } catch (deleteError) {
-          console.error('刪除 Firebase 用戶失敗：', deleteError)
-          // 如果刪除失敗，記錄錯誤但繼續拋出原始錯誤
+          console.error('❌ 刪除 Firebase 用戶失敗：', deleteError)
+          rollbackErrors.push('Firebase 用戶刪除失敗')
+        }
+
+        // 如果有回滾錯誤，記錄警告
+        if (rollbackErrors.length > 0) {
+          console.warn('回滾過程中發生錯誤：', rollbackErrors.join(', '))
+        }
+
+        // 檢查是否是 404 錯誤（API 端點不存在）
+        if (syncError.response?.status === 404 || syncError.isNetworkError) {
+          throw new Error(
+            '無法連接到後端伺服器，註冊已取消。請確認後端服務是否正在運行。如果問題持續，請聯繫管理員。'
+          )
+        }
+
+        // 檢查是否是資料庫連接問題
+        if (
+          syncError.message?.includes('Failed to fetch') ||
+          syncError.message?.includes('NetworkError') ||
+          syncError.message?.includes('無法連接到伺服器') ||
+          syncError.response?.status === 503
+        ) {
+          throw new Error(
+            '無法連接到資料庫伺服器，註冊已取消。所有資料已回滾。請稍後再試。'
+          )
         }
 
         const errorMessage =
@@ -588,34 +585,21 @@ const handleRegister = async () => {
           syncError.message ||
           '未知錯誤'
 
-        // 檢查是否是資料庫連接問題
-        if (
-          syncError.message?.includes('Failed to fetch') ||
-          syncError.message?.includes('NetworkError') ||
-          syncError.response?.status === 503
-        ) {
-          throw new Error(
-            '無法連接到資料庫伺服器，註冊已取消。請稍後再試。您可能需要聯繫客服以確認帳戶狀態。'
-          )
-        }
-
-        throw new Error('資料同步到資料庫失敗：' + errorMessage)
+        throw new Error('註冊失敗：資料同步到資料庫失敗。所有資料已回滾。' + (errorMessage ? ` (${errorMessage})` : ''))
       }
     } catch (error) {
-      // 如果Neon同步失敗且Firebase用戶已創建，確保已回滾
       if (userCredential && !neonUserCreated) {
-        // 已經在上面嘗試回滾了，這裡只是記錄
         console.error('註冊流程失敗，已嘗試回滾 Firebase 用戶')
       }
       throw error
     }
 
-    // 只有在Neon同步成功後才繼續
     if (userCredential && userData && neonUserCreated) {
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         ...userData,
+        role: finalRole,
       })
 
       await userStore.logout()
@@ -626,16 +610,10 @@ const handleRegister = async () => {
 
       registerForm.value.password = ''
       registerForm.value.confirmPassword = ''
+    } else {
+      // 如果註冊未完成，確保清理狀態
+      console.warn('⚠️ 註冊未完成，Neon 同步失敗')
     }
-
-    await userStore.logout()
-
-    activeTab.value = 'login'
-    loginForm.value.email = registerForm.value.email
-    loginForm.value.password = ''
-
-    registerForm.value.password = ''
-    registerForm.value.confirmPassword = ''
   } catch (error) {
     console.error('註冊失敗：', error.code, error.message)
 

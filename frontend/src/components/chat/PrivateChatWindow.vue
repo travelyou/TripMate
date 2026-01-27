@@ -14,6 +14,10 @@ const props = defineProps({
   openChatWithUser: {
     type: Object,
     default: null // { uid, name, nickname, avatar }
+  },
+  isVendorChat: {
+    type: Boolean,
+    default: false // 是否為廠商聊天
   }
 })
 
@@ -45,6 +49,10 @@ const isSavingGroupAvatar = ref(false)
 const memberActionLoading = ref(new Set())
 const isGroupAvatarCropOpen = ref(false)
 const groupAvatarFileToCrop = ref(null)
+const showCreateGroupModal = ref(false)
+const groupNameInput = ref('')
+const selectedFriends = ref([])
+const isCreatingGroup = ref(false)
 
 // 訊息列表（根據當前聊天室）
 const messages = ref([])
@@ -92,9 +100,18 @@ const isFriendChat = computed(() => {
   const friendList = userStore.currentUser?.friends || []
   return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
+const isVendorChatRoom = computed(() => {
+  // 檢查是否為廠商聊天室
+  if (props.isVendorChat) return true
+  if (!activeChatRoom.value?.uid) return false
+  // 可以通過檢查聊天室標記或從後端 API 返回的 isVendor 標誌來判斷
+  return chatInteractionCount.value?.isVendor || false
+})
 const canSendMessage = computed(() => {
   // 群組聊天：可以發送
   if (isGroupChat.value) return true
+  // 廠商聊天：可以發送（不限次數）
+  if (isVendorChatRoom.value) return true
   // 好友聊天：可以發送
   if (isFriendChat.value) return true
   // 非好友：檢查剩餘次數
@@ -174,12 +191,15 @@ const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = 
         typeof data.canSend === 'boolean' ? data.canSend : newRemaining > 0
       const newIsFriend =
         typeof data.isFriend === 'boolean' ? data.isFriend : chatInteractionCount.value.isFriend || false
+      const newIsVendor =
+        typeof data.isVendor === 'boolean' ? data.isVendor : chatInteractionCount.value.isVendor || false
 
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newCanSend,
+        canSend: newIsVendor ? true : newCanSend,  // 廠商聊天永遠可以發送
         isFriend: newIsFriend,
+        isVendor: newIsVendor,
       }
 
       if (logPrefix) {
@@ -196,20 +216,22 @@ const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = 
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newRemaining > 0,
+        canSend: chatInteractionCount.value.isVendor ? true : (newRemaining > 0),  // 廠商聊天永遠可以發送
         isFriend: chatInteractionCount.value.isFriend || false,
+        isVendor: chatInteractionCount.value.isVendor || false,
       }
     }
   } catch (error) {
     console.error('記錄對話次數失敗：', error)
     const newCount = (chatInteractionCount.value.count || 0) + 1
     const newRemaining = Math.max(0, 3 - newCount)
-    chatInteractionCount.value = {
-      count: newCount,
-      remaining: newRemaining,
-      canSend: newRemaining > 0,
-      isFriend: chatInteractionCount.value.isFriend || false,
-    }
+      chatInteractionCount.value = {
+        count: newCount,
+        remaining: newRemaining,
+        canSend: chatInteractionCount.value.isVendor ? true : (newRemaining > 0),  // 廠商聊天永遠可以發送
+        isFriend: chatInteractionCount.value.isFriend || false,
+        isVendor: chatInteractionCount.value.isVendor || false,
+      }
   }
 }
 
@@ -515,6 +537,84 @@ const handleRemoveGroupMember = async (member) => {
   }
 }
 
+const openCreateGroupModal = () => {
+  showCreateGroupModal.value = true
+  groupNameInput.value = ''
+  selectedFriends.value = []
+}
+
+const closeCreateGroupModal = () => {
+  showCreateGroupModal.value = false
+  groupNameInput.value = ''
+  selectedFriends.value = []
+}
+
+const toggleFriendSelection = (friend) => {
+  const friendUid = friend.uid || friend.id
+  const index = selectedFriends.value.findIndex((f) => (f.uid || f.id) === friendUid)
+  if (index >= 0) {
+    selectedFriends.value.splice(index, 1)
+  } else {
+    selectedFriends.value.push(friend)
+  }
+}
+
+const isFriendSelected = (friend) => {
+  const friendUid = friend.uid || friend.id
+  return selectedFriends.value.some((f) => (f.uid || f.id) === friendUid)
+}
+
+const createGroupChat = async () => {
+  if (!groupNameInput.value.trim()) {
+    alert('請輸入群組名稱')
+    return
+  }
+  if (selectedFriends.value.length === 0) {
+    alert('請至少選擇一個好友')
+    return
+  }
+
+  const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
+  if (!currentUid) {
+    alert('請先登入')
+    return
+  }
+
+  isCreatingGroup.value = true
+  try {
+    const { createGroupChatRoom } = await import('@/api/travelers')
+    const memberUids = selectedFriends.value.map((f) => f.uid || f.id)
+    const response = await createGroupChatRoom(groupNameInput.value.trim(), memberUids)
+
+    if (response?.success && response.data) {
+      await loadGroupChatRooms()
+
+      const newRoom = {
+        type: 'group',
+        uid: `group-${response.data.id}`,
+        roomId: response.data.id,
+        name: response.data.name,
+        avatar: response.data.avatar || '',
+        messages: [],
+      }
+      activeChatRoom.value = newRoom
+      activeTab.value = 'chatrooms'
+      await loadGroupChatHistory(response.data.id)
+      startGroupMessagePolling(response.data.id)
+      scrollToBottom()
+
+      closeCreateGroupModal()
+    } else {
+      alert('創建群組失敗：' + (response?.message || '未知錯誤'))
+    }
+  } catch (error) {
+    console.error('創建群組失敗：', error)
+    alert('創建群組失敗：' + (error.message || '未知錯誤'))
+  } finally {
+    isCreatingGroup.value = false
+  }
+}
+
 // 聊天室列表（動態創建的聊天室）
 const chatRooms = computed(() => {
   const rooms = []
@@ -752,12 +852,14 @@ const loadChatInteractionCount = async (uid, friendUid) => {
     const remaining = typeof data.remaining === 'number' ? data.remaining : Math.max(0, 3 - count)
     const canSend = typeof data.canSend === 'boolean' ? data.canSend : (remaining > 0)
     const isFriend = typeof data.isFriend === 'boolean' ? data.isFriend : false
+    const isVendor = typeof data.isVendor === 'boolean' ? data.isVendor : false
 
     chatInteractionCount.value = {
       count,
       remaining,
-      canSend: canSend && remaining > 0,  // 雙重確保 canSend 正確
-      isFriend
+      canSend: isVendor ? true : (canSend && remaining > 0),  // 廠商聊天永遠可以發送
+      isFriend,
+      isVendor
     }
 
     console.log('[loadChatInteractionCount] 載入對話次數:', {
@@ -839,8 +941,14 @@ const openOrCreateChatRoom = async (user) => {
     window.dispatchEvent(new CustomEvent('new-chat-room'))
   }
 
-  // 載入對話次數
-  await loadChatInteractionCount(currentUid, targetUid)
+  // 載入對話次數 - 廠商聊天不需要載入次數限制
+  if (props.isVendorChat) {
+    // 廠商聊天：設置為無限制
+    chatInteractionCount.value = { count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true }
+  } else {
+    // 載入對話次數（後端會自動檢測是否為廠商）
+    await loadChatInteractionCount(currentUid, targetUid)
+  }
 
   // 從數據庫載入聊天記錄
   await loadChatHistory(currentUid, targetUid)
@@ -983,11 +1091,11 @@ const openFilePicker = () => {
     alert('⚠️ 群組聊天室暫不支援傳送圖片。')
     return
   }
-  if (!isFriendChat.value) {
+  if (!isFriendChat.value && !isVendorChatRoom.value) {
     alert('⚠️ 目前不是好友，無法傳送訊息或檔案。')
     return
   }
-  if (!chatInteractionCount.value.canSend) {
+  if (!isVendorChatRoom.value && !chatInteractionCount.value.canSend) {
     alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，等待對方同意好友請求後才能繼續聊天。')
     return
   }
@@ -1030,8 +1138,8 @@ const handleFileSelect = async (event) => {
     return
   }
 
-  // 非好友：檢查對話次數
-  if (!isFriendChat.value) {
+  // 非好友且非廠商：檢查對話次數
+  if (!isFriendChat.value && !isVendorChatRoom.value) {
     if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
       alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
       event.target.value = ''
@@ -1093,9 +1201,11 @@ const handleFileSelect = async (event) => {
       clientId: optimisticId,
     })
 
-    // 記錄對話次數（背景）
-    incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
-      .catch(() => {})
+    // 記錄對話次數（背景）- 廠商聊天不需要記錄
+    if (!isVendorChatRoom.value) {
+      incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
+        .catch(() => {})
+    }
 
     // 保存圖片訊息到資料庫（背景）
     ;(async () => {
@@ -1161,8 +1271,8 @@ const sendMessage = async () => {
     return
   }
 
-  // 非好友：檢查對話次數
-  if (!isFriendChat.value) {
+  // 非好友且非廠商：檢查對話次數
+  if (!isFriendChat.value && !isVendorChatRoom.value) {
     if (!chatInteractionCount.value.canSend || chatInteractionCount.value.remaining <= 0) {
       alert('⚠️ 已達到對話次數上限\n\n您已發送 3 次訊息，請先加對方為好友才能繼續聊天。')
       return
@@ -1205,9 +1315,11 @@ const sendMessage = async () => {
     clientId: optimisticId,
   })
 
-  // 背景記錄對話次數與保存訊息
-  incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
-    .catch(() => {})
+  // 背景記錄對話次數與保存訊息 - 廠商聊天不需要記錄次數
+  if (!isVendorChatRoom.value) {
+    incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
+      .catch(() => {})
+  }
   ;(async () => {
     const { saveChatMessage } = await import('@/api/profile')
     await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
@@ -1261,7 +1373,14 @@ const handleChatRoomClick = async (room) => {
     // 載入對話次數和聊天記錄
     const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
     if (currentUid) {
-      await loadChatInteractionCount(currentUid, room.uid)
+      // 檢查是否為廠商聊天（通過檢查聊天室標記或從後端 API 返回的 isVendor 標誌）
+      const isVendor = isVendorChatRoom.value
+      if (!isVendor) {
+        await loadChatInteractionCount(currentUid, room.uid)
+      } else {
+        // 廠商聊天：設置為無限制
+        chatInteractionCount.value = { count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true }
+      }
       await loadChatHistory(currentUid, room.uid)
       // 開始輪詢新訊息
       startMessagePolling(currentUid, room.uid)
@@ -1779,6 +1898,15 @@ onUnmounted(() => {
         >
           <ArrowLeftIcon class="w-5 h-5" />
         </button>
+        <!-- 創建群組按鈕（在頭像左邊） -->
+        <button
+          v-if="activeChatRoom && activeChatRoom.type === 'chat'"
+          class="p-1 hover:bg-primary-600 rounded-full transition"
+          title="建立群組聊天"
+          @click.stop="openCreateGroupModal"
+        >
+          <PlusIcon class="w-5 h-5" />
+        </button>
         <button
           v-if="activeChatRoom && activeChatRoom.type === 'chat'"
           class="flex-shrink-0"
@@ -1867,6 +1995,15 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <!-- 創建群組按鈕（在聊天室列表視圖時顯示） -->
+        <button
+          v-if="!activeChatRoom"
+          class="p-1 hover:bg-primary-600 rounded-full transition"
+          title="建立群組聊天"
+          @click.stop="openCreateGroupModal"
+        >
+          <PlusIcon class="w-6 h-6" />
+        </button>
         <button
           v-if="activeChatRoom && activeChatRoom.type === 'group'"
           class="p-1 hover:bg-primary-600 rounded-full transition relative"
@@ -1877,7 +2014,7 @@ onUnmounted(() => {
         </button>
         <!-- 好友請求列表按鈕 -->
         <div
-          v-else
+          v-if="!activeChatRoom || activeChatRoom.type === 'chat'"
           ref="friendRequestsListContainer"
           class="relative friend-requests-list-container"
         >
@@ -1886,7 +2023,7 @@ onUnmounted(() => {
             title="好友邀請"
             @click.stop="toggleFriendRequestsList"
           >
-            <PlusIcon class="w-6 h-6" />
+            <UserIcon class="w-6 h-6" />
             <!-- 未讀邀請數量提示 -->
             <span
               v-if="friendRequests.received && friendRequests.received.length > 0"
@@ -2063,13 +2200,13 @@ onUnmounted(() => {
         </div>
 
         <div
-          v-if="!isFriendChat && chatInteractionCount.remaining > 0"
+          v-if="!isFriendChat && !isVendorChatRoom && chatInteractionCount.remaining > 0"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
           💬 目前不是好友，還可以發送 <span class="font-bold text-primary-600">{{ chatInteractionCount.remaining }}</span> 次訊息
         </div>
         <div
-          v-else-if="!isFriendChat && chatInteractionCount.remaining <= 0"
+          v-else-if="!isFriendChat && !isVendorChatRoom && chatInteractionCount.remaining <= 0"
           class="text-center text-xs text-gray-600 py-2 px-4 bg-red-50 border border-red-200 rounded-lg"
         >
           ⚠️ 已達到對話次數上限，請先加對方為好友才能繼續聊天
@@ -2570,6 +2707,127 @@ onUnmounted(() => {
       @close="isGroupAvatarCropOpen = false"
       @crop="handleGroupAvatarCrop"
     />
+
+    <!-- 創建群組聊天室 Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showCreateGroupModal"
+          class="fixed inset-0 z-[9998] bg-black/60 flex items-center justify-center p-4"
+          @click="closeCreateGroupModal"
+        >
+          <div
+            class="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden border-2 border-primary-200 shadow-2xl flex flex-col"
+            @click.stop
+          >
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-primary-50">
+              <div>
+                <h3 class="font-bold text-primary-700">建立群組聊天</h3>
+                <p class="text-xs text-gray-500">選擇好友並建立群組聊天室</p>
+              </div>
+              <button
+                class="p-2 rounded-full hover:bg-primary-100 transition"
+                title="關閉"
+                @click="closeCreateGroupModal"
+              >
+                <XIcon class="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+              <!-- 群組名稱輸入 -->
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">群組名稱</label>
+                <input
+                  v-model="groupNameInput"
+                  type="text"
+                  placeholder="輸入群組名稱..."
+                  maxlength="30"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+
+              <!-- 好友列表 -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label class="block text-sm font-bold text-gray-700">選擇好友</label>
+                  <span class="text-xs text-gray-500">{{ selectedFriends.length }} 位已選擇</span>
+                </div>
+                <div v-if="friends.length === 0" class="text-center text-gray-400 text-sm py-8">
+                  還沒有加任何好友喔！
+                </div>
+                <div v-else class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                  <div
+                    v-for="friend in friends"
+                    :key="friend.id || friend.uid"
+                    class="flex items-center gap-3 p-3 border rounded-xl transition cursor-pointer"
+                    :class="
+                      isFriendSelected(friend)
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-gray-100 bg-white hover:border-primary-200'
+                    "
+                    @click="toggleFriendSelection(friend)"
+                  >
+                    <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-100 flex-shrink-0 flex items-center justify-center">
+                      <img
+                        v-if="friend.avatar && friend.avatar.trim() && !avatarErrors[friend.id || friend.uid]"
+                        :src="friend.avatar"
+                        :alt="friend.name || friend.nickname"
+                        class="w-full h-full object-cover"
+                        @error="avatarErrors[friend.id || friend.uid] = true"
+                      />
+                      <UserIcon v-else class="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-sm text-gray-800 truncate">
+                        {{ friend.name || friend.nickname || '未知用戶' }}
+                      </div>
+                      <div class="text-xs text-gray-500 truncate">
+                        @{{ friend.nickname || friend.name || 'user' }}
+                      </div>
+                    </div>
+                    <div
+                      v-if="isFriendSelected(friend)"
+                      class="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0"
+                    >
+                      <CheckIcon class="w-3 h-3 text-white" />
+                    </div>
+                    <div
+                      v-else
+                      class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
+              <button
+                class="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                @click="closeCreateGroupModal"
+              >
+                取消
+              </button>
+              <button
+                class="px-4 py-2 text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="!groupNameInput.trim() || selectedFriends.length === 0 || isCreatingGroup"
+                @click="createGroupChat"
+              >
+                <span v-if="isCreatingGroup">建立中...</span>
+                <span v-else>建立群組</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
