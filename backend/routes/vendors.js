@@ -409,14 +409,28 @@ router.put('/:id', async (req, res) => {
       data: result.rows[0],
     })
   } catch (error) {
+    // 記錄完整錯誤資訊到伺服器日誌（僅後端可見）
     console.error('❌ [Vendors] 更新廠商資料錯誤:', error)
     console.error('❌ [Vendors] 錯誤詳情:', error.message)
-    console.error('❌ [Vendors] 錯誤堆疊:', error.stack)
-    res.status(500).json({
+
+    // 僅在開發環境記錄堆疊追蹤
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ [Vendors] 錯誤堆疊:', error.stack)
+    }
+
+    // 回傳給前端的錯誤訊息（安全版本）
+    const response = {
       success: false,
-      message: '更新廠商資料失敗',
-      error: error.message,
-    })
+      message: '更新廠商資料失敗，請稍後再試',
+    }
+
+    // 僅在開發環境才回傳詳細錯誤訊息
+    if (process.env.NODE_ENV === 'development') {
+      response.error = error.message
+      response.stack = error.stack
+    }
+
+    res.status(500).json(response)
   }
 })
 
