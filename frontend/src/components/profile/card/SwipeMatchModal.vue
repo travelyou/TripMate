@@ -347,6 +347,11 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         ? userStore.currentUser.wishlist
         : []
 
+    // 獲取當前用戶的好友列表（好友對象有 id 或 uid 字段）
+    const currentUserFriends = Array.isArray(userStore.currentUser?.friends)
+      ? userStore.currentUser.friends.map((f) => f.uid || f.id).filter(Boolean)
+      : []
+
     const filtered = allUsers
       .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
       .filter((user) => {
@@ -356,6 +361,16 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         return !rejectedAt || rejectedAt < cutoff
       })
       .filter((user) => (user.is_matching_enabled ?? true) === true)
+      // 過濾掉已經是好友的用戶
+      .filter((user) => {
+        const userId = user.uid || user.id
+        return !currentUserFriends.includes(userId)
+      })
+      // 過濾掉已經是廠商的用戶
+      .filter((user) => {
+        const userRole = user.role
+        return userRole !== 'vendor'
+      })
       .map(mapUserToCandidate)
 
     if (seq !== loadSeq.value) return
