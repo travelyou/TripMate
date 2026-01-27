@@ -14,6 +14,24 @@ export const getItineraries = async (filters = {}) => {
   }
 }
 
+// 後端：GET /api/itineraries?ids=1,2,3
+export const fetchItinerariesByIds = async (ids = []) => {
+  const cleanIds = (ids || []).map((x) => Number(x)).filter(Number.isInteger)
+  const qs = cleanIds.length ? `?ids=${cleanIds.join(',')}` : ''
+  const { data } = await axios.get(`${API_BASE_URL}/itineraries${qs}`)
+  if (!data?.ok) throw new Error(data?.message || 'fetch itineraries failed')
+  return data.items || []
+}
+
+// 後端：GET /api/itineraries/:id
+export const fetchItineraryById = async (id) => {
+  const iid = Number(id)
+  if (!Number.isInteger(iid)) throw new Error('id is invalid')
+  const { data } = await axios.get(`${API_BASE_URL}/itineraries/${iid}`)
+  if (!data?.ok) throw new Error(data?.message || 'fetch itinerary failed')
+  return data.item
+}
+
 // 取得單一行程詳細資料 (包含 days 和 packingList)
 export const getItineraryById = async (id) => {
   try {
@@ -72,5 +90,21 @@ export const createItinerary = async (payload) => {
   } catch (error) {
     console.error('Error creating itinerary:', error)
     return { success: false, message: error.response?.data?.message || '建立失敗' }
+  }
+}
+
+// 更新行程
+export const updateItinerary = async (id, payload) => {
+  try {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null
+    const response = await axios.put(`${API_BASE_URL}/itineraries/${id}`, payload, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error('Error updating itinerary:', error)
+    return { success: false, message: error.response?.data?.message || '更新失敗' }
   }
 }

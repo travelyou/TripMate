@@ -8,8 +8,10 @@ import {
   CheckSquare as CheckSquareIcon,
   Save as SaveIcon,
   Map as MapIcon,
+  MapPin as MapPinIcon,
   FileText as FileTextIcon,
 } from 'lucide-vue-next'
+import LocationPickerModal from './LocationPickerModal.vue'
 import { showConfirm, showAlert } from '@/utils/alert'
 
 const props = defineProps({ itinerary: { type: Object, required: true } })
@@ -113,7 +115,22 @@ const addActivity = () => {
     time: '09:00',
     title: '',
     desc: '',
+    location: null,
   })
+}
+
+const isLocationPickerOpen = ref(false)
+const editingActivity = ref(null)
+
+const openLocationPicker = (activity) => {
+  editingActivity.value = activity
+  isLocationPickerOpen.value = true
+}
+
+const handleLocationSelect = (location) => {
+  if (!editingActivity.value) return
+  editingActivity.value.location = location
+  editingActivity.value.title = location.name
 }
 
 const handleSave = () => {
@@ -228,6 +245,27 @@ const handleDelete = async () => {
                       class="w-full text-lg font-bold text-gray-800 focus:outline-none"
                       placeholder="景點名稱或活動"
                     />
+                    <div class="flex gap-2">
+                      <button
+                        class="mt-1 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition"
+                        title="選擇地點"
+                        type="button"
+                        @click="openLocationPicker(activity)"
+                      >
+                        <MapPinIcon
+                          class="w-4 h-4"
+                          :class="{
+                            'text-primary-600 fill-primary-100 items-start': activity.location,
+                          }"
+                        />
+                      </button>
+                      <div
+                        v-if="activity.location"
+                        class="text-xs text-primary-600 font-bold bg-primary-50 px-2 py-0.5 rounded flex items-center gap-1 mb-1"
+                      >
+                        {{ activity.location.name || activity.location.address }}
+                      </div>
+                    </div>
                     <textarea
                       v-model="activity.desc"
                       class="w-full text-sm text-gray-500 bg-transparent resize-none focus:outline-none"
@@ -323,4 +361,11 @@ const handleDelete = async () => {
       </div>
     </div>
   </div>
+
+  <LocationPickerModal
+    :is-open="isLocationPickerOpen"
+    :initial-location="editingActivity?.location"
+    @close="isLocationPickerOpen = false"
+    @select="handleLocationSelect"
+  />
 </template>

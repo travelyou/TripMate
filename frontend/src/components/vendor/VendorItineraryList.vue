@@ -7,6 +7,9 @@ import {
   ArrowUpDown as ArrowUpDownIcon
 } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const props = defineProps({
   itineraries: {
@@ -56,6 +59,14 @@ const changePage = (page) => {
   currentPage.value = page;
   emit('page-change', page);
 };
+
+// Navigation
+const navigateToItinerary = (id) => {
+  router.push({
+    name: 'featured_itinerary',
+    params: { id }
+  });
+};
 </script>
 
 <template>
@@ -102,6 +113,7 @@ const changePage = (page) => {
           v-for="itinerary in sortedItineraries"
           :key="itinerary.id"
           class="bg-white overflow-hidden rounded-2xl border-2 border-primary-100 shadow-primary-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-2 cursor-pointer h-full flex flex-col"
+          @click="navigateToItinerary(itinerary.id)"
         >
           <!-- 行程圖片 -->
           <div class="relative h-52 overflow-hidden shrink-0">
@@ -119,7 +131,7 @@ const changePage = (page) => {
 
           <!-- 行程資訊 -->
           <div class="p-5 flex-1 flex flex-col">
-            <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">{{ itinerary.name }}</h3>
+            <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">{{ itinerary.title || itinerary.name }}</h3>
             <div class="flex items-center gap-4 mb-2 text-sm text-gray-600">
               <div class="flex items-center gap-1 bg-primary-50 px-3 py-1 rounded-full">
                 <CalendarIcon class="w-4 h-4 text-primary-600" />
@@ -172,7 +184,10 @@ const changePage = (page) => {
             :key="itinerary.id"
             class="snap-start w-[280px] h-full"
           >
-            <div class="bg-white overflow-hidden h-full flex flex-col border-2 border-primary-100 shadow-primary-sm rounded-2xl">
+            <div
+              class="bg-white overflow-hidden h-full flex flex-col border-2 border-primary-100 shadow-primary-sm rounded-2xl"
+              @click="navigateToItinerary(itinerary.id)"
+            >
               <div class="relative h-40 overflow-hidden">
                 <img :src="itinerary.image" class="w-full h-full object-cover" />
                 <div v-if="itinerary.tags && itinerary.tags[0]" class="absolute top-2 left-2 bg-primary-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md border border-white">{{ itinerary.tags[0] }}</div>

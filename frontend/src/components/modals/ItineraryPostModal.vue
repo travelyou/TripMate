@@ -26,7 +26,8 @@ import {
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { auth } from '@/firebase/config'
-import { createItinerary } from '@/api/itinerary'
+import { createItinerary, updateItinerary } from '@/api/itinerary'
+
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 
@@ -41,6 +42,17 @@ import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import CharacterCount from '@tiptap/extension-character-count'
+
+const props = defineProps({
+  initialData: {
+    type: Object,
+    default: () => ({})
+  },
+  isEdit: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
@@ -64,7 +76,7 @@ const categories = [
 
 // 表單資料結構
 const postData = ref({
-  category: '', // ★ 新增
+  category: '',
   title: '',
   description: '',
   price: null,
@@ -278,7 +290,7 @@ const removeBanner = () => {
 
 // --- 驗證邏輯 ---
 const validateBasic = () => {
-  if (!postData.value.category) return '請選擇分類' // ★ 新增驗證
+  if (!postData.value.category) return '請選擇分類'
   if (!postData.value.title) return '請輸入行程標題'
   if (postData.value.title.length > 35) return '標題不能超過 35 個字元'
 
@@ -422,6 +434,49 @@ const prevStep = () => {
   else if (currentStep.value === 'itinerary') currentStep.value = 'basic'
 }
 
+// Watch initialData for Edit Mode
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (props.isEdit && newData) {
+      console.log('🔄 Loading initial data for edit:', newData)
+      postData.value = {
+        category: newData.category || '',
+        title: newData.title || newData.name || '',
+        description: newData.description || '',
+        price: newData.price,
+        agencyName: newData.agencyName || userStore.currentUser?.nickname || '',
+        location: newData.location || '',
+        start_date: newData.start_date ? newData.start_date.split('T')[0] : '',
+        end_date: newData.end_date ? newData.end_date.split('T')[0] : '',
+        durationDays: newData.days || newData.durationDays || 1,
+        max_people: newData.max_people || 20,
+        coverImage: newData.image || newData.coverImage || '',
+        tags: newData.tags || [],
+        itinerary: newData.itinerary || { days: [] },
+        packingList: newData.packingList || [],
+      }
+
+      // Restore Banner Preview if existing
+      if (postData.value.coverImage) {
+        bannerPreview.value = postData.value.coverImage
+      }
+
+      // Ensure itinerary days are initialized
+      if (!postData.value.itinerary.days || postData.value.itinerary.days.length === 0) {
+        updateItineraryDays(postData.value.durationDays)
+      }
+
+      // Update Editor Content
+      if (editor.value) {
+        editor.value.commands.setContent(postData.value.description)
+      }
+    }
+  },
+  { immediate: true, deep: true }
+)
+
+
 // --- 送出表單 ---
 const handleFinalSubmit = async () => {
   if (!auth.currentUser) {
@@ -455,16 +510,21 @@ const handleFinalSubmit = async () => {
     submitProgress.value = 70
     submitStatus.value = '正在提交中...'
 
-    const res = await createItinerary(payload)
+    let res
+    if (props.isEdit) {
+      res = await updateItinerary(props.initialData.id, payload)
+    } else {
+      res = await createItinerary(payload)
+    }
 
     if (res.success) {
       submitProgress.value = 100
-      submitStatus.value = '發布成功！'
-      alert('精選行程上架成功！')
+      submitStatus.value = props.isEdit ? '更新成功！' : '發布成功！'
+      alert(props.isEdit ? '行程更新成功！' : '精選行程上架成功！')
       emit('success')
       emit('close')
     } else {
-      formError.value = res.message || '發布失敗'
+      formError.value = res.message || (props.isEdit ? '更新失敗' : '發布失敗')
     }
   } catch (e) {
     console.error(e)
@@ -1118,12 +1178,14 @@ if (postData.value.itinerary.days.length === 0) {
           <template v-if="currentStep === 'preview'">
             <button
               v-if="!isSubmitting"
+              type="button"
               class="px-6 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
+              type="button"
               :disabled="isSubmitting"
               class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
               @click="handleFinalSubmit"
@@ -1133,6 +1195,7 @@ if (postData.value.itinerary.days.length === 0) {
           </template>
           <button
             v-else
+            type="button"
             :disabled="isUploading || isSubmitting"
             class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
             @click="nextStep"

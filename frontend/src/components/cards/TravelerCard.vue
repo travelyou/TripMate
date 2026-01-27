@@ -86,6 +86,24 @@ const itemData = computed(() => ({
   category: props.traveler.category,
 }))
 
+const mainImage = computed(() => {
+  const traveler = props.traveler || {}
+  const imageUrls = Array.isArray(traveler.image_urls) ? traveler.image_urls : []
+  const images = Array.isArray(traveler.images) ? traveler.images : []
+
+  return (
+    traveler.image ||
+    traveler.banner ||
+    traveler.banner_image ||
+    traveler.bannerImage ||
+    traveler.coverImage ||
+    traveler.cover_image ||
+    imageUrls[0] ||
+    images[0] ||
+    ''
+  )
+})
+
 const previewContent = computed(() => {
   if (!props.traveler.content) return ''
 
@@ -393,11 +411,18 @@ onUnmounted(() => {
           class="relative w-full shrink-0 overflow-hidden rounded-xl aspect-[3/4] lg:aspect-auto lg:h-[36rem]"
         >
           <img
-            :src="traveler.image"
+            v-if="mainImage"
+            :src="mainImage"
             :alt="traveler.title"
             class="w-full h-full object-cover"
             :style="{ objectPosition: `center ${traveler.banner_position_y || 50}%` }"
           />
+          <div
+            v-else
+            class="w-full h-full flex items-center justify-center bg-secondary-100"
+          >
+            <MapPinIcon class="w-12 h-12 text-secondary-400" />
+          </div>
 
           <div
             class="absolute inset-x-0 bottom-0 z-20 flex h-[75%] flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent px-3 sm:px-4 pt-10 pb-3 sm:pb-4 text-white overflow-hidden"

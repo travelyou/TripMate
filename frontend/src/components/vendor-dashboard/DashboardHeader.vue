@@ -2,20 +2,27 @@
 import { computed } from 'vue'
 import { Star, MapPin, Calendar, TrendingUp } from 'lucide-vue-next'
 
-defineProps({
+const props = defineProps({
   vendor: {
     type: Object,
     required: true
+  },
+  itineraries: {
+    type: Array,
+    default: () => []
+  },
+  posts: {
+    type: Array,
+    default: () => []
   }
 })
 
-// 🔴 MOCK DATA - 統計數據
-// 📡 未來需從 API 取得真實數據
+// ✅ 使用真實統計數據
 const stats = computed(() => ({
-  totalItineraries: 28,
-  totalPosts: 45,
-  totalOrders: 156,
-  monthlyRevenue: 328000
+  totalItineraries: props.itineraries?.length || 0,
+  totalPosts: props.posts?.length || 0,
+  totalOrders: 0,  // TODO: 需要從訂單 API 取得
+  monthlyRevenue: 0  // TODO: 需要從訂單 API 取得
 }))
 </script>
 

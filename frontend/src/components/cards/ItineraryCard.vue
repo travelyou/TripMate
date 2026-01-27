@@ -65,14 +65,32 @@ const itemData = computed(() => ({
 }))
 
 const previewContent = computed(() => {
-  if (!props.itinerary.description) return ''
-  let content = props.itinerary.description
+  const rawDescription = props.itinerary.description || props.itinerary.content || ''
+  if (!rawDescription) return ''
+  let content = rawDescription
   content = content.replace(/<br\s*\/?>/gi, '\n')
   content = content.replace(/<\/(p|div|h[1-6]|li|blockquote|pre)>/gi, '\n')
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = content
   const plainText = tempDiv.textContent || tempDiv.innerText || ''
   return plainText.trim()
+})
+
+const coverImage = computed(() => {
+  const itinerary = props.itinerary || {}
+  const imageUrls = Array.isArray(itinerary.image_urls) ? itinerary.image_urls : []
+  const images = Array.isArray(itinerary.images) ? itinerary.images : []
+
+  return (
+    itinerary.coverImage ||
+    itinerary.cover_image ||
+    itinerary.banner_image ||
+    itinerary.banner ||
+    itinerary.image ||
+    imageUrls[0] ||
+    images[0] ||
+    ''
+  )
 })
 
 const formatPrice = (price) => {
@@ -89,7 +107,9 @@ const displayLocation = computed(() => {
 })
 
 const displayDate = computed(() => {
-  const { start_date, end_date, durationDays } = props.itinerary
+  const start_date = props.itinerary.start_date || props.itinerary.startDate
+  const end_date = props.itinerary.end_date || props.itinerary.endDate
+  const durationDays = props.itinerary.durationDays || props.itinerary.duration_days
   if (start_date && end_date) {
     const d1 = new Date(start_date)
     const d2 = new Date(end_date)
@@ -329,8 +349,8 @@ onUnmounted(() => {
       </div>
 
       <img
-        v-if="props.itinerary.coverImage"
-        :src="props.itinerary.coverImage"
+        v-if="coverImage"
+        :src="coverImage"
         :alt="props.itinerary.title"
         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         :style="{ objectPosition: `center ${props.itinerary.banner_position_y || 50}%` }"

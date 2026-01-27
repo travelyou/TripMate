@@ -251,6 +251,7 @@ import {
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirm } from '@/utils/alert'
+import { getVendorProfileRoute } from '@/utils/navigation'
 const router = useRouter()
 const userStore = useUserStore()
 
@@ -261,13 +262,8 @@ const goToVendorDashboard = () => {
 }
 
 const goToVendorProfile = () => {
-  // 導向到自己的廠商檔案
-  const vendorId = userStore.currentUser?.uid
-  if (vendorId) {
-    router.push({ name: 'VendorProfile', params: { id: vendorId } })
-  } else {
-    router.push('/vendor/dashboard') // Fallback
-  }
+  const route = getVendorProfileRoute(userStore.currentUser)
+  router.push(route)
 }
 
 const hasCartItems = computed(() => {

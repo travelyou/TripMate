@@ -14,6 +14,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { getVendorProfileRoute } from '@/utils/navigation'
 
 const emit = defineEmits(['open-mobile-actions'])
 const router = useRouter()
@@ -72,16 +73,17 @@ const bottomMenuItems = computed(() => {
     },
   ]
 
-  if (isVendor.value && userStore.currentUser?.uid) {
+  if (isVendor.value) {
+    const routeObj = getVendorProfileRoute(userStore.currentUser)
     items.push({
-      name: 'VendorProfile',
-      params: { id: userStore.currentUser.uid },
+      name: routeObj.name,
+      params: routeObj.params,
       label: '廠商檔案',
       icon: UserIcon,
       iconColor: 'text-primary-600',
       textColor: 'text-secondary',
     })
-  } else if (!isVendor.value) {
+  } else {
     items.push({
       name: 'profile',
       label: '個人檔案',

@@ -4,7 +4,6 @@ import {
   Award as AwardIcon,
   UserPlus,
   MessageCircle,
-  Edit,
   LayoutDashboard,
 } from 'lucide-vue-next'
 
@@ -69,18 +68,11 @@ const emit = defineEmits(['open-review-modal', 'follow', 'message', 'edit', 'man
           <!-- Owner Mode -->
           <template v-if="isOwner">
             <button
-              class="flex items-center gap-1.5 px-4 py-2 bg-secondary-50 text-secondary-700 rounded-full font-bold hover:bg-secondary-100 transition border-2 border-secondary-100"
-              @click="$emit('manage')"
-            >
-              <LayoutDashboard class="w-4 h-4" />
-              管理
-            </button>
-            <button
-              class="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-full font-bold hover:bg-primary-700 transition"
+              class="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-full font-bold hover:bg-primary-700 transition shadow-md hover:shadow-lg"
               @click="$emit('edit')"
             >
-              <Edit class="w-4 h-4" />
-              編輯
+              <LayoutDashboard class="w-4 h-4" />
+              管理後台
             </button>
           </template>
 

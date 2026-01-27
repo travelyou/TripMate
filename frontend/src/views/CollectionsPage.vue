@@ -1,8 +1,14 @@
 ﻿<script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { Bookmark, FolderOpen, Plus, Trash2 } from 'lucide-vue-next'
 import { showConfirm, showPrompt } from '@/utils/alert'
+import { fetchPostById } from '@/api/discussions'
+import { getTravelerById } from '@/api/travelers'
+import { getItineraryById } from '@/api/itinerary'
+import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
+import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
+import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
 // 引入卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
@@ -13,6 +19,98 @@ const userStore = useUserStore()
 
 // 當前選中的分類 ID (預設 'all')
 const activeCategoryId = ref('all')
+const hydratedItems = ref({})
+const loadingItems = ref({})
+
+const buildAvatarFallback = (uid) =>
+  uid ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}` : ''
+
+const normalizeHydratedPayload = (payload, item) => {
+  if (!payload) return payload
+  if (item.type === 'discussion') {
+    return {
+      ...payload,
+      avatar:
+        payload.avatar ||
+        payload.author_avatar ||
+        buildAvatarFallback(payload.author_uid || payload.authorUid),
+      author:
+        payload.author ||
+        payload.author_name ||
+        payload.author_nickname ||
+        payload.author_uid ||
+        '匿名用戶',
+      likes: payload.likes ?? payload.likes_count ?? 0,
+      comments:
+        payload.comments ??
+        payload.comments_count ??
+        (payload.commentsData ? payload.commentsData.length : 0),
+    }
+  }
+  return payload
+}
+
+const buildKey = (item) => `${item?.type || 'unknown'}:${item?.id}`
+
+const storeHydratedItem = (key, data) => {
+  hydratedItems.value = {
+    ...hydratedItems.value,
+    [key]: data,
+  }
+}
+
+const clearHydratedItem = (key) => {
+  if (!hydratedItems.value[key]) return
+  const updated = { ...hydratedItems.value }
+  delete updated[key]
+  hydratedItems.value = updated
+}
+
+const markLoading = (key) => {
+  loadingItems.value = {
+    ...loadingItems.value,
+    [key]: true,
+  }
+}
+
+const unmarkLoading = (key) => {
+  if (!loadingItems.value[key]) return
+  const updated = { ...loadingItems.value }
+  delete updated[key]
+  loadingItems.value = updated
+}
+
+const hydrateItem = async (item) => {
+  if (!item?.id || !item?.type) return
+  const key = buildKey(item)
+  if (hydratedItems.value[key] || loadingItems.value[key]) return
+  markLoading(key)
+  try {
+    let payload = null
+    if (item.type === 'discussion') {
+      payload = await fetchPostById(item.id)
+    } else if (item.type === 'traveler') {
+      const response = await getTravelerById(item.id, userStore.currentUser?.uid)
+      payload = response?.data || response
+    } else if (item.type === 'itinerary') {
+      const response = await getItineraryById(item.id)
+      payload = response?.data || response?.item || response
+    }
+
+    if (payload) {
+      const normalized = normalizeHydratedPayload(payload, item)
+      storeHydratedItem(key, {
+        ...normalized,
+        id: normalized.id || item.id,
+        type: item.type,
+      })
+    }
+  } catch (error) {
+    console.error('[Collections] 載入收藏內容失敗:', error)
+  } finally {
+    unmarkLoading(key)
+  }
+}
 
 // --- 動作：新增分類 ---
 const createNewCategory = async () => {
@@ -46,6 +144,7 @@ const removeItem = async (item) => {
   if (confirmed) {
     const targetCatId = activeCategoryId.value === 'all' ? null : activeCategoryId.value
     userStore.removeFromCollection(item, targetCatId)
+    clearHydratedItem(buildKey(item))
   }
 }
 
@@ -72,13 +171,91 @@ const filteredItems = computed(() => {
   return category ? category.items : []
 })
 
+const displayItems = computed(() =>
+  filteredItems.value.map((item) => hydratedItems.value[buildKey(item)]).filter((item) => !!item),
+)
+
 const currentCategoryName = computed(() => {
   const tab = tabs.value.find((t) => t.id === activeCategoryId.value)
   return tab ? tab.label : '收藏'
 })
 
-const handleCardClick = (item) => {
-  console.log('查看收藏內容:', item.title)
+const isHydrating = ref(true)
+let hydrationRunId = 0
+
+const hydrateVisibleItems = async () => {
+  const items = filteredItems.value.slice()
+  const runId = ++hydrationRunId
+
+  if (items.length === 0) {
+    isHydrating.value = false
+    return
+  }
+
+  isHydrating.value = true
+  try {
+    await Promise.all(items.map((item) => hydrateItem(item)))
+  } finally {
+    if (runId === hydrationRunId) {
+      isHydrating.value = false
+    }
+  }
+}
+
+watch(
+  [activeCategoryId, () => userStore.collections.map((item) => buildKey(item)).join('|')],
+  () => {
+    hydrateVisibleItems()
+  },
+  { immediate: true },
+)
+
+const isDiscussionModalOpen = ref(false)
+const isTravelerModalOpen = ref(false)
+const isItineraryModalOpen = ref(false)
+
+const selectedDiscussion = ref(null)
+const selectedTraveler = ref(null)
+const selectedItinerary = ref(null)
+
+const discussionScrollToComments = ref(false)
+const travelerScrollToComments = ref(false)
+const itineraryScrollToComments = ref(false)
+
+const openDiscussionDetail = (post, focusComments = false) => {
+  selectedDiscussion.value = post
+  discussionScrollToComments.value = !!focusComments
+  isDiscussionModalOpen.value = true
+}
+
+const closeDiscussionDetail = () => {
+  isDiscussionModalOpen.value = false
+  discussionScrollToComments.value = false
+  selectedDiscussion.value = null
+}
+
+const openTravelerDetail = (traveler, focusComments = false) => {
+  selectedTraveler.value = traveler
+  travelerScrollToComments.value = !!focusComments
+  isTravelerModalOpen.value = true
+}
+
+const closeTravelerDetail = () => {
+  isTravelerModalOpen.value = false
+  travelerScrollToComments.value = false
+  selectedTraveler.value = null
+}
+
+const openItineraryDetail = (itinerary, focusComments = false) => {
+  selectedItinerary.value = itinerary
+  itineraryScrollToComments.value = !!focusComments
+  isItineraryModalOpen.value = true
+}
+
+const closeItineraryDetail = () => {
+  isItineraryModalOpen.value = false
+  itineraryScrollToComments.value = false
+  selectedItinerary.value = null
 }
 
 // 統一橘色系樣式
@@ -137,7 +314,9 @@ const getTabStyle = (isActive) => {
         {{ tab.label }}
         <span
           class="ml-1 text-xs px-1.5 py-0.5 rounded-full"
-          :class="activeCategoryId === tab.id ? 'bg-white/40' : 'bg-secondary-200 text-secondary-500'"
+          :class="
+            activeCategoryId === tab.id ? 'bg-white/40' : 'bg-secondary-200 text-secondary-500'
+          "
         >
           {{ tab.count }}
         </span>
@@ -175,7 +354,16 @@ const getTabStyle = (isActive) => {
       </div>
 
       <div
-        v-if="filteredItems.length === 0"
+        v-if="isHydrating"
+        class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
+      >
+        <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
+        <p class="font-bold text-lg">載入中...</p>
+        <p class="text-sm">正在同步收藏內容，請稍候</p>
+      </div>
+
+      <div
+        v-else-if="filteredItems.length === 0"
         class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
       >
         <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
@@ -183,8 +371,17 @@ const getTabStyle = (isActive) => {
         <p class="text-sm">快去逛逛，把喜歡的內容加進來吧！</p>
       </div>
 
-      <TransitionGroup name="list">
-        <div v-for="item in filteredItems" :key="item.id" class="relative group">
+      <div
+        v-else-if="displayItems.length === 0"
+        class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
+      >
+        <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
+        <p class="font-bold text-lg">尚未取得內容</p>
+        <p class="text-sm">可能是網路較慢，請重新整理或稍候再試。</p>
+      </div>
+
+      <TransitionGroup v-else name="list">
+        <div v-for="item in displayItems" :key="item.id" class="relative group">
           <button
             class="absolute top-4 right-4 z-20 p-2 bg-white/90 hover:bg-red-500 hover:text-white text-secondary-400 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition duration-200 border border-secondary-100"
             title="移除收藏"
@@ -196,22 +393,41 @@ const getTabStyle = (isActive) => {
           <TravelerCard
             v-if="item.type === 'traveler'"
             :traveler="item"
-            @click="handleCardClick(item)"
+            @open-detail="openTravelerDetail"
           />
 
           <PostCard
             v-else-if="item.type === 'discussion'"
             :post="item"
-            @click="handleCardClick(item)"
+            @click="openDiscussionDetail(item, false)"
+            @comment="openDiscussionDetail(item, true)"
           />
 
           <ItineraryCard
             v-else-if="item.type === 'itinerary'"
             :itinerary="item"
-            @click="handleCardClick(item)"
+            @open-detail="openItineraryDetail"
           />
         </div>
       </TransitionGroup>
+      <DiscussionDetailModal
+        v-if="isDiscussionModalOpen && selectedDiscussion"
+        :post="selectedDiscussion"
+        :scroll-to-comments="discussionScrollToComments"
+        @close="closeDiscussionDetail"
+      />
+      <TravelerDetailModal
+        v-if="isTravelerModalOpen && selectedTraveler"
+        :traveler="selectedTraveler"
+        :scroll-to-comments="travelerScrollToComments"
+        @close="closeTravelerDetail"
+      />
+      <ItineraryDetailModal
+        v-if="isItineraryModalOpen && selectedItinerary"
+        :itinerary="selectedItinerary"
+        :scroll-to-comments="itineraryScrollToComments"
+        @close="closeItineraryDetail"
+      />
     </div>
   </div>
 </template>

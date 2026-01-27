@@ -9,6 +9,7 @@ import DashboardHeader from '@/components/vendor-dashboard/DashboardHeader.vue'
 import TabBasicInfo from '@/components/vendor-dashboard/tabs/TabBasicInfo.vue'
 import TabItineraryList from '@/components/vendor-dashboard/tabs/TabItineraryList.vue'
 import TabPostList from '@/components/vendor-dashboard/tabs/TabPostList.vue'
+import { getVendorProfileRoute } from '@/utils/navigation'
 
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
@@ -22,26 +23,58 @@ const activeTab = ref('basic_info')
 const showItineraryModal = ref(false)
 const showPostModal = ref(false)
 
-const vendorId = computed(() => userStore.currentUser?.vendorId || 'vendor001')
+// Edit State
+const editItineraryData = ref(null)
+const isItineraryEdit = ref(false)
+
+const vendorId = computed(() => {
+  const id = userStore.currentUser?.vendorId || userStore.currentUser?.id || 'vendor001'
+  console.log('🔄 [Dashboard] Computed vendorId:', id)
+  return id
+})
 const currentVendor = computed(() => vendorStore.currentVendor)
 const loading = computed(() => vendorStore.loading)
 
 const handleLogout = () => {
+  console.log('🚪 handleLogout triggered')
   userStore.logout()
   router.push('/login')
 }
 
 const handleSwitchToFrontend = () => {
-  router.push('/vendor')
+  console.log('🚀 handleSwitchToFrontend triggered')
+  const route = getVendorProfileRoute(userStore.currentUser)
+  console.log('🚀 handleSwitchToFrontend -> target route:', route)
+  router.push(route)
 }
 
 const openItineraryModal = () => {
+  isItineraryEdit.value = false
+  editItineraryData.value = null
+  showItineraryModal.value = true
+}
+
+const handleEditItinerary = (item) => {
+  console.log('✏️ Edit Itinerary:', item)
+  isItineraryEdit.value = true
+  editItineraryData.value = item
   showItineraryModal.value = true
 }
 
 const openPostModal = () => {
   showPostModal.value = true
 }
+
+// ... (success handlers)
+
+// Template changes below
+
+// In TabItineraryList:
+// @edit="handleEditItinerary"
+
+// In ItineraryPostModal:
+// :initial-data="editItineraryData"
+// :is-edit="isItineraryEdit"
 
 const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
@@ -58,6 +91,11 @@ const handlePostSuccess = async () => {
 }
 
 onMounted(async () => {
+  console.log('🔍 [Dashboard] 當前用戶:', userStore.currentUser)
+  console.log('🔍 [Dashboard] vendorId:', vendorId.value)
+
+  console.log('🔍 [Dashboard] role:', userStore.currentUser?.role)
+
   await vendorStore.fetchVendorProfile(vendorId.value)
   await Promise.all([
     vendorStore.fetchVendorItineraries(vendorId.value),
@@ -79,7 +117,12 @@ onMounted(async () => {
       />
 
       <main class="flex-1 overflow-auto">
-        <DashboardHeader v-if="currentVendor && !loading" :vendor="currentVendor" />
+        <DashboardHeader
+          v-if="currentVendor && !loading"
+          :vendor="currentVendor"
+          :itineraries="vendorStore.itineraries"
+          :posts="vendorStore.posts"
+        />
 
         <div class="p-8">
           <div v-if="loading" class="flex justify-center items-center h-96">
@@ -102,7 +145,7 @@ onMounted(async () => {
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                 <TabItineraryList
                   @create="openItineraryModal"
-                  @edit="(item) => console.log('Edit itinerary', item)"
+                  @edit="handleEditItinerary"
                 />
               </div>
             </div>
@@ -130,6 +173,8 @@ onMounted(async () => {
 
     <ItineraryPostModal
       v-if="showItineraryModal"
+      :initial-data="editItineraryData"
+      :is-edit="isItineraryEdit"
       @close="showItineraryModal = false"
       @success="handleItinerarySuccess"
     />

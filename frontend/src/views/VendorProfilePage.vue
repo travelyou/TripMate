@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, watch, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { onMounted, watch, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useVendorStore } from '@/stores/vendor'
 import { storeToRefs } from 'pinia'
 import { usePermission } from '@/composables/usePermission'
@@ -13,6 +13,7 @@ import VendorRegionSelector from '@/components/vendor/VendorRegionSelector.vue'
 import VendorReviewModal from '@/components/vendor/VendorReviewModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const vendorStore = useVendorStore()
 const { currentVendor, vendorItineraries, vendorPosts, vendorReviews, loading } =
   storeToRefs(vendorStore)
@@ -23,6 +24,17 @@ const { canEdit: isOwner } = usePermission()
 // State
 const activeRegion = ref('全部')
 const showReviewModal = ref(false)
+
+// Computed
+const mainRegions = computed(() => {
+  if (!currentVendor.value?.bannerImage) return []
+  try {
+    return JSON.parse(currentVendor.value.bannerImage)
+  } catch (e) {
+    console.error('Failed to parse main regions:', e)
+    return []
+  }
+})
 
 const loadData = async () => {
   const vendorId = route.params.id || 'vendor001' // Default to mock ID if none
@@ -48,12 +60,16 @@ watch(
 )
 
 // Event Handlers
+const handleEdit = () => {
+  router.push({ name: 'VendorDashboard' })
+}
+
 const handleRegionSelect = (region) => {
   activeRegion.value = region
   // NOTE: In a real app we might want to fetch data filtered by region from backend
   // but here we filter on client side in child components.
 }
-
+// ... existing code ...
 const handlePageChange = (page) => {
   // Implement real pagination here
   console.log('Page changed to:', page)
@@ -74,26 +90,12 @@ const handlePageChange = (page) => {
         :vendor="currentVendor"
         :is-owner="isOwner"
         @open-review-modal="showReviewModal = true"
+        @edit="handleEdit"
       />
-
-      <!-- 廠商 Banner (本季主打) -->
-      <div
-        v-if="currentVendor.bannerImage"
-        class="mb-8 rounded-2xl overflow-hidden shadow-primary-sm border-2 border-primary-100 h-40 md:h-64 relative bg-white"
-      >
-        <img :src="currentVendor.bannerImage" class="w-full h-full object-cover" />
-        <div
-          class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6"
-        >
-          <h2 class="text-white text-2xl md:text-3xl font-black drop-shadow-lg tracking-wide">
-            本季主打行程
-          </h2>
-        </div>
-      </div>
 
       <!-- 地區篩選器 -->
       <VendorRegionSelector
-        :regions="currentVendor.regionTags"
+        :regions="mainRegions"
         :active-region="activeRegion"
         @select-region="handleRegionSelect"
       />
@@ -116,8 +118,8 @@ const handlePageChange = (page) => {
     <VendorReviewModal
       :is-open="showReviewModal"
       :reviews="vendorReviews"
-      :average-rating="currentVendor?.rating"
-      :total-reviews="currentVendor?.reviewCount"
+      :average-rating="Number(currentVendor?.rating || 0)"
+      :total-reviews="Number(currentVendor?.reviewCount || 0)"
       @close="showReviewModal = false"
     />
   </div>

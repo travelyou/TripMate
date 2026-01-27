@@ -107,8 +107,8 @@ router.post('/', async (req, res) => {
         } else if (insertError.code === '23503') {
           throw new Error(
             `無法為 ${board} 類型的帖子創建按讚記錄。` +
-            `數據庫外鍵約束只支持 discussion 類型的帖子。` +
-            `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
+              `數據庫外鍵約束只支持 discussion 類型的帖子。` +
+              `請聯繫管理員修改數據庫結構以支持 ${board} 類型的帖子。`,
           )
         } else {
           throw insertError
@@ -146,13 +146,13 @@ router.post('/', async (req, res) => {
               try {
                 const userResult = await pool.query(
                   `SELECT nickname, avatar FROM public.users WHERE uid = $1`,
-                  [author_uid]
+                  [author_uid],
                 )
 
                 if (userResult.rows.length > 0) {
                   const user = userResult.rows[0]
-                  likerName = (user.nickname && user.nickname.trim() !== '') ? user.nickname : null
-                  likerAvatar = (user.avatar && user.avatar.trim() !== '') ? user.avatar : null
+                  likerName = user.nickname && user.nickname.trim() !== '' ? user.nickname : null
+                  likerAvatar = user.avatar && user.avatar.trim() !== '' ? user.avatar : null
                 }
               } catch (error) {
                 console.error('查詢用戶資訊失敗:', error.message)
@@ -244,14 +244,15 @@ router.get('/user/:uid', async (req, res) => {
           i.price,
           i.category,
           i.location,
-          i.destinations,
           i.start_date,
           i.end_date,
+          COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
           COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
           i.agency_name,
           i.author_uid,
           i.vendor_id,
           COALESCE(i.banner_position_y, 50) AS banner_position_y,
+          i.created_at,
           'itinerary' as type,
           u.nickname,
           u.avatar,
@@ -272,6 +273,13 @@ router.get('/user/:uid', async (req, res) => {
     const result = await pool.query(query, params)
 
     const favorites = result.rows.map((row) => {
+      const timeSource = row.liked_at || row.created_at || null
+      let formattedTime = ''
+      if (timeSource) {
+        const dateObj = new Date(timeSource)
+        formattedTime = Number.isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString()
+      }
+
       const baseData = {
         id: row.id,
         type: row.type,
@@ -283,12 +291,13 @@ router.get('/user/:uid', async (req, res) => {
         likes: parseInt(row.likes_count) || 0,
         comments: parseInt(row.comments_count) || 0,
         author: row.nickname || row.author_nickname || '匿名用戶',
-        time: new Date(row.created_at).toLocaleDateString(),
         avatar:
           row.avatar ||
           row.author_avatar ||
           'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
         spiritAnimal: row.spirit_animal || row.author_spirit_animal || null,
+        time: formattedTime,
+        isLiked: true,
       }
 
       if (row.type === 'traveler') {
@@ -310,8 +319,6 @@ router.get('/user/:uid', async (req, res) => {
         baseData.durationDays = row.duration_days || null
         baseData.agencyName = row.agency_name || null
         baseData.author_uid = row.author_uid || null
-        baseData.vendor_id = row.vendor_id || null
-        baseData.banner_position_y = row.banner_position_y ?? 50
         baseData.isLiked = true
         baseData.comments_count = parseInt(row.comments_count) || 0
       }
