@@ -1,8 +1,11 @@
 ﻿<script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { Bookmark, FolderOpen, Plus, Trash2 } from 'lucide-vue-next'
 import { showConfirm, showPrompt } from '@/utils/alert'
+import { fetchPostById } from '@/api/discussions'
+import { getTravelerById } from '@/api/travelers'
+import { getItineraryById } from '@/api/itinerary'
 
 // 引入卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
@@ -13,6 +16,106 @@ const userStore = useUserStore()
 
 // 當前選中的分類 ID (預設 'all')
 const activeCategoryId = ref('all')
+const hydratedItems = ref({})
+const loadingItems = ref({})
+
+const buildAvatarFallback = (uid) =>
+  uid ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}` : ''
+
+const normalizeHydratedPayload = (payload, item) => {
+  if (!payload) return payload
+  if (item.type === 'discussion') {
+    return {
+      ...payload,
+      avatar:
+        payload.avatar ||
+        payload.author_avatar ||
+        buildAvatarFallback(payload.author_uid || payload.authorUid),
+      author:
+        payload.author ||
+        payload.author_name ||
+        payload.author_nickname ||
+        payload.author_uid ||
+        '匿名用戶',
+      likes: payload.likes ?? payload.likes_count ?? 0,
+      comments:
+        payload.comments ??
+        payload.comments_count ??
+        (payload.commentsData ? payload.commentsData.length : 0),
+    }
+  }
+  return payload
+}
+
+const buildKey = (item) => `${item?.type || 'unknown'}:${item?.id}`
+
+const storeHydratedItem = (key, data) => {
+  hydratedItems.value = {
+    ...hydratedItems.value,
+    [key]: data,
+  }
+}
+
+const clearHydratedItem = (key) => {
+  if (!hydratedItems.value[key]) return
+  const updated = { ...hydratedItems.value }
+  delete updated[key]
+  hydratedItems.value = updated
+}
+
+const markLoading = (key) => {
+  loadingItems.value = {
+    ...loadingItems.value,
+    [key]: true,
+  }
+}
+
+const unmarkLoading = (key) => {
+  if (!loadingItems.value[key]) return
+  const updated = { ...loadingItems.value }
+  delete updated[key]
+  loadingItems.value = updated
+}
+
+const hydrateItem = async (item) => {
+  if (!item?.id || !item?.type) return
+  const key = buildKey(item)
+  if (hydratedItems.value[key] || loadingItems.value[key]) return
+  markLoading(key)
+  try {
+    let payload = null
+    if (item.type === 'discussion') {
+      payload = await fetchPostById(item.id)
+    } else if (item.type === 'traveler') {
+      const response = await getTravelerById(item.id, userStore.currentUser?.uid)
+      payload = response?.data || response
+    } else if (item.type === 'itinerary') {
+      const response = await getItineraryById(item.id)
+      payload = response?.data || response?.item || response
+    }
+
+    if (payload) {
+      const normalized = normalizeHydratedPayload(payload, item)
+      storeHydratedItem(key, {
+        ...normalized,
+        id: normalized.id || item.id,
+        type: item.type,
+      })
+    }
+  } catch (error) {
+    console.error('[Collections] 載入收藏內容失敗:', error)
+  } finally {
+    unmarkLoading(key)
+  }
+}
+
+watch(
+  () => userStore.collections.map((item) => buildKey(item)),
+  () => {
+    userStore.collections.forEach((item) => hydrateItem(item))
+  },
+  { immediate: true },
+)
 
 // --- 動作：新增分類 ---
 const createNewCategory = async () => {
@@ -46,6 +149,7 @@ const removeItem = async (item) => {
   if (confirmed) {
     const targetCatId = activeCategoryId.value === 'all' ? null : activeCategoryId.value
     userStore.removeFromCollection(item, targetCatId)
+    clearHydratedItem(buildKey(item))
   }
 }
 
@@ -71,6 +175,13 @@ const filteredItems = computed(() => {
   const category = userStore.collectionCategories.find((c) => c.id === activeCategoryId.value)
   return category ? category.items : []
 })
+
+const displayItems = computed(() =>
+  filteredItems.value.map((item) => {
+    const hydrated = hydratedItems.value[buildKey(item)]
+    return hydrated || item
+  }),
+)
 
 const currentCategoryName = computed(() => {
   const tab = tabs.value.find((t) => t.id === activeCategoryId.value)
@@ -137,7 +248,9 @@ const getTabStyle = (isActive) => {
         {{ tab.label }}
         <span
           class="ml-1 text-xs px-1.5 py-0.5 rounded-full"
-          :class="activeCategoryId === tab.id ? 'bg-white/40' : 'bg-secondary-200 text-secondary-500'"
+          :class="
+            activeCategoryId === tab.id ? 'bg-white/40' : 'bg-secondary-200 text-secondary-500'
+          "
         >
           {{ tab.count }}
         </span>
@@ -184,7 +297,7 @@ const getTabStyle = (isActive) => {
       </div>
 
       <TransitionGroup name="list">
-        <div v-for="item in filteredItems" :key="item.id" class="relative group">
+        <div v-for="item in displayItems" :key="item.id" class="relative group">
           <button
             class="absolute top-4 right-4 z-20 p-2 bg-white/90 hover:bg-red-500 hover:text-white text-secondary-400 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition duration-200 border border-secondary-100"
             title="移除收藏"
