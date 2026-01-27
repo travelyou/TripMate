@@ -294,6 +294,7 @@ router.get('/user/:uid', async (req, res) => {
           'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (row.author_uid || row.id),
         spiritAnimal: row.spirit_animal || row.author_spirit_animal || null,
         time: formattedTime,
+        isLiked: true,
       }
 
       if (row.type === 'traveler') {
