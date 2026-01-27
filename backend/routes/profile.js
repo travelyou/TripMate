@@ -5,6 +5,7 @@ const router = express.Router()
 const pool = require('../database/connection')
 const { createFriendRequestNotification } = require('../utils/notifications')
 
+// --- Helper Functions ---
 const ensureFriendsTable = async () => {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS friends (
@@ -16,9 +17,15 @@ const ensureFriendsTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
   )
-  await pool.query(`ALTER TABLE friends ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'`)
-  await pool.query(`ALTER TABLE friends ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
-  await pool.query(`ALTER TABLE friends ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
+  await pool.query(
+    `ALTER TABLE friends ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'`,
+  )
+  await pool.query(
+    `ALTER TABLE friends ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+  )
+  await pool.query(
+    `ALTER TABLE friends ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+  )
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_friends_pair
      ON friends (user_uid, friend_uid)`,
@@ -41,6 +48,9 @@ const ensureChatMessagesTable = async () => {
   )
 }
 
+// --- Routes ---
+
+// 新增去過的地方
 router.post('/:uid/visited-places', async (req, res) => {
   try {
     const { uid } = req.params
@@ -71,6 +81,7 @@ router.post('/:uid/visited-places', async (req, res) => {
   }
 })
 
+// 刪除去過的地方
 router.delete('/:uid/visited-places/:id', async (req, res) => {
   try {
     const { uid, id } = req.params
@@ -94,6 +105,7 @@ router.delete('/:uid/visited-places/:id', async (req, res) => {
   }
 })
 
+// 新增許願池項目
 router.post('/:uid/wishlist', async (req, res) => {
   try {
     const { uid } = req.params
@@ -125,6 +137,7 @@ router.post('/:uid/wishlist', async (req, res) => {
   }
 })
 
+// 刪除許願池項目
 router.delete('/:uid/wishlist/:id', async (req, res) => {
   try {
     const { uid, id } = req.params
@@ -148,6 +161,7 @@ router.delete('/:uid/wishlist/:id', async (req, res) => {
   }
 })
 
+// 更新許願池 (整批更新)
 router.put('/:uid/wishlist', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -265,14 +279,16 @@ router.post('/:uid/friends', async (req, res) => {
         }
 
         const outgoingPending = existingCheck.rows.find(
-          (row) => row.status === 'pending' && row.user_uid === uid && row.friend_uid === friend_uid,
+          (row) =>
+            row.status === 'pending' && row.user_uid === uid && row.friend_uid === friend_uid,
         )
         if (outgoingPending) {
           return res.status(409).json({ error: '好友請求已發送，請等待對方回應' })
         }
 
         const incomingPending = existingCheck.rows.find(
-          (row) => row.status === 'pending' && row.user_uid === friend_uid && row.friend_uid === uid,
+          (row) =>
+            row.status === 'pending' && row.user_uid === friend_uid && row.friend_uid === uid,
         )
         if (incomingPending) {
           const updatedAtCheck = await pool.query(
@@ -316,7 +332,6 @@ router.post('/:uid/friends', async (req, res) => {
     // 插入好友請求（狀態為 pending）
     let result
     if (hasStatus) {
-      // 如果有 status 欄位，設置為 'pending'
       result = await pool.query(
         `INSERT INTO friends (user_uid, friend_uid, status, created_at)
          VALUES ($1, $2, 'pending', CURRENT_TIMESTAMP)
@@ -324,7 +339,6 @@ router.post('/:uid/friends', async (req, res) => {
         [uid, friend_uid],
       )
     } else {
-      // 如果沒有 status 欄位，直接插入（但實際上應該要有 status 欄位）
       result = await pool.query(
         `INSERT INTO friends (user_uid, friend_uid, created_at)
          VALUES ($1, $2, CURRENT_TIMESTAMP)
@@ -335,15 +349,13 @@ router.post('/:uid/friends', async (req, res) => {
 
     // 創建好友申請通知
     try {
-      // 獲取申請者資訊
       const requesterResult = await pool.query(
         `SELECT uid, nickname, avatar FROM users WHERE uid = $1`,
-        [uid]
+        [uid],
       )
-      
+
       if (requesterResult.rows.length > 0) {
         const requester = requesterResult.rows[0]
-        // 優先使用 nickname，如果沒有則使用 uid
         const requesterName = requester.nickname || requester.uid
         await createFriendRequestNotification({
           user_uid: friend_uid,
@@ -377,7 +389,6 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
 
     await ensureFriendsTable()
 
-    // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -387,7 +398,6 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
 
     let result
     if (hasStatus) {
-      // 只刪除 pending 狀態的請求（由當前用戶發起的）
       result = await pool.query(
         `DELETE FROM friends
          WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
@@ -424,7 +434,6 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
 
     await ensureFriendsTable()
 
-    // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -434,7 +443,6 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
 
     let result
     if (hasStatus) {
-      // 刪除 accepted 狀態的好友關係（雙向）
       result = await pool.query(
         `DELETE FROM friends
          WHERE ((user_uid = $1 AND friend_uid = $2)
@@ -444,7 +452,6 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
         [uid, friend_uid],
       )
     } else {
-      // 如果沒有 status 欄位，刪除所有相關記錄
       result = await pool.query(
         `DELETE FROM friends
          WHERE (user_uid = $1 AND friend_uid = $2)
@@ -471,11 +478,10 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
 // 接受好友請求
 router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
   try {
-    const { uid, friend_uid } = req.params // uid 是接受請求的用戶，friend_uid 是發送請求的用戶
+    const { uid, friend_uid } = req.params
 
     await ensureFriendsTable()
 
-    // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -487,7 +493,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
       return res.status(400).json({ error: '資料庫不支援好友請求狀態管理' })
     }
 
-    // 檢查 updated_at 欄位是否存在
     const updatedAtCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -495,7 +500,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
     )
     const hasUpdatedAt = updatedAtCheck.rows.length > 0
 
-    // 先檢查請求是否存在
     const checkRequest = await pool.query(
       `SELECT * FROM friends
        WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'`,
@@ -506,7 +510,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
       return res.status(404).json({ error: '找不到待接受的好友請求' })
     }
 
-    // 更新狀態為 accepted（friend_uid 發送給 uid 的請求）
     let updateQuery
     if (hasUpdatedAt) {
       updateQuery = `UPDATE friends
@@ -523,11 +526,9 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
     const result = await pool.query(updateQuery, [friend_uid, uid])
 
     if (result.rows.length === 0) {
-      console.error(`[acceptFriendRequest] UPDATE 沒有影響任何行`)
       return res.status(404).json({ error: '更新好友請求狀態失敗' })
     }
 
-    // 刪除聊天對話次數限制（因為已經成為好友）
     try {
       const tableCheck = await pool.query(
         `SELECT table_name FROM information_schema.tables
@@ -548,7 +549,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
     res.json({ success: true, message: '已接受好友請求' })
   } catch (error) {
     console.error('接受好友請求失敗：', error)
-    console.error('錯誤詳情:', error.message, error.stack)
     res.status(500).json({
       error: '接受好友請求失敗',
       message: error.message || '未知錯誤',
@@ -559,11 +559,10 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
 // 拒絕好友請求
 router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
   try {
-    const { uid, friend_uid } = req.params // uid 是拒絕請求的用戶，friend_uid 是發送請求的用戶
+    const { uid, friend_uid } = req.params
 
     await ensureFriendsTable()
 
-    // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -575,7 +574,6 @@ router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
       return res.status(400).json({ error: '資料庫不支援好友請求狀態管理' })
     }
 
-    // 刪除 pending 狀態的請求
     const result = await pool.query(
       `DELETE FROM friends
        WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
@@ -602,10 +600,9 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
 
-    const vendorCheck = await pool.query(
-      `SELECT role FROM public.users WHERE uid = $1`,
-      [friend_uid],
-    )
+    const vendorCheck = await pool.query(`SELECT role FROM public.users WHERE uid = $1`, [
+      friend_uid,
+    ])
     const isVendor = vendorCheck.rows.length > 0 && vendorCheck.rows[0].role === 'vendor'
 
     if (isVendor) {
@@ -641,19 +638,15 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       return res.json({ count: 0, remaining: 999, canSend: true, isFriend: true })
     }
 
-    // 檢查 chat_interactions 表是否存在，如果不存在則創建
     const tableCheck = await pool.query(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_name = 'chat_interactions'`,
     )
 
-    // 表應該已經存在（已手動創建），如果不存在則返回初始值
     if (tableCheck.rows.length === 0) {
-      console.warn(`[getChatInteractionCount] ⚠️ chat_interactions 表不存在，返回初始值`)
       return res.json({ count: 0, remaining: 3, canSend: true })
     }
 
-    // 獲取對話次數（單向查詢：uid 發送給 friend_uid 的次數）
     const result = await pool.query(
       `SELECT message_count FROM chat_interactions
        WHERE user_uid = $1 AND friend_uid = $2`,
@@ -664,14 +657,9 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
     const remaining = Math.max(0, 3 - count)
     const canSend = remaining > 0
 
-    console.log(
-      `[getChatInteractionCount] uid=${uid}, friend_uid=${friend_uid}, count=${count}, remaining=${remaining}, canSend=${canSend}`,
-    )
-
     res.json({ count, remaining, canSend, isFriend: false })
   } catch (error) {
     console.error('獲取對話次數失敗：', error)
-    // 如果表不存在或其他錯誤，返回允許發送
     res.json({ count: 0, remaining: 3, canSend: true })
   }
 })
@@ -681,14 +669,20 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
   try {
     const { uid, friend_uid } = req.params
 
-    const vendorCheck = await pool.query(
-      `SELECT role FROM public.users WHERE uid = $1`,
-      [friend_uid],
-    )
+    const vendorCheck = await pool.query(`SELECT role FROM public.users WHERE uid = $1`, [
+      friend_uid,
+    ])
     const isVendor = vendorCheck.rows.length > 0 && vendorCheck.rows[0].role === 'vendor'
 
     if (isVendor) {
-      return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true })
+      return res.json({
+        success: true,
+        count: 0,
+        remaining: 999,
+        canSend: true,
+        isFriend: false,
+        isVendor: true,
+      })
     }
 
     const statusCheck = await pool.query(
@@ -720,25 +714,18 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       return res.json({ success: true, count: 0, remaining: 999, canSend: true, isFriend: true })
     }
 
-    // 檢查 chat_interactions 表是否存在，如果不存在則創建
     const tableCheck = await pool.query(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_name = 'chat_interactions'`,
     )
 
-    // 表應該已經存在（已手動創建），如果不存在則返回錯誤提示
     if (tableCheck.rows.length === 0) {
-      console.error(`[incrementChatInteraction] ❌ chat_interactions 表不存在，請先執行 SQL 創建表`)
       return res.status(500).json({
         error: '數據表不存在',
-        message: 'chat_interactions 表未創建，請執行 SQL 腳本創建表',
+        message: 'chat_interactions 表未創建',
       })
     }
 
-    // 使用 UPSERT：先嘗試更新，如果沒有記錄則插入
-    // 為了確保原子性，使用事務或者先更新後插入的方式
-
-    // 方法1：先嘗試更新
     let result = await pool.query(
       `UPDATE chat_interactions
        SET message_count = message_count + 1, updated_at = CURRENT_TIMESTAMP
@@ -747,7 +734,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       [uid, friend_uid],
     )
 
-    if (result.rowCount === 0 || result.rows.length === 0) {
+    if (result.rowCount === 0) {
       try {
         result = await pool.query(
           `INSERT INTO chat_interactions (user_uid, friend_uid, message_count, created_at, updated_at)
@@ -766,30 +753,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
       }
     }
 
-    if (!result.rows || result.rows.length === 0 || !result.rows[0]?.message_count) {
-      const finalCheck = await pool.query(
-        `SELECT message_count FROM chat_interactions
-         WHERE user_uid = $1 AND friend_uid = $2`,
-        [uid, friend_uid],
-      )
-      if (finalCheck.rows.length > 0) {
-        result.rows = [{ message_count: finalCheck.rows[0].message_count }]
-      }
-    }
-
-    let count = parseInt(result.rows[0]?.message_count) || 0
-
-    if (count === 0) {
-      const verifyResult = await pool.query(
-        `SELECT message_count FROM chat_interactions
-         WHERE user_uid = $1 AND friend_uid = $2`,
-        [uid, friend_uid],
-      )
-      if (verifyResult.rows.length > 0) {
-        count = parseInt(verifyResult.rows[0].message_count) || 0
-      }
-    }
-
+    const count = parseInt(result.rows[0]?.message_count) || 0
     const remaining = Math.max(0, 3 - count)
     const canSend = remaining > 0
 
@@ -803,7 +767,7 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
   }
 })
 
-// 重置聊天對話次數（當好友請求被接受後）
+// 重置聊天對話次數
 router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -817,7 +781,6 @@ router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
       return res.json({ success: true })
     }
 
-    // 刪除雙向的對話記錄
     await pool.query(
       `DELETE FROM chat_interactions
        WHERE (user_uid = $1 AND friend_uid = $2)
@@ -847,7 +810,6 @@ router.post('/:uid/chat-messages/:friend_uid', async (req, res) => {
 
     await ensureChatMessagesTable()
 
-    // 插入消息
     const result = await pool.query(
       `INSERT INTO chat_messages (sender_uid, receiver_uid, content, created_at)
        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
@@ -882,7 +844,6 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
 
     await ensureChatMessagesTable()
 
-    // 獲取兩個用戶之間的所有消息（雙向）
     const result = await pool.query(
       `SELECT id, sender_uid, receiver_uid, content, created_at
        FROM chat_messages
@@ -911,14 +872,13 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
   }
 })
 
-// 獲取好友請求列表（收到的和發送的）
+// 獲取好友請求列表
 router.get('/:uid/friend-requests', async (req, res) => {
   try {
     const { uid } = req.params
 
     await ensureFriendsTable()
 
-    // 檢查 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -927,13 +887,9 @@ router.get('/:uid/friend-requests', async (req, res) => {
     const hasStatus = statusCheck.rows.length > 0
 
     if (!hasStatus) {
-      return res.json({
-        received: [],
-        sent: [],
-      })
+      return res.json({ received: [], sent: [] })
     }
 
-    // 獲取收到的請求（別人發給我的）
     const receivedRequests = await pool.query(
       `SELECT f.*, u.uid, u.nickname, u.avatar, u.email
        FROM friends f
@@ -943,7 +899,6 @@ router.get('/:uid/friend-requests', async (req, res) => {
       [uid],
     )
 
-    // 獲取發送的請求（我發給別人的）
     const sentRequests = await pool.query(
       `SELECT f.*, u.uid, u.nickname, u.avatar, u.email
        FROM friends f
@@ -985,6 +940,7 @@ router.get('/:uid/friend-requests', async (req, res) => {
   }
 })
 
+// 獲取個人檔案 (包含評價與行程標題關聯)
 router.get('/:uid', async (req, res) => {
   try {
     const { uid } = req.params
@@ -993,13 +949,14 @@ router.get('/:uid', async (req, res) => {
       return res.status(400).json({ error: 'UID 不能為空' })
     }
 
+    // 1. 獲取使用者基本資料
     const userResult = await pool.query('SELECT * FROM users WHERE uid = $1', [uid])
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' })
     }
-
     const user = userResult.rows[0]
 
+    // 2. 獲取去過的地方
     const visitedPlacesResult = await pool.query(
       'SELECT id, name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
       [uid],
@@ -1008,73 +965,45 @@ router.get('/:uid', async (req, res) => {
     const visitedPlaces = {
       domestic: visitedPlacesResult.rows
         .filter((p) => p.type === 'domestic')
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          date: p.date,
-          icon: p.icon,
-        })),
+        .map((p) => ({ id: p.id, name: p.name, date: p.date, icon: p.icon })),
       international: visitedPlacesResult.rows
         .filter((p) => p.type === 'international')
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          date: p.date,
-          icon: p.icon,
-        })),
+        .map((p) => ({ id: p.id, name: p.name, date: p.date, icon: p.icon })),
     }
 
+    // 3. 獲取許願清單
     const wishlistResult = await pool.query(
       'SELECT item FROM wishlist WHERE user_uid = $1 ORDER BY created_at DESC',
       [uid],
     )
     const wishlist = wishlistResult.rows.map((row) => row.item)
 
+    // 4. 獲取好友列表
     let friendsResult
     try {
-      const checkStatusQuery = `
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name = 'friends' AND column_name = 'status'
-      `
+      const checkStatusQuery = `SELECT column_name FROM information_schema.columns WHERE table_name = 'friends' AND column_name = 'status'`
       const statusCheck = await pool.query(checkStatusQuery)
+
+      const friendSelectSQL = `
+        SELECT u.uid, u.nickname, u.avatar, u.email
+        FROM friends f
+        JOIN users u ON (CASE WHEN f.user_uid = $1 THEN f.friend_uid ELSE f.user_uid END) = u.uid
+      `
 
       if (statusCheck.rows.length > 0) {
         friendsResult = await pool.query(
-          `SELECT u.uid, u.nickname, u.avatar, u.email
-           FROM friends f
-           JOIN users u ON (
-             CASE
-               WHEN f.user_uid = $1 THEN f.friend_uid
-               ELSE f.user_uid
-             END
-           ) = u.uid
-           WHERE (f.user_uid = $1 OR f.friend_uid = $1)
-             AND f.status = 'accepted'
-           ORDER BY f.created_at DESC`,
+          `${friendSelectSQL} WHERE (f.user_uid = $1 OR f.friend_uid = $1) AND f.status = 'accepted' ORDER BY f.created_at DESC`,
           [uid],
         )
       } else {
         friendsResult = await pool.query(
-          `SELECT u.uid, u.nickname, u.avatar, u.email
-           FROM friends f
-           JOIN users u ON (
-             CASE
-               WHEN f.user_uid = $1 THEN f.friend_uid
-               ELSE f.user_uid
-             END
-           ) = u.uid
-           WHERE (f.user_uid = $1 OR f.friend_uid = $1)
-           ORDER BY f.created_at DESC`,
+          `${friendSelectSQL} WHERE (f.user_uid = $1 OR f.friend_uid = $1) ORDER BY f.created_at DESC`,
           [uid],
         )
       }
     } catch (error) {
-      if (error.code === '42P01') {
-        friendsResult = { rows: [] }
-      } else {
-        throw error
-      }
+      if (error.code === '42P01') friendsResult = { rows: [] }
+      else throw error
     }
     const friends = friendsResult.rows.map((f) => ({
       id: f.uid,
@@ -1084,17 +1013,21 @@ router.get('/:uid', async (req, res) => {
       email: f.email,
     }))
 
+    // 5. [重點修改] 獲取評價 (新增 JOIN travelers 以取得標題)
     const reviewsResult = await pool.query(
       `SELECT r.*,
               u1.nickname as author_name, u1.avatar as author_avatar,
-              u2.nickname as target_name, u2.avatar as target_avatar
+              u2.nickname as target_name, u2.avatar as target_avatar,
+              t.title as trip_title
        FROM reviews r
        JOIN users u1 ON r.author_uid = u1.uid
        JOIN users u2 ON r.target_uid = u2.uid
+       LEFT JOIN travelers.travelers t ON r.trip_id = t.id
        WHERE r.target_uid = $1
        ORDER BY r.created_at DESC`,
       [uid],
     )
+
     const reviews = reviewsResult.rows.map((r) => ({
       id: r.id,
       author: r.author_name,
@@ -1102,21 +1035,18 @@ router.get('/:uid', async (req, res) => {
       avatar: r.author_avatar,
       targetAvatar: r.target_avatar,
       sentiment: r.sentiment,
-      tripTitle: r.trip_id ? `行程 #${r.trip_id}` : null,
+      tripTitle: r.trip_title || (r.trip_id ? `行程 #${r.trip_id}` : null),
       tripId: r.trip_id,
       content: r.content,
       date: r.created_at,
     }))
 
+    // 6. 統計數據
     let friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1 OR friend_uid = $1) as friends_count`
     try {
-      const checkStatusQuery = `
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name = 'friends' AND column_name = 'status'
-      `
-      const statusCheck = await pool.query(checkStatusQuery)
-
+      const statusCheck = await pool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = 'friends' AND column_name = 'status'`,
+      )
       if (statusCheck.rows.length > 0) {
         friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE (user_uid = $1 OR friend_uid = $1) AND status = 'accepted') as friends_count`
       }

@@ -17,6 +17,7 @@ const ordersRouter = require('./routes/orders')
 const cartRouter = require('./routes/cart')
 const swipesRouter = require('./routes/swipes')
 const vendorsRouter = require('./routes/vendors')
+const reviewsRouter = require('./routes/reviews')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -151,6 +152,7 @@ app.use('/api/vendors', vendorsRouter)
 app.use('/api/notifications', require('./routes/notifications'))
 app.use('/api/my-itinerary', require('./routes/myItinerary'))
 app.use('/api/ai/features', require('./routes/aiFeatures'))
+app.use('/api/reviews', reviewsRouter)
 
 // 全域錯誤處理
 app.use((err, req, res, next) => {
