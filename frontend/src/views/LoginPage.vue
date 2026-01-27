@@ -122,17 +122,15 @@ const handleLogin = async () => {
     }
 
     try {
-      // 先檢查Neon中是否存在用戶
       let neonUserExists = false
       let existingNeonUser = null
       try {
         existingNeonUser = await getUserProfile(userCredential.user.uid)
         neonUserExists = existingNeonUser && existingNeonUser.uid
-      } catch (checkError) {
-        console.log('檢查 Neon 用戶時出錯（可能不存在）：', checkError)
+      } catch {
+        // 用戶可能不存在，繼續處理
       }
 
-      // ⚠️ 修正：如果 Neon 已有用戶，保留原有的 role 和 vendor_id
       const userRole = neonUserExists && existingNeonUser.role
         ? existingNeonUser.role
         : (userData.role || 'user')
@@ -143,11 +141,6 @@ const handleLogin = async () => {
             ? null
             : userData.vendorId || userData.vendor_id || null)
 
-      console.log('🔧 [登入] Neon 使用者存在:', neonUserExists)
-      console.log('🔧 [登入] 保留的 role:', userRole)
-      console.log('🔧 [登入] 保留的 vendor_id:', vendorId)
-
-      // 如果Neon中不存在，嘗試創建/更新
       if (!neonUserExists) {
         try {
           await createOrUpdateUser({
@@ -164,21 +157,14 @@ const handleLogin = async () => {
         } catch {
           // 同步失敗但不影響登入
         }
-      } else {
-        // ⚠️ 修正：如果存在，只更新非關鍵欄位，不覆蓋 role 和 vendor_id
-        console.log('✅ Neon 使用者已存在，保留原有 role 和 vendor_id')
-        // 不再呼叫 createOrUpdateUser，避免覆蓋
       }
     } catch {
       // 同步失敗但不影響登入
     }
 
-    // 使用統一的 loadUserProfile 方法來載入用戶資料，確保正確處理 null 值
     try {
       await userStore.loadUserProfile(userCredential.user.uid)
     } catch (error) {
-      console.error('載入用戶資料失敗：', error)
-      // 如果載入失敗，使用基本資料
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
@@ -191,8 +177,6 @@ const handleLogin = async () => {
     userStore.login()
     router.push('/')
   } catch (error) {
-    console.error('登入失敗：', error.code, error.message)
-
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
       loginErrors.value.email = '該電子信箱不存在或是輸入錯誤'
     } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -287,7 +271,6 @@ const handleRegister = async () => {
       return
     }
 
-    // 先嘗試創建Neon用戶（透過API檢查是否可以連接）
     let neonUserCreated = false
     let userCredential = null
     let userData = null
@@ -296,7 +279,6 @@ const handleRegister = async () => {
     const finalRole = (selectedRole === 'vendor' || selectedRole === 'user') ? selectedRole : 'user'
 
     try {
-      // 先創建Firebase用戶
       userCredential = await createUserWithEmailAndPassword(
         auth,
         registerForm.value.email,
@@ -314,23 +296,9 @@ const handleRegister = async () => {
         createdAt: new Date(),
       }
 
-      // 創建Firestore用戶資料
       await setDoc(doc(db, 'users', userCredential.user.uid), userData)
 
-      // 嘗試同步到Neon資料庫
-      const finalRole = registerForm.value.role || 'user'
-
-      // 🆕 詳細除錯日誌
-      console.log('=== 📋 [註冊] 開始註冊流程 ===')
-      console.log('1️⃣ 表單原始 role:', registerForm.value.role)
-      console.log('2️⃣ 最終 finalRole:', finalRole)
-      console.log('3️⃣ 用戶 UID:', userCredential.user.uid)
-      console.log('4️⃣ 用戶 Email:', userCredential.user.email)
-      console.log('5️⃣ 暱稱:', userData.nickname)
-
       try {
-        console.log('📤 [註冊] 準備呼叫 createOrUpdateUser API...')
-
         const apiPayload = {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
@@ -339,52 +307,33 @@ const handleRegister = async () => {
           avatar: userData.avatar,
           bio: userData.bio,
           spirit_animal: userData.spiritAnimal,
-          role: finalRole,  // ✅ 正確傳遞 role
+          role: finalRole,
         }
 
-        console.log('📦 [註冊] API Payload:', JSON.stringify(apiPayload, null, 2))
-
-        const result = await createOrUpdateUser(apiPayload)
-
-        console.log('✅ [註冊] API 返回成功，返回資料:', result)
-        console.log('✅ [註冊] 返回的 role:', result.role)
+        await createOrUpdateUser(apiPayload)
         neonUserCreated = true
         userStore.markAsRecentlyRegistered(userCredential.user.uid)
       } catch (syncError) {
-        console.error('同步到 Neon 資料庫失敗，開始回滾 Firebase：', syncError)
         let rollbackErrors = []
 
         try {
-          // 刪除Firestore資料
           await deleteDoc(doc(db, 'users', userCredential.user.uid))
-          console.log('✅ 已刪除 Firestore 資料')
-        } catch (firestoreError) {
-          console.error('❌ 刪除 Firestore 資料失敗：', firestoreError)
+        } catch {
           rollbackErrors.push('Firestore 資料刪除失敗')
         }
 
         try {
-          // 刪除Firebase用戶
           await deleteUser(userCredential.user)
-          console.log('✅ 已刪除 Firebase 用戶')
-        } catch (deleteError) {
-          console.error('❌ 刪除 Firebase 用戶失敗：', deleteError)
+        } catch {
           rollbackErrors.push('Firebase 用戶刪除失敗')
         }
 
-        // 如果有回滾錯誤，記錄警告
-        if (rollbackErrors.length > 0) {
-          console.warn('回滾過程中發生錯誤：', rollbackErrors.join(', '))
-        }
-
-        // 檢查是否是 404 錯誤（API 端點不存在）
         if (syncError.response?.status === 404 || syncError.isNetworkError) {
           throw new Error(
             '無法連接到後端伺服器，註冊已取消。請確認後端服務是否正在運行。如果問題持續，請聯繫管理員。'
           )
         }
 
-        // 檢查是否是資料庫連接問題
         if (
           syncError.message?.includes('Failed to fetch') ||
           syncError.message?.includes('NetworkError') ||
@@ -403,20 +352,11 @@ const handleRegister = async () => {
           syncError.message ||
           '未知錯誤'
 
-        // 檢查是否是資料庫連接問題
-        if (
-          syncError.message?.includes('Failed to fetch') ||
-          syncError.message?.includes('NetworkError') ||
-          syncError.response?.status === 503
-        ) {
-          throw new Error('無法連接到資料庫伺服器，註冊已取消。請稍後再試。')
-        }
-
         throw new Error('資料同步到資料庫失敗：' + errorMessage)
       }
     } catch (error) {
       if (userCredential && !neonUserCreated) {
-        console.error('註冊流程失敗，已嘗試回滾 Firebase 用戶')
+        // 已嘗試回滾
       }
       throw error
     }
@@ -437,14 +377,8 @@ const handleRegister = async () => {
 
       registerForm.value.password = ''
       registerForm.value.confirmPassword = ''
-    } else {
-      // 如果註冊未完成，確保清理狀態
-      console.warn('⚠️ 註冊未完成，Neon 同步失敗')
     }
   } catch (error) {
-    console.error('註冊失敗：', error.code, error.message)
-
-    // 如果是我们抛出的自定义错误，显示给用户
     if (error.message && !error.code) {
       registerErrors.value.general = error.message
       return
@@ -492,7 +426,6 @@ const handleForgotPassword = async () => {
     await sendPasswordResetEmail(auth, loginForm.value.email)
     alert('重置密碼郵件已發送至信箱：' + loginForm.value.email + '\n請檢查您的郵箱並點擊重置連結')
   } catch (error) {
-    console.error('發送失敗：', error.message)
     loginErrors.value.email = '發送失敗：' + error.message
   }
 }

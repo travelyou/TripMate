@@ -607,6 +607,8 @@ if (postData.value.itinerary.days.length === 0) {
               >分類 <span class="text-red-500">*</span></label
             >
             <select
+              id="category"
+              name="category"
               v-model="postData.category"
               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:outline-none transition bg-white"
               :class="{ 'border-red-500': !postData.category && formError }"
@@ -632,6 +634,8 @@ if (postData.value.itinerary.days.length === 0) {
               >
             </div>
             <input
+              id="title"
+              name="title"
               v-model="postData.title"
               type="text"
               placeholder="例如：京都深度五日遊"
@@ -683,6 +687,8 @@ if (postData.value.itinerary.days.length === 0) {
               <ImageIcon class="w-8 h-8 opacity-50" /> 點擊上傳封面圖片
             </button>
             <input
+              id="bannerFile"
+              name="bannerFile"
               ref="bannerFileInput"
               type="file"
               accept="image/*"
@@ -824,6 +830,8 @@ if (postData.value.itinerary.days.length === 0) {
                   <ImageIcon class="w-4 h-4" />
                 </button>
                 <input
+                  id="editorFile"
+                  name="editorFile"
                   type="file"
                   ref="editorFileInputRef"
                   class="hidden"
@@ -844,6 +852,8 @@ if (postData.value.itinerary.days.length === 0) {
               <div class="relative">
                 <DollarSignIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
+                  id="price"
+                  name="price"
                   v-model.number="postData.price"
                   type="number"
                   min="0"
@@ -857,6 +867,8 @@ if (postData.value.itinerary.days.length === 0) {
               <div class="relative">
                 <BuildingIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
+                  id="agencyName"
+                  name="agencyName"
                   v-model="postData.agencyName"
                   maxlength="15"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
@@ -872,6 +884,8 @@ if (postData.value.itinerary.days.length === 0) {
               <div class="relative">
                 <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
+                  id="start_date"
+                  name="start_date"
                   v-model="postData.start_date"
                   type="date"
                   :min="minDate"
@@ -884,6 +898,8 @@ if (postData.value.itinerary.days.length === 0) {
               <div class="relative">
                 <CalendarIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
+                  id="end_date"
+                  name="end_date"
                   v-model="postData.end_date"
                   type="date"
                   :min="postData.start_date || minDate"
@@ -899,6 +915,8 @@ if (postData.value.itinerary.days.length === 0) {
               <div class="relative">
                 <MapPinIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
+                  id="location"
+                  name="location"
                   v-model="postData.location"
                   maxlength="10"
                   class="w-full pl-10 p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-primary-500 transition"
@@ -911,6 +929,8 @@ if (postData.value.itinerary.days.length === 0) {
               <div class="relative">
                 <UsersIcon class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
                 <input
+                  id="max_people"
+                  name="max_people"
                   v-model.number="postData.max_people"
                   type="number"
                   min="1"
@@ -958,6 +978,8 @@ if (postData.value.itinerary.days.length === 0) {
               >
                 <div class="flex justify-between mb-2">
                   <input
+                    :id="`activity-time-${aIdx}`"
+                    :name="`activity-time-${aIdx}`"
                     v-model="act.time"
                     type="time"
                     class="bg-gray-100 rounded px-2 font-bold text-gray-700"
@@ -967,11 +989,15 @@ if (postData.value.itinerary.days.length === 0) {
                   </button>
                 </div>
                 <input
+                  :id="`activity-title-${aIdx}`"
+                  :name="`activity-title-${aIdx}`"
                   v-model="act.title"
                   placeholder="活動標題"
                   class="w-full font-bold mb-1 border-b border-transparent focus:border-primary-300 outline-none"
                 />
                 <textarea
+                  :id="`activity-desc-${aIdx}`"
+                  :name="`activity-desc-${aIdx}`"
                   v-model="act.desc"
                   placeholder="詳細描述..."
                   class="w-full text-sm text-gray-600 resize-none outline-none bg-transparent"
@@ -1013,6 +1039,8 @@ if (postData.value.itinerary.days.length === 0) {
                 <XIcon class="w-4 h-4" />
               </button>
               <input
+                :id="`packing-category-${cIdx}`"
+                :name="`packing-category-${cIdx}`"
                 v-model="cat.category"
                 class="font-bold text-primary-700 w-full mb-3 border-b border-dashed border-gray-300 focus:border-primary-500 outline-none bg-transparent"
                 placeholder="分類名稱 (例如：衣物)"
@@ -1025,6 +1053,8 @@ if (postData.value.itinerary.days.length === 0) {
                 >
                   <CheckSquareIcon class="w-4 h-4 text-gray-300 mr-2 flex-shrink-0" />
                   <input
+                    :id="`packing-item-${cIdx}-${iIdx}`"
+                    :name="`packing-item-${cIdx}-${iIdx}`"
                     v-model="cat.items[iIdx]"
                     class="text-sm text-gray-600 w-full outline-none"
                     placeholder="物品名稱"
@@ -1050,6 +1080,8 @@ if (postData.value.itinerary.days.length === 0) {
         <div v-else-if="currentStep === 'tags'" class="space-y-6">
           <div class="relative mb-6">
             <input
+              id="tagSearch"
+              name="tagSearch"
               v-model="tagSearch"
               type="text"
               placeholder="輸入標籤..."

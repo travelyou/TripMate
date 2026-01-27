@@ -31,16 +31,31 @@ router.get('/joined/:uid', async (req, res) => {
     // 2. JOIN reviews (r): 為了拿到「我」對這個行程的評價 (content, sentiment)
     const query = `
       SELECT
-        t.*,
+        t.id,
+        t.title,
+        t.content,
+        t.location,
+        t.category,
+        t.status,
+        t.tags,
+        t.start_date,
+        t.end_date,
+        t.current_people,
+        t.max_people,
+        t.banner_image,
+        t.author_uid,
+        t.likes_count,
+        t.saves_count,
+        t.views_count,
+        t.created_at,
+        t.updated_at,
         u.nickname as author_name,
         u.avatar as author_avatar,
-        -- [關鍵] 把評價內容一起撈出來，前端依此判斷顯示狀態 (有值=已評價，NULL=未評價)
         r.content as comment,
         r.sentiment as review_label
       FROM travelers.travelers t
       JOIN travelers.traveler_applications a ON t.id = a.traveler_id
       LEFT JOIN public.users u ON t.author_uid = u.uid
-      -- [關鍵] 關聯評價表：條件是「這個行程 (t.id)」且「作者是我 ($1)」
       LEFT JOIN public.reviews r ON r.trip_id = t.id AND r.author_uid = $1
       WHERE a.author_uid = $1 AND a.status = 'accepted'
       ORDER BY t.start_date ASC;

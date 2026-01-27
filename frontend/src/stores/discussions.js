@@ -86,8 +86,9 @@ export const useDiscussionsStore = defineStore('discussions', () => {
         userInfoCache.set(uid, data)
         return data
       }
-    } catch (error) {
-      console.error(`獲取用戶 ${uid} 資訊失敗：`, error)
+    } catch {
+      // Firestore 權限限制，靜默處理錯誤
+      // 後端 API 已經返回完整的用戶資訊，此處僅作為備用
     }
     return null
   }
@@ -149,7 +150,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       return data
     } catch (err) {
       error.value = err.message
-      console.error('獲取貼文失敗：', err)
       throw err
     } finally {
       loading.value = false
@@ -195,7 +195,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       return transformPost(post)
     } catch (err) {
       error.value = err.message
-      console.error('獲取貼文失敗：', err)
       throw err
     } finally {
       loading.value = false
@@ -222,7 +221,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       discussions.value.unshift(transformedPost)
       return transformedPost
     } catch (err) {
-      console.error('建立貼文失敗：', err)
       throw err
     }
   }
@@ -237,7 +235,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       }
       return transformedPost
     } catch (err) {
-      console.error('更新貼文失敗：', err)
       throw err
     }
   }
@@ -247,7 +244,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       await deletePost(id)
       discussions.value = discussions.value.filter((p) => p.id !== id)
     } catch (err) {
-      console.error('刪除貼文失敗：', err)
       throw err
     }
   }

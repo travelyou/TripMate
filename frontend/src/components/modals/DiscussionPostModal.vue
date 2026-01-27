@@ -1002,6 +1002,8 @@ onMounted(() => {
               </span>
             </div>
             <input
+              id="discussion-title"
+              name="discussionTitle"
               v-model="postData.title"
               type="text"
               placeholder="輸入一個吸引人的標題..."
