@@ -10,7 +10,6 @@ import {
   saveToCollection as apiSaveToCollection,
   removeFromCollection as apiRemoveFromCollection,
   getUserCollections,
-  checkIsCollected,
 } from '@/api/collection'
 
 export const useUserStore = defineStore('user', () => {
@@ -89,7 +88,8 @@ export const useUserStore = defineStore('user', () => {
       }))
 
       favorites.value = [...normalizedDiscussion, ...normalizedTraveler, ...normalizedItinerary]
-    } catch (error) {
+    } catch {
+      // 獲取收藏列表失敗，使用空陣列
     }
   }
 
@@ -124,7 +124,7 @@ export const useUserStore = defineStore('user', () => {
       })
 
       await fetchFavorites()
-    } catch (error) {
+    } catch {
       if (action === 'remove') {
         favorites.value.push({ ...item, type: itemType })
         if (item.likes !== undefined) item.likes++
@@ -263,7 +263,8 @@ export const useUserStore = defineStore('user', () => {
           }
         }
       })
-    } catch (error) {
+    } catch {
+      // 獲取收藏分類失敗
     }
   }
 
@@ -302,7 +303,7 @@ export const useUserStore = defineStore('user', () => {
 
       isCollectionModalOpen.value = false
       pendingCollectionItem.value = null
-    } catch (error) {
+    } catch {
       alert('收藏失敗，請稍後再試')
     }
   }
@@ -336,7 +337,7 @@ export const useUserStore = defineStore('user', () => {
 
       const cacheKey = `${itemType}:${item.id}`
       collectionCache.value.delete(cacheKey)
-    } catch (error) {
+    } catch {
       alert('取消收藏失敗，請稍後再試')
     }
   }
@@ -377,14 +378,6 @@ export const useUserStore = defineStore('user', () => {
       currentUser.value = { ...currentUser.value, ...newData }
     }
 
-    if (newData.avatar !== undefined && currentUser.value.uid) {
-      try {
-        if (newData.avatar && typeof newData.avatar === 'string' && newData.avatar.trim() !== '') {
-          localStorage.setItem(`user_avatar_${currentUser.value.uid}`, newData.avatar)
-        }
-      } catch (e) {
-      }
-    }
   }
 
   const addVisitedPlace = (place, type = 'domestic') => {
@@ -414,49 +407,21 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
+      // 統一使用 public.users.avatar（來自資料庫）
+      // 如果傳入了 avatar，總是使用傳入的值（來自資料庫）
       let avatarValue = profileData.avatar
 
-      if (avatarValue && typeof avatarValue === 'string' && avatarValue.trim() !== '') {
+      // 如果資料庫沒有 avatar，使用預設頭像
+      if (!avatarValue || typeof avatarValue !== 'string' || avatarValue.trim() === '') {
         if (profileData.uid) {
-          try {
-            localStorage.setItem(`user_avatar_${profileData.uid}`, avatarValue)
-          } catch (e) {
-          }
-        }
-      } else {
-        if (profileData.uid) {
-          try {
-            const savedAvatar = localStorage.getItem(`user_avatar_${profileData.uid}`)
-            const hasCustomAvatar =
-              savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')
-
-            if (savedAvatar && savedAvatar.trim() !== '') {
-              avatarValue = savedAvatar
-            } else if (
-              currentUser.value.avatar &&
-              currentUser.value.avatar.trim() !== '' &&
-              !currentUser.value.avatar.includes('dicebear.com')
-            ) {
-              avatarValue = currentUser.value.avatar
-              try {
-                localStorage.setItem(`user_avatar_${profileData.uid}`, avatarValue)
-              } catch (e) {
-              }
-            } else if (hasCustomAvatar) {
-              avatarValue = savedAvatar || ''
-            } else {
-              avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
-            }
-          } catch (e) {
-            avatarValue =
-              currentUser.value.avatar ||
-              (profileData.uid
-                ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
-                : '')
-          }
+          avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
         } else {
+          // 只有在沒有 uid 時才保留舊的頭像
           avatarValue = currentUser.value.avatar || ''
         }
+      } else {
+        // 有傳入 avatar 值，使用傳入的值（來自資料庫）
+        avatarValue = avatarValue.trim()
       }
 
       currentUser.value = {
@@ -517,32 +482,17 @@ export const useUserStore = defineStore('user', () => {
         const neonUserData = await getUserProfile(uid)
 
         if (neonUserData) {
-          let avatar =
-            neonUserData.avatar &&
-            typeof neonUserData.avatar === 'string' &&
-            neonUserData.avatar.trim() !== ''
-              ? neonUserData.avatar
-              : undefined
-
-          let avatarFromLocalStorage = false
-          if (!avatar) {
-            try {
-              const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
-              if (savedAvatar && savedAvatar.trim() !== '') {
-                avatar = savedAvatar
-                if (!savedAvatar.includes('dicebear.com')) {
-                  avatarFromLocalStorage = true
-                }
-              }
-            } catch (e) {
-            }
-          }
+          // 統一使用 public.users.avatar（來自資料庫）
+          // 總是使用資料庫返回的 avatar，即使為空也要使用（會由 setUserProfile 處理預設值）
+          let avatar = neonUserData.avatar && typeof neonUserData.avatar === 'string'
+            ? neonUserData.avatar.trim()
+            : ''
 
           setUserProfile({
             uid: uid,
             email: firebaseUser.value?.email || neonUserData.email || '',
             nickname: neonUserData.nickname || '',
-            avatar: avatar,
+            avatar: avatar, // 明確傳入 avatar，即使是空字串也要傳入
             bio: neonUserData.bio || '',
             spiritAnimal: neonUserData.spirit_animal || '',
             role: neonUserData.role || 'user',
@@ -554,17 +504,6 @@ export const useUserStore = defineStore('user', () => {
             gallery: neonUserData.gallery,
             is_matching_enabled: neonUserData.is_matching_enabled,
           })
-
-          if (avatarFromLocalStorage && avatar && avatar.trim() !== '') {
-            try {
-              const { createOrUpdateUser } = await import('@/api/users')
-              await createOrUpdateUser({
-                uid: uid,
-                avatar: avatar,
-              })
-            } catch (e) {
-            }
-          }
           return
         }
       } catch (neonError) {
@@ -573,6 +512,7 @@ export const useUserStore = defineStore('user', () => {
           neonError.message?.includes('Not Found') ||
           neonError.response?.status === 404
         if (!is404Error) {
+          // 非 404 錯誤已在外部 catch 處理
         }
       }
 
@@ -581,26 +521,6 @@ export const useUserStore = defineStore('user', () => {
 
       if (userDoc.exists()) {
         const userData = userDoc.data()
-        // 檢查是否需要從 localStorage 恢復頭貼
-        let avatar =
-          userData.avatar && typeof userData.avatar === 'string' && userData.avatar.trim() !== ''
-            ? userData.avatar
-            : undefined
-
-        let avatarFromLocalStorage = false
-        if (!avatar) {
-          try {
-            const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
-            if (savedAvatar && savedAvatar.trim() !== '') {
-              avatar = savedAvatar
-              if (!savedAvatar.includes('dicebear.com')) {
-                avatarFromLocalStorage = true
-              }
-            }
-          } catch (e) {
-          }
-        }
-
         setUserProfile({
           uid: uid,
           email: firebaseUser.value?.email || '',
@@ -612,44 +532,6 @@ export const useUserStore = defineStore('user', () => {
           role: userData.role || 'user',
           vendorId: userData.vendorId || null,
         })
-
-        if (avatarFromLocalStorage && avatar && avatar.trim() !== '') {
-          try {
-            const { createOrUpdateUser } = await import('@/api/users')
-            await createOrUpdateUser({
-              uid: uid,
-              avatar: avatar,
-            })
-          } catch (e) {
-          }
-        }
-      } else {
-        try {
-          const savedAvatar = localStorage.getItem(`user_avatar_${uid}`)
-          if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
-            setUserProfile({
-              uid: uid,
-              email: firebaseUser.value?.email || '',
-              nickname: firebaseUser.value?.email?.split('@')[0] || '用戶',
-              avatar: savedAvatar,
-              role: 'user',
-            })
-
-            // 同步到資料庫
-            try {
-              const { createOrUpdateUser } = await import('@/api/users')
-              await createOrUpdateUser({
-                uid: uid,
-                avatar: savedAvatar,
-              })
-              console.log('已將 localStorage 中的頭貼同步到資料庫')
-            } catch (e) {
-              console.warn('同步頭貼到資料庫失敗:', e)
-            }
-          }
-        } catch (e) {
-          console.warn('從 localStorage 恢復頭貼失敗:', e)
-        }
       }
     } catch (error) {
       console.error('載入用戶資料失敗：', error)
@@ -680,16 +562,6 @@ export const useUserStore = defineStore('user', () => {
           await new Promise((resolve) => setTimeout(resolve, 500))
         }
         await loadUserProfile(user.uid)
-
-        // 確保頭貼已保存到 localStorage（如果有的話）
-        if (currentUser.value.avatar && currentUser.value.avatar.trim() !== '') {
-          try {
-            localStorage.setItem(`user_avatar_${user.uid}`, currentUser.value.avatar)
-          } catch (e) {
-            console.warn('保存頭貼到 localStorage 失敗:', e)
-          }
-        }
-
         await fetchFavorites()
         await fetchCollections(user.uid)
       } catch (error) {

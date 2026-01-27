@@ -181,65 +181,24 @@ const handleLogin = async () => {
     try {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData) {
-        // 優先級順序：1. Neon 資料庫 2. Firebase Auth photoURL 3. Firestore 4. localStorage 5. 默認頭貼
-        let avatar = null
+        // 只使用 Neon 資料庫的 avatar，如果沒有則使用預設頭貼
+        let avatar = neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')
+          ? neonUserData.avatar
+          : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
 
-        if (neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')) {
-          avatar = neonUserData.avatar
-        }
-
-        if (!avatar && userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
+        // 如果資料庫沒有有效的頭像，但 Firebase Auth 有，則同步到資料庫
+        if ((!neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) &&
+            userCredential.user.photoURL &&
+            userCredential.user.photoURL.trim() !== '' &&
+            !userCredential.user.photoURL.includes('dicebear.com')) {
           avatar = userCredential.user.photoURL
-        }
-
-        if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
-          avatar = userData.avatar
-        }
-
-        let avatarFromLocalStorage = false
-        if (!avatar) {
           try {
-            const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
-            if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
-              avatar = savedAvatar
-              avatarFromLocalStorage = true
-            }
+            await createOrUpdateUser({
+              uid: userCredential.user.uid,
+              avatar: avatar
+            })
           } catch {
-            // localStorage 讀取失敗，使用預設頭貼
-          }
-        }
-
-        if (!avatar) {
-          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-        }
-
-        if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
-          try {
-            localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-          } catch {
-            // localStorage 保存失敗，繼續處理
-          }
-
-          if (avatarFromLocalStorage || !neonUserData.avatar || neonUserData.avatar.includes('dicebear.com')) {
-            try {
-              await createOrUpdateUser({
-                uid: userCredential.user.uid,
-                avatar: avatar
-              })
-            } catch {
-              // 同步失敗但不影響登入
-            }
-          }
-
-          if (userCredential.user.photoURL !== avatar) {
-            try {
-              const { updateProfile } = await import('firebase/auth')
-              await updateProfile(userCredential.user, {
-                photoURL: avatar
-              })
-            } catch {
-              // 更新失敗但不影響登入
-            }
+            // 同步失敗但不影響登入
           }
         }
 
@@ -254,38 +213,17 @@ const handleLogin = async () => {
           vendorId: neonUserData.vendor_id || null,
         })
       } else {
-        let avatar = null
+        // 如果資料庫沒有用戶資料，使用 Firebase Auth 的 photoURL 或預設頭貼
+        let avatar = userCredential.user.photoURL &&
+                     userCredential.user.photoURL.trim() !== '' &&
+                     !userCredential.user.photoURL.includes('dicebear.com')
+          ? userCredential.user.photoURL
+          : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
 
-        if (userCredential.user.photoURL && userCredential.user.photoURL.trim() !== '' && !userCredential.user.photoURL.includes('dicebear.com')) {
-          avatar = userCredential.user.photoURL
-        }
-
-        if (!avatar && userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')) {
-          avatar = userData.avatar
-        }
-
-        if (!avatar) {
-          try {
-            const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
-            if (savedAvatar && savedAvatar.trim() !== '' && !savedAvatar.includes('dicebear.com')) {
-              avatar = savedAvatar
-            }
-          } catch {
-            // localStorage 讀取失敗，使用預設頭貼
-          }
-        }
-
-        if (!avatar) {
-          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-        }
-
-        if (avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
-          try {
-            localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-          } catch {
-            // localStorage 保存失敗，繼續處理
-          }
-
+        // 如果 Firebase Auth 有頭像，同步到資料庫
+        if (userCredential.user.photoURL &&
+            userCredential.user.photoURL.trim() !== '' &&
+            !userCredential.user.photoURL.includes('dicebear.com')) {
           try {
             await createOrUpdateUser({
               uid: userCredential.user.uid,
@@ -293,17 +231,6 @@ const handleLogin = async () => {
             })
           } catch {
             // 同步失敗但不影響登入
-          }
-
-          if (userCredential.user.photoURL !== avatar) {
-            try {
-              const { updateProfile } = await import('firebase/auth')
-              await updateProfile(userCredential.user, {
-                photoURL: avatar
-              })
-            } catch {
-              // 更新失敗但不影響登入
-            }
           }
         }
 
@@ -316,45 +243,10 @@ const handleLogin = async () => {
         })
       }
     } catch {
-      let avatar = userData.avatar && userData.avatar.trim() !== ''
+      // 如果獲取資料庫資料失敗，使用預設頭貼
+      const avatar = userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')
         ? userData.avatar
-        : null
-
-      let avatarFromLocalStorage = false
-      if (!avatar) {
-        try {
-          const savedAvatar = localStorage.getItem(`user_avatar_${userCredential.user.uid}`)
-          if (savedAvatar && savedAvatar.trim() !== '') {
-            avatar = savedAvatar
-            if (!savedAvatar.includes('dicebear.com')) {
-              avatarFromLocalStorage = true
-            }
-          } else {
-            avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-          }
-        } catch {
-          avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-        }
-      }
-
-      if (avatar && avatar.trim() !== '') {
-        try {
-          localStorage.setItem(`user_avatar_${userCredential.user.uid}`, avatar)
-        } catch {
-          // localStorage 保存失敗，繼續處理
-        }
-      }
-
-      if (avatarFromLocalStorage && avatar && avatar.trim() !== '' && !avatar.includes('dicebear.com')) {
-        try {
-          await createOrUpdateUser({
-            uid: userCredential.user.uid,
-            avatar: avatar
-          })
-        } catch {
-          // 同步失敗但不影響登入
-        }
-      }
+        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
 
       applyUserProfileToStore({
         uid: userCredential.user.uid,

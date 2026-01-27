@@ -13,9 +13,10 @@ function normalizeUserData(data) {
     displayName: data.displayName || data.display_name || 'User',
     nickname: data.nickname || data.displayName || data.display_name || '',
 
-    // 頭像容錯
+    // 頭像：統一使用 public.users.avatar（來自資料庫）
+    // 不應該回退到 photoURL，因為那是 Firebase Auth 的，可能不是最新的
     photoURL: data.photoURL || data.photo_url || '',
-    avatar: data.avatar || data.photoURL || data.photo_url || '',
+    avatar: data.avatar || '', // 只使用資料庫的 avatar 欄位
 
     // 個人檔案資料
     bio: data.bio || '',
@@ -62,7 +63,7 @@ export async function createOrUpdateUser(userData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     })
-    
+
     if (!response.ok) {
       let errorMessage = `創建/更新用戶失敗 (${response.status})`
       try {
@@ -71,7 +72,7 @@ export async function createOrUpdateUser(userData) {
       } catch {
         errorMessage = `${errorMessage}: ${response.statusText}`
       }
-      
+
       const error = new Error(errorMessage)
       error.response = {
         status: response.status,
@@ -80,7 +81,7 @@ export async function createOrUpdateUser(userData) {
       }
       throw error
     }
-    
+
     const data = await response.json()
     return data.data || data
   } catch (error) {
@@ -96,7 +97,10 @@ export async function createOrUpdateUser(userData) {
 
 export async function getUserProfile(uid) {
   try {
-    const response = await fetch(`${API_BASE_URL}/users/${uid}`)
+    // 添加時間戳避免緩存，確保總是獲取最新資料
+    const response = await fetch(`${API_BASE_URL}/users/${uid}?t=${Date.now()}`, {
+      cache: 'no-store',
+    })
     if (!response.ok) {
       if (response.status === 404) return normalizeUserData({ uid })
       throw new Error('獲取用戶資料失敗')
@@ -136,7 +140,24 @@ export async function updateUserProfile(uid, userData) {
     headers,
     body: JSON.stringify(userData),
   })
-  if (!response.ok) throw new Error('更新用戶資料失敗')
+
+  if (!response.ok) {
+    let errorMessage = '更新用戶資料失敗'
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.error || errorData.message || errorMessage
+    } catch {
+      errorMessage = `${errorMessage} (${response.status}: ${response.statusText})`
+    }
+    const error = new Error(errorMessage)
+    error.response = {
+      status: response.status,
+      statusText: response.statusText,
+      data: await response.json().catch(() => null),
+    }
+    throw error
+  }
+
   return await response.json()
 }
 

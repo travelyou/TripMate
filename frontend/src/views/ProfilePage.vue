@@ -250,7 +250,8 @@ const handleSaveProfile = async (formData) => {
     await loadProfileData()
   } catch (e) {
     console.error('儲存個人檔案失敗', e)
-    alert('儲存失敗，請稍後再試')
+    const errorMessage = e.message || e.response?.data?.error || '儲存失敗，請稍後再試'
+    alert(errorMessage)
   }
 }
 
@@ -534,13 +535,22 @@ const handleAvatarCrop = async (croppedFile) => {
     })
     const avatarUrl = await uploadImage(compressedFile, 'avatars')
     const { updateUserProfile } = await import('@/api/users')
+
+    // 更新到 Neon 資料庫的 users.avatar 欄位
     await updateUserProfile(user.value.uid, { avatar: avatarUrl })
-    userStore.updateProfile({ avatar: avatarUrl })
+
+    // 強制從資料庫重新載入用戶資料（確保使用最新的頭像）
+    await userStore.loadUserProfile(user.value.uid)
+
+    // 重新載入個人檔案資料
+    await loadProfileData()
+
     isAvatarCropOpen.value = false
     avatarFileToCrop.value = null
   } catch (error) {
-    console.error(error)
-    alert('上傳頭貼失敗')
+    console.error('上傳頭貼失敗:', error)
+    const errorMessage = error.message || error.response?.data?.error || '上傳頭貼失敗'
+    alert(errorMessage)
   }
 }
 
@@ -552,12 +562,21 @@ const handleSelectPresetAvatar = async (avatarUrl) => {
   if (!isCurrentUser.value || !avatarUrl) return
   try {
     const { updateUserProfile } = await import('@/api/users')
+
+    // 更新到 Neon 資料庫的 users.avatar 欄位
     await updateUserProfile(user.value.uid, { avatar: avatarUrl })
-    userStore.updateProfile({ avatar: avatarUrl })
+
+    // 強制從資料庫重新載入用戶資料（確保使用最新的頭像）
+    await userStore.loadUserProfile(user.value.uid)
+
+    // 重新載入個人檔案資料
+    await loadProfileData()
+
     isAvatarPickerOpen.value = false
   } catch (error) {
-    console.error(error)
-    alert('更新頭貼失敗')
+    console.error('更新頭貼失敗:', error)
+    const errorMessage = error.message || error.response?.data?.error || '更新頭貼失敗'
+    alert(errorMessage)
   }
 }
 
