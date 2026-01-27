@@ -1339,6 +1339,7 @@ onMounted(() => {
           </button>
           <template v-if="currentStep === 'preview'">
             <button
+              type="button"
               :disabled="isSubmitting"
               class="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
               @click="prevStep"
@@ -1346,6 +1347,7 @@ onMounted(() => {
               返回修改
             </button>
             <button
+              type="button"
               :disabled="isSubmitting"
               class="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleFinalSubmit"
@@ -1357,6 +1359,7 @@ onMounted(() => {
           </template>
           <button
             v-else
+            type="button"
             :disabled="isUploading || isSubmitting"
             class="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             @click="nextStep"

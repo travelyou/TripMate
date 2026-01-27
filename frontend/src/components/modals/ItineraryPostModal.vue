@@ -1118,12 +1118,14 @@ if (postData.value.itinerary.days.length === 0) {
           <template v-if="currentStep === 'preview'">
             <button
               v-if="!isSubmitting"
+              type="button"
               class="px-6 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition"
               @click="prevStep"
             >
               返回修改
             </button>
             <button
+              type="button"
               :disabled="isSubmitting"
               class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
               @click="handleFinalSubmit"
@@ -1133,6 +1135,7 @@ if (postData.value.itinerary.days.length === 0) {
           </template>
           <button
             v-else
+            type="button"
             :disabled="isUploading || isSubmitting"
             class="px-6 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:bg-gray-400"
             @click="nextStep"
