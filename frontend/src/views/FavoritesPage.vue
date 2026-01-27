@@ -165,7 +165,7 @@ onUnmounted(() => {
       </div>
 
       <TransitionGroup v-else name="list">
-        <div v-for="item in filteredItems" :key="item.id">
+        <div v-for="item in filteredItems" :key="`${item.type}-${item.id}`">
           <TravelerCard
             v-if="item.type === 'traveler'"
             :traveler="item"
