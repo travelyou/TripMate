@@ -403,10 +403,26 @@ router.put('/:id', async (req, res) => {
 
     console.log('✅ [Vendors] 廠商資料更新成功')
 
+    // 🔧 轉換欄位名稱：snake_case → camelCase
+    const updatedData = result.rows[0]
+    const formattedData = {
+      ...updatedData,
+      bannerImage: updatedData.banner_image,
+      isBannerVisible: updatedData.is_banner_visible,
+      regionTags: updatedData.region_tags,
+      reviewCount: updatedData.review_count,
+      isVerified: updatedData.is_verified
+    }
+    delete formattedData.banner_image
+    delete formattedData.is_banner_visible
+    delete formattedData.region_tags
+    delete formattedData.review_count
+    delete formattedData.is_verified
+
     res.json({
       success: true,
       message: '廠商資料更新成功',
-      data: result.rows[0],
+      data: formattedData,
     })
   } catch (error) {
     // 記錄完整錯誤資訊到伺服器日誌（僅後端可見）
