@@ -50,6 +50,10 @@ const travelerScrollToComments = ref(false)
 const itineraryScrollToComments = ref(false)
 
 const openDiscussionDetail = (post, focusComments = false) => {
+  if (!post) {
+    console.warn('openDiscussionDetail: post is null or undefined')
+    return
+  }
   selectedDiscussion.value = post
   discussionScrollToComments.value = focusComments
   isDiscussionModalOpen.value = true
@@ -236,8 +240,9 @@ onUnmounted(() => {
           <PostCard
             v-else-if="item.type === 'discussion'"
             :post="item"
-            @click="openDiscussionDetail(item, false)"
-            @comment="openDiscussionDetail(item, true)"
+            class="cursor-pointer"
+            @click="(post) => openDiscussionDetail(post || item, false)"
+            @comment="(post) => openDiscussionDetail(post || item, true)"
           />
 
           <ItineraryCard
