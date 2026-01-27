@@ -112,14 +112,6 @@ const hydrateItem = async (item) => {
   }
 }
 
-watch(
-  () => userStore.collections.map((item) => buildKey(item)),
-  () => {
-    userStore.collections.forEach((item) => hydrateItem(item))
-  },
-  { immediate: true },
-)
-
 // --- 動作：新增分類 ---
 const createNewCategory = async () => {
   const name = await showPrompt('請輸入新分類名稱：')
@@ -180,16 +172,43 @@ const filteredItems = computed(() => {
 })
 
 const displayItems = computed(() =>
-  filteredItems.value.map((item) => {
-    const hydrated = hydratedItems.value[buildKey(item)]
-    return hydrated || item
-  }),
+  filteredItems.value.map((item) => hydratedItems.value[buildKey(item)]).filter((item) => !!item),
 )
 
 const currentCategoryName = computed(() => {
   const tab = tabs.value.find((t) => t.id === activeCategoryId.value)
   return tab ? tab.label : '收藏'
 })
+
+const isHydrating = ref(true)
+let hydrationRunId = 0
+
+const hydrateVisibleItems = async () => {
+  const items = filteredItems.value.slice()
+  const runId = ++hydrationRunId
+
+  if (items.length === 0) {
+    isHydrating.value = false
+    return
+  }
+
+  isHydrating.value = true
+  try {
+    await Promise.all(items.map((item) => hydrateItem(item)))
+  } finally {
+    if (runId === hydrationRunId) {
+      isHydrating.value = false
+    }
+  }
+}
+
+watch(
+  [activeCategoryId, () => userStore.collections.map((item) => buildKey(item)).join('|')],
+  () => {
+    hydrateVisibleItems()
+  },
+  { immediate: true },
+)
 
 const isDiscussionModalOpen = ref(false)
 const isTravelerModalOpen = ref(false)
@@ -335,7 +354,16 @@ const getTabStyle = (isActive) => {
       </div>
 
       <div
-        v-if="filteredItems.length === 0"
+        v-if="isHydrating"
+        class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
+      >
+        <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
+        <p class="font-bold text-lg">載入中...</p>
+        <p class="text-sm">正在同步收藏內容，請稍候</p>
+      </div>
+
+      <div
+        v-else-if="filteredItems.length === 0"
         class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
       >
         <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
@@ -343,7 +371,16 @@ const getTabStyle = (isActive) => {
         <p class="text-sm">快去逛逛，把喜歡的內容加進來吧！</p>
       </div>
 
-      <TransitionGroup name="list">
+      <div
+        v-else-if="displayItems.length === 0"
+        class="text-center py-20 text-secondary-400 bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm"
+      >
+        <Bookmark class="w-16 h-16 mx-auto mb-4 text-secondary-300" />
+        <p class="font-bold text-lg">尚未取得內容</p>
+        <p class="text-sm">可能是網路較慢，請重新整理或稍候再試。</p>
+      </div>
+
+      <TransitionGroup v-else name="list">
         <div v-for="item in displayItems" :key="item.id" class="relative group">
           <button
             class="absolute top-4 right-4 z-20 p-2 bg-white/90 hover:bg-red-500 hover:text-white text-secondary-400 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition duration-200 border border-secondary-100"
