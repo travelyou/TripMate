@@ -405,10 +405,18 @@ onUnmounted(() => {
             <div>
               <div class="flex items-center space-x-2 sm:space-x-3 mb-2 min-w-0">
                 <img
+                  v-if="traveler.avatar"
                   :src="traveler.avatar"
                   class="h-7 w-7 sm:h-8 sm:w-8 cursor-pointer rounded-full border-2 border-white/80 object-cover transition hover:ring-2 hover:ring-primary-500 shrink-0"
                   @click.stop="handleAvatarClick"
                 />
+                <div
+                  v-else
+                  class="h-7 w-7 sm:h-8 sm:w-8 cursor-pointer rounded-full border-2 border-white/80 bg-white/20 flex items-center justify-center transition hover:ring-2 hover:ring-primary-500 shrink-0"
+                  @click.stop="handleAvatarClick"
+                >
+                  <UsersIcon class="h-4 w-4 sm:h-5 sm:w-5 text-white/80" />
+                </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center space-x-1 flex-wrap gap-1">
                     <span

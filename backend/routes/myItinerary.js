@@ -25,10 +25,17 @@ router.get('/joined/:uid', async (req, res) => {
     // [驗證] 根據您的 JSON 與截圖：
     // 1. 貼文表在 travelers schema 下，叫做 travelers
     // 2. 申請表在 travelers schema 下，叫做 traveler_applications (不是 applications!)
+    // 3. 從 users 表獲取最新的作者信息（nickname, avatar, spirit_animal）
     const query = `
-      SELECT t.* FROM travelers.travelers t
+      SELECT
+        t.*,
+        COALESCE(NULLIF(TRIM(u.nickname), ''), t.author_name) as author_name,
+        COALESCE(NULLIF(TRIM(u.avatar), ''), t.author_avatar) as author_avatar,
+        COALESCE(NULLIF(TRIM(u.spirit_animal), ''), t.spirit_animal) as spirit_animal
+      FROM travelers.travelers t
       JOIN travelers.traveler_applications a ON t.id = a.traveler_id
-      WHERE a.author_uid = $1 AND a.status = 'accepted'
+      LEFT JOIN public.users u ON t.author_uid = u.uid
+      WHERE a.author_uid = $1 AND a.status = 'accepted' AND t.deleted_at IS NULL
       ORDER BY t.start_date ASC;
     `
     const result = await db.query(query, [uid])

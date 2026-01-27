@@ -413,7 +413,7 @@ export const useUserStore = defineStore('user', () => {
       // 只有在 avatar 為 undefined 時才使用預設值
       if (avatarValue === undefined) {
         if (profileData.uid) {
-          avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
+              avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
         } else {
           // 只有在沒有 uid 時才保留舊的頭像
           avatarValue = currentUser.value.avatar || ''

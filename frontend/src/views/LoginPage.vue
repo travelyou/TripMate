@@ -178,47 +178,17 @@ const handleLogin = async () => {
       // 同步失敗但不影響登入
     }
 
+    // 使用統一的 loadUserProfile 方法來載入用戶資料，確保正確處理 null 值
     try {
-      const neonUserData = await getUserProfile(userCredential.user.uid)
-      if (neonUserData) {
-        // 只使用 Neon 資料庫的 avatar，如果沒有則使用預設頭貼
-        const avatar = neonUserData.avatar && neonUserData.avatar.trim() !== '' && !neonUserData.avatar.includes('dicebear.com')
-          ? neonUserData.avatar
-          : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-
-        applyUserProfileToStore({
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          nickname: neonUserData.nickname || userData.nickname || '',
-          avatar: avatar,
-          bio: neonUserData.bio || userData.bio || '',
-          spiritAnimal: neonUserData.spirit_animal || userData.spiritAnimal || '',
-          role: neonUserData.role || 'user',
-          vendorId: neonUserData.vendor_id || null,
-        })
-      } else {
-        // 如果資料庫沒有用戶資料，使用預設頭貼
-        const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-
-        applyUserProfileToStore({
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          ...userData,
-          avatar: avatar,
-          role: userData.role || 'user',
-        })
-      }
-    } catch {
-      // 如果獲取資料庫資料失敗，使用預設頭貼
-      const avatar = userData.avatar && userData.avatar.trim() !== '' && !userData.avatar.includes('dicebear.com')
-        ? userData.avatar
-        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`
-
+      await userStore.loadUserProfile(userCredential.user.uid)
+    } catch (error) {
+      console.error('載入用戶資料失敗：', error)
+      // 如果載入失敗，使用基本資料
       applyUserProfileToStore({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
-        ...userData,
-        avatar: avatar,
+        nickname: userData.nickname || '',
+        avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userCredential.user.uid}`,
         role: userData.role || 'user',
       })
     }

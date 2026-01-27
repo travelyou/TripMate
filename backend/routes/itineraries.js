@@ -68,19 +68,24 @@ router.get('/:id', async (req, res) => {
   try {
     const itineraryQuery = `
       SELECT
-        id, title, price, agency_name as "agencyName",
-        start_date,
-        end_date,
-        COALESCE(end_date - start_date + 1, 1) as "durationDays",
-        banner_image as "coverImage",
-        location,
-        content as description,
-        tags,
-        views_count as "totalViews",
-        saves_count as "totalSaves",
-        likes_count as likes,
-        author_uid, author_name, author_avatar
-      FROM itinerary.itineraries WHERE id = $1
+        i.id, i.title, i.price, i.agency_name as "agencyName",
+        i.start_date,
+        i.end_date,
+        COALESCE(i.end_date - i.start_date + 1, 1) as "durationDays",
+        i.banner_image as "coverImage",
+        i.location,
+        i.content as description,
+        i.tags,
+        i.views_count as "totalViews",
+        i.saves_count as "totalSaves",
+        i.likes_count as likes,
+        i.author_uid,
+        COALESCE(u.nickname, i.author_name) as author_name,
+        COALESCE(u.avatar, i.author_avatar) as author_avatar,
+        u.spirit_animal as author_spirit_animal
+      FROM itinerary.itineraries i
+      LEFT JOIN public.users u ON i.author_uid = u.uid
+      WHERE i.id = $1
     `
     const itineraryResult = await pool.query(itineraryQuery, [id])
 

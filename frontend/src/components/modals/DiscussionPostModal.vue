@@ -59,6 +59,7 @@ const myItineraryStore = useMyItineraryStore()
 const currentStep = ref('edit')
 const formError = ref('')
 const CHARACTER_LIMIT = 100000
+const editingPostId = ref(null)
 
 const bannerPositionY = ref(50)
 const isDraggingBanner = ref(false)
@@ -220,9 +221,21 @@ const editor = useEditor({
     }
   },
   onCreate: ({ editor }) => {
-    if (postData.value.content && postData.value.content.trim()) {
+    // 如果 postData.value.content 有內容，設置到編輯器
+    // 這主要用於初始載入時的情況（非編輯模式）
+    // 編輯模式的內容會在 watch postToEdit 中設置，避免這裡覆蓋
+    if (postData.value.content && postData.value.content.trim() && !editingPostId.value) {
       try {
-        editor.commands.setContent(postData.value.content, false)
+        // 使用 nextTick 確保編輯器完全初始化
+        nextTick(() => {
+          if (editor && !editor.isDestroyed) {
+            const currentContent = editor.getHTML()
+            // 只有當編輯器內容為空時才設置，避免覆蓋已設置的內容
+            if (!currentContent || currentContent.trim() === '' || currentContent === '<p></p>') {
+              editor.commands.setContent(postData.value.content, false)
+            }
+          }
+        })
       } catch (error) {
         console.error('[發文編輯器] 初始化內容失敗:', error)
       }
@@ -655,6 +668,7 @@ const handleClose = async () => {
     }
   } else {
     cleanupImagePreviews() // 清理圖片預覽
+    editingPostId.value = null // 清空編輯狀態
     emit('close')
   }
 }
@@ -663,6 +677,10 @@ const executeSubmit = async () => {
   isSubmitting.value = true
   submitProgress.value = 0
   submitStatus.value = '準備中...'
+
+  // 使用 editingPostId 來判斷是更新還是創建，確保在編輯流程中不會丟失
+  // 在函數開始時就確定，避免在流程中丟失狀態
+  const isEditing = editingPostId.value !== null
 
   try {
     let bannerUrl = null
@@ -695,30 +713,33 @@ const executeSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = props.postToEdit ? '正在更新貼文中...' : '正在提交貼文中...'
+    submitStatus.value = isEditing ? '正在更新貼文中...' : '正在提交貼文中...'
 
-    const response = props.postToEdit
-      ? await updatePost(props.postToEdit.id, payload)
+    const response = isEditing
+      ? await updatePost(editingPostId.value, payload)
       : await createPost(payload)
 
     submitProgress.value = 100
-    submitStatus.value = props.postToEdit ? '更新成功！' : '發布成功！'
+    submitStatus.value = isEditing ? '更新成功！' : '發布成功！'
 
     if (response) {
       sessionStorage.removeItem('is_submitting_discussion_post')
       sessionStorage.removeItem('submit_start_time')
 
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(props.postToEdit ? '更新成功！' : '發文成功！', {
-          body: props.postToEdit ? '您的貼文已成功更新' : '您的貼文已成功發布',
+        new Notification(isEditing ? '更新成功！' : '發文成功！', {
+          body: isEditing ? '您的貼文已成功更新' : '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
       } else {
-        await showSuccess(props.postToEdit ? '更新成功！' : '發文成功！')
+        await showSuccess(isEditing ? '更新成功！' : '發文成功！')
       }
 
       // 清理圖片預覽
       cleanupImagePreviews()
+
+      // 清空編輯狀態
+      editingPostId.value = null
 
       // 使用 emit 通知父組件，讓父組件處理重新載入
       emit('success')
@@ -763,8 +784,9 @@ const handleFinalSubmit = async () => {
 
 watch(
   () => props.draftData,
-  (newDraft) => {
-    if (newDraft && newDraft.data) {
+  async (newDraft) => {
+    // 只有在沒有 postToEdit 時才處理草稿，避免衝突
+    if (newDraft && newDraft.data && !props.postToEdit) {
       const draft = newDraft.data
       postData.value.category = draft.category || ''
       postData.value.title = draft.title || ''
@@ -778,14 +800,31 @@ watch(
         uploadedImageUrls.value = draft.uploadedImageUrls
       }
 
-      if (editor.value && draft.content) {
-        nextTick(() => {
+      // 等待編輯器初始化完成後再設置內容
+      if (draft.content) {
+        if (!editor.value) {
+          await new Promise((resolve) => {
+            const checkEditor = setInterval(() => {
+              if (editor.value) {
+                clearInterval(checkEditor)
+                resolve()
+              }
+            }, 50)
+            setTimeout(() => {
+              clearInterval(checkEditor)
+              resolve()
+            }, 2000)
+          })
+        }
+
+        if (editor.value) {
+          await nextTick()
           try {
             editor.value.commands.setContent(draft.content, false)
           } catch (error) {
             console.error('[發文編輯器] 載入草稿內容失敗:', error)
           }
-        })
+        }
       }
     }
   },
@@ -794,8 +833,11 @@ watch(
 
 watch(
   () => props.postToEdit,
-  (post) => {
+  async (post) => {
     if (post) {
+      // 保存編輯中的貼文 ID，確保在整個編輯流程中都能正確識別
+      editingPostId.value = post.id
+
       postData.value.category = post.category || ''
       postData.value.title = post.title || ''
       postData.value.content = post.content || ''
@@ -810,15 +852,38 @@ watch(
         uploadedImageUrls.value = [post.banner, ...post.image_urls].filter(Boolean)
       }
 
-      if (editor.value && post.content) {
-        nextTick(() => {
+      // 等待編輯器初始化完成後再設置內容
+      if (post.content) {
+        // 如果編輯器還沒初始化，等待它初始化
+        if (!editor.value) {
+          await new Promise((resolve) => {
+            const checkEditor = setInterval(() => {
+              if (editor.value) {
+                clearInterval(checkEditor)
+                resolve()
+              }
+            }, 50)
+            // 設置超時，避免無限等待
+            setTimeout(() => {
+              clearInterval(checkEditor)
+              resolve()
+            }, 2000)
+          })
+        }
+
+        if (editor.value) {
+          await nextTick()
           try {
             editor.value.commands.setContent(post.content, false)
           } catch (error) {
             console.error('[發文編輯器] 載入編輯內容失敗:', error)
           }
-        })
+        }
       }
+    } else {
+      // 只有在真正關閉且沒有任何內容時才清空 editingPostId
+      // 避免在編輯過程中誤清空編輯狀態
+      // 注意：這裡不清空 editingPostId，讓它在成功提交或明確關閉時才清空
     }
   },
   { immediate: true },
@@ -839,7 +904,6 @@ useEscapeKey(
   },
   {
     condition: () => {
-      // 在提交中時不允許 ESC 關閉
       return !isSubmitting.value && !sessionStorage.getItem('is_submitting_discussion_post')
     },
   },
@@ -874,7 +938,7 @@ onMounted(() => {
             <ArrowLeftIcon class="w-5 h-5 text-gray-500" />
           </button>
           <h2 class="text-xl font-bold text-gray-800">
-            {{ currentStep === 'preview' ? '預覽文章' : '發起討論' }}
+            {{ currentStep === 'preview' ? '預覽文章' : editingPostId ? '編輯文章' : '發起討論' }}
           </h2>
         </div>
         <button class="p-2 hover:bg-gray-100 rounded-full transition" @click="handleClose">
@@ -1299,11 +1363,12 @@ onMounted(() => {
                 />
               </div>
               <h4 class="text-2xl font-bold text-secondary-900 mb-3">{{ postData.title }}</h4>
-              <!-- eslint-disable-next-line vue/no-v-html -->
+              <!-- eslint-disable vue/no-v-html -->
               <div
                 class="text-secondary-700 text-base mb-4 leading-relaxed prose prose-lg max-w-none"
                 v-html="postData.content"
               ></div>
+              <!-- eslint-enable vue/no-v-html -->
               <div class="flex flex-wrap gap-2 mb-4">
                 <span
                   v-for="tag in postData.tags"
@@ -1365,18 +1430,29 @@ onMounted(() => {
               @click="handleFinalSubmit"
             >
               <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
-              <span v-if="!isSubmitting">確認發布</span>
-              <span v-else>發布中...</span>
+              <span v-if="!isSubmitting">{{ editingPostId ? '確認更新' : '確認發布' }}</span>
+              <span v-else>{{ editingPostId ? '更新中...' : '發布中...' }}</span>
             </button>
           </template>
-          <button
-            v-else
-            :disabled="isUploading || isSubmitting"
-            class="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="nextStep"
-          >
-            下一步
-          </button>
+          <template v-else>
+            <button
+              :disabled="isUploading || isSubmitting"
+              class="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="nextStep"
+            >
+              下一步
+            </button>
+            <button
+              v-if="editingPostId"
+              :disabled="isUploading || isSubmitting"
+              class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="handleFinalSubmit"
+            >
+              <SendIcon v-if="!isSubmitting" class="w-4 h-4" />
+              <span v-if="!isSubmitting">完成</span>
+              <span v-else>更新中...</span>
+            </button>
+          </template>
         </div>
       </div>
     </div>

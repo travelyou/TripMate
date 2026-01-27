@@ -36,7 +36,10 @@ router.get('/', async (req, res) => {
           SELECT 1 FROM unnest(d.tags) AS tag
           WHERE tag ILIKE $${paramIndex}
         )
-        OR d.author_name ILIKE $${paramIndex}
+        OR EXISTS (
+          SELECT 1 FROM public.users u2
+          WHERE u2.uid = d.author_uid AND u2.nickname ILIKE $${paramIndex}
+        )
       )`
       queryParams.push(searchTerm)
       paramIndex++
@@ -53,13 +56,11 @@ router.get('/', async (req, res) => {
         d.image_urls,
         d.created_at,
         d.updated_at,
-        d.author_name,
-        d.author_avatar as old_author_avatar,
         d.deleted_at,
         d.banner,
-        COALESCE(u.avatar, d.author_avatar) as author_avatar,
-        COALESCE(u.nickname, d.author_name) as author_name,
-        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l
@@ -71,7 +72,7 @@ router.get('/', async (req, res) => {
           WHERE c.post_id = d.id AND c.post_type = 'discussion' AND c.deleted_at IS NULL
         ), 0) as comments_count
       FROM discussion.discussion d
-      LEFT JOIN users u ON d.author_uid = u.uid
+      LEFT JOIN public.users u ON d.author_uid = u.uid
       WHERE ${whereClause}
       ORDER BY d.created_at DESC
       LIMIT $1 OFFSET $2
@@ -106,7 +107,10 @@ router.get('/', async (req, res) => {
           SELECT 1 FROM unnest(tags) AS tag
           WHERE tag ILIKE $${countParamIndex}
         )
-        OR author_name ILIKE $${countParamIndex}
+        OR EXISTS (
+          SELECT 1 FROM public.users u2
+          WHERE u2.uid = author_uid AND u2.nickname ILIKE $${countParamIndex}
+        )
       )`
       countParams.push(searchTerm)
       countParamIndex++
@@ -122,7 +126,7 @@ router.get('/', async (req, res) => {
 
       return {
         ...discussion,
-        // 確保 author_avatar 使用 JOIN 後的值（來自 users.avatar）
+        // 確保使用 users 表的數據（nickname, avatar, spirit_animal）
         author_avatar: discussion.author_avatar || null,
         author_name: discussion.author_name || null,
         author_spirit_animal: discussion.author_spirit_animal || null,
@@ -156,10 +160,6 @@ router.post('/', async (req, res) => {
   try {
     const {
       author_uid,
-      // ★ 新增接收這些欄位
-      author_name,
-      author_avatar,
-      spirit_animal,
       category,
       title,
       content,
@@ -176,21 +176,16 @@ router.post('/', async (req, res) => {
     const tagsArray = Array.isArray(tags) ? tags : []
     const imageUrlsArray = Array.isArray(image_urls) ? image_urls : []
 
-    // ★ 修改：INSERT 加入作者資訊欄位
     const insertDiscussionQuery = `
       INSERT INTO discussion.discussion (
-        author_uid, author_name, author_avatar, spirit_animal,
-        category, title, content, tags, banner, image_urls
+        author_uid, category, title, content, tags, banner, image_urls
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `
 
     const discussionResult = await pool.query(insertDiscussionQuery, [
       author_uid,
-      author_name || '匿名',
-      author_avatar || null,
-      spirit_animal || null,
       category || '其他',
       title,
       content,
@@ -216,12 +211,11 @@ router.post('/', async (req, res) => {
         d.image_urls,
         d.created_at,
         d.updated_at,
-        d.author_name,
         d.deleted_at,
         d.banner,
-        COALESCE(u.avatar, d.author_avatar) as author_avatar,
-        COALESCE(u.nickname, d.author_name) as author_name,
-        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
         0 as likes_count,
         0 as comments_count
       FROM discussion.discussion d
@@ -250,7 +244,7 @@ router.get('/:id', async (req, res) => {
     }
 
     // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
-    // 明確列出所有欄位，使用 COALESCE(u.avatar, d.author_avatar) 確保優先使用 users.avatar
+    // 一律使用 users 表的數據，不使用 discussion 表的舊值
     const discussionQuery = `
       SELECT
         d.id,
@@ -262,12 +256,11 @@ router.get('/:id', async (req, res) => {
         d.image_urls,
         d.created_at,
         d.updated_at,
-        d.author_name,
         d.deleted_at,
         d.banner,
-        COALESCE(u.avatar, d.author_avatar) as author_avatar,
-        COALESCE(u.nickname, d.author_name) as author_name,
-        COALESCE(u.spirit_animal, NULL) as author_spirit_animal,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
         COALESCE((
           SELECT COUNT(*)
           FROM public.likes l

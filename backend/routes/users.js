@@ -231,14 +231,14 @@ router.get('/', async (req, res) => {
     }
 
     const result = await queryWithSearchPath(query, params)
-
+    
     const usersWithVisitedPlaces = await Promise.all(
       result.rows.map(async (user) => {
         const visitedPlacesResult = await queryWithSearchPath(
           'SELECT name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
           [user.uid],
         )
-
+        
         const visitedPlaces = {
           domestic: visitedPlacesResult.rows
             .filter((p) => p.type === 'domestic')
@@ -255,14 +255,14 @@ router.get('/', async (req, res) => {
               icon: p.icon,
             })),
         }
-
+        
         return {
           ...user,
           visitedPlaces,
         }
       }),
     )
-
+    
     res.json(usersWithVisitedPlaces)
   } catch (error) {
     res.status(500).json({ error: '獲取用戶列表失敗', details: error.message })

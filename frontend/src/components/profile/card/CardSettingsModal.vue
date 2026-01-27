@@ -480,6 +480,8 @@ const removeGalleryImage = (idx) => {
               </div>
             </div>
             <input
+              id="card-settings-photo-input"
+              name="card-photo"
               ref="fileInput"
               type="file"
               accept="image/*"
@@ -494,6 +496,8 @@ const removeGalleryImage = (idx) => {
               <PenLineIcon class="w-4 h-4 text-primary-500" /> 名片自我介紹 (Card Bio)
             </label>
             <textarea
+              id="card-settings-bio"
+              name="card-bio"
               v-model="formData.card_bio"
               rows="4"
               class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-300 outline-none resize-none shadow-sm"
@@ -535,6 +539,8 @@ const removeGalleryImage = (idx) => {
               </div>
             </div>
             <input
+              id="card-settings-gallery-input"
+              name="card-gallery"
               ref="galleryInput"
               type="file"
               accept="image/*"

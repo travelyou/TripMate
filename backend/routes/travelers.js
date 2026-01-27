@@ -43,9 +43,10 @@ router.get('/', async (req, res) => {
         t.max_people,
         t.banner_image,
         t.author_uid,
-        t.author_name,
-        t.author_avatar,
-        t.spirit_animal,
+        -- 一律使用 users 表的最新數據，不使用 travelers 表的舊值
+        NULLIF(TRIM(u.nickname), '') as author_name,
+        NULLIF(TRIM(u.avatar), '') as author_avatar,
+        NULLIF(TRIM(u.spirit_animal), '') as spirit_animal,
         t.likes_count,
         t.saves_count,
         t.views_count,
@@ -220,8 +221,6 @@ const ensureApplicationsTable = async () => {
       id SERIAL PRIMARY KEY,
       traveler_id INTEGER NOT NULL REFERENCES travelers.travelers(id) ON DELETE CASCADE,
       author_uid VARCHAR(255) NOT NULL,
-      author_name VARCHAR(255),
-      author_avatar TEXT,
       message TEXT NOT NULL,
       status VARCHAR(20) DEFAULT 'pending',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -308,7 +307,7 @@ router.post('/:id/applications', async (req, res) => {
     await ensureApplicationsTable()
 
     const { id } = req.params
-    const { message, author_uid, author_name, author_avatar } = req.body
+    const { message, author_uid } = req.body
 
     if (!message || !author_uid) {
       return res.status(400).json({ success: false, message: '缺少必填欄位' })
@@ -347,10 +346,10 @@ router.post('/:id/applications', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO travelers.traveler_applications (traveler_id, author_uid, author_name, author_avatar, message, status)
-       VALUES ($1, $2, $3, $4, $5, 'pending')
+      `INSERT INTO travelers.traveler_applications (traveler_id, author_uid, message, status)
+       VALUES ($1, $2, $3, 'pending')
        RETURNING *`,
-      [id, author_uid, author_name || '匿名用戶', author_avatar, message]
+      [id, author_uid, message]
     )
 
     try {
@@ -358,15 +357,15 @@ router.post('/:id/applications', async (req, res) => {
         `SELECT author_uid, title FROM travelers.travelers WHERE id = $1`,
         [id]
       )
-      
+
       if (travelerResult.rows.length > 0) {
         const travelerAuthor = travelerResult.rows[0].author_uid
         const travelerTitle = travelerResult.rows[0].title
-        
+
         if (travelerAuthor && travelerAuthor !== author_uid) {
-          const applicantInfo = await getUserInfo(author_uid, author_name || '匿名用戶')
-          const applicantAvatar = applicantInfo.avatar || author_avatar
-          
+          const applicantInfo = await getUserInfo(author_uid, '匿名用戶')
+          const applicantAvatar = applicantInfo.avatar || null
+
           await createTravelerApplicationNotification({
             user_uid: travelerAuthor,
             traveler_id: id,
@@ -410,19 +409,37 @@ router.get('/:id/applications', async (req, res) => {
 
     if (user_uid === authorUid) {
       const result = await pool.query(
-        `SELECT id, author_uid, author_name, author_avatar, message, status, created_at
-         FROM travelers.traveler_applications
-         WHERE traveler_id = $1
-         ORDER BY created_at DESC`,
+        `SELECT
+          a.id,
+          a.author_uid,
+          NULLIF(TRIM(u.nickname), '') as author_name,
+          NULLIF(TRIM(u.avatar), '') as author_avatar,
+          NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
+          a.message,
+          a.status,
+          a.created_at
+         FROM travelers.traveler_applications a
+         LEFT JOIN public.users u ON a.author_uid = u.uid
+         WHERE a.traveler_id = $1
+         ORDER BY a.created_at DESC`,
         [id]
       )
       return res.json({ success: true, data: result.rows })
     } else {
       const result = await pool.query(
-        `SELECT id, author_uid, author_name, author_avatar, message, status, created_at
-         FROM travelers.traveler_applications
-         WHERE traveler_id = $1 AND author_uid = $2
-         ORDER BY created_at DESC`,
+        `SELECT
+          a.id,
+          a.author_uid,
+          NULLIF(TRIM(u.nickname), '') as author_name,
+          NULLIF(TRIM(u.avatar), '') as author_avatar,
+          NULLIF(TRIM(u.spirit_animal), '') as author_spirit_animal,
+          a.message,
+          a.status,
+          a.created_at
+         FROM travelers.traveler_applications a
+         LEFT JOIN public.users u ON a.author_uid = u.uid
+         WHERE a.traveler_id = $1 AND a.author_uid = $2
+         ORDER BY a.created_at DESC`,
         [id, user_uid]
       )
       return res.json({ success: true, data: result.rows })
@@ -1055,12 +1072,13 @@ router.get('/:id', async (req, res) => {
         t.banner_image AS "image",
         ${bannerPosSelect}
         t.author_uid,
-        t.author_name AS "author",
-        t.author_avatar AS "avatar",
-        t.spirit_animal AS "spiritAnimal",
+        NULLIF(TRIM(u.nickname), '') AS "author",
+        NULLIF(TRIM(u.avatar), '') AS "avatar",
+        NULLIF(TRIM(u.spirit_animal), '') AS "spiritAnimal",
         t.likes_count AS "likes",
         t.views_count
       FROM travelers.travelers t
+      LEFT JOIN public.users u ON t.author_uid = u.uid
       WHERE t.id = $1 AND t.deleted_at IS NULL
     `
 
@@ -1087,14 +1105,21 @@ router.get('/:id', async (req, res) => {
 
     const commentsResult = await pool.query(
       `SELECT
-        id, author_uid, author_name, author_avatar, content,
-        likes_count, created_at
-      FROM public.comments
-      WHERE post_type = 'traveler'
-        AND post_id = $1
-        AND parent_comment_id IS NULL
-        AND deleted_at IS NULL
-      ORDER BY created_at DESC
+        c.id,
+        c.author_uid,
+        COALESCE(u.nickname, c.author_name) as author_name,
+        COALESCE(u.avatar, c.author_avatar) as author_avatar,
+        u.spirit_animal as author_spirit_animal,
+        c.content,
+        c.likes_count,
+        c.created_at
+      FROM public.comments c
+      LEFT JOIN public.users u ON c.author_uid = u.uid
+      WHERE c.post_type = 'traveler'
+        AND c.post_id = $1
+        AND c.parent_comment_id IS NULL
+        AND c.deleted_at IS NULL
+      ORDER BY c.created_at DESC
       LIMIT 50`,
       [idNum],
     )
@@ -1129,9 +1154,10 @@ router.get('/:id', async (req, res) => {
       })),
       commentsData: commentsResult.rows.map((comment) => ({
         id: comment.id,
-        author: comment.author_name,
+        author: comment.author_name || comment.author_nickname || '匿名用戶',
         author_uid: comment.author_uid,
-        avatar: comment.author_avatar,
+        avatar: comment.author_avatar || null,
+        spiritAnimal: comment.author_spirit_animal || null,
         content: comment.content,
         likes: comment.likes_count,
         time: comment.created_at,

@@ -340,7 +340,7 @@ router.post('/:uid/friends', async (req, res) => {
         `SELECT uid, nickname, avatar FROM users WHERE uid = $1`,
         [uid]
       )
-      
+
       if (requesterResult.rows.length > 0) {
         const requester = requesterResult.rows[0]
         // 優先使用 nickname，如果沒有則使用 uid
@@ -1145,6 +1145,8 @@ router.get('/:uid', async (req, res) => {
         uid: user.uid,
         email: user.email,
         nickname: user.nickname,
+        real_name: user.real_name,
+        realName: user.real_name,
         location: user.location || '台灣',
         avatar: user.avatar,
         bio: user.bio,

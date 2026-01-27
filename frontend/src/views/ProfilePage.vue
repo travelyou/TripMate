@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePersonalityStore } from '@/stores/personality'
+import { useDiscussionsStore } from '@/stores/discussions'
 import { getTravelers } from '@/api/travelers'
 
 // Modal Components
@@ -34,6 +35,7 @@ import SettingsModal from '@/components/profile/SettingsModal.vue'
 
 const userStore = useUserStore()
 const personalityStore = usePersonalityStore()
+const discussionsStore = useDiscussionsStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -91,7 +93,7 @@ const displayWishlist = computed(() => {
 })
 
 // --- Tabs 設定 ---
-const activeTab = ref('hosted_trips')
+const activeTab = ref('visited_places')
 const tabs = computed(() => {
   const baseTabs = [
     { k: 'visited_places', l: '去過的地方', s: '足跡' },
@@ -138,13 +140,24 @@ const activeTabsData = computed(() => {
   const targetUidValue = targetUid.value
   return {
     hostedTrips: hostedTravelers.value
-      .filter((traveler) => (traveler.author_uid || traveler.authorUid) === targetUidValue)
+      .filter((traveler) => {
+        // 確保只顯示用戶創建的旅行（author_uid 必須等於目標用戶）
+        // 明確檢查 author_uid，不允許參加過的旅行（通過 traveler_applications 獲取的）
+        const travelerAuthorUid = traveler.author_uid || traveler.authorUid
+        return travelerAuthorUid === targetUidValue && travelerAuthorUid !== null && travelerAuthorUid !== undefined
+      })
       .map((traveler) => ({
         ...traveler,
+        type: 'traveler', // 添加 type 字段以便 openDetail 正確識別
         comments: traveler.comments || 0,
         tags: traveler.tags || [],
       })),
-    posts: userPosts.value.filter((post) => (post.author_uid || post.authorUid) === targetUidValue),
+    posts: userPosts.value
+      .filter((post) => (post.author_uid || post.authorUid) === targetUidValue)
+      .map((post) => {
+        // 使用 discussionsStore.transformPost 來正確轉換貼文數據，包括時間格式化
+        return discussionsStore.transformPost(post)
+      }),
     reviews: (user.value && user.value.reviews) || [],
   }
 })
@@ -333,7 +346,13 @@ const loadProfileData = async () => {
 
     const { getTravelers } = await import('@/api/travelers')
     const travelersRes = await getTravelers({ author_uid: uidToLoad, limit: 100 })
-    if (travelersRes.success) hostedTravelers.value = travelersRes.data
+    if (travelersRes.success) {
+      // 確保只包含用戶創建的旅行，過濾掉任何可能的參加過的旅行
+      hostedTravelers.value = (travelersRes.data || []).filter((traveler) => {
+        const travelerAuthorUid = traveler.author_uid || traveler.authorUid
+        return travelerAuthorUid === uidToLoad
+      })
+    }
 
     const { fetchPosts } = await import('@/api/discussions')
     const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
@@ -393,7 +412,8 @@ const loadProfileData = async () => {
 
 const openDetail = (item, scrollToComments = false) => {
   shouldScrollToComments.value = !!scrollToComments
-  if (item.type === 'traveler') {
+  // 檢查是否為 traveler（通過 type 字段或 id 和 author_uid 字段判斷）
+  if (item.type === 'traveler' || (item.id && (item.author_uid || item.authorUid))) {
     selectedTraveler.value = item
     isTravelerDetailModalOpen.value = true
   } else {
@@ -406,7 +426,13 @@ const loadHostedTravelers = async (uid = targetUid.value) => {
   if (!uid) return
   try {
     const travelersRes = await getTravelers({ author_uid: uid, limit: 100 })
-    if (travelersRes.success) hostedTravelers.value = travelersRes.data
+    if (travelersRes.success) {
+      // 確保只包含用戶創建的旅行，過濾掉任何可能的參加過的旅行
+      hostedTravelers.value = (travelersRes.data || []).filter((traveler) => {
+        const travelerAuthorUid = traveler.author_uid || traveler.authorUid
+        return travelerAuthorUid === uid
+      })
+    }
   } catch (error) {
     console.error('載入主揪旅程失敗', error)
   }

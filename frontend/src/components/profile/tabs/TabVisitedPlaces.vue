@@ -233,12 +233,16 @@ const tabBtnClass = (isActive) => {
           </button>
 
           <input
+            id="visited-places-domestic-name"
+            name="domestic-place-name"
             v-model="newDomesticPlace"
             placeholder="城市名稱 (如: 台南)"
             class="px-4 py-2 border border-secondary-200 rounded-xl text-sm text-black flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0 placeholder-gray-400"
             @keyup.enter="handleAdd('domestic')"
           />
           <input
+            id="visited-places-domestic-date"
+            name="domestic-place-date"
             v-model="newDomesticDate"
             type="month"
             class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-black bg-white"
@@ -277,12 +281,16 @@ const tabBtnClass = (isActive) => {
           </button>
 
            <input
+            id="visited-places-international-name"
+            name="international-place-name"
             v-model="newInternationalPlace"
             placeholder="城市名稱 (如: 東京)"
             class="px-4 py-2 border border-secondary-200 rounded-xl text-sm text-black flex-1 focus:ring-2 focus:ring-primary-500 outline-none bg-white min-w-0 placeholder-gray-400"
             @keyup.enter="handleAdd('international')"
           />
           <input
+            id="visited-places-international-date"
+            name="international-place-date"
             v-model="newInternationalDate"
             type="month"
             class="px-4 py-2 border border-secondary-200 rounded-xl text-sm w-full sm:w-32 focus:ring-2 focus:ring-primary-500 outline-none text-black bg-white"
