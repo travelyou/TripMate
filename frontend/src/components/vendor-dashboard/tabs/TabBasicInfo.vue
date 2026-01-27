@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useVendorStore } from '@/stores/vendor'
+import { useToast } from '@/composables/useToast'
 import { Save, X, Edit, Plus, Trash2, Upload } from 'lucide-vue-next'
 
 const vendorStore = useVendorStore()
+const { success, error } = useToast()
 const currentVendor = computed(() => vendorStore.currentVendor)
 
 // 編輯模式
@@ -121,10 +123,10 @@ const handleRegionImageUpload = async (event, index) => {
     const url = await vendorStore.uploadVendorImage(file, 'bannerImage') // 重用 API，雖然 key 叫 bannerImage 但後端是通用的
     mainRegions.value[index].image = url
     hasChanges.value = true
-    alert('圖片上傳成功！')
+    success('圖片上傳成功！')
   } catch (err) {
     console.error('上傳失敗:', err)
-    alert('圖片上傳失敗')
+    error('圖片上傳失敗')
   } finally {
     saving.value = false
     event.target.value = ''
@@ -162,37 +164,77 @@ const handleReset = () => {
       } else {
         mainRegions.value = []
       }
-    } catch (e) {
+    } catch {
       mainRegions.value = []
     }
     hasChanges.value = false
   }
 }
 
+// --- 安全性：輸入清理函數（防止 XSS 攻擊）---
+
+/**
+ * 清理用戶輸入，移除潛在的 XSS 攻擊向量
+ * @param {string} input - 原始輸入
+ * @returns {string} 清理後的安全字串
+ */
+const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return input
+
+  return input
+    // 移除 script 標籤
+    .replace(/<script[^>]*>.*?<\/script>/gi, '')
+    // 移除 iframe
+    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
+    // 移除 object/embed
+    .replace(/<(object|embed)[^>]*>.*?<\/(object|embed)>/gi, '')
+    // 移除事件處理器 (onclick, onload, onerror 等)
+    .replace(/on\w+\s*=/gi, '')
+    // 移除 javascript: 協議
+    .replace(/javascript:/gi, '')
+    // 移除 data: 協議 (可能包含 base64 編碼的惡意腳本)
+    .replace(/data:text\/html/gi, '')
+    // 修剪空白
+    .trim()
+}
+
 const handleSave = async () => {
   if (!currentVendor.value) return
 
+  // 清理主打地區資料（防止 XSS）
+  const sanitizedRegions = mainRegions.value.map(region => ({
+    name: sanitizeInput(region.name),
+    image: region.image // 圖片 URL 不需要清理（已由上傳 API 處理）
+  }))
+
   // 驗證主打地區資料
-  for (const region of mainRegions.value) {
+  for (const region of sanitizedRegions) {
     if (!region.name || !region.image) {
-      alert('請確認所有主打地區皆已輸入名稱並上傳圖片')
+      error('請確認所有主打地區皆已輸入名稱並上傳圖片')
       return
     }
   }
 
   saving.value = true
 
-  // 將 mainRegions 序列化存入 bannerImage
-  form.value.bannerImage = JSON.stringify(mainRegions.value)
+  // 清理表單資料（防止 XSS）
+  const sanitizedForm = {
+    name: sanitizeInput(form.value.name),
+    slogan: sanitizeInput(form.value.slogan),
+    description: sanitizeInput(form.value.description),
+    regionTags: form.value.regionTags.map(tag => sanitizeInput(tag)),
+    avatar: form.value.avatar, // URL 不需要清理
+    bannerImage: JSON.stringify(sanitizedRegions) // 使用清理後的地區資料
+  }
 
   try {
-    await vendorStore.updateVendorProfile(currentVendor.value.id, form.value)
+    await vendorStore.updateVendorProfile(currentVendor.value.id, sanitizedForm)
     hasChanges.value = false
     isEditing.value = false
-    alert('儲存成功!')
+    success('儲存成功！')
   } catch (error) {
     console.error('儲存失敗:', error)
-    alert('儲存失敗，請稍後再試')
+    error('儲存失敗，請稍後再試')
   } finally {
     saving.value = false
   }
@@ -208,10 +250,10 @@ const handleAvatarUpload = async (event) => {
     const url = await vendorStore.uploadVendorImage(file, 'avatar')
     form.value.avatar = url
     hasChanges.value = true
-    alert('圖片上傳成功！')
+    success('頭像上傳成功！')
   } catch (err) {
     console.error('上傳失敗:', err)
-    alert('圖片上傳失敗')
+    error('頭像上傳失敗')
   } finally {
     saving.value = false
     event.target.value = ''

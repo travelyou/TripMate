@@ -13,6 +13,7 @@ import { getVendorProfileRoute } from '@/utils/navigation'
 
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
+import ToastNotification from '@/components/common/ToastNotification.vue'
 
 const router = useRouter()
 const vendorStore = useVendorStore()
@@ -107,6 +108,7 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen bg-gray-50">
     <DashboardNav />
+    <ToastNotification />
 
     <div class="flex pt-16">
       <DashboardSidebar
@@ -116,7 +118,7 @@ onMounted(async () => {
         @switch-to-frontend="handleSwitchToFrontend"
       />
 
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1 overflow-auto ml-64">
         <DashboardHeader
           v-if="currentVendor && !loading"
           :vendor="currentVendor"

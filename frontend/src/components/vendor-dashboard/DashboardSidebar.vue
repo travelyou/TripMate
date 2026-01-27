@@ -18,7 +18,7 @@ const menuItems = [
 </script>
 
 <template>
-  <aside class="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-16">
+  <aside class="fixed left-0 top-16 w-64 bg-white border-r border-gray-200 flex flex-col h-[calc(100vh-4rem)] overflow-y-auto z-40">
     <!-- Logo / 品牌區 -->
     <div class="p-6 border-b border-gray-200">
       <div class="flex items-center gap-3">
