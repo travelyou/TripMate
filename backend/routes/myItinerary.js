@@ -1,3 +1,4 @@
+/* eslint-env node */
 const express = require('express')
 const router = express.Router()
 const db = require('../database/connection')
@@ -6,7 +7,6 @@ const db = require('../database/connection')
 router.get('/personal/:uid', async (req, res) => {
   const { uid } = req.params
   try {
-    // [驗證] 根據 JSON，這張表在 public 下，名稱正確
     const result = await db.query(
       'SELECT * FROM public.my_itineraries WHERE user_uid = $1 ORDER BY created_at DESC',
       [uid],
@@ -18,16 +18,26 @@ router.get('/personal/:uid', async (req, res) => {
   }
 })
 
-// [GET] 取得已參加並通過的找旅伴行程
+// [GET] 取得已參加並通過的找旅伴行程 (包含評價狀態)
 router.get('/joined/:uid', async (req, res) => {
   const { uid } = req.params
   try {
-    // [驗證] 根據您的 JSON 與截圖：
-    // 1. 貼文表在 travelers schema 下，叫做 travelers
-    // 2. 申請表在 travelers schema 下，叫做 traveler_applications (不是 applications!)
+    // [修改重點]
+    // 1. JOIN users (u): 為了拿到主揪的名字和頭像
+    // 2. JOIN reviews (r): 為了拿到「我」對這個行程的評價 (content, sentiment)
     const query = `
-      SELECT t.* FROM travelers.travelers t
+      SELECT
+        t.*,
+        u.nickname as author_name,
+        u.avatar as author_avatar,
+        -- [關鍵] 把評價內容一起撈出來，前端依此判斷顯示狀態 (有值=已評價，NULL=未評價)
+        r.content as comment,
+        r.sentiment as review_label
+      FROM travelers.travelers t
       JOIN travelers.traveler_applications a ON t.id = a.traveler_id
+      LEFT JOIN public.users u ON t.author_uid = u.uid
+      -- [關鍵] 關聯評價表：條件是「這個行程 (t.id)」且「作者是我 ($1)」
+      LEFT JOIN public.reviews r ON r.trip_id = t.id AND r.author_uid = $1
       WHERE a.author_uid = $1 AND a.status = 'accepted'
       ORDER BY t.start_date ASC;
     `
