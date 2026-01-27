@@ -38,7 +38,8 @@ const hasChanges = ref(false)
 
 // 初始化表單
 watch(currentVendor, (vendor) => {
-  if (vendor) {
+  // 🔧 修復：編輯模式時不要重置表單，避免清空用戶正在編輯的內容
+  if (vendor && !isEditing.value) {
     form.value = {
       name: vendor.name || '',
       slogan: vendor.slogan || '',
@@ -56,8 +57,8 @@ watch(currentVendor, (vendor) => {
         // 舊資料或空資料，初始化為空陣列
         mainRegions.value = []
       }
-    } catch (e) {
-      console.error('解析主打地區失敗:', e)
+    } catch {
+      console.error('解析主打地區失敗')
       mainRegions.value = []
     }
   }
@@ -118,14 +119,29 @@ const handleRegionImageUpload = async (event, index) => {
   const file = event.target.files[0]
   if (!file) return
 
+  console.log('📸 開始上傳地區圖片...', { index, fileName: file.name })
+  console.log('📊 當前 mainRegions:', mainRegions.value)
+
   try {
     saving.value = true
-    const url = await vendorStore.uploadVendorImage(file, 'bannerImage') // 重用 API，雖然 key 叫 bannerImage 但後端是通用的
-    mainRegions.value[index].image = url
+    const url = await vendorStore.uploadVendorImage(file, 'bannerImage')
+    console.log('✅ 圖片 URL 已取得:', url)
+
+    // 🔧 修復 Vue 響應式：創建新陣列參照
+    const updatedRegions = [...mainRegions.value]
+    updatedRegions[index] = {
+      ...updatedRegions[index],
+      image: url
+    }
+    mainRegions.value = updatedRegions
+
+    console.log('✅ 已更新 mainRegions[' + index + ']:', mainRegions.value[index])
+    console.log('📊 更新後的完整 mainRegions:', mainRegions.value)
+
     hasChanges.value = true
     success('圖片上傳成功！')
   } catch (err) {
-    console.error('上傳失敗:', err)
+    console.error('❌ 上傳失敗:', err)
     error('圖片上傳失敗')
   } finally {
     saving.value = false
