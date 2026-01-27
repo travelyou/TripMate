@@ -174,7 +174,6 @@ const ResetStyleOnEnter = Extension.create({
             .unsetAllMarks()
             .run()
         } catch (error) {
-          console.error('[發文編輯器] Enter 鍵處理錯誤:', error)
           return false
         }
       },
@@ -217,7 +216,7 @@ const editor = useEditor({
         errors.value.content = ''
       }
     } catch (error) {
-      console.error('[發文編輯器] 更新內容錯誤:', error)
+      // 更新內容錯誤，靜默處理
     }
   },
   onCreate: ({ editor }) => {
@@ -237,7 +236,7 @@ const editor = useEditor({
           }
         })
       } catch (error) {
-        console.error('[發文編輯器] 初始化內容失敗:', error)
+        // 初始化內容失敗，靜默處理
       }
     }
   },
@@ -285,7 +284,7 @@ watch(
           editor.value.commands.setContent(newContent, false)
         }
       } catch (error) {
-        console.error('[發文編輯器] 內容同步錯誤:', error)
+        // 內容同步錯誤，靜默處理
       }
     }
   },
@@ -503,7 +502,6 @@ const handleImageSelect = async (event) => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     submitStatus.value = ''
   } catch (error) {
-    console.error('[圖片上傳] 上傳失敗：', error)
     await showAlert('圖片上傳失敗：' + error.message)
     imagePreviews.value = imagePreviews.value.slice(0, imageFiles.value.length)
   } finally {
@@ -602,7 +600,6 @@ const handleSaveDraft = async () => {
   }
 
   myItineraryStore.addDraft(draftData)
-  console.log('[草稿儲存] 草稿儲存成功，ID:', draftData.id)
   await showSuccess('已儲存至「個人檔案」草稿夾！')
   emit('close')
 }
@@ -745,8 +742,6 @@ const executeSubmit = async () => {
       emit('success')
     }
   } catch (error) {
-    console.error('發文失敗:', error)
-
     sessionStorage.removeItem('is_submitting_discussion_post')
     sessionStorage.removeItem('submit_start_time')
 
@@ -822,7 +817,7 @@ watch(
           try {
             editor.value.commands.setContent(draft.content, false)
           } catch (error) {
-            console.error('[發文編輯器] 載入草稿內容失敗:', error)
+            // 載入草稿內容失敗，靜默處理
           }
         }
       }
@@ -876,7 +871,7 @@ watch(
           try {
             editor.value.commands.setContent(post.content, false)
           } catch (error) {
-            console.error('[發文編輯器] 載入編輯內容失敗:', error)
+            // 載入編輯內容失敗，靜默處理
           }
         }
       }

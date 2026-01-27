@@ -13,7 +13,6 @@ router.get('/personal/:uid', async (req, res) => {
     )
     res.json({ success: true, data: result.rows })
   } catch (err) {
-    console.error('❌ Personal Error:', err)
     res.status(500).json({ success: false, message: '讀取個人行程失敗', error: err.message })
   }
 })
@@ -22,13 +21,6 @@ router.get('/personal/:uid', async (req, res) => {
 router.get('/joined/:uid', async (req, res) => {
   const { uid } = req.params
   try {
-    // [驗證] 根據您的 JSON 與截圖：
-    // 1. 貼文表在 travelers schema 下，叫做 travelers
-    // 2. 申請表在 travelers schema 下，叫做 traveler_applications (不是 applications!)
-    // 3. 從 users 表獲取最新的作者信息（nickname, avatar, spirit_animal）
-    // [修改重點]
-    // 1. JOIN users (u): 為了拿到主揪的名字和頭像
-    // 2. JOIN reviews (r): 為了拿到「我」對這個行程的評價 (content, sentiment)
     const query = `
       SELECT
         t.id,
@@ -63,7 +55,6 @@ router.get('/joined/:uid', async (req, res) => {
     const result = await db.query(query, [uid])
     res.json({ success: true, data: result.rows })
   } catch (err) {
-    console.error('❌ Joined Error:', err)
     res.status(500).json({ success: false, message: '讀取參加行程失敗', error: err.message })
   }
 })
@@ -87,7 +78,6 @@ router.post('/', async (req, res) => {
     )
     res.json({ success: true, data: result.rows[0] })
   } catch (err) {
-    console.error('❌ Create Error:', err)
     res.status(500).json({ success: false, message: '新增失敗', error: err.message })
   }
 })
@@ -115,7 +105,6 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: '找不到該行程' })
     res.json({ success: true, data: result.rows[0] })
   } catch (err) {
-    console.error('❌ Update Error:', err)
     res.status(500).json({ success: false, message: '更新失敗', error: err.message })
   }
 })
@@ -131,7 +120,6 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: '找不到該行程' })
     res.json({ success: true, message: '行程已刪除' })
   } catch (err) {
-    console.error('❌ Delete Error:', err)
     res.status(500).json({ success: false, message: '刪除失敗', error: err.message })
   }
 })

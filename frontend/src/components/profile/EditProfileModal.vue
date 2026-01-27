@@ -115,7 +115,6 @@ function save() {
     tags: Array.isArray(editForm.tags) ? editForm.tags : [],
   }
   
-  console.log('EditProfileModal save() - formData:', formData)
   emit('save', formData)
 }
 

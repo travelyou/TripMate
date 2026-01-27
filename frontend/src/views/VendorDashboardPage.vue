@@ -29,22 +29,18 @@ const isItineraryEdit = ref(false)
 
 const vendorId = computed(() => {
   const id = userStore.currentUser?.vendorId || userStore.currentUser?.id || 'vendor001'
-  console.log('🔄 [Dashboard] Computed vendorId:', id)
   return id
 })
 const currentVendor = computed(() => vendorStore.currentVendor)
 const loading = computed(() => vendorStore.loading)
 
 const handleLogout = () => {
-  console.log('🚪 handleLogout triggered')
   userStore.logout()
   router.push('/login')
 }
 
 const handleSwitchToFrontend = () => {
-  console.log('🚀 handleSwitchToFrontend triggered')
   const route = getVendorProfileRoute(userStore.currentUser)
-  console.log('🚀 handleSwitchToFrontend -> target route:', route)
   router.push(route)
 }
 
@@ -55,7 +51,6 @@ const openItineraryModal = () => {
 }
 
 const handleEditItinerary = (item) => {
-  console.log('✏️ Edit Itinerary:', item)
   isItineraryEdit.value = true
   editItineraryData.value = item
   showItineraryModal.value = true
@@ -91,11 +86,6 @@ const handlePostSuccess = async () => {
 }
 
 onMounted(async () => {
-  console.log('🔍 [Dashboard] 當前用戶:', userStore.currentUser)
-  console.log('🔍 [Dashboard] vendorId:', vendorId.value)
-
-  console.log('🔍 [Dashboard] role:', userStore.currentUser?.role)
-
   await vendorStore.fetchVendorProfile(vendorId.value)
   await Promise.all([
     vendorStore.fetchVendorItineraries(vendorId.value),
@@ -154,7 +144,6 @@ onMounted(async () => {
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                 <TabPostList
                   @create="openPostModal"
-                  @edit="(item) => console.log('Edit post', item)"
                 />
               </div>
             </div>

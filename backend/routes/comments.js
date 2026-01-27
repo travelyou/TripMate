@@ -201,8 +201,7 @@ router.post('/posts/:postId/comments', async (req, res) => {
         }
       }
     } catch (notifError) {
-      console.error('創建回覆通知失敗（不影響主流程）：', notifError)
-      console.error('創建回覆通知失敗詳情：', notifError.stack)
+      console.error('創建回覆通知失敗（不影響主流程）：', notifError.message)
     }
 
     res.status(201).json(newComment)

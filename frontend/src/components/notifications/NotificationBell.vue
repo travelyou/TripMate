@@ -115,7 +115,7 @@ const handleNotificationClick = async (notification) => {
       }
     }
   } catch (error) {
-    console.error('跳轉失敗：', error)
+    // 跳轉失敗，靜默處理
   } finally {
     setTimeout(() => {
       isNavigating.value = false

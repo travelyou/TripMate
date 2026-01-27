@@ -21,7 +21,6 @@ export const submitReview = async ({ author_uid, target_uid, trip_id, content, s
     })
     return { success: true, data: response.data }
   } catch (error) {
-    console.error('送出評價失敗:', error)
     return {
       success: false,
       message: error.response?.data?.error || '評價送出失敗',

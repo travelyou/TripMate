@@ -72,7 +72,6 @@ const handleRegionSelect = (region) => {
 // ... existing code ...
 const handlePageChange = (page) => {
   // Implement real pagination here
-  console.log('Page changed to:', page)
 }
 </script>
 

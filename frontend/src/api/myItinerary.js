@@ -8,7 +8,6 @@ export const getPersonalItineraries = async (uid) => {
     const response = await axios.get(`${API_BASE_URL}/my-itinerary/personal/${uid}`)
     return response.data
   } catch (error) {
-    console.error('獲取個人行程失敗:', error)
     throw error
   }
 }
@@ -19,7 +18,6 @@ export const getJoinedItineraries = async (uid) => {
     const response = await axios.get(`${API_BASE_URL}/my-itinerary/joined/${uid}`)
     return response.data
   } catch (error) {
-    console.error('獲取參加行程失敗:', error)
     throw error
   }
 }
@@ -40,8 +38,6 @@ export const createMyItinerary = async (data) => {
     const response = await axios.post(`${API_BASE_URL}/my-itinerary`, payload)
     return response.data
   } catch (error) {
-    console.error('創建行程失敗:', error)
-    console.error('請求數據:', data)
     throw error
   }
 }
@@ -61,9 +57,6 @@ export const updateMyItinerary = async (id, data) => {
     const response = await axios.put(`${API_BASE_URL}/my-itinerary/${id}`, payload)
     return response.data
   } catch (error) {
-    console.error('更新行程失敗:', error)
-    console.error('行程 ID:', id)
-    console.error('請求數據:', data)
     throw error
   }
 }
@@ -74,7 +67,6 @@ export const deleteMyItinerary = async (id) => {
     const response = await axios.delete(`${API_BASE_URL}/my-itinerary/${id}`)
     return response.data
   } catch (error) {
-    console.error('刪除行程失敗:', error)
     throw error
   }
 }

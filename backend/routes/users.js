@@ -45,15 +45,12 @@ router.post('/', async (req, res) => {
       finalRole = role
     }
 
-    console.log('🔍 [Backend] 收到的 role:', role)
-    console.log('🔍 [Backend] 最終 finalRole:', finalRole)
 
     let finalVendorId = vendor_id
 
     if (finalRole === 'user' || finalRole === 'admin') {
       finalVendorId = null
     } else if (finalRole === 'vendor') {
-      console.log('🏢 [Backend] 開始創建 vendor 記錄...')
       try {
         const vendorName = nickname || email?.split('@')[0] || '未命名廠商'
         const vendorAvatar = avatar || null
@@ -88,8 +85,6 @@ router.post('/', async (req, res) => {
             const nextNumber = parseInt(seqResult.rows[0].next_val, 10)
             const newVendorId = `vendor-${String(nextNumber).padStart(3, '0')}`
 
-            console.log('🆔 [Backend] 嘗試創建 vendor ID:', newVendorId)
-
             const insertVendorQuery = `
               INSERT INTO vendors (id, name, avatar, created_at, updated_at)
               VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -99,12 +94,9 @@ router.post('/', async (req, res) => {
             await pool.query(insertVendorQuery, [newVendorId, vendorName, vendorAvatar])
             createdVendorId = newVendorId
             finalVendorId = newVendorId
-
-            console.log('✅ [Backend] Vendor 記錄創建成功:', newVendorId)
           } catch (insertError) {
             if (insertError.code === '23505') {
               retryCount++
-              console.log(`⚠️ [Backend] Vendor ID 衝突，重試 ${retryCount}/${maxRetries}`)
               if (retryCount >= maxRetries) {
                 throw new Error('無法生成唯一的 vendor_id，請稍後再試')
               }
@@ -196,17 +188,7 @@ router.post('/', async (req, res) => {
         finalVendorId,
       ]
 
-      console.log('📝 [Backend] 準備 INSERT users，參數:', {
-        uid,
-        email,
-        nickname,
-        role: finalRole,
-        vendor_id: finalVendorId
-      })
-
       const result = await pool.query(insertQuery, insertParams)
-
-      console.log('✅ [Backend] INSERT 成功，返回:', result.rows[0])
 
       res.status(201).json({ data: result.rows[0] })
     }

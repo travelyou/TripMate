@@ -57,7 +57,6 @@ router.post('/', async (req, res) => {
     res.json({ success: true, data: result.rows[0] })
   } catch (error) {
     await client.query('ROLLBACK')
-    console.error('儲存評價失敗:', error)
     res.status(500).json({ error: '儲存評價失敗', details: error.message })
   } finally {
     client.release()
@@ -71,7 +70,6 @@ router.delete('/:id', async (req, res) => {
     await pool.query('DELETE FROM reviews WHERE id = $1', [id])
     res.json({ success: true, message: '評價已刪除' })
   } catch (error) {
-    console.error('刪除評價失敗:', error)
     res.status(500).json({ error: '刪除評價失敗' })
   }
 })

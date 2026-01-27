@@ -17,8 +17,6 @@ function initWebSocket(server) {
     path: '/ws'
   })
 
-  console.log('✅ WebSocket 服務器已啟動在 /ws')
-
   wss.on('connection', (ws, req) => {
     const parameters = url.parse(req.url, true)
     const uid = parameters.query.uid
@@ -28,8 +26,6 @@ function initWebSocket(server) {
       ws.close(1008, 'Missing UID')
       return
     }
-
-    console.log(`🔗 用戶 ${uid} WebSocket 已連接`)
 
     // 如果該用戶已有連接，關閉舊連接
     if (clients.has(uid)) {
@@ -72,7 +68,6 @@ function initWebSocket(server) {
 
     // 處理連接關閉
     ws.on('close', () => {
-      console.log(`🔌 用戶 ${uid} WebSocket 已斷開`)
       clients.delete(uid)
       const interval = heartbeatIntervals.get(ws)
       if (interval) {
@@ -107,7 +102,6 @@ function handleMessage(senderUid, data, ws) {
   switch (type) {
     case 'register':
       // 用戶註冊（已在連接時處理）
-      console.log(`✅ 用戶 ${senderUid} 註冊成功`)
       break
 
     case 'chat_message':
@@ -140,7 +134,6 @@ function handleChatMessage(senderUid, data) {
 
   // 重要：不要將訊息回傳給發送者本人，避免重複顯示
   if (receiver_uid === senderUid) {
-    console.log(`⚠️ 忽略自己發給自己的訊息：${senderUid}`)
     return
   }
 
@@ -157,9 +150,6 @@ function handleChatMessage(senderUid, data) {
       content,
       timestamp: timestamp || new Date().toISOString()
     }))
-    console.log(`📨 訊息已轉發：${senderUid} -> ${receiver_uid}`)
-  } else {
-    console.log(`📭 接收者 ${receiver_uid} 不在線，訊息未即時送達`)
   }
 }
 
@@ -177,8 +167,6 @@ function broadcast(data) {
       sentCount++
     }
   })
-  
-  console.log(`📢 廣播訊息已發送給 ${sentCount} 個用戶`)
 }
 
 /**

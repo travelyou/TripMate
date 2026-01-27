@@ -32,17 +32,10 @@ export function loadGoogleMaps() {
     throw new Error('Missing Google Maps API key')
   }
 
-  if (import.meta.env.DEV) {
-    console.log('[Google Maps] API Key 已讀取 (長度):', apiKey.length)
-  }
-
   try {
     const scripts = document.querySelectorAll('script[src*="maps.googleapis.com/maps/api/js"]')
     scripts.forEach((script) => {
       const src = script.getAttribute('src') || ''
-      if (import.meta.env.DEV) {
-        console.log('[Google Maps] 現有 Script src:', src)
-      }
       const hasKey = src.includes('key=')
       const keyMatches = hasKey ? src.includes(`key=${apiKey}`) : false
       if (!hasKey || !keyMatches) {
@@ -77,15 +70,6 @@ export function loadGoogleMaps() {
 
         ensureGoogleNamespace()
         window.google.maps[callbackName] = () => {
-          if (import.meta.env.DEV) {
-            const scripts = document.querySelectorAll(
-              'script[src*="maps.googleapis.com/maps/api/js"]',
-            )
-            scripts.forEach((script) => {
-              console.log('[Google Maps] 載入後 Script src:', script.getAttribute('src') || '')
-            })
-          }
-
           if (!window.google) {
             reject(new Error('Google Maps failed to load'))
             return

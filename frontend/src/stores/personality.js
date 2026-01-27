@@ -596,9 +596,8 @@ export const usePersonalityStore = defineStore('personalityTest', {
 
         return true
       } catch (error) {
-        console.error('儲存測驗結果到資料庫失敗:', error)
         const errorMessage = error.message || error.response?.data?.error || '未知錯誤'
-        console.error('錯誤詳情:', errorMessage)
+        console.error('儲存測驗結果到資料庫失敗:', errorMessage)
         return false
       }
     },

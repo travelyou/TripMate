@@ -190,7 +190,6 @@ async function createNotification(notificationData, mergeIfExists = false) {
     return { success: true, data: result.rows[0] }
   } catch (error) {
     console.error('創建通知失敗：', error.message)
-    console.error('創建通知失敗詳情：', error)
     // 不拋出錯誤，避免影響主流程
     return null
   }

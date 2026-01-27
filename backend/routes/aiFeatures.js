@@ -7,8 +7,6 @@ const pool = require('../database/connection')
 // 確保功能位置表存在
 const ensureFeatureLocationsTable = async () => {
   try {
-    console.log('[AI Features] 開始檢查/創建功能位置表...')
-
     await pool.query(
       `CREATE TABLE IF NOT EXISTS public.feature_locations (
         id SERIAL PRIMARY KEY,
@@ -24,7 +22,6 @@ const ensureFeatureLocationsTable = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
     )
-    console.log('[AI Features] 功能位置表已確保存在')
 
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_feature_locations_keywords 
@@ -38,7 +35,6 @@ const ensureFeatureLocationsTable = async () => {
       `CREATE INDEX IF NOT EXISTS idx_feature_locations_is_active 
        ON public.feature_locations(is_active)`,
     )
-    console.log('[AI Features] 功能位置表索引已確保存在')
 
     // 初始化一些基本功能位置数据
     await initializeDefaultFeatures()
@@ -169,7 +165,6 @@ const initializeDefaultFeatures = async () => {
         ],
       )
     }
-    console.log('[AI Features] 預設功能位置資料已初始化')
   } catch (error) {
     console.error('[AI Features] 初始化預設功能位置資料失敗：', error)
   }

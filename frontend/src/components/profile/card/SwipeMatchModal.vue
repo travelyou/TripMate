@@ -52,7 +52,6 @@ const loadSwipeState = (uid) => {
       rejections: pruneRejections(rejections),
     }
   } catch (error) {
-    console.warn('[SwipeMatch] 讀取抽卡狀態失敗，已重置', error)
     return { date: getTodayKey(), count: 0, rejections: {} }
   }
 }
@@ -72,7 +71,7 @@ const saveSwipeState = (uid, state) => {
   try {
     localStorage.setItem(stateKey, JSON.stringify(payload))
   } catch (error) {
-    console.warn('[SwipeMatch] 保存抽卡狀態失敗', error)
+    // 保存抽卡狀態失敗，靜默處理
   }
 }
 
@@ -249,7 +248,7 @@ const handleSwipeLike = async (swipedCard) => {
           userStore.currentUser.friends = profileData.friends
         }
       } catch (error) {
-        console.warn('[SwipeMatch] 更新好友列表失敗：', error)
+        // 更新好友列表失敗，靜默處理
       }
       const chatUser = {
         uid: swipedCard.uid,
@@ -260,7 +259,7 @@ const handleSwipeLike = async (swipedCard) => {
       window.dispatchEvent(new CustomEvent('open-chat', { detail: { user: chatUser } }))
     }
   } catch (error) {
-    console.error('[SwipeMatch] 抽卡喜歡失敗：', error)
+    // 抽卡喜歡失敗，靜默處理
   }
 }
 
@@ -353,7 +352,7 @@ const loadCandidates = async (uid, state = swipeState.value) => {
           userStore.currentUser.friends = profileData.friends
         }
       } catch (error) {
-        console.warn('[SwipeMatch] 載入好友列表失敗，將繼續使用現有列表:', error)
+        // 載入好友列表失敗，將繼續使用現有列表
       }
     }
 
@@ -372,10 +371,6 @@ const loadCandidates = async (uid, state = swipeState.value) => {
       ? userStore.currentUser.friends.map((f) => f.uid || f.id).filter(Boolean)
       : []
 
-    // 調試日誌：確認好友列表
-    if (currentUserFriends.length > 0) {
-      console.log('[SwipeMatch] 當前好友列表:', currentUserFriends)
-    }
 
     const filtered = allUsers
       .filter((user) => (user.uid || user.id) && (uid ? (user.uid || user.id) !== uid : true))
@@ -391,9 +386,6 @@ const loadCandidates = async (uid, state = swipeState.value) => {
         const userId = user.uid || user.id
         if (!userId) return false
         const isFriend = currentUserFriends.includes(userId)
-        if (isFriend) {
-          console.log('[SwipeMatch] 已過濾好友:', userId, user.nickname || user.name)
-        }
         return !isFriend
       })
       // 過濾掉已經是廠商的用戶
@@ -422,7 +414,6 @@ const loadCandidates = async (uid, state = swipeState.value) => {
     }
     currentIndex.value = 0
   } catch (error) {
-    console.error('[SwipeMatch] 載入用戶列表失敗', error)
     if (seq !== loadSeq.value) return
     candidates.value = []
     currentIndex.value = 0

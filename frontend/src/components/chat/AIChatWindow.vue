@@ -34,7 +34,6 @@ let chat = null
 // 初始化聊天室函數 (相容性修正版：解決 404 與 SDK 版本問題)
 const initChat = async () => {
   if (!apiKey) {
-    console.error('❌ 沒有 VITE_GEMINI_API_KEY ！')
     return
   }
 
@@ -60,9 +59,8 @@ const initChat = async () => {
         },
       ],
     })
-    console.log(`✅ AI 初始化成功，使用模型: ${GEMINI_MODEL_NAME}`)
   } catch (error) {
-    console.error('❌ AI 初始化失敗:', error)
+    // AI 初始化失敗，靜默處理
   }
 }
 
@@ -155,7 +153,7 @@ const sendMessage = async () => {
           featureContext += '\n請根據以上資訊指引使用者找到相關功能。'
         }
       } catch (error) {
-        console.warn('[AI Chat] 查詢功能位置失敗，繼續使用原始問題:', error)
+        // 查詢功能位置失敗，繼續使用原始問題
       }
     }
 
@@ -187,7 +185,7 @@ const sendMessage = async () => {
           }
         }
       } catch (error) {
-        console.warn('[AI Chat] 搜尋文章失敗，繼續使用原始問題:', error)
+        // 搜尋文章失敗，繼續使用原始問題
       }
     }
 
@@ -208,8 +206,6 @@ const sendMessage = async () => {
       content: sanitizedHtml,
     })
   } catch (error) {
-    console.error('❌ AI Error:', error)
-
     let errorMessage = '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫'
 
     // 錯誤判斷

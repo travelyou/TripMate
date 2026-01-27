@@ -7,8 +7,6 @@ const pool = require('../database/connection')
 // 確保通知表存在
 const ensureNotificationsTable = async () => {
   try {
-    console.log('[Notifications] 開始檢查/創建通知表...')
-
     await pool.query(
       `CREATE TABLE IF NOT EXISTS public.notifications (
         id SERIAL PRIMARY KEY,
@@ -27,7 +25,6 @@ const ensureNotificationsTable = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
     )
-    console.log('[Notifications] 通知表已確保存在')
 
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_notifications_user_uid ON public.notifications(user_uid)`,
@@ -38,16 +35,8 @@ const ensureNotificationsTable = async () => {
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications(created_at DESC)`,
     )
-    console.log('[Notifications] 通知表索引已確保存在')
   } catch (error) {
-    console.error('[Notifications] 創建通知表或索引失敗：', error)
-    console.error('[Notifications] 錯誤詳情：', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint
-    })
+    console.error('[Notifications] 創建通知表或索引失敗：', error.message)
     throw error
   }
 }
@@ -114,12 +103,9 @@ router.get('/:uid', async (req, res) => {
   const { limit = 50, offset = 0 } = req.query
 
   try {
-    console.log(`[Notifications] 獲取通知列表請求 - uid: ${uid}, limit: ${limit}, offset: ${offset}`)
-
     // 確保通知表存在
     try {
       await ensureNotificationsTable()
-      console.log('[Notifications] 通知表已確保存在')
     } catch (tableError) {
       console.error('[Notifications] 創建/檢查通知表失敗：', tableError)
       // 即使表創建失敗，仍然嘗試查詢（可能表已存在但檢查失敗）
@@ -133,22 +119,12 @@ router.get('/:uid', async (req, res) => {
       [uid, parseInt(limit), parseInt(offset)],
     )
 
-    console.log(`[Notifications] 成功獲取 ${result.rows.length} 筆通知`)
     res.json({ success: true, data: result.rows })
   } catch (error) {
-    console.error('[Notifications] 獲取通知列表失敗：', error)
-    console.error('[Notifications] 錯誤詳情：', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint,
-      stack: error.stack
-    })
+    console.error('[Notifications] 獲取通知列表失敗：', error.message)
 
     // 如果是表不存在的錯誤，返回空數組而不是錯誤
     if (error.code === '42P01') {
-      console.log('[Notifications] 通知表不存在，返回空結果')
       return res.json({ success: true, data: [] })
     }
 
@@ -166,8 +142,6 @@ router.get('/:uid/unread-count', async (req, res) => {
   const { uid } = req.params
 
   try {
-    console.log(`[Notifications] 獲取未讀數量請求 - uid: ${uid}`)
-
     // 確保通知表存在
     try {
       await ensureNotificationsTable()
@@ -182,14 +156,12 @@ router.get('/:uid/unread-count', async (req, res) => {
     )
 
     const count = parseInt(result.rows[0]?.count || 0)
-    console.log(`[Notifications] 未讀通知數量：${count}`)
     res.json({ success: true, count: Math.min(count, 99) }) // 最多顯示99
   } catch (error) {
     console.error('[Notifications] 獲取未讀通知數量失敗：', error)
 
     // 如果是表不存在的錯誤，返回 0
     if (error.code === '42P01') {
-      console.log('[Notifications] 通知表不存在，返回 0')
       return res.json({ success: true, count: 0 })
     }
 

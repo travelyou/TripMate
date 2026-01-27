@@ -73,7 +73,6 @@ router.post('/:uid/visited-places', async (req, res) => {
 
     res.status(201).json(result.rows[0])
   } catch (error) {
-    console.error('新增去過的地方失敗：', error)
     res.status(500).json({
       error: '新增去過的地方失敗',
       message: error.message || '未知錯誤',
@@ -97,7 +96,6 @@ router.delete('/:uid/visited-places/:id', async (req, res) => {
 
     res.json({ success: true, message: '已刪除' })
   } catch (error) {
-    console.error('刪除去過的地方失敗：', error)
     res.status(500).json({
       error: '刪除去過的地方失敗',
       message: error.message || '未知錯誤',
@@ -129,7 +127,6 @@ router.post('/:uid/wishlist', async (req, res) => {
 
     res.status(201).json(result.rows[0])
   } catch (error) {
-    console.error('新增許願球池項目失敗：', error)
     res.status(500).json({
       error: '新增許願球池項目失敗',
       message: error.message || '未知錯誤',
@@ -153,7 +150,6 @@ router.delete('/:uid/wishlist/:id', async (req, res) => {
 
     res.json({ success: true, message: '已刪除' })
   } catch (error) {
-    console.error('刪除許願球池項目失敗：', error)
     res.status(500).json({
       error: '刪除許願球池項目失敗',
       message: error.message || '未知錯誤',
@@ -207,7 +203,6 @@ router.put('/:uid/wishlist', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {})
     client.release()
-    console.error('更新許願球池失敗：', error)
     res.status(500).json({
       error: '更新許願球池失敗',
       message: error.message || '未知錯誤',
@@ -365,7 +360,7 @@ router.post('/:uid/friends', async (req, res) => {
         })
       }
     } catch (notifError) {
-      console.error('創建好友申請通知失敗（不影響主流程）：', notifError)
+      // 創建好友申請通知失敗（不影響主流程）
     }
 
     res.status(201).json({
@@ -374,7 +369,6 @@ router.post('/:uid/friends', async (req, res) => {
       friend: result.rows[0],
     })
   } catch (error) {
-    console.error('加好友失敗：', error)
     res.status(500).json({
       error: '加好友失敗',
       message: error.message || '未知錯誤',
@@ -419,7 +413,6 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
 
     res.json({ success: true, message: '已取消好友請求' })
   } catch (error) {
-    console.error('取消好友請求失敗：', error)
     res.status(500).json({
       error: '取消好友請求失敗',
       message: error.message || '未知錯誤',
@@ -467,7 +460,6 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
 
     res.json({ success: true, message: '已解除好友關係' })
   } catch (error) {
-    console.error('解除好友關係失敗：', error)
     res.status(500).json({
       error: '解除好友關係失敗',
       message: error.message || '未知錯誤',
@@ -543,12 +535,11 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
         )
       }
     } catch (clearError) {
-      console.warn(`[acceptFriendRequest] ⚠️ 清除聊天次數失敗:`, clearError.message)
+      // 清除聊天次數失敗，靜默處理
     }
 
     res.json({ success: true, message: '已接受好友請求' })
   } catch (error) {
-    console.error('接受好友請求失敗：', error)
     res.status(500).json({
       error: '接受好友請求失敗',
       message: error.message || '未知錯誤',
@@ -587,7 +578,6 @@ router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
 
     res.json({ success: true, message: '已拒絕好友請求' })
   } catch (error) {
-    console.error('拒絕好友請求失敗：', error)
     res.status(500).json({
       error: '拒絕好友請求失敗',
       message: error.message || '未知錯誤',
@@ -659,7 +649,6 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     res.json({ count, remaining, canSend, isFriend: false })
   } catch (error) {
-    console.error('獲取對話次數失敗：', error)
     res.json({ count: 0, remaining: 3, canSend: true })
   }
 })
@@ -759,7 +748,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     res.json({ success: true, count, remaining, canSend })
   } catch (error) {
-    console.error('增加對話次數失敗：', error)
     res.status(500).json({
       error: '增加對話次數失敗',
       message: error.message || '未知錯誤',
@@ -790,7 +778,6 @@ router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     res.json({ success: true })
   } catch (error) {
-    console.error('重置對話次數失敗：', error)
     res.status(500).json({
       error: '重置對話次數失敗',
       message: error.message || '未知錯誤',
@@ -829,7 +816,6 @@ router.post('/:uid/chat-messages/:friend_uid', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('保存聊天消息失敗：', error)
     res.status(500).json({
       error: '保存聊天消息失敗',
       message: error.message || '未知錯誤',
@@ -864,7 +850,6 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
 
     res.json({ messages })
   } catch (error) {
-    console.error('獲取聊天記錄失敗：', error)
     res.status(500).json({
       error: '獲取聊天記錄失敗',
       message: error.message || '未知錯誤',
@@ -932,7 +917,6 @@ router.get('/:uid/friend-requests', async (req, res) => {
 
     res.json({ received, sent })
   } catch (error) {
-    console.error('獲取好友請求列表失敗：', error)
     res.status(500).json({
       error: '獲取好友請求列表失敗',
       message: error.message || '未知錯誤',
@@ -1101,7 +1085,6 @@ router.get('/:uid', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('獲取個人檔案失敗：', error)
     res.status(500).json({
       error: '獲取個人檔案失敗',
       message: error.message || '未知錯誤',

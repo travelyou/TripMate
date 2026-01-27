@@ -372,9 +372,7 @@ const handleEditorImageSelect = async (event) => {
       maxHeight: 1200,
       quality: 0.8,
     })
-    const imageUrl = await uploadImage(compressedFile, 'travelers', (progress) =>
-      console.log(`內文圖片: ${progress}%`),
-    )
+    const imageUrl = await uploadImage(compressedFile, 'travelers')
     if (imageUrl && editor.value) editor.value.chain().focus().setImage({ src: imageUrl }).run()
   } catch (error) {
     await showAlert('圖片插入失敗：' + error.message)
@@ -683,7 +681,6 @@ const insertTransportActivity = async () => {
 
   // 防止重複調用
   if (isCalculatingRoute.value) {
-    console.warn('[Google Maps] 正在計算路線中，請稍候...')
     return
   }
 
@@ -698,7 +695,6 @@ const insertTransportActivity = async () => {
 
   try {
     isCalculatingRoute.value = true
-    console.log('[Google Maps] 開始計算路線...')
 
     // 計算路線
     const result = await getDirections(origin, destination, transportMode.value)
@@ -735,7 +731,6 @@ const insertTransportActivity = async () => {
     // 插入到兩個活動之間
     currentDay.value.activities.splice(index + 1, 0, newActivity)
 
-    console.log('[Google Maps] 交通活動已插入')
     isTransportModalOpen.value = false
   } catch (error) {
     console.error('[Google Maps] 計算路線時發生錯誤:', error)
@@ -747,7 +742,6 @@ const insertTransportActivity = async () => {
 
 const getDirections = async (origin, destination, mode = 'DRIVING') => {
   if (directionsCallCount >= DIRECTIONS_LIMIT_PER_SESSION) {
-    console.warn('[Google Maps] 已達到 Directions API 調用限制')
     return null
   }
   directionsCallCount += 1
@@ -772,7 +766,6 @@ const getDirections = async (origin, destination, mode = 'DRIVING') => {
         if (status === 'OK') {
           resolve(result.routes[0])
         } else {
-          console.warn('[Directions failed]', status)
           resolve(null)
         }
       },
@@ -900,14 +893,12 @@ const handleTimeSelect = (val, activity) => {
 
   if (oldH === newH) {
     // 小時相同，代表是在選分鐘，或是確認
-    console.log('[TimePicker] Selected minute, updating time:', newTimeStr)
     // 使用 nextTick 確保數值已更新後再關閉，避免被還原
     nextTick(() => {
       activity.isOpen = false
     })
   } else {
     // 小時不同，更新 prevTime，等待下一次（選分鐘）
-    console.log('[TimePicker] Selected hour:', newH)
     activity.prevTime = newTimeStr
   }
 }
@@ -1164,10 +1155,7 @@ const handleGlobalEnter = (e) => {
 }
 
 const handleSaveDraft = () => {
-  console.log('[DraftDebug] handleSaveDraft triggered')
-
   if (!postData.value.title.trim()) {
-    console.warn('[DraftDebug] Title empty, aborting save')
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
@@ -1182,15 +1170,8 @@ const handleSaveDraft = () => {
     data: JSON.parse(JSON.stringify(postData.value)),
   }
 
-  console.log('[DraftDebug] Preparing to save draft:', draftData)
-
   try {
-    console.log('[DraftDebug] Calling store.addDraft...')
     myItineraryStore.addDraft(draftData)
-    console.log(
-      '[DraftDebug] store.addDraft success. Current drafts count:',
-      myItineraryStore.drafts.length,
-    )
   } catch (err) {
     console.error('[DraftDebug] Store addDraft failed:', err)
   }

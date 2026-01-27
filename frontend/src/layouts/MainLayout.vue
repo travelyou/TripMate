@@ -766,16 +766,12 @@ const handleSubmitPost = async (postData) => {
       return
     }
 
-    console.log('⏳ 準備發布貼文，用戶 UID：', uid)
-
     // 如果有圖片，先上傳圖片到 Firebase Storage
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
       try {
         const { uploadMultipleImages } = await import('@/api/storage')
-        console.log('開始上傳圖片...')
         imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
-        console.log('圖片上傳成功:', imageUrls)
       } catch (error) {
         console.error('圖片上傳失敗：', error)
         // 詢問用戶是否要繼續發布（不帶圖片）
@@ -798,20 +794,8 @@ const handleSubmitPost = async (postData) => {
       image_urls: imageUrls,
     }
 
-    console.log('提交貼文資料：', {
-      author_uid: submitData.author_uid,
-      board: submitData.board,
-      title: submitData.title?.substring(0, 50),
-      contentLength: submitData.content?.length,
-      tagsCount: submitData.tags?.length,
-      imageUrlsCount: submitData.image_urls?.length,
-    })
-
     // 調用 API 創建貼文
-    console.log('調用 addPost API...')
     const newPost = await discussionsStore.addPost(submitData)
-
-    console.log('貼文發布成功：', newPost)
 
     // 關閉模態框
     isPostingModalOpen.value = false
@@ -831,12 +815,7 @@ const handleSubmitPost = async (postData) => {
     // 顯示成功訊息
     alert('貼文發布成功！')
   } catch (error) {
-    console.error('發布貼文失敗：', error)
-    console.error('錯誤詳情：', {
-      message: error.message,
-      stack: error.stack,
-      firebaseUser: auth.currentUser?.uid,
-    })
+    console.error('發布貼文失敗：', error.message)
     alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
   }
 }

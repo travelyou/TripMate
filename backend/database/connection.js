@@ -85,6 +85,33 @@ function checkEnvVars() {
   return true
 }
 
+function isLocalDatabase() {
+  // 如果明确设置了优先本地，则优先检查本地配置
+  const preferLocal = process.env.DB_PREFER_LOCAL === 'true' || process.env.DB_PREFER_LOCAL === '1'
+
+  const dbHost = process.env.DB_HOST
+  const connectionString = process.env.DB_URL || process.env.DATABASE_URL
+
+  // 检查本地数据库配置
+  let hasLocalConfig = false
+  if (connectionString) {
+    hasLocalConfig = connectionString.includes('localhost') ||
+                     connectionString.includes('127.0.0.1') ||
+                     connectionString.includes('::1')
+  } else if (dbHost) {
+    const localHosts = ['localhost', '127.0.0.1', '::1', '0.0.0.0']
+    hasLocalConfig = localHosts.includes(dbHost.toLowerCase())
+  }
+
+  // 如果设置了优先本地且有本地配置，返回 true
+  if (preferLocal && hasLocalConfig) {
+    return true
+  }
+
+  // 否则检查是否有本地配置（自动检测）
+  return hasLocalConfig
+}
+
 async function createPool() {
   // #region agent log
   debugLog('connection.js:55', 'createPool entry', { timestamp: Date.now() }, 'A')
@@ -95,15 +122,15 @@ async function createPool() {
 
   const isDev = process.env.NODE_ENV === 'development'
   const connectionString = process.env.DB_URL || process.env.DATABASE_URL
+  const preferLocal = process.env.DB_PREFER_LOCAL === 'true' || process.env.DB_PREFER_LOCAL === '1'
+  const isLocal = isLocalDatabase()
 
   if (connectionString) {
-    console.log('使用連接字符串模式（DB_URL/DATABASE_URL）')
-    console.log('連接字符串來源:', process.env.DB_URL ? 'DB_URL' : 'DATABASE_URL')
 
     try {
       const poolConfig = {
         connectionString: connectionString,
-        ssl: {
+        ssl: isLocal ? false : {
           rejectUnauthorized: false,
         },
         connectionTimeoutMillis:
@@ -117,30 +144,21 @@ async function createPool() {
 
       const isPooler = connectionString.includes('-pooler')
       if (isPooler) {
-        console.log('✅ 檢測到連接池端點（Connection Pooling）')
         if (!process.env.DB_CONNECT_TIMEOUT_MS) {
           poolConfig.connectionTimeoutMillis = isDev ? 20000 : 30000
-          console.log(
-            `  連接超時已設置為 ${poolConfig.connectionTimeoutMillis / 1000} 秒（連接池端點需要更長時間）`,
-          )
         }
       }
 
       const pool = new Pool(poolConfig)
 
-      console.log('測試連接字符串連接...')
       await pool.query('SELECT 1')
       // 設置 search_path
       await pool.query('SET search_path TO public, travelers, discussion')
-      console.log('✅ search_path 已設置: public, travelers, discussion')
-      console.log('連接字符串連接成功！')
 
       pool.on('connect', async (client) => {
-        console.log('資料庫連接成功！')
         // 設置 search_path 包含 travelers 和 discussion schema
         try {
           await client.query('SET search_path TO public, travelers, discussion')
-          console.log('✅ search_path 已設置: public, travelers, discussion')
         } catch (err) {
           console.warn('⚠️ 設置 search_path 失敗:', err.message)
         }
@@ -167,24 +185,11 @@ async function createPool() {
 
       return pool
     } catch (error) {
-      console.error('連接字符串連接失敗：', error.message)
-      console.error('嘗試回退到分離配置模式...')
       // 如果连接字符串失败，继续使用分离配置
     }
   }
 
   // 使用分离配置模式
-  console.log('📋 使用分離配置模式（DB_HOST, DB_PORT, etc.）')
-  console.log('資料庫連接配置：')
-  console.log('  DB_HOST:', process.env.DB_HOST)
-  console.log('  DB_PORT:', process.env.DB_PORT)
-  console.log('  DB_NAME:', process.env.DB_NAME)
-  console.log('  DB_USER:', process.env.DB_USER)
-  console.log('  DB_PASSWORD:', process.env.DB_PASSWORD ? '已設置' : '未設置')
-  console.log(
-    '  連接池模式:',
-    process.env.USE_POOLING === 'true' || process.env.USE_POOLING === '1' ? '啟用' : '停用',
-  )
 
   if (
     process.env.DB_HOST &&
@@ -197,15 +202,7 @@ async function createPool() {
 
   const disablePreflight = process.env.DB_PREFLIGHT_DISABLED === '1'
 
-  if (disablePreflight) {
-    console.log('DB preflight (DNS/TCP) disabled (DB_PREFLIGHT_DISABLED=1)')
-  }
-
   const isNeonPooler = typeof dbHost === 'string' && dbHost.includes('-pooler')
-
-  if (isNeonPooler) {
-    console.log('檢測到 Neon 連接池端點（Connection Pooling）')
-  }
 
   if (typeof dbHost === 'string' && dbHost.includes(':')) {
     throw new Error(
@@ -228,7 +225,6 @@ async function createPool() {
       const addrs4 = await dnsResolve4(dbHost)
       if (!addrs4?.length) throw new Error('查無 IPv4 A 記錄')
       resolvedIp = addrs4[0]
-      console.log(`DNS A 記錄可用（IPv4）：${resolvedIp}`)
       // #region agent log
       debugLog(
         'connection.js:97',
@@ -241,7 +237,6 @@ async function createPool() {
       try {
         const lookedUp = await dnsLookup(dbHost, { family: 4 })
         resolvedIp = lookedUp.address
-        console.log(`DNS lookup 可用（IPv4）：${resolvedIp}`)
         // #region agent log
         debugLog(
           'connection.js:103',
@@ -303,7 +298,6 @@ async function createPool() {
         'F,H',
       )
       // #endregion
-      console.log(`TCP 連接測試成功：${resolvedIp}:${dbPort}`)
     } catch (tcpError) {
       // #region agent log
       debugLog(
@@ -369,7 +363,6 @@ async function createPool() {
   poolConfig.family = 4
   poolConfig.lookup = (hostname, options, callback) => {
     if (resolvedIp && hostname === dbHost) {
-      console.log(`使用已解析的 IP 地址：${resolvedIp}（主機名：${hostname}）`)
       return callback(null, resolvedIp, 4)
     }
     return dns.lookup(
@@ -377,13 +370,11 @@ async function createPool() {
       { ...(options || {}), family: 4, all: false },
       (err, address, family) => {
         if (err) {
-          console.warn(`DNS lookup 失敗（${hostname}）：${err.message}，嘗試使用已解析的 IP`)
           if (resolvedIp) {
             return callback(null, resolvedIp, 4)
           }
           return callback(err)
         }
-        console.log(`DNS lookup 成功：${address}（主機名：${hostname}）`)
         callback(null, address, family || 4)
       },
     )
@@ -396,24 +387,19 @@ async function createPool() {
 
       if (endpointId) {
         poolConfig.options = `endpoint=${endpointId}`
-        console.log(`Neon: 已自動注入 endpoint options（endpoint=${endpointId}）以確保相容性`)
       }
-    } else {
-      console.log(`Neon 連接池：使用 SNI 自動處理，不設置 endpoint option`)
     }
   }
 
-  const dbSslRaw = (process.env.DB_SSL ?? 'true').toString().toLowerCase()
+  const dbSslRaw = (process.env.DB_SSL ?? (isLocal ? 'false' : 'true')).toString().toLowerCase()
   const useSsl = dbSslRaw !== 'false' && dbSslRaw !== '0' && dbSslRaw !== 'no'
 
   if (isNeonPooler) {
-    console.log('✅ 使用 Neon 連接池模式')
     if (useSsl) {
       poolConfig.ssl = {
         rejectUnauthorized: false,
         servername: dbHost,
       }
-      console.log(`SSL 配置：servername=${dbHost}`)
       debugLog(
         'connection.js:151',
         'SSL config set for pooler',
@@ -424,7 +410,6 @@ async function createPool() {
 
     if (!process.env.DB_CONNECT_TIMEOUT_MS) {
       poolConfig.connectionTimeoutMillis = isDev ? 20000 : 120000
-      console.log(`連接超時已設置為 120 秒（連接池端點需要更長時間）`)
       debugLog(
         'connection.js:190',
         'connectionTimeout set to 120000 for pooler',
@@ -464,11 +449,9 @@ async function createPool() {
   // #endregion
 
   pool.on('connect', async (client) => {
-    console.log('資料庫連接成功！')
     // 設置 search_path 包含 travelers 和 discussion schema
     try {
       await client.query('SET search_path TO public, travelers, discussion')
-      console.log('✅ search_path 已設置: public, travelers, discussion')
     } catch (err) {
       console.warn('⚠️ 設置 search_path 失敗:', err.message)
     }
@@ -534,7 +517,6 @@ async function initializePool() {
         // #endregion
         // 設置 search_path
         await pool.query('SET search_path TO public, travelers, discussion')
-        console.log('✅ search_path 已設置: public, travelers, discussion')
 
         debugLog(
           'connection.js:248',
@@ -545,7 +527,6 @@ async function initializePool() {
         // #endregion
 
         poolInstance = pool
-        console.log('資料庫連接池已初始化（且已驗證可查詢）')
         return pool
       } catch (error) {
         initError = error
@@ -579,29 +560,6 @@ async function initializePool() {
           `資料庫連接池初始化失敗（第 ${attempt}/${maxAttempts} 次）：`,
           error?.message || '(no message)',
         )
-        console.error('資料庫連接池初始化失敗（完整錯誤物件）：', error)
-        console.error(
-          '資料庫錯誤欄位：',
-          JSON.stringify(
-            {
-              name: error?.name,
-              code: error?.code,
-              nestedCodes: codes,
-              errno: error?.errno,
-              syscall: error?.syscall,
-              address: error?.address,
-              port: error?.port,
-              severity: error?.severity,
-              detail: error?.detail,
-              hint: error?.hint,
-              routine: error?.routine,
-              where: error?.where,
-            },
-            null,
-            2,
-          ),
-        )
-        if (error?.stack) console.error('stack:', error.stack)
 
         try {
           if (pool) await pool.end()
@@ -615,7 +573,6 @@ async function initializePool() {
         }
 
         const delay = Math.min(15000, baseDelayMs * attempt)
-        console.log(`資料庫連線失敗可重試，${delay}ms 後重試...`)
         await sleep(delay)
       }
     }
@@ -681,9 +638,6 @@ module.exports = new Proxy(
                 if (!retryable || attempt === maxAttempts) throw e
 
                 const delay = Math.min(3000, baseDelayMs * attempt)
-                console.warn(
-                  `[DB] query 失敗可重試（第 ${attempt}/${maxAttempts} 次，codes=${getNestedErrorCodes(e).join(',') || 'n/a'}），${delay}ms 後重試...`,
-                )
                 await sleep(delay)
               }
             }

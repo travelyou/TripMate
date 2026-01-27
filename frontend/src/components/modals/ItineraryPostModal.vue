@@ -227,9 +227,7 @@ const handleEditorImageSelect = async (event) => {
       maxHeight: 1200,
       quality: 0.8,
     })
-    const imageUrl = await uploadImage(compressedFile, 'itineraries', (progress) =>
-      console.log(`內文圖片: ${progress}%`),
-    )
+    const imageUrl = await uploadImage(compressedFile, 'itineraries')
     if (imageUrl && editor.value) editor.value.chain().focus().setImage({ src: imageUrl }).run()
   } catch (error) {
     alert('圖片插入失敗：' + error.message)
@@ -439,7 +437,6 @@ watch(
   () => props.initialData,
   (newData) => {
     if (props.isEdit && newData) {
-      console.log('🔄 Loading initial data for edit:', newData)
       postData.value = {
         category: newData.category || '',
         title: newData.title || newData.name || '',
@@ -526,8 +523,7 @@ const handleFinalSubmit = async () => {
     } else {
       formError.value = res.message || (props.isEdit ? '更新失敗' : '發布失敗')
     }
-  } catch (e) {
-    console.error(e)
+  } catch {
     formError.value = '伺服器錯誤，請稍後再試'
   } finally {
     isSubmitting.value = false
@@ -1187,14 +1183,16 @@ if (postData.value.itinerary.days.length === 0) {
         </div>
       </div>
 
-      <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-2 z-10">
-        <p
+      <div class="p-4 border-t border-gray-100 bg-white flex flex-col gap-3 z-10">
+        <div
           v-if="formError"
-          class="text-red-500 font-bold text-sm text-center flex items-center justify-center"
+          class="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3 flex items-start gap-2 animate-in fade-in duration-200"
         >
-          <AlertIcon class="w-4 h-4 mr-1" />
+          <AlertIcon class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <p class="text-red-700 font-bold text-sm flex-1 leading-relaxed">
           {{ formError }}
         </p>
+        </div>
 
         <div v-if="isSubmitting" class="w-full bg-gray-200 rounded-full h-3 mb-2">
           <div

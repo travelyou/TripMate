@@ -34,7 +34,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         })
       }
     } catch (error) {
-      console.error('載入個人行程失敗:', error)
+      // 載入失敗，靜默處理
     }
   }
 
@@ -50,7 +50,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         }))
       }
     } catch (error) {
-      console.error('載入參加行程失敗:', error)
+      // 載入失敗，靜默處理
     }
   }
 
@@ -86,14 +86,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         return { success: false, message: res.message || '創建失敗' }
       }
     } catch (error) {
-      console.error('儲存行程失敗:', error)
-      console.error('錯誤詳情:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-      })
-      
       // 提取錯誤訊息
       let errorMessage = '儲存失敗'
       if (error.response?.data) {

@@ -274,8 +274,6 @@ router.post('/create', async (req, res) => {
         })
       }
 
-      console.log('[linepay request]', transactionId, transactionId.length)
-
       // 把 transactionId 存回 payment
       await client.query(
         `UPDATE commerce.payments
@@ -284,12 +282,6 @@ router.post('/create', async (req, res) => {
         [transactionId, paymentId],
       )
       await client.query('COMMIT')
-
-      console.log(
-        '[linepay request]',
-        `交易id：${transactionId}`,
-        `id字元長度：${transactionId.length}`,
-      )
 
       return res.json({
         ok: true,
@@ -492,9 +484,9 @@ router.get('/linepay/confirm', async (req, res) => {
     try {
       await client.query('ROLLBACK')
     } catch (rollbackErr) {
-      console.error('[linepay/confirm] ROLLBACK failed:', rollbackErr)
+      console.error('[linepay/confirm] ROLLBACK failed:', rollbackErr.message)
     }
-    console.error(e)
+    console.error('[linepay/confirm] error:', e.message)
     return res.status(500).send('server error')
   } finally {
     client.release()
@@ -523,7 +515,6 @@ router.get('/linepay/cancel', async (req, res) => {
  */
 
 router.post('/webhook', (req, res) => {
-  console.log('[payments webhook] body:', req.body)
   res.json({ ok: true })
 })
 

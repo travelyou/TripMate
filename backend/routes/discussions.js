@@ -152,14 +152,12 @@ router.get('/', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('❌ [Backend GET /] 錯誤:', error)
     res.status(500).json({ error: '獲取討論失敗', details: error.message })
   }
 })
 
 // POST /api/discussions - 創建新討論
 router.post('/', async (req, res) => {
-  console.log('🟢 [Backend POST /] 收到發文請求')
 
   try {
     const {
@@ -198,7 +196,6 @@ router.post('/', async (req, res) => {
     ])
 
     const newDiscussion = discussionResult.rows[0]
-    console.log('✅ [Backend POST /] 插入成功，ID:', newDiscussion.id)
 
     // 回傳完整資料（包含 JOIN 的 user 資訊）
     const discussionQuery = `
@@ -228,7 +225,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(enrichedDiscussion)
   } catch (error) {
-    console.error('❌ [Backend POST /] 錯誤:', error)
     res.status(500).json({ error: '創建討論失敗', details: error.message })
   }
 })
@@ -316,7 +312,6 @@ router.get('/:id', async (req, res) => {
 
     res.json(detailedDiscussion)
   } catch (error) {
-    console.error('❌ [Backend GET /:id] 錯誤:', error)
     res.status(500).json({ error: '獲取詳情失敗', details: error.message })
   }
 })
@@ -356,7 +351,6 @@ router.put('/:id', async (req, res) => {
 
     res.json(result.rows[0])
   } catch (error) {
-    console.error('❌ [Backend PUT] 錯誤:', error)
     res.status(500).json({ error: '更新失敗', details: error.message })
   }
 })

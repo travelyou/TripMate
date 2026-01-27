@@ -23,7 +23,6 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || '0.0.0.0'
 
-// 1. 修改：加入 Vercel 前端網址到允許清單
 const allowedOrigins = [
   'https://tripmate.zeabur.app',
   'https://tripmate-backend.zeabur.app',
@@ -32,36 +31,10 @@ const allowedOrigins = [
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
-  'https://trip-mate-xi.vercel.app', // 新增你的 Vercel 前端網址
-  process.env.ALLOWED_ORIGIN, // 預留給環境變數設定
-].filter(Boolean) // 過濾掉空值
+  'https://trip-mate-xi.vercel.app',
+  process.env.ALLOWED_ORIGIN,
+].filter(Boolean)
 
-function setCorsHeaders(req, res) {
-  const origin = req.headers.origin
-  if (!origin || allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*')
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range')
-  }
-}
-
-// 手動處理 OPTIONS 預檢請求
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin
-    if (!origin || allowedOrigins.includes(origin)) {
-      setCorsHeaders(req, res)
-      return res.status(204).send()
-    } else {
-      return res.status(403).send()
-    }
-  }
-  next()
-})
-
-// CORS 配置
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) {
@@ -70,8 +43,7 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       return cb(null, true)
     }
-    console.log(`CORS: 阻擋來源 ${origin}`)
-    return cb(new Error(`CORS blocked origin: ${origin}`))
+    return cb(null, true)
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -83,9 +55,20 @@ const corsOptions = {
 
 app.use(cors(corsOptions))
 
-// 記錄所有請求
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`)
+  const origin = req.headers.origin
+  if (origin) {
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range')
+    }
+  }
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send()
+  }
   next()
 })
 
@@ -157,9 +140,13 @@ app.use('/api/reviews', reviewsRouter)
 // 全域錯誤處理
 app.use((err, req, res, next) => {
   const origin = req.headers.origin
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin)
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  if (origin) {
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    }
   }
 
   if (err.type === 'entity.too.large' || err.status === 413) {
@@ -186,9 +173,13 @@ app.use((err, req, res, next) => {
 
 app.use((req, res) => {
   const origin = req.headers.origin
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin)
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  if (origin) {
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    }
   }
 
   res.status(404).json({
@@ -237,8 +228,6 @@ if (!process.env.VERCEL) {
       // 設置每天執行一次
       setInterval(checkAndSendTravelerReminders, 24 * 60 * 60 * 1000)
     }, msUntilNext)
-
-    console.log(`[Scheduler] 找旅伴到期提醒將在 ${nextCheck.toLocaleString('zh-TW')} 開始執行`)
   }
 
   // 立即執行一次（用於測試）

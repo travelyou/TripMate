@@ -172,14 +172,6 @@ const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = 
     const { incrementChatInteraction } = await import('@/api/profile')
     const data = await incrementChatInteraction(currentUid, targetUid)
 
-    if (logPrefix) {
-      console.log(`[${logPrefix}] API 返回資料:`, data)
-      console.log(`[${logPrefix}] 發送前狀態:`, {
-        count: chatInteractionCount.value.count,
-        remaining: chatInteractionCount.value.remaining,
-        canSend: chatInteractionCount.value.canSend,
-      })
-    }
 
     if (data && data.success !== false) {
       const newCount =
@@ -203,14 +195,6 @@ const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = 
         isVendor: newIsVendor,
       }
 
-      if (logPrefix) {
-        console.log(`[${logPrefix}] 發送後狀態:`, {
-          count: newCount,
-          remaining: newRemaining,
-          canSend: newCanSend,
-          isFriend: newIsFriend,
-        })
-      }
     } else {
       const newCount = (chatInteractionCount.value.count || 0) + 1
       const newRemaining = Math.max(0, 3 - newCount)
@@ -352,12 +336,7 @@ const loadGroupMembers = async (silent = false) => {
       if (!silent) groupMembersError.value = response?.message || '載入群組成員失敗'
     }
   } catch (error) {
-    console.error('載入群組成員失敗 - 錯誤:', error)
-    console.error('錯誤詳情:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      roomId: activeChatRoom.value?.roomId,
+    console.error('載入群組成員失敗:', error.message)
     })
     if (!silent) {
       const errorMsg = error.response?.data?.message || error.message || '載入群組成員失敗'
@@ -769,7 +748,6 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
     persistChatRooms()
 
     if (!silent) {
-      console.log('[loadChatHistory] 載入聊天記錄:', messages.value.length, '條訊息')
     }
   } catch (error) {
     console.error('載入聊天記錄失敗：', error)
@@ -829,7 +807,6 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
     }
 
     if (!silent) {
-      console.log('[loadGroupChatHistory] 載入群組聊天記錄:', messages.value.length, '條訊息')
     }
   } catch (error) {
     console.error('載入群組聊天記錄失敗：', error)
@@ -863,9 +840,6 @@ const loadChatInteractionCount = async (uid, friendUid) => {
       isVendor
     }
 
-    console.log('[loadChatInteractionCount] 載入對話次數:', {
-      uid,
-      friendUid,
       count,
       remaining,
       canSend: chatInteractionCount.value.canSend,
@@ -1759,7 +1733,6 @@ const handleChatReceived = (event) => {
 
   // 忽略自己發送的訊息（這些訊息應該已經在 sendMessage 中處理過了）
   if (fromUid === currentUid) {
-    console.log('[handleChatReceived] 忽略自己發送的訊息')
     return
   }
 
@@ -1818,9 +1791,7 @@ const handleChatReceived = (event) => {
       type: 'friend',
     }]
     room.messages = updatedMessages
-    console.log(`[handleChatReceived] 新增訊息：從 ${fromUid}`)
   } else {
-    console.log(`[handleChatReceived] 忽略重複訊息：從 ${fromUid}`)
     // 如果是重複訊息，但需要更新內存中的消息列表以保持同步
     if (storedMessages.length > 0) {
       room.messages = storedMessages
