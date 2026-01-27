@@ -436,7 +436,8 @@ export const useVendorStore = defineStore('vendor', () => {
 
   // eslint-disable-next-line no-unused-vars
   const uploadVendorImage = async (_file, _type) => {
-    loading.value = true
+    // 🔧 修復：不要設定全域 loading，避免觸發整個頁面重新渲染
+    // loading.value = true  ← 移除這行
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
@@ -445,9 +446,8 @@ export const useVendorStore = defineStore('vendor', () => {
     } catch (err) {
       error.value = err.message
       throw err
-    } finally {
-      loading.value = false
     }
+    // finally 也移除，不需要設定 loading 為 false
   }
 
   return {
