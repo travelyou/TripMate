@@ -1,12 +1,12 @@
 <script setup>
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useVendorStore } from '@/stores/vendor'
-import { Plus, Edit, Trash2, MapPin, Calendar, Star } from 'lucide-vue-next'
+import { Plus, Edit, Trash2, MapPin, Calendar, Star, MessageSquare } from 'lucide-vue-next'
 // 移除原本內部的 ItineraryModal，改用父層控制
 // import ItineraryModal from '@/components/vendor-dashboard/modals/ItineraryModal.vue'
 
 // 定義可以發送的訊號
-const emit = defineEmits(['create', 'edit', 'delete'])
+defineEmits(['create', 'edit', 'delete', 'create-post'])
 
 const vendorStore = useVendorStore()
 const itineraries = computed(() => vendorStore.vendorItineraries)
@@ -116,6 +116,14 @@ onMounted(() => {
           </div>
 
           <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
+            <button
+              class="text-gray-500 hover:text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm font-medium transition-colors flex items-center gap-1"
+              title="為此行程發文"
+              @click="$emit('create-post', item)"
+            >
+              <MessageSquare class="w-4 h-4" />
+              發文
+            </button>
             <button
               class="text-gray-500 hover:text-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-50 text-sm font-medium transition-colors flex items-center gap-1"
               @click="$emit('edit', item)"

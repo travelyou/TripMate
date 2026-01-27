@@ -12,6 +12,14 @@ function isUUID(str) {
 router.get('/:id', async (req, res) => {
   const { id } = req.params
 
+  // 驗證 ID 格式（允許 UUID 或其他格式）
+  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: '無效的廠商 ID',
+    })
+  }
+
   try {
     const query = `
       SELECT id, name, slogan, avatar, banner_image, is_banner_visible,
@@ -25,16 +33,26 @@ router.get('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       // Fallback: 嘗試從 users 表讀取
       // 注意: users 表的主鍵是 uid，且有 vendor_id 欄位
-      const userQuery = `SELECT * FROM users WHERE uid = $1 OR vendor_id = $1 LIMIT 1`
-      const userResult = await pool.query(userQuery, [id])
+      // 如果 ID 格式是 vendor-XXX，嘗試提取數字部分或直接查找
+      let searchId = id
+
+      // 處理 vendor-XXX 格式的 ID
+      if (id.startsWith('vendor-')) {
+        const numericPart = id.replace('vendor-', '')
+        // 嘗試查找對應的 vendor_id 或 uid
+        searchId = numericPart
+      }
+
+      const userQuery = `SELECT * FROM users WHERE uid = $1 OR vendor_id = $1 OR uid::text LIKE $2 LIMIT 1`
+      const userResult = await pool.query(userQuery, [searchId, `%${searchId}%`])
 
       if (userResult.rows.length > 0) {
         const user = userResult.rows[0]
 
         // 構建廠商格式資料
         const vendorData = {
-          id: user.id || id,
-          name: user.nickname || user.name || '未命名廠商',
+          id: user.vendor_id || user.uid || id,
+          name: user.nickname || user.real_name || '未命名廠商',
           slogan: user.bio || '',
           description: user.bio || '',
           avatar: user.avatar || '',
@@ -43,17 +61,16 @@ router.get('/:id', async (req, res) => {
           region_tags: [],
           rating: 0,
           review_count: 0,
-          is_verified: user.role === 'vendor'
+          is_verified: user.role === 'vendor',
         }
 
-        // 可選：考慮在此時將資料寫入 public.vendors 以便未來維護？
-        // 暫時僅回傳以修復顯示問題
         return res.json({ success: true, data: vendorData })
       }
 
       return res.status(404).json({
         success: false,
         message: '找不到此廠商',
+        id: id,
       })
     }
 
@@ -77,17 +94,45 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/posts', async (req, res) => {
   try {
     const { id } = req.params
+
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '無效的廠商 ID',
+        data: [],
+      })
+    }
+
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
     const offset = (page - 1) * limit
 
     // 1. 先解析真實的 uid (因為 discussion 表存的是 author_uid = users.uid)
     let targetUid = id
+    let searchId = id
+
+    // 處理 vendor-XXX 格式的 ID
+    if (id.startsWith('vendor-')) {
+      searchId = id.replace('vendor-', '')
+    }
+
     try {
-      const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 LIMIT 1`
-      const userResult = await pool.query(userQuery, [id])
+      const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 OR uid::text LIKE $2 LIMIT 1`
+      const userResult = await pool.query(userQuery, [searchId, `%${searchId}%`])
       if (userResult.rows.length > 0) {
         targetUid = userResult.rows[0].uid
+      } else {
+        // 如果找不到對應的用戶，返回空列表而不是錯誤
+        return res.json({
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false,
+          },
+        })
       }
     } catch (e) {
       console.warn('⚠️ [Vendors] Get Posts - ID 轉換失敗，使用原始 ID:', e.message)
@@ -165,7 +210,7 @@ router.get('/:id/posts', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('❌ [Vendors] 取得廠商貼文錯誤:', error)
+    console.error('❌ [Vendors] 取得廠商貼文錯誤:', error.message)
     res.status(500).json({
       success: false,
       message: '取得廠商貼文失敗',
@@ -182,6 +227,15 @@ router.get('/:id/posts', async (req, res) => {
 router.get('/:id/itineraries', async (req, res) => {
   try {
     const { id } = req.params
+
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '無效的廠商 ID',
+        data: [],
+      })
+    }
+
     const { region } = req.query
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 12
@@ -190,11 +244,30 @@ router.get('/:id/itineraries', async (req, res) => {
     // 1. 先解析真實的 uid (因為 itineraries 表存的是 author_uid = users.uid)
     // 傳進來的 id 可能是 uid 也可能是 vendor_id
     let targetUid = id
+    let searchId = id
+
+    // 處理 vendor-XXX 格式的 ID
+    if (id.startsWith('vendor-')) {
+      searchId = id.replace('vendor-', '')
+    }
+
     try {
-      const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 LIMIT 1`
-      const userResult = await pool.query(userQuery, [id])
+      const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 OR uid::text LIKE $2 LIMIT 1`
+      const userResult = await pool.query(userQuery, [searchId, `%${searchId}%`])
       if (userResult.rows.length > 0) {
         targetUid = userResult.rows[0].uid
+      } else {
+        // 如果找不到對應的用戶，返回空列表而不是錯誤
+        return res.json({
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false,
+          },
+        })
       }
     } catch (e) {
       console.warn('⚠️ [Vendors] ID 轉換失敗，使用原始 ID:', e.message)
@@ -246,9 +319,7 @@ router.get('/:id/itineraries', async (req, res) => {
       paramIndex++
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${
-      paramIndex + 1
-    }`
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
     params.push(limit, offset)
 
     const result = await pool.query(query, params)
@@ -290,7 +361,7 @@ router.get('/:id/itineraries', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('❌ [Vendors] 取得廠商行程錯誤:', error)
+    console.error('❌ [Vendors] 取得廠商行程錯誤:', error.message)
     res.status(500).json({
       success: false,
       message: '取得廠商行程失敗',
@@ -306,6 +377,8 @@ router.get('/:id/itineraries', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
+    console.log(`🔄 [Vendors PUT] 開始處理更新請求，ID: ${id}`)
+
     const {
       name,
       slogan,
@@ -316,23 +389,205 @@ router.put('/:id', async (req, res) => {
       description,
     } = req.body
 
+    // 處理 ID：如果是 vendor-XXX 格式，嘗試提取真實 ID
+    let targetId = id
+    let searchId = id
+
+    if (id.startsWith('vendor-')) {
+      searchId = id.replace('vendor-', '')
+    }
+
+    // 先嘗試從 vendors 表查找
+    let vendorExists = false
+    let actualVendorId = null
+    let userData = null
+
+    try {
+      const checkQuery = `SELECT id FROM public.vendors WHERE id = $1 LIMIT 1`
+      const checkResult = await pool.query(checkQuery, [targetId])
+
+      if (checkResult.rows.length > 0) {
+        vendorExists = true
+        actualVendorId = checkResult.rows[0].id
+      } else {
+        // 如果 vendors 表中不存在，嘗試從 users 表查找對應的 vendor_id
+        const userQuery = `SELECT uid, vendor_id, nickname, avatar, bio FROM users WHERE uid = $1 OR vendor_id = $1 OR uid::text LIKE $2 LIMIT 1`
+        const userResult = await pool.query(userQuery, [searchId, `%${searchId}%`])
+
+        if (userResult.rows.length > 0) {
+          userData = userResult.rows[0]
+
+          if (userData.vendor_id) {
+            actualVendorId = userData.vendor_id
+            // 再次檢查 vendors 表
+            const recheckQuery = `SELECT id FROM public.vendors WHERE id = $1 LIMIT 1`
+            const recheckResult = await pool.query(recheckQuery, [actualVendorId])
+            if (recheckResult.rows.length > 0) {
+              vendorExists = true
+            }
+          }
+        }
+      }
+    } catch (checkError) {
+      console.error('⚠️ [Vendors] ID 查找錯誤:', checkError.message)
+    }
+
+    // 如果 vendors 表中不存在，但用戶存在，則自動創建 vendor 記錄
+    if (!vendorExists) {
+      if (userData) {
+        console.log(`📝 [Vendors] 用戶存在但 vendor 記錄不存在，開始自動創建...`)
+        try {
+          // 使用用戶的 uid 作為 vendor id（如果 vendors 表支持）
+          // 或者使用 vendorHelper 生成新的 vendor id
+          const { createVendor } = require('../utils/vendorHelper')
+
+          // 嘗試使用 uid 作為 vendor id，如果失敗則使用 vendorHelper
+          let newVendorId = userData.uid
+
+          try {
+            // 先嘗試直接使用 uid 作為 vendor id
+            // 注意：根據資料庫結構，需要包含所有必要欄位
+            const insertQuery = `
+              INSERT INTO public.vendors (
+                id, name, slogan, avatar, banner_image, is_banner_visible,
+                region_tags, description, rating, review_count, is_verified,
+                user_id, created_at, updated_at
+              )
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+              RETURNING id
+            `
+            const insertResult = await pool.query(insertQuery, [
+              newVendorId,
+              userData.nickname || '未命名廠商',  // name
+              null,  // slogan
+              userData.avatar || null,  // avatar
+              null,  // banner_image
+              true,  // is_banner_visible (default)
+              [],  // region_tags (empty array)
+              userData.bio || '',  // description
+              0,  // rating (default)
+              0,  // review_count (default)
+              false,  // is_verified (default)
+              userData.uid  // user_id - 關聯到 users 表
+            ])
+
+            // 更新 users 表的 vendor_id
+            await pool.query(
+              `UPDATE users SET vendor_id = $1, updated_at = NOW() WHERE uid = $2`,
+              [newVendorId, userData.uid]
+            )
+
+            vendorExists = true
+            actualVendorId = newVendorId
+            console.log(`✅ [Vendors] 自動創建 vendor 記錄成功: ${newVendorId}`)
+          } catch (insertError) {
+            // 如果直接插入失敗（可能是 ID 格式問題或唯一性約束），使用 vendorHelper
+            console.log(`⚠️ [Vendors] 使用 uid 作為 vendor id 失敗 (code: ${insertError.code})，改用 vendorHelper`)
+            newVendorId = await createVendor({
+              name: userData.nickname || '未命名廠商',
+              avatar: userData.avatar || null,
+              email: null
+            })
+
+            // 更新 users 表的 vendor_id
+            await pool.query(
+              `UPDATE users SET vendor_id = $1, updated_at = NOW() WHERE uid = $2`,
+              [newVendorId, userData.uid]
+            )
+
+            vendorExists = true
+            actualVendorId = newVendorId
+            console.log(`✅ [Vendors] 使用 vendorHelper 創建 vendor 記錄成功: ${newVendorId}`)
+          }
+        } catch (createError) {
+          console.error('❌ [Vendors] 自動創建 vendor 記錄失敗:', {
+            message: createError.message,
+            stack: createError.stack,
+            code: createError.code
+          })
+          return res.status(500).json({
+            success: false,
+            message: '自動創建廠商記錄失敗，請稍後再試',
+            error: process.env.NODE_ENV === 'development' ? createError.message : undefined
+          })
+        }
+      } else {
+        console.log(`❌ [Vendors] 找不到用戶記錄，ID: ${id}`)
+        return res.status(404).json({
+          success: false,
+          message: '找不到此廠商，請確認廠商 ID 是否正確',
+        })
+      }
+    }
+
+    // 使用實際的 vendor ID
+    targetId = actualVendorId || targetId
+
     const updateFields = []
     const updateValues = []
     let paramIndex = 1
 
-    const addField = (col, val) => {
+    const addField = (col, val, transform = null) => {
       if (val !== undefined) {
+        let processedVal = val
+        if (transform) {
+          processedVal = transform(val)
+        }
         updateFields.push(`${col} = $${paramIndex++}`)
-        updateValues.push(val)
+        updateValues.push(processedVal)
       }
+    }
+
+    // 處理 regionTags：資料庫是 ARRAY 類型，直接傳遞陣列
+    const processRegionTags = (tags) => {
+      if (Array.isArray(tags)) {
+        // PostgreSQL ARRAY 類型，直接返回陣列
+        return tags
+      }
+      if (typeof tags === 'string') {
+        try {
+          // 如果是 JSON 字串，解析為陣列
+          const parsed = JSON.parse(tags)
+          return Array.isArray(parsed) ? parsed : [parsed]
+        } catch {
+          // 如果不是 JSON，轉換為陣列
+          return [tags]
+        }
+      }
+      // 其他情況返回空陣列
+      return tags || []
+    }
+
+    // 處理 bannerImage：確保是有效的 JSON 字串
+    const processBannerImage = (banner) => {
+      if (typeof banner === 'string') {
+        // 如果已經是 JSON 字串，驗證是否有效
+        try {
+          JSON.parse(banner)
+          return banner
+        } catch {
+          // 如果不是有效 JSON，返回空陣列的 JSON
+          return JSON.stringify([])
+        }
+      }
+      if (Array.isArray(banner)) {
+        return JSON.stringify(banner)
+      }
+      return banner
     }
 
     addField('name', name)
     addField('slogan', slogan)
     addField('avatar', avatar)
-    addField('banner_image', bannerImage)
+    addField('banner_image', bannerImage, processBannerImage)
     addField('is_banner_visible', isBannerVisible)
-    addField('region_tags', regionTags)
+    // region_tags 是 PostgreSQL ARRAY 類型，需要特殊處理
+    if (regionTags !== undefined) {
+      const processedTags = processRegionTags(regionTags)
+      updateFields.push(`region_tags = $${paramIndex}::text[]`)
+      updateValues.push(processedTags)
+      paramIndex++
+    }
     addField('description', description)
 
     if (updateFields.length === 0) {
@@ -343,7 +598,7 @@ router.put('/:id', async (req, res) => {
     }
 
     updateFields.push(`updated_at = NOW()`)
-    updateValues.push(id)
+    updateValues.push(targetId)
 
     const updateQuery = `
       UPDATE public.vendors
@@ -352,27 +607,63 @@ router.put('/:id', async (req, res) => {
       RETURNING *
     `
 
+    console.log(`🔄 [Vendors] 執行更新查詢，targetId: ${targetId}, fields: ${updateFields.length}`)
     const result = await pool.query(updateQuery, updateValues)
 
     if (result.rows.length === 0) {
+      console.log(`❌ [Vendors] 更新後找不到廠商記錄，targetId: ${targetId}`)
       return res.status(404).json({
         success: false,
         message: '找不到此廠商',
       })
     }
 
+    // 🔧 轉換欄位名稱：snake_case → camelCase
+    const updatedData = result.rows[0]
+    const formattedData = {
+      ...updatedData,
+      bannerImage: updatedData.banner_image,
+      isBannerVisible: updatedData.is_banner_visible,
+      regionTags: updatedData.region_tags,
+      reviewCount: updatedData.review_count,
+      isVerified: updatedData.is_verified,
+    }
+    delete formattedData.banner_image
+    delete formattedData.is_banner_visible
+    delete formattedData.region_tags
+    delete formattedData.review_count
+    delete formattedData.is_verified
+
     res.json({
       success: true,
       message: '廠商資料更新成功',
-      data: result.rows[0],
+      data: formattedData,
     })
   } catch (error) {
-    console.error('❌ [Vendors] 更新廠商資料錯誤:', error.message)
-    res.status(500).json({
-      success: false,
-      message: '更新廠商資料失敗',
-      error: error.message,
+    console.error('❌ [Vendors] 更新廠商資料錯誤:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      detail: error.detail
     })
+
+    const response = {
+      success: false,
+      message: '更新廠商資料失敗，請稍後再試',
+    }
+
+    // 僅在開發環境才回傳詳細錯誤訊息
+    if (process.env.NODE_ENV === 'development') {
+      response.error = error.message
+      response.stack = error.stack
+      response.code = error.code
+      response.detail = error.detail
+    }
+
+    // 確保返回正確的狀態碼
+    const statusCode = error.code === '23505' ? 409 :
+                      error.code === '23503' ? 400 : 500
+    res.status(statusCode).json(response)
   }
 })
 

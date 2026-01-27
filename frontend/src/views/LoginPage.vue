@@ -175,7 +175,21 @@ const handleLogin = async () => {
     }
 
     userStore.login()
-    router.push('/')
+
+    // 根據用戶角色進行跳轉
+    try {
+      const neonUserData = await getUserProfile(userCredential.user.uid)
+      if (neonUserData && neonUserData.role === 'vendor') {
+        // 廠商用戶直接跳轉到管理後台
+        router.push({ name: 'VendorDashboard' })
+      } else {
+        // 一般用戶跳轉到首頁
+        router.push('/')
+      }
+    } catch {
+      // 如果無法取得用戶資料，預設跳轉首頁
+      router.push('/')
+    }
   } catch (error) {
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
       loginErrors.value.email = '該電子信箱不存在或是輸入錯誤'

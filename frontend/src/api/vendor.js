@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'https://tripmate-backend.zeabur.app/api'
+// 確保 API_URL 沒有雙斜杠
+const baseURL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '')
+const API_URL = baseURL + '/api'
 
 // 取得廠商資料
 export const getVendorProfile = async (vendorId) => {

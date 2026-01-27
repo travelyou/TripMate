@@ -48,83 +48,38 @@ router.post('/', async (req, res) => {
 
     let finalVendorId = vendor_id
 
+    // 根據角色決定是否需要 vendor_id
     if (finalRole === 'user' || finalRole === 'admin') {
       finalVendorId = null
     } else if (finalRole === 'vendor') {
+      // 使用重構後的 vendor 創建邏輯
       try {
-        const vendorName = nickname || email?.split('@')[0] || '未命名廠商'
-        const vendorAvatar = avatar || null
+        const { createVendor } = require('../utils/vendorHelper')
 
-        await pool.query(`
-          CREATE SEQUENCE IF NOT EXISTS vendor_id_seq;
-        `)
-
-        const initSeqResult = await pool.query(`
-          SELECT last_value, is_called FROM vendor_id_seq;
-        `)
-
-        if (!initSeqResult.rows[0].is_called || initSeqResult.rows[0].last_value <= 1) {
-          const maxIdResult = await pool.query(`
-            SELECT MAX(CAST(SUBSTRING(id FROM 'vendor-(\\d+)') AS INTEGER)) as max_num
-            FROM vendors
-            WHERE id ~ '^vendor-\\d+$'
-          `)
-          const maxNum = maxIdResult.rows[0]?.max_num || 0
-          if (maxNum > 0) {
-            await pool.query(`SELECT setval('vendor_id_seq', $1, true)`, [maxNum])
-          }
-        }
-
-        const maxRetries = 5
-        let retryCount = 0
-        let createdVendorId = null
-
-        while (retryCount < maxRetries && !createdVendorId) {
-          try {
-            const seqResult = await pool.query("SELECT nextval('vendor_id_seq') AS next_val")
-            const nextNumber = parseInt(seqResult.rows[0].next_val, 10)
-            const newVendorId = `vendor-${String(nextNumber).padStart(3, '0')}`
-
-            const insertVendorQuery = `
-              INSERT INTO vendors (id, name, avatar, created_at, updated_at)
-              VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-              RETURNING id
-            `
-
-            await pool.query(insertVendorQuery, [newVendorId, vendorName, vendorAvatar])
-            createdVendorId = newVendorId
-            finalVendorId = newVendorId
-          } catch (insertError) {
-            if (insertError.code === '23505') {
-              retryCount++
-              if (retryCount >= maxRetries) {
-                throw new Error('無法生成唯一的 vendor_id，請稍後再試')
-              }
-              await new Promise((resolve) => setTimeout(resolve, 50 * Math.pow(2, retryCount - 1)))
-            } else {
-              console.error('❌ [Backend] Vendor 創建失敗:', insertError)
-              throw insertError
-            }
-          }
-        }
-
-        if (!createdVendorId) {
-          console.error('❌ [Backend] 未能創建 vendor ID')
-          return res.status(500).json({
-            error: '創建廠商記錄失敗',
-            message: '無法生成唯一的 vendor_id，請稍後再試',
-          })
-        }
+        finalVendorId = await createVendor({
+          name: nickname,
+          avatar: avatar,
+          email: email
+        })
       } catch (vendorCreateError) {
         console.error('❌ [Backend] Vendor 創建錯誤:', vendorCreateError)
-        return res.status(500).json({
+
+        // 安全的錯誤回應（不暴露內部細節）
+        const errorResponse = {
           error: '創建廠商記錄失敗',
-          message: vendorCreateError.message || '無法創建廠商記錄',
-          details: vendorCreateError.detail || String(vendorCreateError),
-          code: vendorCreateError.code,
-        })
+          message: '無法創建廠商記錄，請稍後再試'
+        }
+
+        // 僅開發環境回傳詳細錯誤
+        if (process.env.NODE_ENV === 'development') {
+          errorResponse.details = vendorCreateError.message
+          errorResponse.code = vendorCreateError.code
+        }
+
+        return res.status(500).json(errorResponse)
       }
     }
+
 
     const existingUser = await pool.query('SELECT uid, role, vendor_id FROM users WHERE uid = $1', [
       uid,
@@ -404,7 +359,7 @@ router.post('/:uid/fix', async (req, res) => {
       user: result.rows[0],
     })
   } catch (error) {
-    console.error('修復用戶失敗：', error)
+    console.error('修復用戶失敗：', error.message)
     res.status(500).json({
       error: '修復用戶失敗',
       message: error?.message || '無法修復用戶',
@@ -427,15 +382,21 @@ router.get('/:uid', async (req, res) => {
     const result = await queryWithSearchPath('SELECT uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at, tags, card_bio, card_photo, card_tags, gallery FROM users WHERE uid = $1', [uid])
 
     if (result.rows.length === 0) {
-      return res.status(440).json({
+      return res.status(404).json({
         error: '用戶不存在',
         message: '找不到指定的用戶',
       })
     }
 
+    // 處理 vendor_id：如果是 'vendor-XXX' 格式，設為 null（無效格式）
+    const userData = result.rows[0]
+    if (userData.vendor_id && typeof userData.vendor_id === 'string' && userData.vendor_id.startsWith('vendor-')) {
+      userData.vendor_id = null
+    }
+
     res.json({ data: result.rows[0] })
   } catch (error) {
-    console.error('獲取用戶資料失敗:', error)
+    console.error('獲取用戶資料失敗:', error.message)
 
     if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
       return res.status(503).json({
@@ -447,8 +408,7 @@ router.get('/:uid', async (req, res) => {
 
     res.status(500).json({
       error: '獲取用戶資料失敗',
-      details: error.message,
-      message: error.message
+      message: error.message || '未知錯誤',
     })
   }
 })
@@ -516,7 +476,7 @@ router.put('/:uid', async (req, res) => {
     addUpdate('spirit_animal', spirit_animal)
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'tags')) {
-      const val = Array.isArray(tags) ? tags : []
+      const val = Array.isArray(tags) ? tags : tags ? [tags] : []
       setClauses.push(`tags = $${paramIndex}`)
       params.push(val)
       paramIndex++
@@ -551,11 +511,6 @@ router.put('/:uid', async (req, res) => {
       params.push(is_matching_enabled)
       paramIndex++
     }
-
-    const tagsValue = Array.isArray(tags) ? tags : tags ? [tags] : []
-    setClauses.push(`tags = $${paramIndex}`)
-    params.push(tagsValue)
-    paramIndex++
 
     setClauses.push('updated_at = CURRENT_TIMESTAMP')
 

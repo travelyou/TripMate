@@ -167,7 +167,7 @@ const emitChatSend = (payload) => {
   window.dispatchEvent(new CustomEvent('chat-send', { detail: payload }))
 }
 
-const incrementChatInteractionCount = async (currentUid, targetUid, logPrefix = '') => {
+const incrementChatInteractionCount = async (currentUid, targetUid) => {
   try {
     const { incrementChatInteraction } = await import('@/api/profile')
     const data = await incrementChatInteraction(currentUid, targetUid)
@@ -337,7 +337,6 @@ const loadGroupMembers = async (silent = false) => {
     }
   } catch (error) {
     console.error('載入群組成員失敗:', error.message)
-    })
     if (!silent) {
       const errorMsg = error.response?.data?.message || error.message || '載入群組成員失敗'
       groupMembersError.value = errorMsg
@@ -746,11 +745,10 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
 
     updateUnreadCount(friendUid, mappedMessages)
     persistChatRooms()
-
-    if (!silent) {
-    }
   } catch (error) {
+    if (!silent) {
     console.error('載入聊天記錄失敗：', error)
+    }
     // 失敗時不重置，保持當前狀態
   }
 }
@@ -805,11 +803,10 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
         scrollToBottom()
       }
     }
-
-    if (!silent) {
-    }
   } catch (error) {
+    if (!silent) {
     console.error('載入群組聊天記錄失敗：', error)
+    }
   }
 }
 
@@ -837,14 +834,8 @@ const loadChatInteractionCount = async (uid, friendUid) => {
       remaining,
       canSend: isVendor ? true : (canSend && remaining > 0),  // 廠商聊天永遠可以發送
       isFriend,
-      isVendor
+      isVendor,
     }
-
-      count,
-      remaining,
-      canSend: chatInteractionCount.value.canSend,
-      rawData: data
-    })
   } catch (error) {
     console.error('載入對話次數失敗：', error)
     // 錯誤時不重置，保持當前狀態（避免刷新頁面後重置計數）

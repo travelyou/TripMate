@@ -5,11 +5,14 @@
     <div
       class="max-w-[1500px] mx-auto w-full h-full grid grid-cols-[1fr,1fr] items-center gap-4 px-4"
     >
-      <!-- Logo 區域 (不可點擊) -->
+      <!-- Logo 區域 (可點擊跳回首頁) -->
       <div class="flex">
-        <div class="shrink-0">
+        <RouterLink
+          :to="{ name: 'home' }"
+          class="shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+        >
           <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain" />
-        </div>
+        </RouterLink>
       </div>
 
       <!-- 右側：頭像選單 -->

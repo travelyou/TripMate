@@ -13,6 +13,7 @@ import { getVendorProfileRoute } from '@/utils/navigation'
 
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
 import DiscussionPostModal from '@/components/modals/DiscussionPostModal.vue'
+import ToastNotification from '@/components/common/ToastNotification.vue'
 
 const router = useRouter()
 const vendorStore = useVendorStore()
@@ -23,13 +24,22 @@ const activeTab = ref('basic_info')
 const showItineraryModal = ref(false)
 const showPostModal = ref(false)
 
-// Edit State
 const editItineraryData = ref(null)
 const isItineraryEdit = ref(false)
 
+const postFromItinerary = ref(null)
+
 const vendorId = computed(() => {
-  const id = userStore.currentUser?.vendorId || userStore.currentUser?.id || 'vendor001'
-  return id
+  const user = userStore.currentUser
+  if (!user) return null
+
+  const vendorIdValue = user.vendorId || user.vendor_id
+
+  if (vendorIdValue && typeof vendorIdValue === 'string' && vendorIdValue.trim() && !vendorIdValue.startsWith('vendor-')) {
+    return vendorIdValue.trim()
+  }
+
+  return user.uid || user.id || null
 })
 const currentVendor = computed(() => vendorStore.currentVendor)
 const loading = computed(() => vendorStore.loading)
@@ -56,31 +66,24 @@ const handleEditItinerary = (item) => {
   showItineraryModal.value = true
 }
 
-const openPostModal = () => {
+const openPostModal = (itineraryData = null) => {
+  postFromItinerary.value = itineraryData
   showPostModal.value = true
 }
 
-// ... (success handlers)
-
-// Template changes below
-
-// In TabItineraryList:
-// @edit="handleEditItinerary"
-
-// In ItineraryPostModal:
-// :initial-data="editItineraryData"
-// :is-edit="isItineraryEdit"
+const handleCreatePostFromItinerary = (itinerary) => {
+  openPostModal(itinerary)
+}
 
 const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
-  // 重新載入資料以更新列表
   await vendorStore.fetchVendorItineraries(vendorId.value)
   alert('行程發布成功！')
 }
 
 const handlePostSuccess = async () => {
   showPostModal.value = false
-  // 重新載入資料 (雖然現在是 Mock，但這是正確的邏輯)
+  postFromItinerary.value = null
   await vendorStore.fetchVendorPosts(vendorId.value)
   alert('貼文發布成功！且已同步至前台討論區')
 }
@@ -97,6 +100,7 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen bg-gray-50">
     <DashboardNav />
+    <ToastNotification />
 
     <div class="flex pt-16">
       <DashboardSidebar
@@ -106,7 +110,7 @@ onMounted(async () => {
         @switch-to-frontend="handleSwitchToFrontend"
       />
 
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1 overflow-auto ml-64">
         <DashboardHeader
           v-if="currentVendor && !loading"
           :vendor="currentVendor"
@@ -136,6 +140,7 @@ onMounted(async () => {
                 <TabItineraryList
                   @create="openItineraryModal"
                   @edit="handleEditItinerary"
+                  @create-post="handleCreatePostFromItinerary"
                 />
               </div>
             </div>
@@ -170,6 +175,7 @@ onMounted(async () => {
 
     <DiscussionPostModal
       v-if="showPostModal"
+      :itinerary-data="postFromItinerary"
       @close="showPostModal = false"
       @success="handlePostSuccess"
     />

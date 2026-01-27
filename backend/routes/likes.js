@@ -246,7 +246,6 @@ router.get('/user/:uid', async (req, res) => {
           i.start_date,
           i.end_date,
           COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
-          COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
           i.agency_name,
           i.author_uid,
           i.vendor_id,

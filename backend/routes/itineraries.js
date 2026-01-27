@@ -7,7 +7,9 @@ const { authenticate } = require('../middleware/auth')
 // 1. 取得所有行程 (列表頁用)
 router.get('/', async (req, res) => {
   try {
-    const { ids } = req.query || {}
+    const { ids, board } = req.query || {}
+
+    // 忽略 board 參數（如果有的話，不影響查詢）
 
     if (ids) {
       const idList = String(ids)
@@ -65,6 +67,15 @@ router.get('/', async (req, res) => {
 // 2. 取得單一行程詳細資料
 router.get('/:id', async (req, res) => {
   const { id } = req.params
+
+  // 驗證 ID 格式
+  if (!id || (isNaN(Number(id)) && !id.match(/^[0-9a-f-]{36}$/i))) {
+    return res.status(400).json({
+      success: false,
+      message: '無效的行程 ID'
+    })
+  }
+
   try {
     const itineraryQuery = `
       SELECT

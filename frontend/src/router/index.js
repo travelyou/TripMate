@@ -210,6 +210,63 @@ router.beforeEach(async (to, from, next) => {
 
   const userStore = useUserStore()
 
+  // 優先處理需要隱藏布局的路由（如 dashboard、login），避免先渲染首頁
+  if (to.meta.hideLayout) {
+    // 對於需要隱藏布局的路由，先快速檢查基本權限
+    if (to.meta.requiresVendorAuth || to.meta.requiresAuth) {
+      // 等待認證準備好
+      if (!userStore.authReady) {
+        await new Promise((resolve) => {
+          if (userStore.authReady) {
+            resolve()
+            return
+          }
+          const unwatch = watch(
+            () => userStore.authReady,
+            (ready) => {
+              if (ready) {
+                unwatch()
+                resolve()
+              }
+            },
+            { immediate: true },
+          )
+        })
+      }
+
+      // 廠商權限檢查
+      if (to.meta.requiresVendorAuth) {
+        if (!userStore.isLoggedIn) {
+          next('/login')
+          alert('請先登入後才可使用')
+          return
+        }
+        if (!userStore.isVendor) {
+          next('/')
+          alert('此頁面僅限廠商使用')
+          return
+        }
+        next()
+        return
+      }
+
+      // 一般權限檢查
+      if (to.meta.requiresAuth) {
+        if (userStore.isLoggedIn) {
+          next()
+        } else {
+          next('/login')
+          alert('請先登入後才可使用')
+        }
+        return
+      }
+    }
+    // 不需要權限的 hideLayout 路由，直接通過
+    next()
+    return
+  }
+
+  // 對於一般路由，等待認證準備好
   if (!userStore.authReady) {
     await new Promise((resolve) => {
       if (userStore.authReady) {
@@ -239,7 +296,6 @@ router.beforeEach(async (to, from, next) => {
       next({ name: 'VendorDashboard' })
       return
     }
-
   }
 
   if (to.name === 'login' && userStore.isLoggedIn) {
@@ -247,23 +303,7 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // 廠商權限檢查
-  if (to.meta.requiresVendorAuth) {
-    if (!userStore.isLoggedIn) {
-      next('/login')
-      alert('請先登入後才可使用')
-      return
-    }
-    // 檢查是否為廠商
-    if (!userStore.isVendor) {
-      next('/')
-      alert('此頁面僅限廠商使用')
-      return
-    }
-    next()
-    return
-  }
-
+  // 一般權限檢查
   if (to.meta.requiresAuth) {
     if (userStore.isLoggedIn) {
       next()

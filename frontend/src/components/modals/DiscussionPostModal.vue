@@ -173,7 +173,7 @@ const ResetStyleOnEnter = Extension.create({
             .splitBlock({ keepMarks: false })
             .unsetAllMarks()
             .run()
-        } catch (error) {
+        } catch {
           return false
         }
       },
@@ -215,7 +215,7 @@ const editor = useEditor({
       if (errors.value.content) {
         errors.value.content = ''
       }
-    } catch (error) {
+    } catch {
       // 更新內容錯誤，靜默處理
     }
   },
@@ -235,7 +235,7 @@ const editor = useEditor({
             }
           }
         })
-      } catch (error) {
+      } catch {
         // 初始化內容失敗，靜默處理
       }
     }
@@ -283,7 +283,7 @@ watch(
         if (editor.value.getText().trim() === '' && newContent) {
           editor.value.commands.setContent(newContent, false)
         }
-      } catch (error) {
+      } catch {
         // 內容同步錯誤，靜默處理
       }
     }
@@ -816,7 +816,7 @@ watch(
           await nextTick()
           try {
             editor.value.commands.setContent(draft.content, false)
-          } catch (error) {
+          } catch {
             // 載入草稿內容失敗，靜默處理
           }
         }
@@ -870,7 +870,7 @@ watch(
           await nextTick()
           try {
             editor.value.commands.setContent(post.content, false)
-          } catch (error) {
+          } catch {
             // 載入編輯內容失敗，靜默處理
           }
         }
@@ -998,8 +998,8 @@ onMounted(() => {
             </div>
             <input
               id="discussion-title"
-              name="discussionTitle"
               v-model="postData.title"
+              name="discussionTitle"
               type="text"
               placeholder="輸入一個吸引人的標題..."
               :class="[
