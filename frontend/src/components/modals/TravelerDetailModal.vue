@@ -1071,7 +1071,7 @@ onUnmounted(() => {
                               activity.location &&
                               (activity.location.name || activity.location.address)
                             "
-                            class="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full mb-2"
+                            class="relative inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full mb-2 group z-10"
                           >
                             <MapPinIcon class="w-4 h-4 text-primary-500" />
                             <a
@@ -1086,6 +1086,15 @@ onUnmounted(() => {
                             <span v-else>{{
                               activity.location.name || activity.location.address
                             }}</span>
+
+                            <div
+                              class="hidden md:group-hover:flex md:absolute md:left-0 md:top-full md:mt-2 w-64 flex-col rounded-xl border border-primary-100 bg-white p-3 text-left shadow-lg transition-opacity z-[120] pointer-events-auto"
+                            >
+                              <p class="text-[11px] font-bold text-primary-700">Google Maps 資訊</p>
+                              <p class="text-[11px] text-secondary-500 max-h-10 overflow-hidden">
+                                {{ activity.location.address || '暫無詳細地址' }}
+                              </p>
+                            </div>
                           </div>
                           <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
                         </div>
