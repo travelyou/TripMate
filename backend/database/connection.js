@@ -104,6 +104,46 @@ function isLocalDatabase() {
   return hasLocalConfig
 }
 
+function normalizeConnectionString(connectionString, isLocal) {
+  if (!connectionString) return connectionString
+
+  try {
+    const url = new URL(connectionString)
+
+    if (isLocal) {
+      url.searchParams.delete('sslmode')
+      return url.toString()
+    }
+
+    const currentSslMode = url.searchParams.get('sslmode')
+    if (currentSslMode && ['prefer', 'require', 'verify-ca'].includes(currentSslMode)) {
+      url.searchParams.set('sslmode', 'verify-full')
+    } else if (!currentSslMode) {
+      url.searchParams.set('sslmode', 'verify-full')
+    }
+
+    return url.toString()
+  } catch (error) {
+    let normalized = connectionString
+
+    if (isLocal) {
+      normalized = normalized.replace(/[&?]sslmode=[^&]*/gi, '')
+    } else {
+      if (/[&?]sslmode=/i.test(normalized)) {
+        normalized = normalized.replace(/[&?]sslmode=[^&]*/gi, (match) => {
+          const prefix = match.startsWith('?') ? '?' : '&'
+          return prefix + 'sslmode=verify-full'
+        })
+      } else {
+        const separator = normalized.includes('?') ? '&' : '?'
+        normalized = normalized + separator + 'sslmode=verify-full'
+      }
+    }
+
+    return normalized
+  }
+}
+
 async function createPool() {
   debugLog('connection.js:55', 'createPool entry', { timestamp: Date.now() }, 'A')
   if (!checkEnvVars()) {
@@ -118,8 +158,11 @@ async function createPool() {
   if (connectionString) {
 
     try {
+      // 规范化连接字符串，明确设置sslmode以避免警告
+      const normalizedConnectionString = normalizeConnectionString(connectionString, isLocal)
+
       const poolConfig = {
-        connectionString: connectionString,
+        connectionString: normalizedConnectionString,
         ssl: isLocal ? false : {
           rejectUnauthorized: false,
         },
@@ -132,7 +175,7 @@ async function createPool() {
         maxLifetime: parseInt(process.env.DB_MAX_LIFETIME_MS) || 3600000,
       }
 
-      const isPooler = connectionString.includes('-pooler')
+      const isPooler = normalizedConnectionString.includes('-pooler')
       if (isPooler) {
         if (!process.env.DB_CONNECT_TIMEOUT_MS) {
           poolConfig.connectionTimeoutMillis = isDev ? 20000 : 30000
