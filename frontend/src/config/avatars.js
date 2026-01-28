@@ -29,7 +29,7 @@ export async function getAvatarUrl(category, filename) {
     const storageRef = ref(storage, storagePath)
     const url = await getDownloadURL(storageRef)
     return url
-  } catch (error) {
+  } catch {
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(category)}-${encodeURIComponent(filename)}`
   }
 }
@@ -47,7 +47,7 @@ export async function getCategoryFilenames(category) {
     })
 
     return filenames
-  } catch (error) {
+  } catch {
     return []
   }
 }
@@ -64,18 +64,31 @@ export async function getAvatarUrls(category, filenames) {
 }
 
 export async function getAvailableCategories() {
-  const availableCategories = []
+  try {
+    const presetAvatarsRef = ref(storage, 'preset-avatars')
+    const result = await listAll(presetAvatarsRef)
 
-  for (const category of avatarCategories) {
-    try {
-      const filenames = await getCategoryFilenames(category)
-      if (filenames.length > 0) {
-        availableCategories.push(category)
+    const categories = result.prefixes.map((prefix) => {
+      const fullPath = prefix.fullPath
+      const categoryName = fullPath.replace('preset-avatars/', '')
+      return decodeURIComponent(categoryName)
+    })
+
+    return categories.sort()
+  } catch (error) {
+    console.error('讀取分類列表失敗:', error)
+    const availableCategories = []
+    for (const category of avatarCategories) {
+      try {
+        const filenames = await getCategoryFilenames(category)
+        if (filenames.length > 0) {
+          availableCategories.push(category)
+        }
+      } catch {
+        console.error('讀取分類列表失敗:', category, 'error:', error)
       }
-    } catch (error) {
     }
+    return availableCategories
   }
-
-  return availableCategories
 }
 
