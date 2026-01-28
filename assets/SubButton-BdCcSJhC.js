@@ -1,1 +1,0 @@
-import{ap as r,h as o,i as s,aq as n,p as a}from"./index-Ba0X4B_q.js";const c={},d={class:"p-2 text-center bg-white rounded-md border border-gray-200 hover:bg-gray-200"};function l(t,e){return s(),o("button",d,[n(t.$slots,"default",{},()=>[e[0]||(e[0]=a(" 按鈕文字 ",-1))])])}const u=r(c,[["render",l]]);export{u as S};
