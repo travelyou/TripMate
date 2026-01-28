@@ -104,6 +104,7 @@ const loadTravelers = async (isLoadMore = false) => {
       }
     }
   } catch (error) {
+    console.error('載入旅伴資料失敗:', error)
   } finally {
     isLoading.value = false
   }

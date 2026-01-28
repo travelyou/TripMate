@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /my-itinerary
+Disallow: /my-order
+Disallow: /favorites
+Disallow: /collections
+Disallow: /cart
+Disallow: /checkout
+Disallow: /vendor/dashboard
+Disallow: /vendor/register
+Disallow: /test
+
+Sitemap: https://tripmate-mayoyo.com/sitemap.xml
+

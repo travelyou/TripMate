@@ -5,6 +5,8 @@ import { useUserStore } from '@/stores/user'
 import { usePersonalityStore } from '@/stores/personality'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { getTravelers } from '@/api/travelers'
+import { showError, showSuccess, showConfirm } from '@/utils/alert'
+import { handleError } from '@/utils/errorHandler'
 
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
@@ -176,9 +178,10 @@ const handleToggleMatching = async () => {
     if (userStore.updateProfile) {
       userStore.updateProfile({ isMatchingEnabled: newValue })
     }
-  } catch {
+  } catch (error) {
     isMatchingEnabled.value = !newValue
-    alert('設定失敗，請稍後再試')
+    const appError = handleError(error, '設定匹配功能')
+    showError(appError.message || '設定失敗，請稍後再試')
   }
 }
 
@@ -199,8 +202,9 @@ const handleSaveCard = async (formData) => {
     userStore.updateProfile(updateData)
 
     await loadProfileData()
-  } catch {
-    alert('儲存失敗')
+  } catch (error) {
+    const appError = handleError(error, '儲存卡片設定')
+    showError(appError.message || '儲存失敗')
   }
 }
 
@@ -234,20 +238,20 @@ const handleSaveProfile = async (formData) => {
     isEditingProfile.value = false
     await loadProfileData()
   } catch (e) {
-    const errorMessage = e.message || e.response?.data?.error || '儲存失敗，請稍後再試'
-    alert(errorMessage)
+    const appError = handleError(e, '儲存個人資料')
+    showError(appError.message || '儲存失敗，請稍後再試')
   }
 }
 
 const handleAddFriend = async () => {
   if (!user.value?.uid || !userStore.currentUser?.uid) {
-    alert('無法加好友，請先登入')
+    await showError('無法加好友，請先登入')
     return
   }
   const friendUid = user.value.uid
   const currentUid = userStore.currentUser.uid
   if (friendUid === currentUid) {
-    alert('不能加自己為好友')
+    await showError('不能加自己為好友')
     return
   }
 
@@ -255,27 +259,28 @@ const handleAddFriend = async () => {
     const { addFriend, removeFriend } = await import('@/api/profile')
 
     if (friendRequestStatus.value === 'accepted') {
-      const confirmed = confirm('確定要解除好友關係嗎？')
+      const confirmed = await showConfirm('確定要解除好友關係嗎？')
       if (!confirmed) return
 
       await removeFriend(currentUid, friendUid)
-      alert('已解除好友')
+      await showSuccess('已解除好友')
       friendRequestStatus.value = null
       await loadProfileData()
       return
     }
 
     if (friendRequestStatus.value === 'sent') {
-      alert('已發送好友請求，請等待對方回應')
+      await showError('已發送好友請求，請等待對方回應')
       return
     }
 
     await addFriend(currentUid, friendUid)
-    alert('已發送好友請求')
+    await showSuccess('已發送好友請求')
     friendRequestStatus.value = 'sent'
     await loadProfileData()
   } catch (error) {
-    alert(error.message || '操作失敗，請稍後再試')
+    const appError = handleError(error, '好友操作')
+    await showError(appError.message || '操作失敗，請稍後再試')
   }
 }
 
@@ -323,8 +328,8 @@ const loadProfileData = async () => {
       const { fetchPosts } = await import('@/api/discussions')
       const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
       if (postsRes?.posts) userPosts.value = postsRes.posts
-    } catch {
-      void 0
+    } catch (error) {
+      console.warn('載入用戶貼文失敗:', error)
     }
 
     if (profileData) {
@@ -370,8 +375,8 @@ const loadProfileData = async () => {
       }
       profileStats.value = profileData.stats || profileStats.value
     }
-  } catch {
-    void 0
+  } catch (error) {
+    console.error('載入個人資料失敗:', error)
   } finally {
     loading.value = false
   }
@@ -398,8 +403,8 @@ const loadHostedTravelers = async (uid = targetUid.value) => {
         return travelerAuthorUid === uid
       })
     }
-  } catch {
-    void 0
+  } catch (error) {
+    console.warn('載入主揪旅行失敗:', error)
   }
 }
 
@@ -417,8 +422,9 @@ const handleSaveField = async ({ field, data }) => {
     const { updateUserProfile } = await import('@/api/users')
     await updateUserProfile(user.value.uid, data || {})
     userStore.updateProfile(data || {})
-  } catch {
-    alert('儲存失敗，請稍後再試')
+  } catch (error) {
+    const appError = handleError(error, '儲存欄位')
+    showError(appError.message || '儲存失敗，請稍後再試')
   }
 }
 
@@ -445,7 +451,8 @@ const handleAddVisitedPlace = async (placeData) => {
 
     await loadProfileData()
   } catch (error) {
-    alert(error.message || '新增失敗，請稍後再試')
+    const appError = handleError(error, '新增去過的地方')
+    showError(appError.message || '新增失敗，請稍後再試')
   }
 }
 
@@ -465,14 +472,15 @@ const handleRemoveVisitedPlace = async ({ type, index }) => {
       if (place.id) {
         await removeVisitedPlace(user.value.uid, place.id)
       } else {
-        alert('無法刪除：缺少項目 ID，請重新載入頁面後再試')
+        await showError('無法刪除：缺少項目 ID，請重新載入頁面後再試')
         return
       }
     }
 
     await loadProfileData()
   } catch (error) {
-    alert(error.message || '刪除失敗，請稍後再試')
+    const appError = handleError(error, '刪除去過的地方')
+    showError(appError.message || '刪除失敗，請稍後再試')
   }
 }
 
@@ -531,8 +539,8 @@ const handleAvatarCrop = async (croppedFile) => {
     isAvatarCropOpen.value = false
     avatarFileToCrop.value = null
   } catch (error) {
-    const errorMessage = error.message || error.response?.data?.error || '上傳頭貼失敗'
-    alert(errorMessage)
+    const appError = handleError(error, '上傳頭貼')
+    await showError(appError.message || '上傳頭貼失敗')
   }
 }
 
@@ -553,8 +561,8 @@ const handleSelectPresetAvatar = async (avatarUrl) => {
 
     isAvatarPickerOpen.value = false
   } catch (error) {
-    const errorMessage = error.message || error.response?.data?.error || '更新頭貼失敗'
-    alert(errorMessage)
+    const appError = handleError(error, '更新頭貼')
+    await showError(appError.message || '更新頭貼失敗')
   }
 }
 

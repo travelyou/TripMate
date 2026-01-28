@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config'
+import { handleApiError } from '@/utils/errorHandler'
 
 export async function fetchPosts(params = {}) {
   const { page = 1, limit: finalLimit = 10, category: finalCategory = null, author_uid } = params
@@ -18,35 +19,53 @@ export async function fetchPosts(params = {}) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.details || '獲取貼文失敗')
+      throw handleApiError({
+        response: {
+          status: response.status,
+          data: errorData,
+        },
+      })
     }
 
     const data = await response.json()
-
     return data
   } catch (error) {
-    throw error
+    throw handleApiError(error)
   }
 }
 
 export async function fetchPostById(id) {
   try {
-    const url = `${API_BASE_URL}/discussions/${id}`
+    if (!id) {
+      throw new Error('缺少貼文 ID')
+    }
+
+    const url = `${API_BASE_URL}/discussions/${encodeURIComponent(id)}`
     const response = await fetch(url)
 
     if (!response.ok) {
-      throw new Error('獲取貼文失敗')
+      const errorData = await response.json().catch(() => ({ error: '獲取貼文失敗' }))
+      throw handleApiError({
+        response: {
+          status: response.status,
+          data: errorData,
+        },
+      })
     }
 
     const data = await response.json()
     return data
   } catch (error) {
-    throw error
+    throw handleApiError(error)
   }
 }
 
 export async function createPost(postData) {
   try {
+    if (!postData || !postData.title || !postData.content) {
+      throw new Error('標題和內容為必填項目')
+    }
+
     const url = `${API_BASE_URL}/discussions`
     const response = await fetch(url, {
       method: 'POST',
@@ -58,19 +77,28 @@ export async function createPost(postData) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: '未知錯誤' }))
-      throw new Error(errorData.error || errorData.details || '創建貼文失敗')
+      throw handleApiError({
+        response: {
+          status: response.status,
+          data: errorData,
+        },
+      })
     }
 
     const data = await response.json()
     return data
   } catch (error) {
-    throw error
+    throw handleApiError(error)
   }
 }
 
 export async function updatePost(id, postData) {
   try {
-    const url = `${API_BASE_URL}/discussions/${id}`
+    if (!id) {
+      throw new Error('缺少貼文 ID')
+    }
+
+    const url = `${API_BASE_URL}/discussions/${encodeURIComponent(id)}`
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -80,30 +108,46 @@ export async function updatePost(id, postData) {
     })
 
     if (!response.ok) {
-      throw new Error('更新貼文失敗')
+      const errorData = await response.json().catch(() => ({ error: '更新貼文失敗' }))
+      throw handleApiError({
+        response: {
+          status: response.status,
+          data: errorData,
+        },
+      })
     }
 
     const data = await response.json()
     return data
   } catch (error) {
-    throw error
+    throw handleApiError(error)
   }
 }
 
 export async function deletePost(id) {
   try {
-    const url = `${API_BASE_URL}/discussions/${id}`
+    if (!id) {
+      throw new Error('缺少貼文 ID')
+    }
+
+    const url = `${API_BASE_URL}/discussions/${encodeURIComponent(id)}`
     const response = await fetch(url, {
       method: 'DELETE',
     })
 
     if (!response.ok) {
-      throw new Error('刪除貼文失敗')
+      const errorData = await response.json().catch(() => ({ error: '刪除貼文失敗' }))
+      throw handleApiError({
+        response: {
+          status: response.status,
+          data: errorData,
+        },
+      })
     }
 
     const data = await response.json()
     return data
   } catch (error) {
-    throw error
+    throw handleApiError(error)
   }
 }
