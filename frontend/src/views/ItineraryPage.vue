@@ -4,12 +4,12 @@ import { Map as MapIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useRoute, useRouter } from 'vue-router'
 import { getItineraryById } from '@/api/itinerary'
+import { getAllVendorRegions } from '@/api/vendor'
 
 import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 import ItineraryPostModal from '@/components/modals/ItineraryPostModal.vue'
-import { ITINERARY_CATEGORY_OPTIONS } from '@/utils/filterOptions'
 
 const itinerariesStore = useItineraryStore()
 const route = useRoute()
@@ -27,8 +27,23 @@ const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const itineraryToEdit = ref(null)
 
-const filterOptions = ref(ITINERARY_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
+const vendorRegions = ref([])
+
+const filterOptions = computed(() => {
+  if (vendorRegions.value.length === 0) {
+    return ['全部', '其他']
+  }
+
+  const categoryArray = [...vendorRegions.value]
+
+  for (let i = categoryArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [categoryArray[i], categoryArray[j]] = [categoryArray[j], categoryArray[i]]
+  }
+
+  return ['全部', ...categoryArray, '其他']
+})
 
 const currentPage = ref(1)
 const hasMore = ref(true)
@@ -154,7 +169,7 @@ const handleCardDelete = () => {
   itinerariesStore.fetchItineraries()
 }
 
-onMounted(() => {
+onMounted(async () => {
   observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
@@ -171,6 +186,15 @@ onMounted(() => {
 
   if (route.query.itineraryId) {
     router.replace(`/featured-itinerary/${route.query.itineraryId}`)
+  }
+
+  try {
+    const regionsResult = await getAllVendorRegions()
+    if (regionsResult.success && Array.isArray(regionsResult.data)) {
+      vendorRegions.value = regionsResult.data
+    }
+  } catch (error) {
+    void error
   }
 })
 

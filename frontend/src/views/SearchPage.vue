@@ -98,7 +98,7 @@
           </div>
         </div>
 
-        <div v-else-if="isSearching" class="flex flex-col items-center justify-center mt-20 space-y-4">
+        <div v-else-if="isSearching || loadingUsers" class="flex flex-col items-center justify-center mt-20 space-y-4">
           <div class="relative w-16 h-16">
             <div class="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
             <div class="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
@@ -258,6 +258,7 @@ import { useItineraryStore } from '@/stores/itinerary'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import { getAllUsers } from '@/api/users'
 import { isValidHttpImageUrl as isValidImageUrl } from '@/utils/image'
+import { getAllVendorRegions } from '@/api/vendor'
 
 const router = useRouter()
 const route = useRoute()
@@ -282,6 +283,7 @@ const itemsPerPage = 10
 const users = ref([])
 const loadingUsers = ref(false)
 const avatarErrors = ref({})
+const vendorRegions = ref([])
 
 const tabs = [
   { label: '全部', value: 'all' },
@@ -295,11 +297,28 @@ const subFilterOptions = {
   all: [],
   traveler: ['全部', '招募中', '已額滿', '國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假', '攝影', '自駕共乘', '其他'],
   discussion: ['全部', '國內旅遊', '亞洲旅遊', '歐美紐澳', '攝影愛好', '交通建議', '美食分享', '住宿推薦', '行程請益', '其他'],
-  itinerary: ['全部', '國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假', '攝影/興趣', '自駕共乘', '其他'],
   user: ['全部'],
 }
 
+  const itineraryFilterOptions = computed(() => {
+    if (vendorRegions.value.length === 0) {
+      return ['全部', '其他']
+    }
+
+    const categoryArray = [...vendorRegions.value]
+
+    for (let i = categoryArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [categoryArray[i], categoryArray[j]] = [categoryArray[j], categoryArray[i]]
+    }
+
+    return ['全部', ...categoryArray, '其他']
+  })
+
 const currentSubFilters = computed(() => {
+  if (activeTab.value === 'itinerary') {
+    return itineraryFilterOptions.value
+  }
   return subFilterOptions[activeTab.value] || []
 })
 
@@ -615,10 +634,28 @@ onMounted(async () => {
     searchInput.value?.focus()
   }
 
+  if (!itineraryStore.itineraries || itineraryStore.itineraries.length === 0) {
+    try {
+      await itineraryStore.fetchItineraries({ limit: 100 })
+    } catch (error) {
+      void error
+    }
+  }
+
+  try {
+    const regionsResult = await getAllVendorRegions()
+    if (regionsResult.success && Array.isArray(regionsResult.data)) {
+      vendorRegions.value = regionsResult.data
+    }
+  } catch (error) {
+    void error
+  }
+
   loadingUsers.value = true
   try {
     users.value = await getAllUsers({ limit: 100 })
   } catch (error) {
+    void error
   } finally {
     loadingUsers.value = false
   }
@@ -636,16 +673,24 @@ watch(
 
 const performSearch = async () => {
   if (!searchQuery.value.trim()) return
-  
+
   isSearching.value = true
   hasSearched.value = true
   currentPage.value = 1
-  
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  await new Promise(resolve => setTimeout(resolve, 50))
-  
-  isSearching.value = false
+
+  try {
+    const query = searchQuery.value.trim()
+
+    await Promise.all([
+      discussionsStore.loadDiscussions({ search: query, limit: 100 }),
+      travelersStore.loadRecommendations(false, { limit: 100 }),
+      itineraryStore.fetchItineraries({ limit: 100 }),
+    ])
+  } catch (error) {
+    void error
+  } finally {
+    isSearching.value = false
+  }
 }
 
 const clearSearch = () => {
@@ -693,7 +738,13 @@ const getCategoryStyle = (type) => {
 
 const handleResultClick = (item) => {
   if (item.type === 'user') {
-    router.push(`/profile/${item.id}`)
+    const user = item.originalData
+    const vendorId = user?.vendor_id || user?.vendorId
+    if (vendorId && vendorId !== null && vendorId !== '') {
+      router.push(`/vendor/${vendorId}`)
+    } else {
+      router.push(`/profile/${item.id}`)
+    }
   } else {
   selectedPost.value = item.originalData
   isModalOpen.value = true

@@ -8,8 +8,8 @@ export const useTravelersStore = defineStore('travelers', () => {
   const hasMore = ref(true)
   const error = ref(null)
 
-  const loadRecommendations = async (isLoadMore = false) => {
-    if (loading.value) return
+  const loadRecommendations = async (isLoadMore = false, searchParams = {}) => {
+    if (loading.value && !isLoadMore) return
     if (isLoadMore && !hasMore.value) return
 
     loading.value = true
@@ -21,11 +21,12 @@ export const useTravelersStore = defineStore('travelers', () => {
       }
 
       const offset = isLoadMore ? recommendations.value.length : 0
-      const limit = 10
+      const limit = searchParams.limit || (isLoadMore ? 10 : 100)
 
       const response = await getTravelers({
         limit,
         offset,
+        ...searchParams,
       })
 
       let newData = []

@@ -29,7 +29,7 @@ const filteredItineraries = computed(() => {
   if (props.activeRegion === '全部') {
     return props.itineraries;
   }
-  return props.itineraries.filter(item => item.region === props.activeRegion);
+  return props.itineraries.filter(item => (item.category || item.region) === props.activeRegion);
 });
 
 // Sorting Logic

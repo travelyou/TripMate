@@ -5,7 +5,6 @@ import {
   ArrowLeft as ArrowLeftIcon,
   Image as ImageIcon,
   Hash as HashIcon,
-  Plus as PlusIcon,
   Trash2 as TrashIcon,
   MapPin as MapPinIcon,
   Calendar as CalendarIcon,
@@ -27,7 +26,6 @@ import { useUserStore } from '@/stores/user'
 import { useVendorStore } from '@/stores/vendor'
 import { auth } from '@/firebase/config'
 import { createItinerary, updateItinerary } from '@/api/itinerary'
-import { createItinerary as createVendorItinerary } from '@/api/vendor'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 import { showAlert, showConfirm, showError, showSuccess } from '@/utils/alert'
@@ -59,22 +57,6 @@ const emit = defineEmits(['close', 'success'])
 const userStore = useUserStore()
 const vendorStore = useVendorStore()
 
-const getVendorId = () => {
-  const user = userStore.currentUser
-  if (!user) return null
-
-  const vendorIdValue = user.vendorId || user.vendor_id
-  if (vendorIdValue && typeof vendorIdValue === 'string' && vendorIdValue.trim() && !vendorIdValue.startsWith('vendor-')) {
-    return vendorIdValue.trim()
-  }
-
-  return vendorStore.currentVendor?.id || user.uid || user.id || null
-}
-
-const isVendorContext = computed(() => {
-  return !!vendorStore.currentVendor || !!getVendorId()
-})
-
 const currentStep = ref('basic')
 const formError = ref('')
 const fieldErrors = ref({
@@ -94,9 +76,8 @@ const fieldErrors = ref({
 
 const CHARACTER_LIMIT = 100000
 
-// 從廠商的主打地區獲取分類選項
 const categories = computed(() => {
-  const defaultOption = ['未分類'] // 預設選項
+  const defaultOption = ['未分類']
 
   const vendor = vendorStore.currentVendor
   if (!vendor) return defaultOption
@@ -105,7 +86,6 @@ const categories = computed(() => {
     const bannerImageData = vendor.bannerImage || vendor.banner_image || ''
     if (!bannerImageData) return defaultOption
 
-    // 解析 JSON 字符串
     let mainRegions = []
     if (typeof bannerImageData === 'string') {
       if (bannerImageData.startsWith('[') || bannerImageData.startsWith('{')) {
@@ -131,6 +111,7 @@ const categories = computed(() => {
       return defaultOption
     }
   } catch (err) {
+    console.error('[ItineraryPostModal] 解析主打地區失敗:', err)
     return defaultOption
   }
 })
@@ -869,17 +850,16 @@ const executeSubmit = async () => {
     if (props.isEdit) {
       response = await updateItinerary(props.initialData.id, optimizedPayload)
     } else {
-      if (isVendorContext.value) {
-        const vendorId = getVendorId()
-        if (vendorId) {
-          response = await createVendorItinerary(vendorId, optimizedPayload)
-        } else {
-          response = await createItinerary(optimizedPayload)
-        }
-      } else {
-        response = await createItinerary(optimizedPayload)
-      }
+      response = await createItinerary(optimizedPayload)
     }
+
+    console.log('[ItineraryPostModal] API Response:', response)
+    console.log('[ItineraryPostModal] Current User UID:', auth.currentUser?.uid)
+    console.log('[ItineraryPostModal] Payload sent:', {
+      title: optimizedPayload.title,
+      category: optimizedPayload.category,
+      author_uid: optimizedPayload.author_uid,
+    })
 
     if (response.success || response.id) {
       sessionStorage.removeItem('is_submitting_itinerary_post')

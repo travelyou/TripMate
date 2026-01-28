@@ -109,6 +109,7 @@ export const useVendorStore = defineStore('vendor', () => {
           id: item.id,
           name: item.name || item.title,
           title: item.title || item.name,
+          category: item.category,
           region: item.region || item.location,
           location: item.location || item.region,
           coverImage: item.coverImage || item.image || item.banner_image,
@@ -123,7 +124,7 @@ export const useVendorStore = defineStore('vendor', () => {
         }))
         
         if (filter.region && filter.region !== '全部') {
-          result = result.filter((item) => item.region === filter.region || item.location === filter.region)
+          result = result.filter((item) => (item.category || item.region) === filter.region)
         }
         vendorItineraries.value = result
       } else {
