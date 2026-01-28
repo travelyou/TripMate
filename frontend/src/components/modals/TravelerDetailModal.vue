@@ -471,10 +471,10 @@ const submitComment = async () => {
       author_avatar: userStore.currentUser?.avatar || null,
       parent_comment_id: replyTarget.value?.id || null,
     })
-    
+
     // 重新載入完整資料以獲取最新的留言和回覆
     await fetchFullTravelerDetails()
-    
+
     newComment.value = ''
     replyTarget.value = null
     await nextTick()
@@ -536,6 +536,33 @@ const getDayLabel = (index) => {
     return `${m}/${d}`
   }
   return `Day ${index + 1}`
+}
+
+const buildMapLink = (location) => {
+  if (!location) return ''
+  const base = 'https://www.google.com/maps/search/?api=1'
+  const lat = Number(location.lat)
+  const lng = Number(location.lng)
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng)
+  const primaryLabel = location.name || location.address || ''
+
+  if (location.placeId) {
+    const querySource = primaryLabel || (hasCoords ? `${lat},${lng}` : '')
+    if (querySource) {
+      return `${base}&query=${encodeURIComponent(querySource)}&query_place_id=${location.placeId}`
+    }
+    return `${base}&query_place_id=${location.placeId}`
+  }
+
+  if (hasCoords) {
+    return `${base}&query=${encodeURIComponent(`${lat},${lng}`)}`
+  }
+
+  if (primaryLabel) {
+    return `${base}&query=${encodeURIComponent(primaryLabel)}`
+  }
+
+  return ''
 }
 
 const itemData = computed(() => ({
@@ -1039,6 +1066,27 @@ onUnmounted(() => {
                               {{ activity.title }}
                             </h4>
                           </div>
+                          <div
+                            v-if="
+                              activity.location &&
+                              (activity.location.name || activity.location.address)
+                            "
+                            class="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full mb-2"
+                          >
+                            <MapPinIcon class="w-4 h-4 text-primary-500" />
+                            <a
+                              v-if="buildMapLink(activity.location)"
+                              :href="buildMapLink(activity.location)"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="hover:underline"
+                            >
+                              {{ activity.location.name || activity.location.address }}
+                            </a>
+                            <span v-else>{{
+                              activity.location.name || activity.location.address
+                            }}</span>
+                          </div>
                           <p class="text-secondary-600 text-sm">{{ activity.desc }}</p>
                         </div>
                       </div>
@@ -1208,7 +1256,9 @@ onUnmounted(() => {
                                 formatTime(reply.time)
                               }}</span>
                               <p class="text-secondary-700 text-xs mt-0.5">{{ reply.content }}</p>
-                              <div class="mt-1 flex items-center space-x-3 text-xs text-secondary-500">
+                              <div
+                                class="mt-1 flex items-center space-x-3 text-xs text-secondary-500"
+                              >
                                 <button
                                   class="flex items-center space-x-1 hover:text-accent-600 transition"
                                   @click.stop="toggleCommentLike(reply)"
@@ -1272,23 +1322,23 @@ onUnmounted(() => {
             </button>
           </div>
           <div class="flex space-x-3">
-          <input
-            ref="commentInputRef"
-            v-model="newComment"
-            type="text"
-            placeholder="發表你的看法..."
-            :disabled="isSubmittingComment"
-            class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            @keyup.enter.prevent="submitComment"
-          />
-          <button
-            :disabled="!newComment.trim() || isSubmittingComment"
-            class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
-            @click="submitComment"
-          >
-            <SendIcon v-if="!isSubmittingComment" class="w-5 h-5" />
-            <span v-else class="text-sm">提交中...</span>
-          </button>
+            <input
+              ref="commentInputRef"
+              v-model="newComment"
+              type="text"
+              placeholder="發表你的看法..."
+              :disabled="isSubmittingComment"
+              class="flex-1 p-3 border-2 border-secondary-300 rounded-lg focus:border-primary-500 transition shadow-inner bg-secondary-50 focus:bg-white outline-none text-black placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              @keyup.enter.prevent="submitComment"
+            />
+            <button
+              :disabled="!newComment.trim() || isSubmittingComment"
+              class="bg-primary-600 text-white px-5 py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50 flex items-center justify-center shadow-md"
+              @click="submitComment"
+            >
+              <SendIcon v-if="!isSubmittingComment" class="w-5 h-5" />
+              <span v-else class="text-sm">提交中...</span>
+            </button>
           </div>
         </div>
         <div
