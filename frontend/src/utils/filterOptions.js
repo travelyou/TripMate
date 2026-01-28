@@ -27,13 +27,6 @@ export const DISCUSSION_CATEGORY_OPTIONS = [
 
 export const ITINERARY_CATEGORY_OPTIONS = [
   '全部',
-  '國內旅遊',
-  '日韓旅遊',
-  '亞洲其他',
-  '歐美紐澳',
-  '海島度假',
-  '攝影/興趣',
-  '自駕共乘',
   '其他',
 ]
 

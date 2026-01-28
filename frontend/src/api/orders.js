@@ -7,9 +7,15 @@ const http = axios.create({
 })
 
 export async function fetchOrders(params = {}) {
-  const { data } = await http.get('/orders', { params })
-  if (!data?.ok) throw new Error(data?.message || 'fetchOrders failed')
-  return data.orders || []
+  try {
+    const { data } = await http.get('/orders', { params })
+    if (!data?.ok) throw new Error(data?.message || 'fetchOrders failed')
+    return data.orders || []
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message || '載入訂單失敗'
+    console.error('fetchOrders 錯誤:', error.response?.data || error)
+    throw new Error(errorMessage)
+  }
 }
 
 export async function updateOrderReview(orderId, { rating, comment }) {

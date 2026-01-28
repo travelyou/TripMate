@@ -1,6 +1,15 @@
 import axios from 'axios'
 import { API_BASE_URL } from './config'
 
+export const getAllVendorRegions = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/vendors/regions`)
+    return response.data
+  } catch (error) {
+    return { success: false, data: [] }
+  }
+}
+
 export const getVendorProfile = async (vendorId) => {
   try {
     const response = await axios.get(`${API_BASE_URL}/vendors/${vendorId}`)

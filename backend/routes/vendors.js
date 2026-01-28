@@ -7,6 +7,66 @@ function isUUID(str) {
   return uuidRegex.test(str)
 }
 
+router.get('/regions', async (req, res) => {
+  try {
+    const query = `
+      SELECT banner_image
+      FROM public.vendors
+      WHERE banner_image IS NOT NULL AND banner_image != ''
+    `
+    const result = await pool.query(query)
+
+    const allRegions = new Set()
+
+    result.rows.forEach((row) => {
+      const bannerImageData = row.banner_image
+      if (!bannerImageData) return
+
+      try {
+        let parsedData = null
+
+        if (typeof bannerImageData === 'string') {
+          if (bannerImageData.startsWith('[') || bannerImageData.startsWith('{')) {
+            parsedData = JSON.parse(bannerImageData)
+          } else {
+            return
+          }
+        } else if (Array.isArray(bannerImageData)) {
+          parsedData = bannerImageData
+        } else {
+          return
+        }
+
+        const regions = Array.isArray(parsedData) ? parsedData : []
+        regions.forEach((region) => {
+          if (region && region.name && region.name.trim()) {
+            allRegions.add(region.name.trim())
+          }
+        })
+      } catch (e) {
+      }
+    })
+
+    const regionArray = Array.from(allRegions)
+
+    for (let i = regionArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [regionArray[i], regionArray[j]] = [regionArray[j], regionArray[i]]
+    }
+
+    res.json({
+      success: true,
+      data: regionArray,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '取得廠商地區失敗',
+      error: error.message,
+    })
+  }
+})
+
 router.get('/:id', async (req, res) => {
   const { id } = req.params
 
@@ -288,7 +348,7 @@ router.get('/:id/itineraries', async (req, res) => {
     const countParams = [targetUid]
 
     if (region && region !== '全部') {
-      countQuery += ` AND location = $2`
+      countQuery += ` AND category = $2`
       countParams.push(region)
     }
 
@@ -305,6 +365,7 @@ router.get('/:id/itineraries', async (req, res) => {
         start_date,
         end_date,
         location,
+        category,
         tags,
         views_count,
         likes_count,
@@ -319,7 +380,7 @@ router.get('/:id/itineraries', async (req, res) => {
     let paramIndex = 2
 
     if (region && region !== '全部') {
-      query += ` AND location = $${paramIndex}`
+      query += ` AND category = $${paramIndex}`
       params.push(region)
       paramIndex++
     }

@@ -155,7 +155,12 @@ router.post('/from-cart', async (req, res) => {
     })
   } catch (err) {
     await client.query('ROLLBACK')
-    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+    console.error('POST /orders/from-cart 錯誤:', err)
+    return res.status(500).json({
+      ok: false,
+      message: '伺服器錯誤',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message, stack: err.stack })
+    })
   } finally {
     client.release()
   }
@@ -227,7 +232,12 @@ router.post('/', async (req, res) => {
       },
     })
   } catch (err) {
-    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+    console.error('POST /orders 錯誤:', err)
+    return res.status(500).json({
+      ok: false,
+      message: '伺服器錯誤',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message, stack: err.stack })
+    })
   }
 })
 
@@ -248,8 +258,8 @@ router.get('/', async (req, res) => {
     params.push(limit)
     const limitIndex = params.length
 
-    const q = await pool.query(
-      `SELECT
+    const sqlQuery = `
+      SELECT
         o.id,
         o.order_no,
         o.status,
@@ -259,8 +269,6 @@ router.get('/', async (req, res) => {
         o.itinerary_id,
         o.contact_json,
         o.emergency_contact_json,
-        o.rating,
-        o.comment,
         o.created_at,
         i.title,
         i.start_date,
@@ -286,9 +294,14 @@ router.get('/', async (req, res) => {
       ) p ON true
       ${whereSql}
       ORDER BY o.created_at DESC
-      LIMIT $${limitIndex}`,
-      params,
-    )
+      LIMIT $${limitIndex}`
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('GET /orders SQL:', sqlQuery)
+      console.log('GET /orders params:', params)
+    }
+
+    const q = await pool.query(sqlQuery, params)
 
     const orders = q.rows.map((row) => ({
       id: row.id,
@@ -301,9 +314,9 @@ router.get('/', async (req, res) => {
       createdAt: row.created_at,
       contact: parseJSON(row.contact_json, 'contact_json'),
       emergencyContact: parseJSON(row.emergency_contact_json, 'emergency_contact_json'),
-      rating: row.rating ? Number(row.rating) : null,
-      comment: row.comment || null,
-      itinerary: {
+        rating: null,
+        comment: null,
+        itinerary: {
         id: row.itinerary_id,
         title: row.title,
         startDate: row.start_date,
@@ -317,7 +330,12 @@ router.get('/', async (req, res) => {
 
     return res.json({ ok: true, orders })
   } catch (err) {
-    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+    console.error('GET /orders 錯誤:', err)
+    return res.status(500).json({
+      ok: false,
+      message: '伺服器錯誤',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message, stack: err.stack })
+    })
   }
 })
 
@@ -339,8 +357,6 @@ router.get('/:id', async (req, res) => {
         o.itinerary_id,
         o.contact_json,
         o.emergency_contact_json,
-        o.rating,
-        o.comment,
         o.created_at,
         i.title,
         i.start_date,
@@ -387,8 +403,8 @@ router.get('/:id', async (req, res) => {
         itineraryId: row.itinerary_id,
         contact,
         emergencyContact,
-        rating: row.rating ? Number(row.rating) : null,
-        comment: row.comment || null,
+        rating: null,
+        comment: null,
         createdAt: row.created_at,
       },
       itinerary: {
@@ -411,7 +427,12 @@ router.get('/:id', async (req, res) => {
         : null,
     })
   } catch (err) {
-    return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+    console.error('GET /orders/:id 錯誤:', err)
+    return res.status(500).json({
+      ok: false,
+      message: '伺服器錯誤',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message, stack: err.stack })
+    })
   }
 })
 
@@ -474,24 +495,45 @@ router.put('/:id/review', async (req, res) => {
       return res.status(400).json({ ok: false, message: '只有已付款的訂單才能評論' })
     }
 
-    const updateQuery = await pool.query(
-      `UPDATE commerce.orders
-       SET rating = $1, comment = $2, updated_at = NOW()
-       WHERE id = $3
-       RETURNING id, rating, comment`,
-      [rating || null, comment || null, id],
-    )
+    try {
+      const updateQuery = await pool.query(
+        `UPDATE commerce.orders
+         SET rating = $1, comment = $2, updated_at = NOW()
+         WHERE id = $3
+         RETURNING id, rating, comment`,
+        [rating || null, comment || null, id],
+      )
 
-    return res.json({
-      ok: true,
-      order: {
-        id: updateQuery.rows[0].id,
-        rating: updateQuery.rows[0].rating ? Number(updateQuery.rows[0].rating) : null,
-        comment: updateQuery.rows[0].comment || null,
-      },
-    })
+      return res.json({
+        ok: true,
+        order: {
+          id: updateQuery.rows[0].id,
+          rating: updateQuery.rows[0].rating ? Number(updateQuery.rows[0].rating) : null,
+          comment: updateQuery.rows[0].comment || null,
+        },
+      })
+    } catch (updateErr) {
+      if (updateErr.message && updateErr.message.includes('column') &&
+          (updateErr.message.includes('rating') || updateErr.message.includes('comment'))) {
+        console.error('PUT /orders/:id/review 錯誤: 列不存在，请运行迁移脚本')
+        return res.status(500).json({
+          ok: false,
+          message: '評價功能尚未啟用，請聯繫管理員添加 rating 和 comment 列到 commerce.orders 表',
+          ...(process.env.NODE_ENV === 'development' && {
+            error: updateErr.message,
+            hint: '运行 migrations/add_rating_comment_to_orders.sql 来添加这些列'
+          })
+        })
+      }
+      throw updateErr
+    }
   } catch (err) {
-    return res.status(500).json({ ok: false, message: '伺服器錯誤', error: err.message })
+    console.error('PUT /orders/:id/review 錯誤:', err)
+    return res.status(500).json({
+      ok: false,
+      message: '伺服器錯誤',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message, stack: err.stack })
+    })
   }
 })
 

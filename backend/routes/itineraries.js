@@ -38,7 +38,8 @@ router.get('/', async (req, res) => {
         end_date,
         COALESCE(end_date - start_date + 1, 1) as "durationDays",
         banner_image as "coverImage",
-        location as destinations,
+        location,
+        category,
         content as description,
         views_count as "totalViews",
         saves_count as "totalSaves",
@@ -51,7 +52,7 @@ router.get('/', async (req, res) => {
 
     const data = result.rows.map((row) => ({
       ...row,
-      destinations: row.destinations ? [row.destinations] : [],
+      destinations: row.location ? [row.location] : [],
     }))
 
     res.json({ success: true, data })
