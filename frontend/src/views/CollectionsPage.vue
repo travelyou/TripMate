@@ -10,14 +10,12 @@ import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
-// 引入卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 
 const userStore = useUserStore()
 
-// 當前選中的分類 ID (預設 'all')
 const activeCategoryId = ref('all')
 const hydratedItems = ref({})
 const loadingItems = ref({})
@@ -111,7 +109,6 @@ const hydrateItem = async (item) => {
   }
 }
 
-// --- 動作：新增分類 ---
 const createNewCategory = async () => {
   const name = await showPrompt('請輸入新分類名稱：')
   if (name) {
@@ -121,9 +118,7 @@ const createNewCategory = async () => {
   }
 }
 
-// --- 動作：刪除目前分類 ---
 const deleteCurrentCategory = async () => {
-  // 保護預設分類不被刪除
   const protectedIds = ['all', 'default', 'domestic', 'international']
   if (protectedIds.includes(activeCategoryId.value)) return
 
@@ -137,7 +132,6 @@ const deleteCurrentCategory = async () => {
   }
 }
 
-// --- 動作：從分類中移除項目 ---
 const removeItem = async (item) => {
   const confirmed = await showConfirm('確定要取消收藏嗎？')
   if (confirmed) {
@@ -147,7 +141,6 @@ const removeItem = async (item) => {
   }
 }
 
-// --- 資料計算 ---
 const tabs = computed(() => {
   const categories = userStore.collectionCategories.map((cat) => ({
     id: cat.id,
@@ -257,7 +250,6 @@ const closeItineraryDetail = () => {
   selectedItinerary.value = null
 }
 
-// 統一橘色系樣式
 const getTabStyle = (isActive) => {
   let baseStyle = 'text-secondary-500 hover:bg-secondary-100 hover:text-secondary-700'
   let activeStyle = 'bg-primary-50 text-primary-600 shadow-sm ring-2 ring-primary-200'
@@ -441,6 +433,4 @@ const getTabStyle = (isActive) => {
   opacity: 0;
   transform: translateY(20px);
 }
-
-/* scrollbar rules moved to src/assets/main.css */
 </style>

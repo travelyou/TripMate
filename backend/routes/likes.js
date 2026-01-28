@@ -155,7 +155,6 @@ router.post('/', async (req, res) => {
                   likerAvatar = user.avatar && user.avatar.trim() !== '' ? user.avatar : null
                 }
               } catch (error) {
-                // 查詢用戶資訊失敗，使用默認值
               }
 
               await createLikeNotification({
@@ -171,7 +170,6 @@ router.post('/', async (req, res) => {
           }
         }
       } catch (notifError) {
-        // 創建按讚通知失敗（不影響主流程）
       }
     }
 

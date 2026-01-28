@@ -3,7 +3,6 @@ const express = require('express')
 const router = express.Router()
 const db = require('../database/connection')
 
-// [GET] 取得個人規劃行程
 router.get('/personal/:uid', async (req, res) => {
   const { uid } = req.params
   try {
@@ -17,7 +16,6 @@ router.get('/personal/:uid', async (req, res) => {
   }
 })
 
-// [GET] 取得已參加並通過的找旅伴行程 (包含評價狀態)
 router.get('/joined/:uid', async (req, res) => {
   const { uid } = req.params
   try {
@@ -59,7 +57,6 @@ router.get('/joined/:uid', async (req, res) => {
   }
 })
 
-// [POST] 新增個人行程
 router.post('/', async (req, res) => {
   const { user_uid, title, location, start_date, end_date, itinerary, packing_list } = req.body
   try {
@@ -82,7 +79,6 @@ router.post('/', async (req, res) => {
   }
 })
 
-// [PUT] 更新個人行程
 router.put('/:id', async (req, res) => {
   const { id } = req.params
   const { title, location, start_date, end_date, itinerary, packing_list } = req.body
@@ -109,7 +105,6 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-// [DELETE] 刪除個人行程
 router.delete('/:id', async (req, res) => {
   const { id } = req.params
   try {

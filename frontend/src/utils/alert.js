@@ -1,14 +1,10 @@
 import Swal from 'sweetalert2'
 
-// 將純文字的換行轉成 SweetAlert2 可顯示的 <br />
 const toHtml = (text) => (text ?? '').toString().replace(/\n/g, '<br />')
 
-// 全站共用樣式（圓角 / 陰影 / 按鈕樣式）
 const swal = Swal.mixin({
-  // 讓 customClass 的按鈕樣式生效（不被預設樣式覆蓋）
   buttonsStyling: false,
 
-  // 你可以在這裡統一整個彈窗的圓角、陰影、間距
   customClass: {
     popup: 'rounded-2xl shadow-2xl',
     actions: 'flex gap-3 justify-end',

@@ -6,9 +6,6 @@ const http = axios.create({
   withCredentials: true,
 })
 
-/**
- * 獲取用戶通知列表
- */
 export async function getNotifications(uid, limit = 50, offset = 0) {
   try {
     const response = await http.get(`/notifications/${uid}`, {
@@ -20,9 +17,6 @@ export async function getNotifications(uid, limit = 50, offset = 0) {
   }
 }
 
-/**
- * 獲取未讀通知數量
- */
 export async function getUnreadCount(uid) {
   try {
     const response = await http.get(`/notifications/${uid}/unread-count`)
@@ -32,9 +26,6 @@ export async function getUnreadCount(uid) {
   }
 }
 
-/**
- * 標記通知為已讀
- */
 export async function markAsRead(notificationId) {
   try {
     const response = await http.patch(`/notifications/${notificationId}/read`)
@@ -44,9 +35,6 @@ export async function markAsRead(notificationId) {
   }
 }
 
-/**
- * 標記所有通知為已讀
- */
 export async function markAllAsRead(uid) {
   try {
     const response = await http.patch(`/notifications/${uid}/read-all`)
@@ -56,9 +44,6 @@ export async function markAllAsRead(uid) {
   }
 }
 
-/**
- * 刪除通知
- */
 export async function deleteNotification(notificationId) {
   try {
     const response = await http.delete(`/notifications/${notificationId}`)

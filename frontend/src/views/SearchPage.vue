@@ -129,7 +129,6 @@
             class="bg-white p-4 rounded-xl border-2 border-secondary-100 hover:border-primary-300 hover:shadow-md transition cursor-pointer flex gap-4 group"
             @click="handleResultClick(item)"
           >
-            <!-- 使用者和找旅伴：顯示圓形頭像 -->
             <div v-if="item.type === 'traveler' || item.type === 'user'" class="w-16 h-16 shrink-0 rounded-full bg-secondary-100 flex items-center justify-center overflow-hidden border-2 border-secondary-200 group-hover:border-primary-200 transition">
               <img
                 v-if="item.avatar && isValidImageUrl(item.avatar) && !avatarErrors[`${item.type}-${item.id}`]"
@@ -143,7 +142,6 @@
                 class="w-8 h-8 text-secondary-400"
               />
             </div>
-            <!-- 討論區和行程：顯示方形圖片 -->
             <div
               v-else
               class="w-24 h-24 shrink-0 bg-secondary-100 rounded-lg overflow-hidden border border-secondary-100"
@@ -276,7 +274,7 @@ const searchQuery = ref('')
 const hasSearched = ref(false)
 const isSearching = ref(false)
 const activeTab = ref('all')
-const activeSubFilters = ref(['全部']) // 陣列但只允許單選
+const activeSubFilters = ref(['全部'])
 
 const currentPage = ref(1)
 const itemsPerPage = 10
@@ -305,7 +303,6 @@ const currentSubFilters = computed(() => {
   return subFilterOptions[activeTab.value] || []
 })
 
-// 關鍵字常數（避免重複定義）
 const FILTER_KEYWORDS = {
   '國內旅遊': ['台灣', '國內', '本島', '離島', '澎湖', '金門', '馬祖', '花蓮', '台東', '墾丁', '阿里山', '日月潭'],
   '日韓旅遊': ['日本', '韓國', '東京', '大阪', '京都', '首爾', '釜山', '沖繩', '北海道'],
@@ -323,7 +320,6 @@ const FILTER_KEYWORDS = {
   '行程請益': ['行程', '行程規劃', '行程安排', '行程建議', '請益', '詢問', '問題', '求助', '建議', '行程討論', '行程分享'],
 }
 
-// 共用的關鍵字匹配函數
 const matchByKeywords = (filter, item, originalData, categoryValue) => {
   const keywords = FILTER_KEYWORDS[filter]
   if (!keywords) return false
@@ -337,19 +333,15 @@ const matchByKeywords = (filter, item, originalData, categoryValue) => {
   )
 }
 
-// 共用的分類篩選函數
 const matchCategoryFilter = (filter, item, originalData) => {
-  // 國內旅遊、日韓旅遊、亞洲其他、歐美紐澳、海島度假 共用邏輯
   if (['國內旅遊', '日韓旅遊', '亞洲其他', '歐美紐澳', '海島度假'].includes(filter)) {
     return matchByKeywords(filter, item, originalData, filter)
   }
 
-  // 攝影（找旅伴）
   if (filter === '攝影') {
     return matchByKeywords('攝影', item, originalData, '攝影')
   }
 
-  // 攝影/興趣（精選行程）
   if (filter === '攝影/興趣') {
     return (
       matchByKeywords('攝影/興趣', item, originalData, '攝影/興趣') ||
@@ -357,12 +349,10 @@ const matchCategoryFilter = (filter, item, originalData) => {
     )
   }
 
-  // 自駕共乘
   if (filter === '自駕共乘') {
     return matchByKeywords('自駕共乘', item, originalData, '自駕共乘')
   }
 
-  // 其他
   if (filter === '其他') {
     return (
       originalData.category === '其他' ||
@@ -402,7 +392,6 @@ const allData = computed(() => {
   }
   if (travelersStore.recommendations) {
     travelersStore.recommendations.forEach((traveler) => {
-      // 過濾有效的頭像 URL
       const avatarUrl = traveler.avatar || traveler.image
       const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
                          !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
@@ -443,7 +432,6 @@ const allData = computed(() => {
   }
   if (users.value && users.value.length > 0) {
     users.value.forEach((user) => {
-      // 過濾有效的頭像 URL（只使用資料庫的 avatar）
       const avatarUrl = user.avatar
       const validAvatar = avatarUrl && typeof avatarUrl === 'string' &&
                          !avatarUrl.startsWith('blob:') && !avatarUrl.startsWith('data:') &&
@@ -481,14 +469,11 @@ const highlightText = (text) => {
     }
   }
 
-  // 2. 依照長度排序 (長詞優先，避免 "台北" 先被 "台" 取代壞掉)
   matchers.sort((a, b) => b.length - a.length)
 
-  // 3. 建立 Regex: (Query|Bigram1|Bigram2)
   const pattern = matchers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
   const regex = new RegExp(`(${pattern})`, 'gi')
 
-  // 4. 替換文字，加上 highlight class
   return text.replace(
     regex,
     '<span class="bg-primary-100 text-primary-700 font-bold rounded-sm px-0.5">$1</span>',
@@ -501,7 +486,6 @@ const filteredResults = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   if (!query) return []
 
-  // Bigram 邏輯
   const bigrams = []
   if (query.length >= 2) {
     for (let i = 0; i < query.length - 1; i++) {
@@ -515,7 +499,6 @@ const filteredResults = computed(() => {
     const desc = item.description ? item.description.toLowerCase() : ''
     const itemTags = item.tags ? item.tags.map((t) => t.toLowerCase()) : []
 
-    // 權重計分
     if (title.includes(query)) score += 50
     if (itemTags.some((t) => t.includes(query))) score += 30
     if (desc.includes(query)) score += 10
@@ -540,14 +523,11 @@ const filteredResults = computed(() => {
     const matchTab = activeTab.value === 'all' || item.type === activeTab.value
 
     let matchSubFilter = true
-    // 如果選中「全部」或沒有選中任何條件，顯示所有項目
     if (activeSubFilters.value.includes('全部') || activeSubFilters.value.length === 0) {
       matchSubFilter = true
     } else {
-      // 支援複選：只要符合任何一個選中的條件就顯示（OR 邏輯）
       const originalData = item.originalData || {}
       matchSubFilter = activeSubFilters.value.some((filter) => {
-        // 找旅伴專屬篩選
         if (activeTab.value === 'traveler' || item.type === 'traveler') {
           if (filter === '招募中') {
             return (
@@ -561,43 +541,34 @@ const filteredResults = computed(() => {
               item.title.includes('已成行')
             )
           } else {
-            // 使用共用的分類篩選函數
             return matchCategoryFilter(filter, item, originalData)
           }
         }
-        // 討論區專屬篩選
         else if (activeTab.value === 'discussion' || item.type === 'discussion') {
-          // 國內旅遊、亞洲旅遊、歐美紐澳 使用共用邏輯
           if (['國內旅遊', '亞洲旅遊', '歐美紐澳'].includes(filter)) {
             return matchByKeywords(filter, item, originalData, filter)
           }
 
-          // 攝影愛好
           if (filter === '攝影愛好') {
             return matchByKeywords('攝影愛好', item, originalData, '攝影愛好')
           }
 
-          // 交通建議
           if (filter === '交通建議') {
             return matchByKeywords('交通建議', item, originalData, '交通建議')
           }
 
-          // 美食分享
           if (filter === '美食分享') {
             return matchByKeywords('美食分享', item, originalData, '美食分享')
           }
 
-          // 住宿推薦
           if (filter === '住宿推薦') {
             return matchByKeywords('住宿推薦', item, originalData, '住宿推薦')
           }
 
-          // 行程請益
           if (filter === '行程請益') {
             return matchByKeywords('行程請益', item, originalData, '行程請益')
           }
 
-          // 其他
           if (filter === '其他') {
             return (
               originalData.category === '其他' ||
@@ -607,13 +578,10 @@ const filteredResults = computed(() => {
             )
           }
         }
-        // 精選行程專屬篩選
         else if (activeTab.value === 'itinerary' || item.type === 'itinerary') {
-          // 使用共用的分類篩選函數
           return matchCategoryFilter(filter, item, originalData)
         }
-        // 使用者專屬篩選（目前只有「全部」選項，無需額外篩選邏輯）
-        return false // 如果沒有匹配到任何條件，返回 false
+        return false
       })
     }
 
@@ -647,12 +615,10 @@ onMounted(async () => {
     searchInput.value?.focus()
   }
 
-  // 載入使用者資料
   loadingUsers.value = true
   try {
     users.value = await getAllUsers({ limit: 100 })
   } catch (error) {
-    console.error('載入使用者列表失敗：', error)
   } finally {
     loadingUsers.value = false
   }
@@ -671,19 +637,14 @@ watch(
 const performSearch = async () => {
   if (!searchQuery.value.trim()) return
   
-  // 顯示 loading 動畫
   isSearching.value = true
   hasSearched.value = true
   currentPage.value = 1
   
-  // 添加短暫延遲以顯示 loading 動畫（提升用戶體驗）
-  // 如果搜索結果計算很快，至少顯示 300ms 的 loading
   await new Promise(resolve => setTimeout(resolve, 300))
   
-  // 等待下一個 tick 確保 computed 已經更新
   await new Promise(resolve => setTimeout(resolve, 50))
   
-  // 隱藏 loading 動畫
   isSearching.value = false
 }
 
@@ -698,15 +659,12 @@ const quickSearch = (keyword) => {
   performSearch()
 }
 
-// 切換子篩選條件（單選）
 const toggleSubFilter = (filter) => {
   if (filter === '全部') {
-    // 點擊「全部」，清除其他選項，只保留「全部」
     activeSubFilters.value = ['全部']
     return
   }
 
-  // 單選：只保留被點選的項目；再次點選同一項則回到「全部」
   if (activeSubFilters.value[0] === filter) {
     activeSubFilters.value = ['全部']
     return
@@ -735,10 +693,8 @@ const getCategoryStyle = (type) => {
 
 const handleResultClick = (item) => {
   if (item.type === 'user') {
-    // 導航到使用者個人頁面
     router.push(`/profile/${item.id}`)
   } else {
-    // 其他類型打開 modal
   selectedPost.value = item.originalData
   isModalOpen.value = true
   }
@@ -749,7 +705,6 @@ const closeDiscussionDetailModal = () => {
   selectedPost.value = null
 }
 
-// 頭像錯誤處理
 const handleAvatarError = (key) => {
   avatarErrors.value[key] = true
 }

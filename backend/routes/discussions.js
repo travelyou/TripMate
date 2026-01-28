@@ -26,7 +26,6 @@ router.get('/', async (req, res) => {
       paramIndex++
     }
 
-    // [修正] 搜尋功能改用 u.nickname 而不是 d.author_name
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`
       whereClause += ` AND (
@@ -45,7 +44,6 @@ router.get('/', async (req, res) => {
       paramIndex++
     }
 
-    // [修正] SQL 移除 d.author_name, d.author_avatar，完全改用 users 表的資料
     const discussionsQuery = `
       SELECT
         d.id,
@@ -81,7 +79,6 @@ router.get('/', async (req, res) => {
 
     const discussionsResult = await pool.query(discussionsQuery, queryParams)
 
-    // [修正] 總數查詢也要 JOIN users 才能搜尋作者名
     let countQuery = `
       SELECT COUNT(*)
       FROM discussion.discussion d
@@ -156,7 +153,6 @@ router.get('/', async (req, res) => {
   }
 })
 
-// POST /api/discussions - 創建新討論
 router.post('/', async (req, res) => {
 
   try {
@@ -197,7 +193,6 @@ router.post('/', async (req, res) => {
 
     const newDiscussion = discussionResult.rows[0]
 
-    // 回傳完整資料（包含 JOIN 的 user 資訊）
     const discussionQuery = `
       SELECT
         d.id,
@@ -229,7 +224,6 @@ router.post('/', async (req, res) => {
   }
 })
 
-// GET /api/discussions/:id - 獲取詳情
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -239,9 +233,6 @@ router.get('/:id', async (req, res) => {
       return res.status(400).json({ error: '討論 ID 格式錯誤', details: 'id 必須是正整數' })
     }
 
-    // 獲取討論，包含按讚數和留言數，並 JOIN users 表獲取最新頭貼
-    // 一律使用 users 表的數據，不使用 discussion 表的舊值
-    // [修正] 移除 d.author_name 等欄位，改用 users 表
     const discussionQuery = `
       SELECT
         d.id,
@@ -281,7 +272,6 @@ router.get('/:id', async (req, res) => {
 
     const discussion = discussionResult.rows[0]
 
-    // 獲取留言，JOIN users 表
     const commentsResult = await pool.query(
       `SELECT
         c.*,
@@ -316,7 +306,6 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// PUT (更新)
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -355,7 +344,6 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-// DELETE (刪除)
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params

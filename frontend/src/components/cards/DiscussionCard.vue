@@ -29,8 +29,6 @@ const handleAvatarClick = (e) => {
   const authorUid = props.post.author_uid || props.post.authorUid
   if (authorUid) {
     router.push({ path: `/profile/${authorUid}`, replace: false })
-  } else {
-    console.warn('無法跳轉：找不到作者 UID', props.post)
   }
 }
 
@@ -51,9 +49,8 @@ const showMenu = ref(false)
 const isReported = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
-const toastType = ref('info') // 'info' for share, 'success' for report
+const toastType = ref('info')
 
-// 過濾掉無效的圖片 URL
 const validBanner = computed(() => {
   return isValidImageUrl(props.post.banner) ? props.post.banner : null
 })
@@ -79,7 +76,6 @@ const itemData = computed(() => ({
   category: props.post.category,
 }))
 
-// --- 純文字清洗邏輯 ---
 const previewContent = computed(() => {
   if (!props.post.content) return ''
 
@@ -101,7 +97,6 @@ const loadLikesInfo = async () => {
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount || props.post.likes || 0
   } catch (error) {
-    console.error('載入按讚狀態失敗：', error)
   }
 }
 
@@ -132,7 +127,6 @@ const handlePostLike = async () => {
       likes: result.likesCount,
     })
   } catch (error) {
-    console.error('按讚操作失敗：', error)
     alert('按讚操作失敗，請稍後再試')
   }
 }
@@ -188,7 +182,6 @@ const handleDelete = async (e) => {
     emit('delete', props.post)
     window.location.reload()
   } catch (error) {
-    console.error('刪除失敗:', error)
     alert('刪除失敗，請稍後再試')
   }
 }
@@ -201,7 +194,6 @@ const handleShare = async (e) => {
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製貼文網址', 'info')
   } catch (error) {
-    console.error('複製失敗:', error)
     alert('複製失敗，請稍後再試')
   }
 }

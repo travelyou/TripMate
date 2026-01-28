@@ -95,10 +95,8 @@ export const useNotificationsStore = defineStore('notifications', {
         if (response.success) {
           const index = this.notifications.findIndex((n) => n.id === notificationId)
           if (index !== -1) {
-            // 先保存通知資訊，再刪除
             const notification = this.notifications[index]
             this.notifications.splice(index, 1)
-            // 如果刪除的是未讀通知，減少未讀數量
             if (notification && !notification.is_read && this.unreadCount > 0) {
               this.unreadCount--
             }
@@ -108,7 +106,6 @@ export const useNotificationsStore = defineStore('notifications', {
       }
     },
 
-    // 刷新通知（用於輪詢）
     async refreshNotifications(uid) {
       await Promise.all([
         this.fetchNotifications(uid),

@@ -534,7 +534,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
       const spiritAnimalValue = `${result.animalEmoji} ${result.animalName}`
 
       try {
-        // 1. 先更新 Neon 資料庫
         const { updateUserProfile } = await import('@/api/users')
         try {
           await updateUserProfile(uid, {
@@ -543,7 +542,6 @@ export const usePersonalityStore = defineStore('personalityTest', {
         } catch (neonError) {
         }
 
-        // 2. 更新 Firestore
         try {
           const userDocRef = doc(db, 'users', uid)
           const userDoc = await getDoc(userDocRef)
@@ -573,13 +571,11 @@ export const usePersonalityStore = defineStore('personalityTest', {
           throw firestoreError
         }
 
-        // 3. 更新本地 store
         this.savedResult = result
         userStore.updateProfile({
           spiritAnimal: spiritAnimalValue,
         })
 
-        // 4. 重新載入用戶資料以確保同步
         if (typeof userStore.loadUserProfile === 'function') {
           try {
             await userStore.loadUserProfile(uid)

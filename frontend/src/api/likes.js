@@ -141,7 +141,6 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// 按讚/取消按讚
 export async function toggleLike(postId, authorUid, board = 'discussion', options = {}) {
   const key = getLikeKey(postId, authorUid, board)
 
@@ -183,7 +182,6 @@ export async function toggleLike(postId, authorUid, board = 'discussion', option
   return optimistic
 }
 
-// 獲取貼文的按讚資訊
 export async function getLikesInfo(postId, authorUid = null, board = 'discussion') {
   try {
     let url = `${API_BASE_URL}/likes/${postId}?board=${board}`

@@ -144,6 +144,8 @@ router.post('/', authenticate, async (req, res) => {
       itinerary,
       packingList,
       tags,
+      category,
+      max_people,
     } = req.body
 
     if (!start_date || !end_date) {
@@ -154,8 +156,8 @@ router.post('/', authenticate, async (req, res) => {
 
     const insertItineraryQuery = `
       INSERT INTO itinerary.itineraries
-      (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, author_uid, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, category, max_people, author_uid, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
       RETURNING id
     `
 
@@ -169,6 +171,8 @@ router.post('/', authenticate, async (req, res) => {
       start_date,
       end_date,
       tags || [],
+      category || null,
+      max_people || 20,
       req.user.uid,
       'published',
     ]

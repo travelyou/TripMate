@@ -1,12 +1,10 @@
 import { ROLES } from './roles'
 
 export const CAPABILITIES = {
-  // Post capabilities
   CREATE_POST: 'CREATE_POST',
   EDIT_OWN_POST: 'EDIT_OWN_POST',
   DELETE_OWN_POST: 'DELETE_OWN_POST',
 
-  // Vendor capabilities
   ACCESS_VENDOR_DASHBOARD: 'ACCESS_VENDOR_DASHBOARD',
   MANAGE_PRODUCTS: 'MANAGE_PRODUCTS',
 }
@@ -26,7 +24,6 @@ const RULES = {
     CAPABILITIES.MANAGE_PRODUCTS
   ],
   [ROLES.ADMIN]: [
-    // 暫無權限定義
   ]
 }
 

@@ -53,7 +53,6 @@ export const useTravelersStore = defineStore('travelers', () => {
         }
       }
     } catch (err) {
-      console.error('載入旅伴推薦失敗：', err)
       error.value = err
     } finally {
       loading.value = false

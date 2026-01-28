@@ -106,7 +106,6 @@ export async function updateUserProfile(uid, userData) {
     try {
       token = await auth.currentUser.getIdToken()
     } catch {
-      // 靜默處理錯誤
     }
   }
 
@@ -180,7 +179,6 @@ export async function updateUserProfile(uid, userData) {
       })
     }
   } catch {
-    // Firestore 更新失敗不影響主要流程
   }
 
   return result
@@ -206,7 +204,6 @@ export async function deleteUserAccount(uid) {
     try {
       token = await auth.currentUser.getIdToken()
     } catch {
-      // 靜默處理錯誤
     }
   }
 

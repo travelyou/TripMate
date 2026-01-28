@@ -1,5 +1,3 @@
-// src/config/aiConfig.js
-
 export const GEMINI_MODEL_NAME = 'gemini-3-flash-preview'
 
 export const TRIPMATE_SYSTEM_PROMPT = `

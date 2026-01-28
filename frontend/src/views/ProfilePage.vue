@@ -6,7 +6,6 @@ import { usePersonalityStore } from '@/stores/personality'
 import { useDiscussionsStore } from '@/stores/discussions'
 import { getTravelers } from '@/api/travelers'
 
-// Modal Components
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
@@ -14,7 +13,6 @@ import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsM
 import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import PersonalityResultModal from '@/components/modals/PersonalityResultModal.vue'
 
-// Components
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
 import ProfileSidebar from '@/components/profile/ProfileSidebar.vue'
 import FriendListModal from '@/components/profile/FriendListModal.vue'
@@ -22,14 +20,12 @@ import EditProfileModal from '@/components/profile/EditProfileModal.vue'
 import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
 import AvatarPickerModal from '@/components/modals/AvatarPickerModal.vue'
 
-// Tabs
 import TabHostedTrips from '@/components/profile/tabs/TabHostedTrips.vue'
 import TabVisitedPlaces from '@/components/profile/tabs/TabVisitedPlaces.vue'
 import TabPosts from '@/components/profile/tabs/TabPosts.vue'
 import TabReviews from '@/components/profile/tabs/TabReviews.vue'
 import TabDrafts from '@/components/profile/tabs/TabDrafts.vue'
 
-// [NEW] 引入名片設定組件
 import CardSettingsModal from '@/components/profile/card/CardSettingsModal.vue'
 import SettingsModal from '@/components/profile/SettingsModal.vue'
 
@@ -39,7 +35,6 @@ const discussionsStore = useDiscussionsStore()
 const route = useRoute()
 const router = useRouter()
 
-// --- 核心資料計算 ---
 const targetUid = computed(() => {
   if (route.params.uid) return route.params.uid
   if (userStore.isLoggedIn && userStore.currentUser?.uid) return userStore.currentUser.uid
@@ -53,7 +48,6 @@ const isCurrentUser = computed(() => {
 
 const viewingUser = ref(null)
 const user = computed(() => {
-  // 如果是查看他人檔案
   if (targetUid.value && targetUid.value !== userStore.currentUser?.uid) {
     return (
       viewingUser.value || {
@@ -81,7 +75,6 @@ const user = computed(() => {
       }
     )
   }
-  // 如果是查看自己檔案，直接返回 currentUser
   return userStore.currentUser || null
 })
 
@@ -91,7 +84,6 @@ const displayWishlist = computed(() => {
   return isCurrentUser.value ? userStore.wishlist : user.value.wishlist || []
 })
 
-// --- Tabs 設定 ---
 const activeTab = ref('visited_places')
 const tabs = computed(() => {
   const baseTabs = [
@@ -106,7 +98,6 @@ const tabs = computed(() => {
   return baseTabs
 })
 
-// --- 狀態控制變數 ---
 const isDetailModalOpen = ref(false)
 const isTravelerDetailModalOpen = ref(false)
 const isTravelerApplyModalOpen = ref(false)
@@ -123,12 +114,10 @@ const isAvatarCropOpen = ref(false)
 const avatarFileToCrop = ref(null)
 const isAvatarPickerOpen = ref(false)
 
-// [NEW] 名片 Modal 狀態
 const isCardSettingsOpen = ref(false)
 const isMatchingEnabled = ref(true)
 const friendRequestStatus = ref(null)
 
-// 設定 Modal 狀態
 const isSettingsOpen = ref(false)
 
 const hostedTravelers = ref([])
@@ -140,21 +129,18 @@ const activeTabsData = computed(() => {
   return {
     hostedTrips: hostedTravelers.value
       .filter((traveler) => {
-        // 確保只顯示用戶創建的旅行（author_uid 必須等於目標用戶）
-        // 明確檢查 author_uid，不允許參加過的旅行（通過 traveler_applications 獲取的）
         const travelerAuthorUid = traveler.author_uid || traveler.authorUid
         return travelerAuthorUid === targetUidValue && travelerAuthorUid !== null && travelerAuthorUid !== undefined
       })
       .map((traveler) => ({
         ...traveler,
-        type: 'traveler', // 添加 type 字段以便 openDetail 正確識別
+        type: 'traveler',
         comments: traveler.comments || 0,
         tags: traveler.tags || [],
       })),
     posts: userPosts.value
       .filter((post) => (post.author_uid || post.authorUid) === targetUidValue)
       .map((post) => {
-        // 使用 discussionsStore.transformPost 來正確轉換貼文數據，包括時間格式化
         return discussionsStore.transformPost(post)
       }),
     reviews: (user.value && user.value.reviews) || [],
@@ -168,8 +154,6 @@ const stats = computed(() => ({
   reviews: profileStats.value.reviews || activeTabsData.value.reviews.length,
   friends: profileStats.value.friends || user.value?.friends?.length || 0,
 }))
-
-// --- Methods ---
 
 const openCardSettings = () => {
   if (userStore.isVendor) {
@@ -193,19 +177,16 @@ const handleToggleMatching = async () => {
       userStore.updateProfile({ isMatchingEnabled: newValue })
     }
   } catch (error) {
-    console.error('更新配對狀態失敗', error)
-    isMatchingEnabled.value = !newValue // Rollback
+    isMatchingEnabled.value = !newValue
     alert('設定失敗，請稍後再試')
   }
 }
 
-// 儲存名片：只存 card_bio, card_tags, card_photo
 const handleSaveCard = async (formData) => {
   if (!user.value?.uid) return
   try {
     const { updateUserProfile } = await import('@/api/users')
 
-    // 只更新名片專用欄位
     const updateData = {
       card_bio: formData.card_bio,
       card_tags: formData.card_tags,
@@ -215,53 +196,44 @@ const handleSaveCard = async (formData) => {
 
     await updateUserProfile(user.value.uid, updateData)
 
-    // 更新 Store (讓 UI 即時反應)
     userStore.updateProfile(updateData)
 
-    // 重新拉取資料確保同步
     await loadProfileData()
   } catch (error) {
-    console.error('儲存名片失敗', error)
     alert('儲存失敗')
   }
 }
 
-// 個人檔案編輯 (帳號層級 + 許願球池 + 標籤)
 const handleSaveProfile = async (formData) => {
   if (!isCurrentUser.value || !user.value?.uid) return
 
-  // 1. 解構資料
   const { wishlist, tags, ...profileData } = formData
 
   try {
     const { updateUserProfile } = await import('@/api/users')
     const { updateWishlist } = await import('@/api/profile')
 
-    // 2. 更新使用者基本資料 (包含 tags)
     await updateUserProfile(user.value.uid, {
       nickname: profileData.nickname || profileData.name,
       location: profileData.location,
       avatar: profileData.avatar,
-      bio: profileData.bio, // 這是個人檔案的 bio
-      tags: tags || [], // 這裡要存個人檔案的 tags
+      bio: profileData.bio,
+      tags: tags || [],
     })
 
-    // 3. 更新許願球池
     const newWishlist = Array.isArray(wishlist) ? wishlist : []
     await updateWishlist(user.value.uid, newWishlist)
 
-    // 4. 更新 Store
     userStore.updateProfile({
       ...profileData,
       nickname: profileData.nickname || profileData.name,
       tags: tags || [],
     })
-    userStore.wishlist = newWishlist // 更新 Store 中的球池
+    userStore.wishlist = newWishlist
 
     isEditingProfile.value = false
     await loadProfileData()
   } catch (e) {
-    console.error('儲存個人檔案失敗', e)
     const errorMessage = e.message || e.response?.data?.error || '儲存失敗，請稍後再試'
     alert(errorMessage)
   }
@@ -282,7 +254,6 @@ const handleAddFriend = async () => {
   try {
     const { addFriend, removeFriend } = await import('@/api/profile')
 
-    // 如果已經是好友，執行解除好友
     if (friendRequestStatus.value === 'accepted') {
       const confirmed = confirm('確定要解除好友關係嗎？')
       if (!confirmed) return
@@ -294,19 +265,16 @@ const handleAddFriend = async () => {
       return
     }
 
-    // 如果已發送請求，提示用戶
     if (friendRequestStatus.value === 'sent') {
       alert('已發送好友請求，請等待對方回應')
       return
     }
 
-    // 發送好友請求
     await addFriend(currentUid, friendUid)
     alert('已發送好友請求')
     friendRequestStatus.value = 'sent'
     await loadProfileData()
   } catch (error) {
-    console.error('加好友失敗：', error)
     alert(error.message || '操作失敗，請稍後再試')
   }
 }
@@ -333,7 +301,6 @@ const handleOpenFriends = () => {
   isFriendModalOpen.value = true
 }
 
-// [修正] 資料載入 - 確保 reviews 被正確存入
 const loadProfileData = async () => {
   const uidToLoad = route.params.uid || userStore.currentUser?.uid
   if (!uidToLoad) return
@@ -346,7 +313,6 @@ const loadProfileData = async () => {
     const { getTravelers } = await import('@/api/travelers')
     const travelersRes = await getTravelers({ author_uid: uidToLoad, limit: 100 })
     if (travelersRes.success) {
-      // 確保只包含用戶創建的旅行，過濾掉任何可能的參加過的旅行
       hostedTravelers.value = (travelersRes.data || []).filter((traveler) => {
         const travelerAuthorUid = traveler.author_uid || traveler.authorUid
         return travelerAuthorUid === uidToLoad
@@ -358,7 +324,6 @@ const loadProfileData = async () => {
       const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
       if (postsRes?.posts) userPosts.value = postsRes.posts
     } catch (e) {
-      console.warn('貼文載入失敗，跳過', e)
     }
 
     if (profileData) {
@@ -366,45 +331,37 @@ const loadProfileData = async () => {
         isMatchingEnabled.value = profileData.user.is_matching_enabled
       }
 
-      // 檢查是否為當前用戶
       const isCurrentUserProfile = uidToLoad === userStore.currentUser?.uid
 
       if (!isCurrentUserProfile) {
-        // 查看他人檔案：更新 viewingUser
         viewingUser.value = {
           ...profileData.user,
           friends: profileData.friends,
           wishlist: profileData.wishlist,
           visitedPlaces: profileData.visitedPlaces || { domestic: [], international: [] },
-          // [修正] 明確存入 reviews
           reviews: profileData.reviews || [],
         }
       } else {
-        // 查看自己檔案：更新 userStore
         viewingUser.value = null
         userStore.setUserProfile(profileData.user)
         userStore.wishlist = profileData.wishlist
         userStore.currentUser.friends = profileData.friends
 
-        // [修正] 將 reviews 存入 currentUser 物件中 (以便 computed user 能讀取到)
         if (userStore.currentUser) {
           userStore.currentUser.reviews = profileData.reviews || []
         }
 
-        // 更新 visitedPlaces
         if (profileData.visitedPlaces) {
           userStore.visitedPlaces = {
             domestic: profileData.visitedPlaces.domestic || [],
             international: profileData.visitedPlaces.international || [],
           }
-          // 同時更新 currentUser.visitedPlaces，確保 CardSettingsModal 可以訪問
           userStore.currentUser.visitedPlaces = {
             domestic: profileData.visitedPlaces.domestic || [],
             international: profileData.visitedPlaces.international || [],
           }
         }
 
-        // 還原性格測驗結果
         const hasPersonality = personalityStore.savedResult || personalityStore.result
         if (!hasPersonality && userStore.currentUser?.spiritAnimal) {
           personalityStore.hydrateResultFromSpiritAnimal(userStore.currentUser.spiritAnimal)
@@ -413,7 +370,6 @@ const loadProfileData = async () => {
       profileStats.value = profileData.stats || profileStats.value
     }
   } catch (error) {
-    console.error('Load profile failed', error)
   } finally {
     loading.value = false
   }
@@ -421,7 +377,6 @@ const loadProfileData = async () => {
 
 const openDetail = (item, scrollToComments = false) => {
   shouldScrollToComments.value = !!scrollToComments
-  // 檢查是否為 traveler（通過 type 字段或 id 和 author_uid 字段判斷）
   if (item.type === 'traveler' || (item.id && (item.author_uid || item.authorUid))) {
     selectedTraveler.value = item
     isTravelerDetailModalOpen.value = true
@@ -436,14 +391,12 @@ const loadHostedTravelers = async (uid = targetUid.value) => {
   try {
     const travelersRes = await getTravelers({ author_uid: uid, limit: 100 })
     if (travelersRes.success) {
-      // 確保只包含用戶創建的旅行，過濾掉任何可能的參加過的旅行
       hostedTravelers.value = (travelersRes.data || []).filter((traveler) => {
         const travelerAuthorUid = traveler.author_uid || traveler.authorUid
         return travelerAuthorUid === uid
       })
     }
   } catch (error) {
-    console.error('載入主揪旅程失敗', error)
   }
 }
 
@@ -462,7 +415,6 @@ const handleSaveField = async ({ field, data }) => {
     await updateUserProfile(user.value.uid, data || {})
     userStore.updateProfile(data || {})
   } catch (error) {
-    console.error('欄位儲存失敗', error)
     alert('儲存失敗，請稍後再試')
   }
 }
@@ -471,7 +423,6 @@ const handleUpdateWishlist = (nextWishlist) => {
   userStore.wishlist = Array.isArray(nextWishlist) ? nextWishlist : []
 }
 
-// 處理新增去過的地方
 const handleAddVisitedPlace = async (placeData) => {
   if (!isCurrentUser.value || !user.value?.uid) return
 
@@ -479,7 +430,6 @@ const handleAddVisitedPlace = async (placeData) => {
     const { addVisitedPlace } = await import('@/api/profile')
     const result = await addVisitedPlace(user.value.uid, placeData)
 
-    // 更新 Store
     userStore.addVisitedPlace(
       {
         id: result.id,
@@ -490,22 +440,18 @@ const handleAddVisitedPlace = async (placeData) => {
       placeData.type,
     )
 
-    // 重新載入資料以確保同步
     await loadProfileData()
   } catch (error) {
-    console.error('新增去過的地方失敗：', error)
     alert(error.message || '新增失敗，請稍後再試')
   }
 }
 
-// 處理刪除去過的地方
 const handleRemoveVisitedPlace = async ({ type, index }) => {
   if (!isCurrentUser.value || !user.value?.uid) return
 
   try {
     const { removeVisitedPlace } = await import('@/api/profile')
 
-    // 獲取要刪除的項目 ID
     const places =
       type === 'domestic'
         ? user.value.visitedPlaces?.domestic || []
@@ -516,7 +462,6 @@ const handleRemoveVisitedPlace = async ({ type, index }) => {
       if (place.id) {
         await removeVisitedPlace(user.value.uid, place.id)
       } else {
-        console.warn('無法刪除：缺少項目 ID')
         alert('無法刪除：缺少項目 ID，請重新載入頁面後再試')
         return
       }
@@ -524,7 +469,6 @@ const handleRemoveVisitedPlace = async ({ type, index }) => {
 
     await loadProfileData()
   } catch (error) {
-    console.error('刪除去過的地方失敗：', error)
     alert(error.message || '刪除失敗，請稍後再試')
   }
 }
@@ -575,19 +519,15 @@ const handleAvatarCrop = async (croppedFile) => {
     const avatarUrl = await uploadImage(compressedFile, 'avatars')
     const { updateUserProfile } = await import('@/api/users')
 
-    // 更新到 Neon 資料庫的 users.avatar 欄位
     await updateUserProfile(user.value.uid, { avatar: avatarUrl })
 
-    // 強制從資料庫重新載入用戶資料（確保使用最新的頭像）
     await userStore.loadUserProfile(user.value.uid)
 
-    // 重新載入個人檔案資料
     await loadProfileData()
 
     isAvatarCropOpen.value = false
     avatarFileToCrop.value = null
   } catch (error) {
-    console.error('上傳頭貼失敗:', error)
     const errorMessage = error.message || error.response?.data?.error || '上傳頭貼失敗'
     alert(errorMessage)
   }
@@ -602,18 +542,14 @@ const handleSelectPresetAvatar = async (avatarUrl) => {
   try {
     const { updateUserProfile } = await import('@/api/users')
 
-    // 更新到 Neon 資料庫的 users.avatar 欄位
     await updateUserProfile(user.value.uid, { avatar: avatarUrl })
 
-    // 強制從資料庫重新載入用戶資料（確保使用最新的頭像）
     await userStore.loadUserProfile(user.value.uid)
 
-    // 重新載入個人檔案資料
     await loadProfileData()
 
     isAvatarPickerOpen.value = false
   } catch (error) {
-    console.error('更新頭貼失敗:', error)
     const errorMessage = error.message || error.response?.data?.error || '更新頭貼失敗'
     alert(errorMessage)
   }
@@ -622,7 +558,6 @@ const handleSelectPresetAvatar = async (avatarUrl) => {
 watch(
   () => route.params.uid,
   (newUid, oldUid) => {
-    // 當從他人檔案切換回自己檔案時，清空 viewingUser
     const currentUid = userStore.currentUser?.uid
     if (oldUid && oldUid !== currentUid && (!newUid || newUid === currentUid)) {
       viewingUser.value = null
@@ -632,7 +567,6 @@ watch(
   { immediate: true },
 )
 
-// 監聽路由查詢參數變化（用於處理通知跳轉）
 watch(
   () => route.query.openFriends,
   (shouldOpen) => {
@@ -649,7 +583,6 @@ onMounted(() => {
   nextTick(() => {
     loadProfileData()
 
-    // 檢查是否需要打開好友列表（來自通知）
     if (route.query.openFriends === 'true') {
       isFriendModalOpen.value = true
       router.replace({ path: '/profile', query: {} })

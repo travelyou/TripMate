@@ -17,10 +17,8 @@ onMounted(async () => {
     if (!orderId) router.replace('/cart')
     return
   }
-  // 1) 正常情況：從購物車按「前往結帳」會先設好 selectedTour
   if (checkoutStore.selectedTour) return
 
-  // 2) 使用者重整 / 直接輸入網址：嘗試恢復
   if (!checkoutStore.tourGroups.length) {
     await checkoutStore.loadCartFromDb()
   }
@@ -30,7 +28,6 @@ onMounted(async () => {
     return
   }
 
-  // 3) 真的沒有商品 → 退回購物車
   router.replace('/cart')
 })
 </script>

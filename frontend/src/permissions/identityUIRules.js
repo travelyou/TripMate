@@ -1,8 +1,5 @@
 import { UI_IDENTITIES } from './identities'
 
-// 定義不同模式下 SideMenu 和 HeaderMenu 應該顯示什麼
-// 這裡只定義「邏輯規則」，不包含具體路由路徑 (路由路徑在 AppSidebar/AppHeader 中維護)
-
 export const SIDEBAR_RULES = {
   [UI_IDENTITIES.GENERAL]: {
     showUserProfile: true,

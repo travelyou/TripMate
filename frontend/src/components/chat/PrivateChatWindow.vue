@@ -8,31 +8,28 @@ import { useRouter } from 'vue-router'
 import AvatarCropModal from '@/components/modals/AvatarCropModal.vue'
 import { useEscapeKey } from '@/composables/useEscapeKey'
 
-// 定義事件：通知父層關閉視窗和打開聊天室
 const emit = defineEmits(['close', 'open-chat-room'])
 
 const props = defineProps({
   openChatWithUser: {
     type: Object,
-    default: null // { uid, name, nickname, avatar }
+    default: null
   },
   isVendorChat: {
     type: Boolean,
-    default: false // 是否為廠商聊天
+    default: false
   }
 })
 
 const userStore = useUserStore()
 const router = useRouter()
-const activeTab = ref('chatrooms') // 'chatrooms' 或 'friends'
-const activeChatRoom = ref(null) // 當前打開的聊天室 { type, uid, name, avatar, messages, ... }
-const avatarErrors = ref({}) // 記錄哪些頭像載入失敗
+const activeTab = ref('chatrooms')
+const activeChatRoom = ref(null)
+const avatarErrors = ref({})
 
-// 聊天室列表（動態創建的聊天室）
 const chatRoomsList = ref([])
 const groupChatRooms = ref([])
 
-// 載入好友列表和好友請求
 const friendRequests = ref({ received: [], sent: [] })
 const showGroupMembersModal = ref(false)
 const groupMembers = ref([])
@@ -64,8 +61,8 @@ const fileInputRef = ref(null)
 const isUploadingFile = ref(false)
 const uploadProgress = ref(0)
 const showFriendRequestsList = ref(false)
-const isFriendRequestsListOpening = ref(false) // 標誌位：防止在開啟過程中被關閉
-const friendRequestsToggleAt = ref(0) // 記錄開啟時間，防止立即關閉
+const isFriendRequestsListOpening = ref(false)
+const friendRequestsToggleAt = ref(0)
 const friendRequestsListContainer = ref(null)
 const friendRequestsPopupPosition = ref({
   position: 'fixed',
@@ -81,13 +78,11 @@ const friendRequestsPopupPosition = ref({
 const showImagePreview = ref(false)
 const previewImageUrl = ref('')
 const previewImageName = ref('')
-let messagePollingInterval = null // 訊息輪詢定時器
+let messagePollingInterval = null
 
-// 文件類型限制
 const allowedFileTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-const maxFileSize = 10 * 1024 * 1024 // 10MB
+const maxFileSize = 10 * 1024 * 1024
 
-// 對話次數限制
 const chatInteractionCount = ref({ count: 0, remaining: 3, canSend: true, isFriend: false })
 const isGroupChat = computed(() => activeChatRoom.value?.type === 'group')
 const currentUserUid = computed(() => userStore.currentUser?.uid || userStore.currentUser?.id)
@@ -102,20 +97,14 @@ const isFriendChat = computed(() => {
   return friendList.some(friend => (friend.uid || friend.id) === targetUid)
 })
 const isVendorChatRoom = computed(() => {
-  // 檢查是否為廠商聊天室
   if (props.isVendorChat) return true
   if (!activeChatRoom.value?.uid) return false
-  // 可以通過檢查聊天室標記或從後端 API 返回的 isVendor 標誌來判斷
   return chatInteractionCount.value?.isVendor || false
 })
 const canSendMessage = computed(() => {
-  // 群組聊天：可以發送
   if (isGroupChat.value) return true
-  // 廠商聊天：可以發送（不限次數）
   if (isVendorChatRoom.value) return true
-  // 好友聊天：可以發送
   if (isFriendChat.value) return true
-  // 非好友：檢查剩餘次數
   return chatInteractionCount.value.canSend && chatInteractionCount.value.remaining > 0
 })
 
@@ -145,7 +134,6 @@ const updateUnreadCount = (friendUid, mappedMessages) => {
       const unreadInfo = JSON.parse(unreadData)
       lastReadTime = unreadInfo.lastReadTime
     } catch {
-      // ignore
     }
   }
 
@@ -190,7 +178,7 @@ const incrementChatInteractionCount = async (currentUid, targetUid) => {
       chatInteractionCount.value = {
         count: newCount,
         remaining: newRemaining,
-        canSend: newIsVendor ? true : newCanSend,  // 廠商聊天永遠可以發送
+        canSend: newIsVendor ? true : newCanSend,
         isFriend: newIsFriend,
         isVendor: newIsVendor,
       }
@@ -207,7 +195,6 @@ const incrementChatInteractionCount = async (currentUid, targetUid) => {
       }
     }
   } catch (error) {
-    console.error('記錄對話次數失敗：', error)
     const newCount = (chatInteractionCount.value.count || 0) + 1
     const newRemaining = Math.max(0, 3 - newCount)
       chatInteractionCount.value = {
@@ -232,7 +219,6 @@ const persistChatRooms = () => {
   try {
     localStorage.setItem(getChatStorageKey(currentUid), JSON.stringify(chatRoomsList.value))
   } catch (error) {
-    console.warn('Persist chat rooms failed:', error)
   }
 }
 
@@ -244,14 +230,12 @@ const loadChatRoomsFromStorage = () => {
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
-      // 清理 blob URL（它們在頁面刷新後會失效）
       chatRoomsList.value = parsed.map(room => ({
         ...room,
         avatar: room.avatar && room.avatar.startsWith('blob:') ? '' : room.avatar
       }))
     }
   } catch (error) {
-    console.warn('Load chat rooms failed:', error)
   }
 }
 
@@ -264,7 +248,6 @@ const saveMessagesToStorage = (friendUid, messageList) => {
       JSON.stringify(messageList || [])
     )
   } catch (error) {
-    console.warn('Persist chat messages failed:', error)
   }
 }
 
@@ -276,15 +259,13 @@ const loadMessagesFromStorage = (friendUid) => {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    // 過濾掉包含 blob URL 的圖片訊息（它們在頁面刷新後會失效）
     return parsed.map(msg => {
       if (msg.isImage && msg.content && msg.content.startsWith('blob:')) {
         return { ...msg, content: '', isImage: false }
       }
       return msg
-    }).filter(msg => msg.content) // 移除內容為空的訊息
+    }).filter(msg => msg.content)
   } catch (error) {
-    console.warn('Load chat messages failed:', error)
     return []
   }
 }
@@ -297,7 +278,6 @@ const loadGroupChatRooms = async () => {
       groupChatRooms.value = response.data || []
     }
   } catch (error) {
-    console.warn('載入群組聊天室失敗:', error)
   }
 }
 
@@ -332,11 +312,9 @@ const loadGroupMembers = async (silent = false) => {
       groupMembersOwnerUid.value = data.created_by || ''
       groupMembers.value = Array.isArray(data.members) ? data.members : []
     } else {
-      console.error('載入群組成員失敗 - API 回應:', response)
       if (!silent) groupMembersError.value = response?.message || '載入群組成員失敗'
     }
   } catch (error) {
-    console.error('載入群組成員失敗:', error.message)
     if (!silent) {
       const errorMsg = error.response?.data?.message || error.message || '載入群組成員失敗'
       groupMembersError.value = errorMsg
@@ -392,7 +370,6 @@ const saveGroupName = async () => {
       isEditingGroupName.value = false
     }
   } catch (error) {
-    console.error('更新群組名稱失敗：', error)
     alert('更新群組名稱失敗，請稍後再試')
   } finally {
     isSavingGroupName.value = false
@@ -420,7 +397,6 @@ const handleGroupAvatarChange = (event) => {
     return
   }
 
-  // 開啟裁切 Modal
   groupAvatarFileToCrop.value = file
   isGroupAvatarCropOpen.value = true
   event.target.value = ''
@@ -441,7 +417,6 @@ const handleGroupAvatarCrop = async (croppedFile) => {
       groupAvatarFileToCrop.value = null
     }
   } catch (error) {
-    console.error('更新群組頭像失敗：', error)
     alert('更新群組頭像失敗，請稍後再試')
   } finally {
     isSavingGroupAvatar.value = false
@@ -490,7 +465,6 @@ const handleAddGroupMember = async (member) => {
       groupMembers.value = [...groupMembers.value, response.data]
     }
   } catch (error) {
-    console.error('新增群組成員失敗：', error)
     alert('新增群組成員失敗，請稍後再試')
   } finally {
     setMemberActionLoading(member.uid, false)
@@ -509,7 +483,6 @@ const handleRemoveGroupMember = async (member) => {
       groupMembers.value = groupMembers.value.filter((item) => item.user_uid !== member.user_uid)
     }
   } catch (error) {
-    console.error('移除群組成員失敗：', error)
     alert('移除群組成員失敗，請稍後再試')
   } finally {
     setMemberActionLoading(member.user_uid, false)
@@ -587,7 +560,6 @@ const createGroupChat = async () => {
       alert('創建群組失敗：' + (response?.message || '未知錯誤'))
     }
   } catch (error) {
-    console.error('創建群組失敗：', error)
     alert('創建群組失敗：' + (error.message || '未知錯誤'))
   } finally {
     isCreatingGroup.value = false
@@ -616,7 +588,6 @@ const chatRooms = computed(() => {
     })
   })
 
-  // 添加動態創建的聊天室
   chatRoomsList.value.forEach(room => {
     rooms.push({
       id: `chat-${room.uid}`,
@@ -635,21 +606,17 @@ const chatRooms = computed(() => {
   return rooms
 })
 
-// 載入聊天記錄
 const loadChatHistory = async (uid, friendUid, silent = false) => {
   try {
     const { getChatMessages } = await import('@/api/profile')
     const historyMessages = await getChatMessages(uid, friendUid)
 
-    // 轉換為前端格式
     const mappedMessages = historyMessages.map(msg => {
-      // 檢查是否為圖片訊息
       const isImage = msg.content && typeof msg.content === 'string' &&
         (msg.content.startsWith('[IMAGE]') || msg.content.includes('[/IMAGE]'))
 
       let content = msg.content
       if (isImage) {
-        // 提取圖片 URL
         const match = msg.content.match(/\[IMAGE\](.*?)\[\/IMAGE\]/)
         content = match ? match[1] : msg.content
       }
@@ -663,15 +630,10 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
       }
     })
 
-    // 改進：檢查是否有真正的新訊息（比較最後一條訊息的 ID 和時間戳）
     const previousMessages = messages.value
     const lastOldMessage = previousMessages[previousMessages.length - 1]
     const lastNewMessage = mappedMessages[mappedMessages.length - 1]
 
-    // 更嚴格的新訊息檢查：
-    // 1. 訊息數量增加
-    // 2. 最後一條訊息的 ID 或時間戳不同
-    // 3. 內容不同
     const hasNewMessages = mappedMessages.length > previousMessages.length &&
       (!lastOldMessage || !lastNewMessage ||
        lastOldMessage.id !== lastNewMessage.id ||
@@ -734,7 +696,6 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
       }
     }
 
-    // 更新聊天室的訊息列表
     const room = chatRoomsList.value.find(r => r.uid === friendUid)
     if (room) {
       room.messages = messages.value
@@ -747,9 +708,7 @@ const loadChatHistory = async (uid, friendUid, silent = false) => {
     persistChatRooms()
   } catch (error) {
     if (!silent) {
-    console.error('載入聊天記錄失敗：', error)
     }
-    // 失敗時不重置，保持當前狀態
   }
 }
 
@@ -770,19 +729,16 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
       senderUid: msg.sender_uid,
     }))
 
-    // 檢查是否有新訊息（避免重複通知）
     const previousMessages = messages.value
     const lastOldMessage = previousMessages[previousMessages.length - 1]
     const lastNewMessage = mappedMessages[mappedMessages.length - 1]
 
-    // 更嚴格的新訊息檢查
     const hasNewMessages = mappedMessages.length > previousMessages.length &&
       (!lastOldMessage || !lastNewMessage ||
        lastOldMessage.id !== lastNewMessage.id ||
        lastOldMessage.timestamp !== lastNewMessage.timestamp ||
        lastOldMessage.content !== lastNewMessage.content)
 
-    // 只有在有新訊息或首次載入時才更新
     if (previousMessages.length === 0 || hasNewMessages) {
       messages.value = mappedMessages
       saveMessagesToStorage(`group-${roomId}`, messages.value)
@@ -797,7 +753,6 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
         activeChatRoom.value.messages = messages.value
       }
 
-      // 只在有新訊息且不是首次載入時滾動到底部
       if (hasNewMessages && previousMessages.length > 0) {
         await nextTick()
         scrollToBottom()
@@ -805,24 +760,20 @@ const loadGroupChatHistory = async (roomId, silent = false) => {
     }
   } catch (error) {
     if (!silent) {
-    console.error('載入群組聊天記錄失敗：', error)
     }
   }
 }
 
-// 載入對話次數
 const loadChatInteractionCount = async (uid, friendUid) => {
   try {
     const { getChatInteractionCount } = await import('@/api/profile')
     const data = await getChatInteractionCount(uid, friendUid)
 
-    // 確保數據格式正確，如果數據缺失或格式不正確，使用默認值
     if (!data || typeof data !== 'object') {
       chatInteractionCount.value = { count: 0, remaining: 3, canSend: true, isFriend: false }
       return
     }
 
-    // 確保所有必要的字段都存在，並且 canSend 基於 remaining 計算
     const count = typeof data.count === 'number' ? data.count : 0
     const remaining = typeof data.remaining === 'number' ? data.remaining : Math.max(0, 3 - count)
     const canSend = typeof data.canSend === 'boolean' ? data.canSend : (remaining > 0)
@@ -832,21 +783,17 @@ const loadChatInteractionCount = async (uid, friendUid) => {
     chatInteractionCount.value = {
       count,
       remaining,
-      canSend: isVendor ? true : (canSend && remaining > 0),  // 廠商聊天永遠可以發送
+      canSend: isVendor ? true : (canSend && remaining > 0),
       isFriend,
       isVendor,
     }
   } catch (error) {
-    console.error('載入對話次數失敗：', error)
-    // 錯誤時不重置，保持當前狀態（避免刷新頁面後重置計數）
-    // 只有當沒有有效數據時才使用默認值
     if (!chatInteractionCount.value || !chatInteractionCount.value.count) {
       chatInteractionCount.value = { count: 0, remaining: 3, canSend: true, isFriend: false }
     }
   }
 }
 
-// 自動捲動到底部
 const scrollToBottom = async () => {
   await nextTick()
   if (messagesContainer.value) {
@@ -854,7 +801,6 @@ const scrollToBottom = async () => {
   }
 }
 
-// 打開或創建聊天室
 const openOrCreateChatRoom = async (user) => {
   if (!user) return
 
@@ -864,14 +810,11 @@ const openOrCreateChatRoom = async (user) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) return
 
-  // 切換到聊天室列表標籤
   activeTab.value = 'chatrooms'
 
-  // 檢查是否已存在聊天室
   const existingRoom = chatRoomsList.value.find(r => r.uid === targetUid)
 
   if (existingRoom) {
-    // 打開現有聊天室
     activeChatRoom.value = {
       type: 'chat',
       uid: targetUid,
@@ -881,7 +824,6 @@ const openOrCreateChatRoom = async (user) => {
     }
     existingRoom.unreadCount = 0
   } else {
-    // 創建新聊天室
     const newRoom = {
       uid: targetUid,
       name: user.name || user.nickname || '未知用戶',
@@ -903,26 +845,19 @@ const openOrCreateChatRoom = async (user) => {
       messages: []
     }
 
-    // 觸發新建聊天室事件
     window.dispatchEvent(new CustomEvent('new-chat-room'))
   }
 
-  // 載入對話次數 - 廠商聊天不需要載入次數限制
   if (props.isVendorChat) {
-    // 廠商聊天：設置為無限制
     chatInteractionCount.value = { count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true }
   } else {
-    // 載入對話次數（後端會自動檢測是否為廠商）
     await loadChatInteractionCount(currentUid, targetUid)
   }
 
-  // 從數據庫載入聊天記錄
   await loadChatHistory(currentUid, targetUid)
 
-  // 開始輪詢新訊息
   startMessagePolling(currentUid, targetUid)
 
-  // 標記為已讀（打開聊天室時）
   const unreadKey = `unread_${currentUid}_${targetUid}`
   localStorage.setItem(unreadKey, JSON.stringify({
     lastReadTime: new Date().toISOString()
@@ -931,7 +866,6 @@ const openOrCreateChatRoom = async (user) => {
 
   scrollToBottom()
 
-  // 觸發訊息更新事件（清除未讀計數）
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
@@ -949,16 +883,13 @@ const loadFriends = async () => {
     const requests = await getFriendRequests(currentUid)
     friendRequests.value = requests || { received: [], sent: [] }
   } catch (error) {
-    console.error('載入好友列表失敗：', error)
   }
 }
 
-// 從 userStore 獲取好友列表
 const friends = computed(() => {
   return userStore.currentUser?.friends || []
 })
 
-// 貼圖列表
 const stickers = [
   '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
   '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
@@ -978,23 +909,19 @@ const stickers = [
   '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️',
   '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '👶', '👧',
   '🧒', '👦', '👩', '🧑', '👨', '👵', '🧓', '👴', '🙍', '🙎',
-  '🙅', '🙆', '💁', '🙋', '🧏', '🤦', '🤷', '🙇', '🤦', '🤷',
+  '🙅', '🙆', '💁', '🙋', '🧏',   '🤦', '🤷', '🙇', '🤦', '🤷',
 ]
 
-// 選擇貼圖
 const selectSticker = (sticker) => {
   messageInput.value += sticker
   showStickerPicker.value = false
 }
 
-// 切換貼圖選擇器
 const toggleStickerPicker = () => {
   showStickerPicker.value = !showStickerPicker.value
 }
 
-// 打開圖片預覽
 const openImagePreview = (imageUrl, imageName = '') => {
-  // 檢查是否為 blob URL（已失效）
   if (!imageUrl || imageUrl.startsWith('blob:')) {
     alert('圖片已失效，無法預覽。\n請從資料庫重新載入聊天記錄。')
     return
@@ -1004,26 +931,20 @@ const openImagePreview = (imageUrl, imageName = '') => {
   showImagePreview.value = true
 }
 
-// 關閉圖片預覽
 const closeImagePreview = () => {
   showImagePreview.value = false
   previewImageUrl.value = ''
   previewImageName.value = ''
 }
 
-// 跳轉到對方個人檔案
 const goToFriendProfile = (friendUid) => {
   if (!friendUid) {
-    console.warn('無法跳轉：缺少用戶 ID')
     return
   }
-  // 關閉聊天窗口
   emit('close')
-  // 跳轉到對方個人檔案
   router.push({ name: 'profile', params: { uid: friendUid } })
 }
 
-// 下載圖片
 const downloadImage = async (imageUrl, fileName = 'image') => {
   try {
     if (!imageUrl || imageUrl.startsWith('blob:')) {
@@ -1045,13 +966,11 @@ const downloadImage = async (imageUrl, fileName = 'image') => {
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
   } catch (error) {
-    console.error('下載圖片失敗：', error)
     const errorMessage = error.message || '未知錯誤'
     alert(`下載圖片失敗：${errorMessage}\n請稍後再試或檢查網路連線`)
   }
 }
 
-// 打開文件選擇器
 const openFilePicker = () => {
   if (isGroupChat.value) {
     alert('⚠️ 群組聊天室暫不支援傳送圖片。')
@@ -1066,13 +985,11 @@ const openFilePicker = () => {
     return
   }
   if (!fileInputRef.value) {
-    console.error('文件選擇器未初始化')
     return
   }
   fileInputRef.value.click()
 }
 
-// 處理文件選擇和上傳
 const handleFileSelect = async (event) => {
   if (isGroupChat.value) {
     event.target.value = ''
@@ -1081,14 +998,12 @@ const handleFileSelect = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
 
-  // 驗證文件類型
   if (!allowedFileTypes.includes(file.type)) {
     alert('❌ 不支援的檔案格式！\n\n請選擇以下格式的圖片：\n• JPG / JPEG\n• PNG\n• GIF\n• WebP')
     event.target.value = ''
     return
   }
 
-  // 驗證文件大小
   if (file.size > maxFileSize) {
     const maxSizeMB = (maxFileSize / 1024 / 1024).toFixed(0)
     const fileSizeMB = (file.size / 1024 / 1024).toFixed(2)
@@ -1113,7 +1028,6 @@ const handleFileSelect = async (event) => {
     }
   }
 
-  // 確認是否傳送檔案
   const fileSizeMB = (file.size / 1024 / 1024).toFixed(2)
   const confirmMessage = `📤 確定要傳送此檔案嗎？\n\n檔案名稱：${file.name}\n檔案大小：${fileSizeMB} MB`
   if (!confirm(confirmMessage)) {
@@ -1125,7 +1039,6 @@ const handleFileSelect = async (event) => {
     isUploadingFile.value = true
     uploadProgress.value = 0
 
-    // 上傳圖片到 Firebase Storage
     const imageUrl = await uploadImage(file, 'chat-images', (progress) => {
       uploadProgress.value = progress
     })
@@ -1167,22 +1080,18 @@ const handleFileSelect = async (event) => {
       clientId: optimisticId,
     })
 
-    // 記錄對話次數（背景）- 廠商聊天不需要記錄
     if (!isVendorChatRoom.value) {
       incrementChatInteractionCount(currentUid, activeChatRoom.value.uid)
         .catch(() => {})
     }
 
-    // 保存圖片訊息到資料庫（背景）
     ;(async () => {
       const { saveChatMessage } = await import('@/api/profile')
       const imageMessageText = `[IMAGE]${imageUrl}[/IMAGE]`
       await saveChatMessage(currentUid, activeChatRoom.value.uid, imageMessageText)
     })().catch((error) => {
-      console.error('保存圖片訊息失敗：', error)
     })
   } catch (error) {
-    console.error('上傳圖片失敗：', error)
     const errorMessage = error.message || '未知錯誤'
     alert(`上傳失敗：${errorMessage}\n請檢查網路連線或稍後再試`)
   } finally {
@@ -1194,7 +1103,6 @@ const handleFileSelect = async (event) => {
   }
 }
 
-// 發送訊息
 const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text) return
@@ -1215,13 +1123,11 @@ const sendMessage = async () => {
       senderUid: currentUid,
     }
 
-    // 先顯示訊息在畫面上
     messages.value.push(userMessage)
     saveMessagesToStorage(activeChatRoom.value.uid, messages.value)
     window.dispatchEvent(new CustomEvent('message-updated'))
     scrollToBottom()
 
-    // 然後清空輸入框
     messageInput.value = ''
 
     const groupRoom = groupChatRooms.value.find((room) => room.id === activeChatRoom.value.roomId)
@@ -1234,7 +1140,6 @@ const sendMessage = async () => {
       const { sendGroupChatMessage } = await import('@/api/travelers')
       await sendGroupChatMessage(activeChatRoom.value.roomId, text)
     } catch (error) {
-      console.error('發送群組訊息失敗：', error)
     }
     return
   }
@@ -1256,7 +1161,6 @@ const sendMessage = async () => {
     timestamp,
   }
 
-  // 先顯示訊息在畫面上
   messages.value.push(userMessage)
 
   const room = chatRoomsList.value.find(r => r.uid === activeChatRoom.value.uid)
@@ -1276,7 +1180,6 @@ const sendMessage = async () => {
   window.dispatchEvent(new CustomEvent('message-updated'))
   scrollToBottom()
 
-  // 然後清空輸入框
   messageInput.value = ''
 
   emitChatSend({
@@ -1287,7 +1190,6 @@ const sendMessage = async () => {
     clientId: optimisticId,
   })
 
-  // 背景記錄對話次數與保存訊息 - 廠商聊天不需要記錄次數
   if (!isVendorChatRoom.value) {
     incrementChatInteractionCount(currentUid, activeChatRoom.value.uid, 'sendMessage')
       .catch(() => {})
@@ -1296,21 +1198,17 @@ const sendMessage = async () => {
     const { saveChatMessage } = await import('@/api/profile')
     await saveChatMessage(currentUid, activeChatRoom.value.uid, text)
   })().catch((error) => {
-    console.error('保存訊息失敗：', error)
   })
 }
 
-// 開始輪詢新訊息
 const startMessagePolling = (uid, friendUid) => {
-  // 清除現有的輪詢
   stopMessagePolling()
 
-  // 每 5 秒檢查一次新訊息（降低頻率）
   messagePollingInterval = setInterval(async () => {
     if (activeChatRoom.value && activeChatRoom.value.uid === friendUid) {
-      await loadChatHistory(uid, friendUid, true) // silent = true，不輸出日誌
+      await loadChatHistory(uid, friendUid, true)
     }
-  }, 5000) // 5 秒輪詢一次，降低頻率避免重複
+  }, 5000)
 }
 
 const startGroupMessagePolling = (roomId) => {
@@ -1322,7 +1220,6 @@ const startGroupMessagePolling = (roomId) => {
   }, 5000)
 }
 
-// 停止輪詢新訊息
 const stopMessagePolling = () => {
   if (messagePollingInterval) {
     clearInterval(messagePollingInterval)
@@ -1330,10 +1227,8 @@ const stopMessagePolling = () => {
   }
 }
 
-// 處理點擊聊天室
 const handleChatRoomClick = async (room) => {
   if (room.type === 'chat') {
-    // 打開聊天室
     activeChatRoom.value = {
       type: 'chat',
       uid: room.uid,
@@ -1342,19 +1237,15 @@ const handleChatRoomClick = async (room) => {
       messages: room.messages || []
     }
 
-    // 載入對話次數和聊天記錄
     const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
     if (currentUid) {
-      // 檢查是否為廠商聊天（通過檢查聊天室標記或從後端 API 返回的 isVendor 標誌）
       const isVendor = isVendorChatRoom.value
       if (!isVendor) {
         await loadChatInteractionCount(currentUid, room.uid)
       } else {
-        // 廠商聊天：設置為無限制
         chatInteractionCount.value = { count: 0, remaining: 999, canSend: true, isFriend: false, isVendor: true }
       }
       await loadChatHistory(currentUid, room.uid)
-      // 開始輪詢新訊息
       startMessagePolling(currentUid, room.uid)
     }
 
@@ -1382,21 +1273,17 @@ const handleChatRoomClick = async (room) => {
   }
 }
 
-// 返回聊天室列表
 const backToChatRooms = () => {
-  // 停止輪詢
   stopMessagePolling()
   activeChatRoom.value = null
   messages.value = []
   messageInput.value = ''
 }
 
-// 處理點擊好友
 const handleFriendClick = (friend) => {
   openOrCreateChatRoom(friend)
 }
 
-// 監聽 openChatWithUser prop，自動打開聊天室
 watch(() => props.openChatWithUser, (newUser) => {
   if (newUser && newUser.uid) {
     openOrCreateChatRoom(newUser)
@@ -1444,14 +1331,11 @@ const isClickInsideFriendRequests = (event) => {
   return Boolean(target.closest('.friend-requests-popup') || target.closest('.friend-requests-list-container'))
 }
 
-// 點擊外部關閉貼圖選擇器和好友請求列表
 const handleClickOutside = (event) => {
   const target = event?.target instanceof Element ? event.target : null
   if (showStickerPicker.value && (!target || !target.closest('.sticker-picker-container'))) {
     showStickerPicker.value = false
   }
-  // 檢查是否點擊在好友請求列表容器內（包括按鈕和彈窗）
-  // 如果正在開啟過程中，不處理關閉
   if (showFriendRequestsList.value && !isFriendRequestsListOpening.value) {
     const now = Date.now()
     if (now - friendRequestsToggleAt.value < 600) return
@@ -1461,7 +1345,6 @@ const handleClickOutside = (event) => {
   }
 }
 
-// 計算好友請求列表彈窗位置
 const calculateFriendRequestsPopupPosition = () => {
   const useCenterPopup = true
   if (useCenterPopup) {
@@ -1486,7 +1369,6 @@ const calculateFriendRequestsPopupPosition = () => {
     return
   }
   if (!friendRequestsListContainer.value) {
-    console.warn('friendRequestsListContainer 未找到')
     return
   }
 
@@ -1494,14 +1376,11 @@ const calculateFriendRequestsPopupPosition = () => {
     try {
       const container = friendRequestsListContainer.value
       if (!container) {
-        console.warn('container 元素不存在')
         return
       }
 
       const rect = container.getBoundingClientRect()
       if (!rect || rect.width === 0 || rect.height === 0) {
-        console.warn('container 位置信息无效')
-        // 使用預設位置
         friendRequestsPopupPosition.value = {
           position: 'fixed',
           top: '60px',
@@ -1514,73 +1393,58 @@ const calculateFriendRequestsPopupPosition = () => {
         return
       }
 
-      const popupWidth = 320 // 預設寬度
-      const popupMaxWidth = 384 // 最大宽度
-      const popupHeight = 384 // max-h-96 = 384px
-      const margin = 8 // 边距
+      const popupWidth = 320
+      const popupMaxWidth = 384
+      const popupHeight = 384
+      const margin = 8
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
 
-      // 使用 fixed 定位，相對於視口計算
       let top = 'auto'
       let bottom = 'auto'
 
-      // 檢查下方空間是否足夠
       const spaceBelow = viewportHeight - rect.bottom - margin
       const spaceAbove = rect.top - margin
 
-      // 垂直位置：優先向下，空間不足則向上
       if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
-        // 向下顯示
         top = `${rect.bottom + margin}px`
         bottom = 'auto'
       } else {
-        // 向上顯示
         bottom = `${viewportHeight - rect.top + margin}px`
         top = 'auto'
       }
 
-      // 水平位置：優先右對齊，空間不足則左對齊或居中
       const spaceRight = viewportWidth - rect.right
       const spaceLeft = rect.left
 
-      // 計算最終寬度（確保不超出視口）
       let finalWidth = popupWidth
       let finalLeft = 'auto'
       let finalRight = 'auto'
 
       if (spaceRight >= popupWidth) {
-        // 右側空間足夠，右對齊
         finalRight = `${viewportWidth - rect.right}px`
         finalLeft = 'auto'
       } else if (spaceLeft >= popupWidth) {
-        // 左側空間足夠，左對齊
         finalLeft = `${rect.left}px`
         finalRight = 'auto'
       } else {
-        // 兩側空間都不足，使用較大的一側並調整寬度
         if (spaceRight >= spaceLeft) {
-          // 右側空間較大，右對齊但縮小寬度
           finalRight = `${margin}px`
           finalLeft = 'auto'
           finalWidth = Math.min(popupMaxWidth, Math.max(280, spaceRight - margin * 2))
         } else {
-          // 左側空間較大，左對齊但縮小寬度
           finalLeft = `${margin}px`
           finalRight = 'auto'
           finalWidth = Math.min(popupMaxWidth, Math.max(280, spaceLeft - margin * 2))
         }
       }
 
-      // 確保最小寬度
       finalWidth = Math.max(280, Math.min(finalWidth, popupMaxWidth))
 
-      // 確保至少有一個有效的位置值
       if (top === 'auto' && bottom === 'auto') {
         top = `${rect.bottom + margin}px`
       }
       if (finalLeft === 'auto' && finalRight === 'auto') {
-        // 如果左右都是 auto，使用右對齊
         finalRight = `${viewportWidth - rect.right}px`
       }
 
@@ -1594,8 +1458,6 @@ const calculateFriendRequestsPopupPosition = () => {
         maxWidth: `${finalWidth}px`
       }
     } catch (error) {
-      console.error('計算彈窗位置失敗：', error)
-      // 使用預設位置作為備援
       friendRequestsPopupPosition.value = {
         position: 'fixed',
         top: '60px',
@@ -1609,9 +1471,7 @@ const calculateFriendRequestsPopupPosition = () => {
   })
 }
 
-// 切換好友請求列表顯示
 const toggleFriendRequestsList = (event) => {
-  // 阻止事件冒泡和預設行為
   if (event) {
     event.stopPropagation()
     event.preventDefault()
@@ -1620,37 +1480,29 @@ const toggleFriendRequestsList = (event) => {
   const wasVisible = showFriendRequestsList.value
 
   if (!wasVisible) {
-    // 開啟彈窗
     friendRequestsToggleAt.value = Date.now()
     isFriendRequestsListOpening.value = true
     showFriendRequestsList.value = true
 
-    // 重新載入好友請求列表
     loadFriends()
 
-    // 在下一個 tick 計算彈窗位置，確保 DOM 已更新
     nextTick(() => {
-      // 使用 setTimeout 確保 DOM 完全渲染
       setTimeout(() => {
         calculateFriendRequestsPopupPosition()
-        // 延遲後允許關閉檢查
         setTimeout(() => {
           isFriendRequestsListOpening.value = false
         }, 200)
       }, 50)
     })
   } else {
-    // 關閉彈窗
     showFriendRequestsList.value = false
     isFriendRequestsListOpening.value = false
   }
 }
 
-// 監聽彈窗顯示狀態，動態調整位置
 watch(showFriendRequestsList, (isVisible) => {
   if (isVisible && !isFriendRequestsListOpening.value) {
     nextTick(() => {
-      // 使用 setTimeout 確保 DOM 完全渲染
       setTimeout(() => {
         calculateFriendRequestsPopupPosition()
       }, 50)
@@ -1668,7 +1520,6 @@ const handleAcceptFriendRequest = async (request) => {
     await acceptFriendRequest(currentUid, request.uid)
     await loadFriends()
 
-    // 如果接受成功，可以選擇打開聊天室
     const acceptAndChat = confirm(`已接受 ${request.name || request.nickname || '用戶'} 的好友請求！是否開始聊天？`)
     if (acceptAndChat) {
       openOrCreateChatRoom({
@@ -1679,12 +1530,10 @@ const handleAcceptFriendRequest = async (request) => {
       })
     }
   } catch (error) {
-    console.error('接受好友請求失敗：', error)
     alert('接受好友請求失敗：' + (error.message || '未知錯誤'))
   }
 }
 
-// 處理拒絕好友請求
 const handleRejectFriendRequest = async (request) => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) return
@@ -1694,12 +1543,10 @@ const handleRejectFriendRequest = async (request) => {
     await rejectFriendRequest(currentUid, request.uid)
     await loadFriends()
   } catch (error) {
-    console.error('拒絕好友請求失敗：', error)
     alert('拒絕好友請求失敗：' + (error.message || '未知錯誤'))
   }
 }
 
-// 處理窗口大小變化和滾動事件
 const handleResize = () => {
   if (showFriendRequestsList.value) {
     calculateFriendRequestsPopupPosition()
@@ -1718,11 +1565,9 @@ const handleChatReceived = (event) => {
   const incomingMessage = detail.message
   if (!fromUid || !incomingMessage) return
 
-  // 防止處理發送給自己的訊息（應該由發送函數處理）
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) return
 
-  // 忽略自己發送的訊息（這些訊息應該已經在 sendMessage 中處理過了）
   if (fromUid === currentUid) {
     return
   }
@@ -1742,13 +1587,10 @@ const handleChatReceived = (event) => {
     chatRoomsList.value.unshift(room)
   }
 
-  // 優先從 localStorage 讀取已保存的消息（MainLayout 可能已經保存了）
   const storedMessages = loadMessagesFromStorage(fromUid)
-  // 合併內存中的消息和 localStorage 中的消息，去重後使用最新的列表
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
   const allExistingMessages = [...storedMessages]
 
-  // 將內存中不在 localStorage 的消息也加入檢查列表
   roomMessages.forEach(msg => {
     const alreadyInStored = allExistingMessages.some(stored => {
       if (stored.id && msg.id && stored.id === msg.id) return true
@@ -1761,13 +1603,10 @@ const handleChatReceived = (event) => {
     }
   })
 
-  // 改進的去重檢查：檢查 ID、內容和時間戳（同時檢查內存和 localStorage 中的消息）
   const exists = allExistingMessages.some(msg => {
-    // 檢查 ID 是否相同
     if (msg.id && incomingMessage.id && msg.id === incomingMessage.id) {
       return true
     }
-    // 檢查內容、時間戳和類型是否完全相同（可能是重複訊息）
     const sameContent = msg.content === incomingMessage.content
     const sameTimestamp = msg.timestamp === incomingMessage.timestamp
     const sameType = msg.isImage === incomingMessage.isImage
@@ -1775,7 +1614,6 @@ const handleChatReceived = (event) => {
   })
 
   if (!exists) {
-    // 使用最新的消息列表（優先使用 localStorage 中的）
     const latestMessages = storedMessages.length > 0 ? storedMessages : roomMessages
     const updatedMessages = [...latestMessages, {
       ...incomingMessage,
@@ -1787,10 +1625,9 @@ const handleChatReceived = (event) => {
     if (storedMessages.length > 0) {
       room.messages = storedMessages
     }
-    return // 如果是重複訊息，直接返回，不進行後續處理
+    return
   }
 
-  // room.messages 已經在上面更新了
   room.lastMessage = incomingMessage.isImage ? '傳送了圖片' : (incomingMessage.content || '新訊息')
   room.lastMessageTime = '剛剛'
   room.lastMessageTimestamp = new Date(incomingMessage.timestamp || new Date().toISOString()).getTime()
@@ -1818,13 +1655,11 @@ const handleChatReceived = (event) => {
   window.dispatchEvent(new CustomEvent('message-updated'))
 }
 
-// 清理 localStorage 中的 blob URL
 const cleanupBlobUrls = () => {
   try {
     const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
     if (!currentUid) return
 
-    // 清理所有聊天訊息中的 blob URL
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith(CHAT_MESSAGES_STORAGE_PREFIX)) {
         const messagesRaw = localStorage.getItem(key)
@@ -1839,23 +1674,19 @@ const cleanupBlobUrls = () => {
                 return msg
               }).filter(msg => msg.content)
 
-              // 只在有變化時才更新
               if (JSON.stringify(cleaned) !== JSON.stringify(messages)) {
                 localStorage.setItem(key, JSON.stringify(cleaned))
               }
             }
           } catch {
-            // 忽略解析錯誤
           }
         }
       }
     })
   } catch (error) {
-    console.warn('清理 blob URL 失敗：', error)
   }
 }
 
-// ESC 鍵關閉功能
 useEscapeKey(() => {
   emit('close')
 })
@@ -2170,7 +2001,7 @@ onUnmounted(() => {
               :src="msg.content"
               alt="傳送的圖片"
               class="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition"
-              @error="(e) => { console.error('圖片載入失敗：', msg.content); e.target.style.display = 'none' }"
+              @error="(e) => { e.target.style.display = 'none' }"
               @click.stop="openImagePreview(msg.content, '圖片')"
             />
             <span v-else-if="msg.isImage && (!msg.content || msg.content.startsWith('blob:'))" class="text-gray-400 italic">
@@ -2672,7 +2503,7 @@ onUnmounted(() => {
                 :src="previewImageUrl"
                 alt="預覽圖片"
                 class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
-                @error="(e) => { console.error('預覽圖片載入失敗'); e.target.style.display = 'none' }"
+                @error="(e) => { e.target.style.display = 'none' }"
                 @click.stop
               />
               <div

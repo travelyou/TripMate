@@ -1,6 +1,5 @@
 import { API_BASE_URL } from './config'
 
-// 創建留言
 export async function createComment(postId, commentData) {
   try {
     const response = await fetch(`${API_BASE_URL}/posts/${postId}/comments`, {
@@ -21,7 +20,6 @@ export async function createComment(postId, commentData) {
   }
 }
 
-// 更新留言
 export async function updateComment(id, content) {
   try {
     const response = await fetch(`${API_BASE_URL}/comments/${id}`, {
@@ -41,7 +39,6 @@ export async function updateComment(id, content) {
   }
 }
 
-// 刪除留言
 export async function deleteComment(id) {
   try {
     const response = await fetch(`${API_BASE_URL}/comments/${id}`, {
@@ -57,7 +54,6 @@ export async function deleteComment(id) {
   }
 }
 
-// 留言按讚/取消按讚（僅更新 likes_count）
 export async function toggleCommentLike(commentId, action) {
   try {
     const response = await fetch(`${API_BASE_URL}/comments/${commentId}/likes`, {

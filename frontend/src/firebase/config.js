@@ -1,4 +1,3 @@
-// Import the functions you need from the SDKs you need
 import { getAnalytics } from 'firebase/analytics'
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
@@ -24,10 +23,8 @@ if (import.meta.env.DEV) {
   }
 }
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig)
 
-// 初始化 Analytics（在開發環境中可能會失敗，但不影響其他功能）
 let analytics = null
 try {
   analytics = getAnalytics(app)

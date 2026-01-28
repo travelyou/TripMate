@@ -118,7 +118,6 @@ const handleLogin = async () => {
         await setDoc(userDocRef, userData)
       }
     } catch {
-      // Firestore 讀取失敗，繼續使用其他資料來源
     }
 
     try {
@@ -128,7 +127,6 @@ const handleLogin = async () => {
         existingNeonUser = await getUserProfile(userCredential.user.uid)
         neonUserExists = existingNeonUser && existingNeonUser.uid
       } catch {
-        // 用戶可能不存在，繼續處理
       }
 
       const userRole = neonUserExists && existingNeonUser.role
@@ -155,11 +153,9 @@ const handleLogin = async () => {
             vendor_id: vendorId,
           })
         } catch {
-          // 同步失敗但不影響登入
         }
       }
     } catch {
-      // 同步失敗但不影響登入
     }
 
     try {
@@ -176,18 +172,14 @@ const handleLogin = async () => {
 
     userStore.login()
 
-    // 根據用戶角色進行跳轉
     try {
       const neonUserData = await getUserProfile(userCredential.user.uid)
       if (neonUserData && neonUserData.role === 'vendor') {
-        // 廠商用戶直接跳轉到管理後台
         router.push({ name: 'VendorDashboard' })
       } else {
-        // 一般用戶跳轉到首頁
         router.push('/')
       }
     } catch {
-      // 如果無法取得用戶資料，預設跳轉首頁
       router.push('/')
     }
   } catch (error) {
@@ -370,7 +362,6 @@ const handleRegister = async () => {
       }
     } catch (error) {
       if (userCredential && !neonUserCreated) {
-        // 已嘗試回滾
       }
       throw error
     }

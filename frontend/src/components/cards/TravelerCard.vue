@@ -31,7 +31,6 @@ const props = defineProps({
   },
 })
 
-// [修正] 加入 'share' 到 emit 清單
 const emit = defineEmits([
   'open-detail',
   'edit',
@@ -128,7 +127,6 @@ const loadLikesInfo = async () => {
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount || Number(props.traveler.likes ?? props.traveler.likes_count ?? 0)
   } catch (error) {
-    console.error('載入按讚狀態失敗：', error)
   }
 }
 
@@ -223,7 +221,6 @@ const handleLike = async () => {
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
-    console.error('按讚操作失敗：', error)
     alert('按讚操作失敗，請稍後再試')
   }
 }
@@ -232,7 +229,6 @@ const closeMenu = () => {
   showMenu.value = false
 }
 
-// [修正] 統一使用這個 Helper，避免直接操作 state
 const showToastNotification = (message, type = 'info') => {
   toastMessage.value = message
   toastType.value = type
@@ -261,12 +257,10 @@ const handleDelete = async (e) => {
     emit('delete', props.traveler)
     window.location.reload()
   } catch (error) {
-    console.error('刪除失敗:', error)
     alert('刪除失敗，請稍後再試')
   }
 }
 
-// [修正] 改為 emit 'share' 事件，讓父層統一處理
 const handleShare = (e) => {
   e.stopPropagation()
   closeMenu()

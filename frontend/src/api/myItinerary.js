@@ -1,8 +1,6 @@
 import axios from 'axios'
 import { API_BASE_URL } from '@/api/config'
 
-// [GET] 取得個人規劃行程
-// [修正] 改名為 getPersonalItineraries 以符合 Store 的 import
 export const getPersonalItineraries = async (uid) => {
   try {
     const response = await axios.get(`${API_BASE_URL}/my-itinerary/personal/${uid}`)
@@ -12,7 +10,6 @@ export const getPersonalItineraries = async (uid) => {
   }
 }
 
-// [GET] 取得已參加並通過的找旅伴行程
 export const getJoinedItineraries = async (uid) => {
   try {
     const response = await axios.get(`${API_BASE_URL}/my-itinerary/joined/${uid}`)
@@ -22,10 +19,8 @@ export const getJoinedItineraries = async (uid) => {
   }
 }
 
-// [POST] 新增個人行程
 export const createMyItinerary = async (data) => {
   try {
-    // 確保數據格式正確
     const payload = {
       user_uid: data.user_uid,
       title: data.title || '',
@@ -42,10 +37,8 @@ export const createMyItinerary = async (data) => {
   }
 }
 
-// [PUT] 更新個人行程
 export const updateMyItinerary = async (id, data) => {
   try {
-    // 確保數據格式正確
     const payload = {
       title: data.title || '',
       location: data.location || '',
@@ -61,7 +54,6 @@ export const updateMyItinerary = async (id, data) => {
   }
 }
 
-// [DELETE] 刪除個人行程
 export const deleteMyItinerary = async (id) => {
   try {
     const response = await axios.delete(`${API_BASE_URL}/my-itinerary/${id}`)

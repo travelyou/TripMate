@@ -32,7 +32,6 @@ export const useItineraryStore = defineStore('itinerary', () => {
       }
       itineraries.value = []
     } catch (err) {
-      console.error('Error fetching itineraries:', err)
       itineraries.value = []
       error.value = '載入行程失敗'
     } finally {

@@ -3,12 +3,6 @@ import { ref } from 'vue'
 const toasts = ref([])
 let nextId = 0
 
-/**
- * 顯示 toast 通知
- * @param {string} message - 通知訊息
- * @param {string} type - 通知類型：'success' | 'error' | 'warning' | 'info'
- * @param {number} duration - 顯示時長（毫秒），預設 3000ms
- */
 export function useToast() {
   const showToast = (message, type = 'success', duration = 3000) => {
     const id = nextId++
@@ -21,7 +15,6 @@ export function useToast() {
 
     toasts.value.push(toast)
 
-    // 自動移除
     setTimeout(() => {
       const index = toasts.value.findIndex(t => t.id === id)
       if (index > -1) {

@@ -34,7 +34,6 @@ function debugLog(location, message, data, hypothesisId) {
       }) + '\n'
     fs.appendFileSync(DEBUG_LOG_PATH, logEntry, 'utf8')
   } catch {
-    // ignore
   }
 }
 
@@ -487,7 +486,6 @@ async function initializePool() {
         try {
           if (pool) await pool.end()
         } catch {
-          // ignore
         }
 
         const retryable = shouldRetryConnectionError(error)

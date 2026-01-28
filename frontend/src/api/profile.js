@@ -1,6 +1,5 @@
 import { API_BASE_URL } from './config'
 
-// 獲取用戶完整個人檔案資料
 export async function getProfile(uid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}`)
@@ -18,7 +17,6 @@ export async function getProfile(uid) {
   }
 }
 
-// 新增去過的地方
 export async function addVisitedPlace(uid, placeData) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/visited-places`, {
@@ -39,7 +37,6 @@ export async function addVisitedPlace(uid, placeData) {
   }
 }
 
-// 刪除去過的地方
 export async function removeVisitedPlace(uid, id) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/visited-places/${id}`, {
@@ -56,7 +53,6 @@ export async function removeVisitedPlace(uid, id) {
   }
 }
 
-// 新增許願球池項目
 export async function addWishlistItem(uid, item) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/wishlist`, {
@@ -77,7 +73,6 @@ export async function addWishlistItem(uid, item) {
   }
 }
 
-// 刪除許願球池項目
 export async function removeWishlistItem(uid, id) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/wishlist/${id}`, {
@@ -94,7 +89,6 @@ export async function removeWishlistItem(uid, id) {
   }
 }
 
-// 批量更新許願球池
 export async function updateWishlist(uid, items) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/wishlist`, {
@@ -115,7 +109,6 @@ export async function updateWishlist(uid, items) {
   }
 }
 
-// 加好友（發送好友請求）
 export async function addFriend(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends`, {
@@ -136,7 +129,6 @@ export async function addFriend(uid, friendUid) {
   }
 }
 
-// 取消好友請求
 export async function cancelFriendRequest(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}`, {
@@ -153,7 +145,6 @@ export async function cancelFriendRequest(uid, friendUid) {
   }
 }
 
-// 接受好友請求
 export async function acceptFriendRequest(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}/accept`, {
@@ -170,7 +161,6 @@ export async function acceptFriendRequest(uid, friendUid) {
   }
 }
 
-// 拒絕好友請求
 export async function rejectFriendRequest(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}/reject`, {
@@ -187,7 +177,6 @@ export async function rejectFriendRequest(uid, friendUid) {
   }
 }
 
-// 解除好友關係
 export async function removeFriend(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friends/${friendUid}/remove`, {
@@ -204,7 +193,6 @@ export async function removeFriend(uid, friendUid) {
   }
 }
 
-// 獲取好友請求列表
 export async function getFriendRequests(uid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/friend-requests`)
@@ -219,12 +207,10 @@ export async function getFriendRequests(uid) {
   }
 }
 
-// 獲取對話次數
 export async function getChatInteractionCount(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-interactions/${friendUid}`)
     if (!response.ok) {
-      // 如果失敗，返回允許發送
       return { count: 0, remaining: 3, canSend: true }
     }
     const data = await response.json()
@@ -234,7 +220,6 @@ export async function getChatInteractionCount(uid, friendUid) {
   }
 }
 
-// 增加對話次數
 export async function incrementChatInteraction(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-interactions/${friendUid}/increment`, {
@@ -251,7 +236,6 @@ export async function incrementChatInteraction(uid, friendUid) {
   }
 }
 
-// 保存聊天訊息
 export async function saveChatMessage(uid, friendUid, content) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-messages/${friendUid}`, {
@@ -293,7 +277,6 @@ export async function saveChatMessage(uid, friendUid, content) {
   }
 }
 
-// 獲取聊天記錄
 export async function getChatMessages(uid, friendUid) {
   try {
     const response = await fetch(`${API_BASE_URL}/profile/${uid}/chat-messages/${friendUid}`)

@@ -79,10 +79,10 @@ const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
   editItineraryData.value = null
   isItineraryEdit.value = false
-  
+
   try {
     await vendorStore.fetchVendorItineraries(vendorId.value)
-  } catch (error) {
+  } catch {
     alert('行程已創建，但刷新列表時發生錯誤，請手動刷新頁面')
   }
 }

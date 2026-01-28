@@ -263,7 +263,6 @@ export const useUserStore = defineStore('user', () => {
         }
       })
     } catch {
-      // 靜默處理錯誤
     }
   }
 
@@ -530,7 +529,6 @@ export const useUserStore = defineStore('user', () => {
         }
       }
     } catch (error) {
-      // 靜默處理錯誤
     }
   }
 
@@ -563,7 +561,6 @@ export const useUserStore = defineStore('user', () => {
       } catch (error) {
         const is404Error = error.message?.includes('404') || error.message?.includes('Not Found')
         if (!is404Error) {
-          // 靜默處理 404 錯誤（用戶可能尚未完全創建）
         }
       }
     } else {
@@ -605,7 +602,6 @@ export const useUserStore = defineStore('user', () => {
     try {
       await signOut(auth)
     } catch {
-      // 靜默處理錯誤
     } finally {
       isLoggedIn.value = false
     }
@@ -613,9 +609,6 @@ export const useUserStore = defineStore('user', () => {
 
   const userProfile = computed(() => currentUser.value)
 
-  // ----------------------------------------------------------------
-  // Computed Properties for Permissions
-  // ----------------------------------------------------------------
   const isVendor = computed(() => currentUser.value.role === 'vendor')
   const isAdmin = computed(() => currentUser.value.role === 'admin')
 

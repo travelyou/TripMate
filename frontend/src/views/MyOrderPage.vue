@@ -57,7 +57,6 @@ const loadOrders = async () => {
     const data = await fetchOrders()
     orders.value = data.map(mapOrderToCard)
   } catch (error) {
-    console.error('[MyOrderPage] load orders failed:', error)
     errorMessage.value = error?.message || '載入訂單失敗'
     orders.value = []
   } finally {

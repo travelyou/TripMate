@@ -9,7 +9,6 @@ import {
   Loader2 as Loader2Icon,
 } from 'lucide-vue-next'
 
-// 引入 Modal 與 Card 組件
 import DiscussionCard from '@/components/cards/DiscussionCard.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue'
@@ -34,7 +33,6 @@ const setAppLoading = (active) => {
 
 const currentUserUid = ref(null)
 
-// --- Modal 狀態管理 ---
 const isModalOpen = ref(false)
 const selectedPost = ref(null)
 const shouldScrollToComments = ref(false)
@@ -44,7 +42,6 @@ const isTravelerApplyModalOpen = ref(false)
 const isTravelerApplicationsModalOpen = ref(false)
 const selectedTraveler = ref(null)
 
-// --- 討論區分頁狀態 (最新動態) ---
 const discussionPage = ref(1)
 const hasMoreDiscussions = ref(true)
 const discussionTrigger = ref(null)
@@ -64,12 +61,9 @@ const loadMoreDiscussions = async (isLoadMore = false) => {
       else discussionPage.value = isLoadMore ? discussionPage.value + 1 : 2
     }
   } catch (error) {
-    console.error('載入首頁討論失敗:', error)
   }
 }
 
-// --- 網址同步邏輯 (重要！) ---
-// 監聽網址參數，處理深層連結開啟 Modal
 watch(
   () => [route.query.postId, route.query.travelerId],
   async ([postId, travelerId]) => {
@@ -82,7 +76,6 @@ watch(
           isModalOpen.value = true
         }
       } catch (e) {
-        console.error(e)
       } finally {
         setAppLoading(false)
       }
@@ -99,7 +92,6 @@ watch(
           isTravelerModalOpen.value = true
         }
       } catch (e) {
-        console.error(e)
       } finally {
         setAppLoading(false)
       }
@@ -127,9 +119,8 @@ onMounted(async () => {
       },
       { rootMargin: '150px' },
     )
-    if (discussionTrigger.value) discussionObserver.observe(discussionTrigger.value)
+      if (discussionTrigger.value) discussionObserver.observe(discussionTrigger.value)
   } catch (error) {
-    console.error('載入首頁資料失敗:', error)
   }
 })
 
@@ -137,7 +128,6 @@ onBeforeUnmount(() => {
   if (discussionObserver) discussionObserver.disconnect()
 })
 
-// --- 互動邏輯：更新 URL 而不跳轉頁面 ---
 const openDiscussionDetailModal = (post) => {
   router.push({ query: { ...route.query, postId: post.id } })
 }
@@ -177,11 +167,9 @@ const handleTravelerOpenApplications = (traveler) => {
 }
 
 const handleTravelerUpdated = () => {
-  // 重新載入旅伴推薦列表
   travelersStore.loadRecommendations(false)
 }
 
-// --- 分享功能 ---
 const isShareModalOpen = ref(false)
 const shareLink = ref('')
 const openShareModal = (postId) => {
@@ -193,7 +181,6 @@ const closeShareModal = () => {
   shareLink.value = ''
 }
 
-// --- 輔助函式 (略) ---
 const scrollContainer = ref(null)
 const scroll = (direction) => {
   if (scrollContainer.value) {
@@ -242,7 +229,6 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
 <template>
   <div class="p-4">
     <div class="w-full min-w-0">
-      <!-- 旅伴推薦區塊 - 始終顯示 -->
       <div
         class="my-4 p-4 relative group bg-white border-4 border-primary shadow-primary-tall rounded-xl min-h-[200px]"
       >
@@ -267,7 +253,6 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
           class="flex overflow-x-auto space-x-4 p-4 rounded-2xl custom-scrollbar snap-x snap-mandatory scroll-smooth shadow-sm ml-2"
           @scroll="handleScroll"
         >
-          <!-- 載入中狀態 -->
           <div
             v-if="travelersStore.loading && travelersStore.recommendations.length === 0"
             class="flex space-x-4 w-full"
@@ -279,7 +264,6 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
             ></div>
           </div>
 
-          <!-- 推薦卡片 -->
           <div
             v-for="item in travelersStore.recommendations"
             :key="item.id"
@@ -317,7 +301,6 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
             </div>
           </div>
 
-          <!-- 載入更多指示器 -->
           <div
             v-if="travelersStore.loading && travelersStore.recommendations.length > 0"
             class="flex-shrink-0 w-32 h-48 flex items-center justify-center"
@@ -325,7 +308,6 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
             <Loader2Icon class="w-8 h-8 text-primary animate-spin" />
           </div>
 
-          <!-- 結束標記 -->
           <div
             v-if="!travelersStore.hasMore && travelersStore.recommendations.length > 0"
             class="flex-shrink-0 w-8 h-48 flex items-center justify-center text-gray-300 text-xs font-bold tracking-widest"
@@ -334,7 +316,6 @@ const getFirstTag = (item) => item.tag || (item.tags && item.tags[0]) || '旅遊
             THE END
           </div>
 
-          <!-- 空狀態 -->
           <div
             v-if="!travelersStore.loading && travelersStore.recommendations.length === 0"
             class="flex-shrink-0 w-full h-48 flex flex-col items-center justify-center text-gray-400"

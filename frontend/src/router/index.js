@@ -111,9 +111,9 @@ const router = createRouter({
       component: () => import('@/views/VendorDashboardPage.vue'),
       meta: {
         hideAd: true,
-        hideLayout: true, // 隱藏前台 Layout (AppHeader, AppSidebar, FABs)
+        hideLayout: true,
         requiresAuth: true,
-        requiresVendorAuth: true, // 未來需實作廠商權限驗證
+        requiresVendorAuth: true,
       },
     },
     {
@@ -194,27 +194,21 @@ const router = createRouter({
     },
   ],
   scrollBehavior(to, from, savedPosition) {
-    //  瀏覽器返回鍵（上一頁 / 下一頁）
     if (savedPosition) {
       return savedPosition
     }
 
-    //  一般路由切換，回到頂端
     return { top: 0 }
   },
 })
 
 router.beforeEach(async (to, from, next) => {
-  // 在路由切換時刷新按讚狀態
   flushPendingLikesNow({ keepalive: true })
 
   const userStore = useUserStore()
 
-  // 優先處理需要隱藏布局的路由（如 dashboard、login），避免先渲染首頁
   if (to.meta.hideLayout) {
-    // 對於需要隱藏布局的路由，先快速檢查基本權限
     if (to.meta.requiresVendorAuth || to.meta.requiresAuth) {
-      // 等待認證準備好
       if (!userStore.authReady) {
         await new Promise((resolve) => {
           if (userStore.authReady) {
@@ -234,7 +228,6 @@ router.beforeEach(async (to, from, next) => {
         })
       }
 
-      // 廠商權限檢查
       if (to.meta.requiresVendorAuth) {
         if (!userStore.isLoggedIn) {
           next('/login')
@@ -250,7 +243,6 @@ router.beforeEach(async (to, from, next) => {
         return
       }
 
-      // 一般權限檢查
       if (to.meta.requiresAuth) {
         if (userStore.isLoggedIn) {
           next()
@@ -261,12 +253,10 @@ router.beforeEach(async (to, from, next) => {
         return
       }
     }
-    // 不需要權限的 hideLayout 路由，直接通過
     next()
     return
   }
 
-  // 對於一般路由，等待認證準備好
   if (!userStore.authReady) {
     await new Promise((resolve) => {
       if (userStore.authReady) {
@@ -287,11 +277,7 @@ router.beforeEach(async (to, from, next) => {
     })
   }
 
-  // ========================================
-  // 🎯 Vendor 登入後自動導向 Dashboard
-  // ========================================
   if (userStore.isLoggedIn && userStore.isVendor) {
-    // 情況 1: Vendor 訪問首頁 → 導向 Dashboard
     if (to.name === 'home') {
       next({ name: 'VendorDashboard' })
       return
@@ -303,7 +289,6 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // 一般權限檢查
   if (to.meta.requiresAuth) {
     if (userStore.isLoggedIn) {
       next()

@@ -130,7 +130,6 @@ const loadLikesInfo = async () => {
     isLiked.value = info.isLiked
     likesCount.value = info.likesCount
   } catch (error) {
-    console.error(error)
   }
 }
 
@@ -156,7 +155,6 @@ const handleLike = async () => {
     isLiked.value = result.liked
     likesCount.value = result.likesCount
   } catch (error) {
-    console.error(error)
   }
 }
 
@@ -215,7 +213,6 @@ const handleDelete = async (e) => {
     emit('delete', props.itinerary)
     window.location.reload()
   } catch (error) {
-    console.error('刪除失敗:', error)
     alert('刪除失敗，請稍後再試')
   }
 }
@@ -228,7 +225,6 @@ const handleShare = async (e) => {
     await navigator.clipboard.writeText(url)
     showToastNotification('已複製行程網址', 'info')
   } catch (error) {
-    console.error('複製失敗:', error)
     alert('複製失敗，請稍後再試')
   }
 }

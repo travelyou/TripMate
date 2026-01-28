@@ -1,6 +1,6 @@
 ﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import dayjs from 'dayjs' // 確保已安裝並引入 dayjs
+import dayjs from 'dayjs'
 import {
   createMyItinerary,
   updateMyItinerary,
@@ -15,7 +15,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
   const partnerItineraries = ref([])
   const drafts = ref(JSON.parse(localStorage.getItem('itinerary_drafts') || '[]'))
 
-  // [Action] 載入個人行程並強制轉換日期格式 (Snake -> Camel + Format Date)
   const loadPersonalData = async (uid) => {
     if (!uid) return
     try {
@@ -25,7 +24,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
           const { start_date, end_date, itinerary, packing_list, ...rest } = item
           return {
             ...rest,
-            // [修正] 僅保留日期，不顯示時間
             startDate: start_date ? dayjs(start_date).format('YYYY-MM-DD') : '',
             endDate: end_date ? dayjs(end_date).format('YYYY-MM-DD') : '',
             days: itinerary || [],
@@ -34,7 +32,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         })
       }
     } catch (error) {
-      // 載入失敗，靜默處理
     }
   }
 
@@ -50,7 +47,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         }))
       }
     } catch (error) {
-      // 載入失敗，靜默處理
     }
   }
 
@@ -65,7 +61,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
       packing_list: itineraryData.packingList,
     }
     try {
-      // 如果有 id，表示是編輯現有行程，使用更新 API
       if (itineraryData.id) {
         const res = await updateMyItinerary(itineraryData.id, payload)
         if (res.success) {
@@ -74,7 +69,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         }
         return { success: false, message: res.message || '更新失敗' }
       } else {
-        // 沒有 id，表示是新行程，使用創建 API
         const res = await createMyItinerary({
           ...payload,
           user_uid: uid,
@@ -86,7 +80,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         return { success: false, message: res.message || '創建失敗' }
       }
     } catch (error) {
-      // 提取錯誤訊息
       let errorMessage = '儲存失敗'
       if (error.response?.data) {
         errorMessage = error.response.data.error || error.response.data.message || errorMessage
@@ -94,7 +87,6 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
         errorMessage = error.message
       }
       
-      // 如果是網路錯誤
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
         errorMessage = '無法連接到伺服器，請檢查網路連線'
       }
