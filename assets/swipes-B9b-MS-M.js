@@ -1,0 +1,1 @@
+import{as as a}from"./index-Ba0X4B_q.js";async function i(e,o){try{const r=await fetch(`${a}/swipes/like`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({uid:e,target_uid:o})});if(!r.ok){const t=await r.json().catch(()=>({error:"未知錯誤"}));throw new Error(t.error||t.message||"抽卡喜歡失敗")}return await r.json()}catch(r){throw r}}export{i as likeSwipe};
