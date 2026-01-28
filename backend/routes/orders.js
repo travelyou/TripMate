@@ -259,6 +259,8 @@ router.get('/', async (req, res) => {
         o.itinerary_id,
         o.contact_json,
         o.emergency_contact_json,
+        o.rating,
+        o.comment,
         o.created_at,
         i.title,
         i.start_date,
@@ -299,6 +301,8 @@ router.get('/', async (req, res) => {
       createdAt: row.created_at,
       contact: parseJSON(row.contact_json, 'contact_json'),
       emergencyContact: parseJSON(row.emergency_contact_json, 'emergency_contact_json'),
+      rating: row.rating ? Number(row.rating) : null,
+      comment: row.comment || null,
       itinerary: {
         id: row.itinerary_id,
         title: row.title,
@@ -335,6 +339,8 @@ router.get('/:id', async (req, res) => {
         o.itinerary_id,
         o.contact_json,
         o.emergency_contact_json,
+        o.rating,
+        o.comment,
         o.created_at,
         i.title,
         i.start_date,
@@ -381,6 +387,8 @@ router.get('/:id', async (req, res) => {
         itineraryId: row.itinerary_id,
         contact,
         emergencyContact,
+        rating: row.rating ? Number(row.rating) : null,
+        comment: row.comment || null,
         createdAt: row.created_at,
       },
       itinerary: {
@@ -404,6 +412,86 @@ router.get('/:id', async (req, res) => {
     })
   } catch (err) {
     return res.status(500).json({ ok: false, message: '伺服器錯誤' })
+  }
+})
+
+router.put('/:id/review', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ ok: false, message: '訂單 ID 無效' })
+    }
+
+    const { rating, comment } = req.body
+
+    if (rating !== null && rating !== undefined) {
+      const ratingNum = Number(rating)
+      if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+        return res.status(400).json({ ok: false, message: '評分必須是 1-5 之間的整數' })
+      }
+    }
+
+    const userUid = req.user?.uid
+    if (!userUid) {
+      return res.status(401).json({ ok: false, message: '未授權' })
+    }
+
+    const checkOrder = await pool.query(
+      `SELECT id, user_uid, status, itinerary_id
+       FROM commerce.orders
+       WHERE id = $1`,
+      [id],
+    )
+
+    if (checkOrder.rows.length === 0) {
+      return res.status(404).json({ ok: false, message: '訂單不存在' })
+    }
+
+    const order = checkOrder.rows[0]
+
+    if (order.user_uid !== userUid) {
+      return res.status(403).json({ ok: false, message: '無權限修改此訂單' })
+    }
+
+    const itineraryQuery = await pool.query(
+      `SELECT end_date FROM itinerary.itineraries WHERE id = $1`,
+      [order.itinerary_id],
+    )
+
+    if (itineraryQuery.rows.length === 0) {
+      return res.status(404).json({ ok: false, message: '行程不存在' })
+    }
+
+    const itinerary = itineraryQuery.rows[0]
+    const endDate = new Date(itinerary.end_date)
+    const now = new Date()
+
+    if (endDate > now) {
+      return res.status(400).json({ ok: false, message: '旅程尚未結束，無法評論' })
+    }
+
+    if (order.status !== 'PAID') {
+      return res.status(400).json({ ok: false, message: '只有已付款的訂單才能評論' })
+    }
+
+    const updateQuery = await pool.query(
+      `UPDATE commerce.orders
+       SET rating = $1, comment = $2, updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, rating, comment`,
+      [rating || null, comment || null, id],
+    )
+
+    return res.json({
+      ok: true,
+      order: {
+        id: updateQuery.rows[0].id,
+        rating: updateQuery.rows[0].rating ? Number(updateQuery.rows[0].rating) : null,
+        comment: updateQuery.rows[0].comment || null,
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({ ok: false, message: '伺服器錯誤', error: err.message })
   }
 })
 

@@ -154,7 +154,7 @@ router.get('/:id/posts', async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) as total
       FROM discussion.discussion
-      WHERE author_uid = $1
+      WHERE author_uid = $1 AND deleted_at IS NULL
     `
     const countResult = await pool.query(countQuery, [targetUid])
     const total = parseInt(countResult.rows[0].total)
@@ -169,16 +169,17 @@ router.get('/:id/posts', async (req, res) => {
         d.tags,
         d.created_at,
         d.updated_at,
+        d.deleted_at,
         COUNT(DISTINCT l.id) as likes,
         COUNT(DISTINCT cm.id) as comments
       FROM discussion.discussion d
       LEFT JOIN public.likes l
         ON d.id = l.post_id AND l.board = 'discussion'
       LEFT JOIN public.comments cm
-        ON d.id = cm.post_id AND cm.post_type = 'discussion'
-      WHERE d.author_uid = $1
+        ON d.id = cm.post_id AND cm.post_type = 'discussion' AND cm.deleted_at IS NULL
+      WHERE d.author_uid = $1 AND d.deleted_at IS NULL
       GROUP BY d.id, d.author_uid, d.title, d.content, d.image_urls,
-               d.tags, d.created_at, d.updated_at
+               d.tags, d.created_at, d.updated_at, d.deleted_at
       ORDER BY d.created_at DESC
       LIMIT $2 OFFSET $3
     `
@@ -269,6 +270,14 @@ router.get('/:id/itineraries', async (req, res) => {
       }
     } catch (e) {
       targetUid = id
+    }
+
+    if (!targetUid || targetUid === '') {
+      return res.status(400).json({
+        success: false,
+        message: '無法確定廠商使用者 ID',
+        data: [],
+      })
     }
 
     let countQuery = `
@@ -607,6 +616,125 @@ router.put('/:id', async (req, res) => {
     const statusCode = error.code === '23505' ? 409 :
                       error.code === '23503' ? 400 : 500
     res.status(statusCode).json(response)
+  }
+})
+
+router.post('/:id/itineraries', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const { id } = req.params
+    const {
+      title,
+      description,
+      location,
+      coverImage,
+      price,
+      agencyName,
+      start_date,
+      end_date,
+      itinerary,
+      packingList,
+      tags,
+      category,
+      max_people,
+    } = req.body
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({ success: false, message: '請提供開始與結束日期' })
+    }
+
+    let targetUid = id
+    let searchId = id
+
+    if (id.startsWith('vendor-')) {
+      searchId = id.replace('vendor-', '')
+    }
+
+    try {
+      const vendorQuery = `SELECT user_id FROM public.vendors WHERE id = $1 LIMIT 1`
+      const vendorResult = await pool.query(vendorQuery, [id])
+
+      if (vendorResult.rows.length > 0 && vendorResult.rows[0].user_id) {
+        targetUid = vendorResult.rows[0].user_id
+      } else {
+        const userQuery = `SELECT uid FROM users WHERE uid = $1 OR vendor_id = $1 OR uid::text LIKE $2 LIMIT 1`
+        const userResult = await pool.query(userQuery, [searchId, `%${searchId}%`])
+
+        if (userResult.rows.length > 0) {
+          targetUid = userResult.rows[0].uid
+        } else {
+          targetUid = id
+        }
+      }
+    } catch (e) {
+      targetUid = id
+    }
+
+    if (!targetUid || targetUid === '') {
+      return res.status(400).json({
+        success: false,
+        message: '無法確定廠商使用者 ID',
+      })
+    }
+
+    await client.query('BEGIN')
+
+    const insertItineraryQuery = `
+      INSERT INTO itinerary.itineraries
+      (title, content, location, banner_image, price, agency_name, start_date, end_date, tags, category, max_people, author_uid, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+      RETURNING id
+    `
+
+    const itineraryValues = [
+      title,
+      description,
+      location,
+      coverImage,
+      price || 0,
+      agencyName,
+      start_date,
+      end_date,
+      tags || [],
+      category || null,
+      max_people || 20,
+      targetUid,
+      'published',
+    ]
+
+    const itineraryResult = await client.query(insertItineraryQuery, itineraryValues)
+    const newItineraryId = itineraryResult.rows[0].id
+
+    if (itinerary && itinerary.days) {
+      const dayInsertQuery = `INSERT INTO itinerary.itinerary_days (itinerary_id, day_number, activities, created_at) VALUES ($1, $2, $3, NOW())`
+      for (const day of itinerary.days) {
+        const activitiesJson =
+          typeof day.activities === 'string' ? day.activities : JSON.stringify(day.activities || [])
+
+        await client.query(dayInsertQuery, [newItineraryId, day.day, activitiesJson])
+      }
+    }
+
+    if (packingList) {
+      const packingInsertQuery = `INSERT INTO itinerary.itinerary_packing_lists (itinerary_id, category, items, created_at) VALUES ($1, $2, $3, NOW())`
+      for (const list of packingList) {
+        const itemsJson = typeof list.items === 'string' ? list.items : JSON.stringify(list.items || [])
+
+        await client.query(packingInsertQuery, [newItineraryId, list.category, itemsJson])
+      }
+    }
+
+    await client.query('COMMIT')
+    res.json({ success: true, message: '建立成功', id: newItineraryId })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    res.status(500).json({
+      success: false,
+      message: '建立行程失敗',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    })
+  } finally {
+    client.release()
   }
 })
 

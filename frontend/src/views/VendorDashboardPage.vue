@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useVendorStore } from '@/stores/vendor'
 import { useUserStore } from '@/stores/user'
@@ -81,7 +81,11 @@ const handleItinerarySuccess = async () => {
   isItineraryEdit.value = false
 
   try {
+    if (vendorId.value) {
     await vendorStore.fetchVendorItineraries(vendorId.value)
+    } else {
+      alert('行程已創建，但刷新列表時發生錯誤，請手動刷新頁面')
+    }
   } catch {
     alert('行程已創建，但刷新列表時發生錯誤，請手動刷新頁面')
   }
@@ -90,16 +94,41 @@ const handleItinerarySuccess = async () => {
 const handlePostSuccess = async () => {
   showPostModal.value = false
   postFromItinerary.value = null
+
+  try {
+    if (vendorId.value) {
   await vendorStore.fetchVendorPosts(vendorId.value)
   alert('貼文發布成功！且已同步至前台討論區')
+    } else {
+      alert('貼文發布成功！但刷新列表時發生錯誤，請手動刷新頁面')
+    }
+  } catch {
+    alert('貼文發布成功！但刷新列表時發生錯誤，請手動刷新頁面')
+  }
 }
 
-onMounted(async () => {
+const loadData = async () => {
+  if (vendorId.value) {
   await vendorStore.fetchVendorProfile(vendorId.value)
   await Promise.all([
     vendorStore.fetchVendorItineraries(vendorId.value),
     vendorStore.fetchVendorPosts(vendorId.value),
   ])
+  }
+}
+
+watch(() => activeTab.value, () => {
+  if (vendorId.value) {
+    if (activeTab.value === 'itineraries') {
+      vendorStore.fetchVendorItineraries(vendorId.value)
+    } else if (activeTab.value === 'posts') {
+      vendorStore.fetchVendorPosts(vendorId.value)
+    }
+  }
+})
+
+onMounted(() => {
+  loadData()
 })
 </script>
 
@@ -120,8 +149,8 @@ onMounted(async () => {
         <DashboardHeader
           v-if="currentVendor && !loading"
           :vendor="currentVendor"
-          :itineraries="vendorStore.itineraries"
-          :posts="vendorStore.posts"
+          :itineraries="vendorStore.vendorItineraries"
+          :posts="vendorStore.vendorPosts"
         />
 
         <div class="p-8">

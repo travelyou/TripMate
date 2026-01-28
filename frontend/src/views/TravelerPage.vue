@@ -176,6 +176,8 @@ const handleCardEdit = async (traveler) => {
 const openEditModalFromTraveler = (source) => {
   selectedDraft.value = {
     type: 'traveler',
+    id: source.id,
+    travelerId: source.id,
     data: {
       category: source.category || '',
       title: source.title || '',

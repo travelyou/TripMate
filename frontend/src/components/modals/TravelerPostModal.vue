@@ -37,7 +37,7 @@ import LocationPickerModal from './LocationPickerModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
-import { createTraveler } from '@/api/travelers'
+import { createTraveler, updateTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 import { showAlert, showConfirm, showError, showSuccess } from '@/utils/alert'
@@ -143,6 +143,8 @@ const setColor = (color) => {
   editor.value.chain().focus().setColor(color).run()
   showColorPicker.value = false
 }
+
+const editingTravelerId = ref(null)
 
 const postData = ref({
   category: '',
@@ -327,6 +329,7 @@ watch(
   (newDraft) => {
     if (newDraft && newDraft.data) {
       const draft = newDraft.data
+      editingTravelerId.value = newDraft.id || newDraft.travelerId || null
       postData.value.category = draft.category || ''
       postData.value.title = draft.title || ''
       postData.value.content = draft.content || ''
@@ -349,10 +352,11 @@ watch(
           try {
             editor.value.commands.setContent(draft.content, false)
           } catch (error) {
-            console.error('[發文編輯器] 載入草稿內容失敗:', error)
           }
         })
       }
+    } else {
+      editingTravelerId.value = null
     }
   },
   { immediate: true },
@@ -1290,7 +1294,7 @@ const executeSubmit = async () => {
 
     const optimizedPayload = {
       title: payload.title.trim(),
-      content: payload.content.trim(),
+      content: payload.content || '',
       location: payload.location.trim(),
       category: (payload.category || '').trim(),
       start_date: payload.start_date,
@@ -1337,21 +1341,23 @@ const executeSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = '正在提交貼文中...'
+    submitStatus.value = editingTravelerId.value ? '正在更新貼文中...' : '正在提交貼文中...'
 
-    const response = await createTraveler(optimizedPayload)
+    const response = editingTravelerId.value
+      ? await updateTraveler(editingTravelerId.value, optimizedPayload)
+      : await createTraveler(optimizedPayload)
 
     if (response.success) {
       sessionStorage.removeItem('is_submitting_traveler_post')
       sessionStorage.removeItem('submit_start_time')
 
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('旅伴招募發布成功！', {
-          body: '您的貼文已成功發布',
+        new Notification(editingTravelerId.value ? '旅伴招募更新成功！' : '旅伴招募發布成功！', {
+          body: editingTravelerId.value ? '您的貼文已成功更新' : '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
       } else {
-        await showSuccess('旅伴招募發布成功！')
+        await showSuccess(editingTravelerId.value ? '旅伴招募更新成功！' : '旅伴招募發布成功！')
       }
       emit('success')
       emit('close')

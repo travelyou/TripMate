@@ -44,6 +44,7 @@ export const useMyItineraryStore = defineStore('myItinerary', () => {
           ...item,
           startDate: item.start_date ? dayjs(item.start_date).format('YYYY-MM-DD') : '',
           endDate: item.end_date ? dayjs(item.end_date).format('YYYY-MM-DD') : '',
+          reviewLabel: item.review_label || item.reviewLabel || null,
         }))
       }
     } catch (error) {

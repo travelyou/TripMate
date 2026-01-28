@@ -1,23 +1,36 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, watch } from 'vue'
 import { useVendorStore } from '@/stores/vendor'
+import { useUserStore } from '@/stores/user'
 import { Plus, Edit, Trash2, MapPin, Calendar, Star, MessageSquare } from 'lucide-vue-next'
-// 移除原本內部的 ItineraryModal，改用父層控制
-// import ItineraryModal from '@/components/vendor-dashboard/modals/ItineraryModal.vue'
 
-// 定義可以發送的訊號
 defineEmits(['create', 'edit', 'delete', 'create-post'])
 
 const vendorStore = useVendorStore()
+const userStore = useUserStore()
 const itineraries = computed(() => vendorStore.vendorItineraries)
 const currentVendor = computed(() => vendorStore.currentVendor)
 
-// 刪除確認
+const getVendorId = () => {
+  const user = userStore.currentUser
+  if (!user) return null
+
+  const vendorIdValue = user.vendorId || user.vendor_id
+  if (vendorIdValue && typeof vendorIdValue === 'string' && vendorIdValue.trim() && !vendorIdValue.startsWith('vendor-')) {
+    return vendorIdValue.trim()
+  }
+
+  return currentVendor.value?.id || user.uid || user.id || null
+}
+
 const handleDelete = async (id) => {
   if (confirm('確定要刪除此行程嗎？此動作無法復原。')) {
     try {
       await vendorStore.deleteItinerary(id)
-      await vendorStore.fetchVendorItineraries(currentVendor.value.id)
+      const vendorId = getVendorId()
+      if (vendorId) {
+        await vendorStore.fetchVendorItineraries(vendorId)
+      }
     } catch (error) {
       alert('刪除失敗，請稍後再試')
     }
@@ -32,10 +45,19 @@ const formatPrice = (price) => {
   }).format(price)
 }
 
-onMounted(() => {
-  if (currentVendor.value?.id) {
-    vendorStore.fetchVendorItineraries(currentVendor.value.id)
+const loadItineraries = async () => {
+  const vendorId = getVendorId()
+  if (vendorId) {
+    await vendorStore.fetchVendorItineraries(vendorId)
   }
+}
+
+onMounted(() => {
+  loadItineraries()
+})
+
+watch(() => currentVendor.value?.id, () => {
+  loadItineraries()
 })
 </script>
 

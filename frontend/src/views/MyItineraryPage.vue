@@ -98,23 +98,24 @@ const handleDeleteItinerary = async (id) => {
 const handleReviewSubmit = async (payload) => {
   const currentUser = auth.currentUser
   if (!currentUser) {
-    showAlert('請先登入才能評價')
+    await showAlert('請先登入才能評價')
     return
   }
 
   const trip = partnerItineraries.value.find((p) => p.id === payload.id)
   if (!trip) {
-    showAlert('找不到該行程資料')
+    await showAlert('找不到該行程資料')
     return
   }
 
   const targetUid = trip.author_uid || trip.authorUid
 
   if (!targetUid) {
-    showAlert('無法確認該行程的主揪，無法評價')
+    await showAlert('無法確認該行程的主揪，無法評價')
     return
   }
 
+  try {
   const res = await submitReview({
     author_uid: currentUser.uid,
     target_uid: targetUid,
@@ -124,11 +125,18 @@ const handleReviewSubmit = async (payload) => {
   })
 
   if (res.success) {
-    showAlert('評價已送出！')
+      await showAlert('評價已送出！')
     trip.comment = payload.comment
     trip.reviewLabel = payload.reviewLabel
+      const uid = auth.currentUser?.uid
+      if (uid) {
+        await myItineraryStore.loadJoinedData(uid)
+      }
   } else {
-    showAlert('評價失敗：' + res.message)
+      await showAlert('評價失敗：' + (res.message || '未知錯誤'))
+    }
+  } catch (error) {
+    await showAlert('評價失敗：' + (error.message || '網路錯誤，請稍後再試'))
   }
 }
 

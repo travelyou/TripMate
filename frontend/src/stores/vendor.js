@@ -6,7 +6,7 @@ import {
   getVendorPosts,
   updateVendorProfile as updateVendorProfileAPI,
 } from '@/api/vendor'
-import { createItinerary as createItineraryApi } from '@/api/itinerary'
+import { createItinerary as createItineraryApi } from '@/api/vendor'
 
 export const useVendorStore = defineStore('vendor', () => {
   const currentVendor = ref(null)
@@ -37,31 +37,93 @@ export const useVendorStore = defineStore('vendor', () => {
 
   const fetchVendorPosts = async (id) => {
     try {
+      if (!id) {
+        vendorPosts.value = []
+        return
+      }
+      
       const res = await getVendorPosts(id)
-      const posts = res.data || (res.success ? res.data : null)
+      
+      let posts = null
+      if (res && res.success !== false) {
+        if (Array.isArray(res.data)) {
+          posts = res.data
+        } else if (res.data && Array.isArray(res.data.data)) {
+          posts = res.data.data
+        } else if (Array.isArray(res)) {
+          posts = res
+        } else if (res.posts && Array.isArray(res.posts)) {
+          posts = res.posts
+        }
+      }
 
-      if (Array.isArray(posts)) {
-        vendorPosts.value = posts
-      } else if (res.posts) {
-         vendorPosts.value = res.posts
+      if (Array.isArray(posts) && posts.length > 0) {
+        vendorPosts.value = posts.map((item) => ({
+          ...item,
+          id: item.id,
+          title: item.title || '',
+          content: item.content || '',
+          image: item.image || (Array.isArray(item.image_urls) && item.image_urls[0]) || '',
+          image_urls: item.image_urls || [],
+          tags: item.tags || [],
+          likes: item.likes || 0,
+          comments: item.comments || 0,
+          time: item.time || item.createdAt || item.created_at,
+          createdAt: item.createdAt || item.created_at,
+          updatedAt: item.updatedAt || item.updated_at,
+        }))
       } else {
         vendorPosts.value = []
       }
     } catch (e) {
       vendorPosts.value = []
+      throw e
     }
   }
 
   const fetchVendorItineraries = async (id, filter = {}) => {
     try {
+      if (!id) {
+        vendorItineraries.value = []
+        return
+      }
+      
       const res = await getVendorItineraries(id)
 
-      const itineraries = res.data || (res.success ? res.data : null)
+      let itineraries = null
+      if (res && res.success !== false) {
+        if (Array.isArray(res.data)) {
+          itineraries = res.data
+        } else if (res.data && Array.isArray(res.data.data)) {
+          itineraries = res.data.data
+        } else if (Array.isArray(res)) {
+          itineraries = res
+        } else if (res.itineraries && Array.isArray(res.itineraries)) {
+          itineraries = res.itineraries
+        }
+      }
 
-      if (Array.isArray(itineraries)) {
-        let result = itineraries
+      if (Array.isArray(itineraries) && itineraries.length > 0) {
+        let result = itineraries.map((item) => ({
+          ...item,
+          id: item.id,
+          name: item.name || item.title,
+          title: item.title || item.name,
+          region: item.region || item.location,
+          location: item.location || item.region,
+          coverImage: item.coverImage || item.image || item.banner_image,
+          image: item.image || item.coverImage || item.banner_image,
+          banner_image: item.banner_image || item.image || item.coverImage,
+          durationDays: item.durationDays || item.days,
+          days: item.days || item.durationDays,
+          price: item.price || 0,
+          tags: item.tags || [],
+          rating: item.rating || 0,
+          reviewCount: item.reviewCount || 0,
+        }))
+        
         if (filter.region && filter.region !== '全部') {
-          result = result.filter((item) => item.region === filter.region)
+          result = result.filter((item) => item.region === filter.region || item.location === filter.region)
         }
         vendorItineraries.value = result
       } else {
@@ -69,6 +131,7 @@ export const useVendorStore = defineStore('vendor', () => {
       }
     } catch (e) {
       vendorItineraries.value = []
+      throw e
     }
   }
 
@@ -113,10 +176,7 @@ export const useVendorStore = defineStore('vendor', () => {
   const createItinerary = async (vendorId, itineraryData) => {
     loading.value = true
     try {
-      const res = await createItineraryApi({
-        ...itineraryData,
-        author_uid: vendorId,
-      })
+      const res = await createItineraryApi(vendorId, itineraryData)
 
       if (!res.success) {
         throw new Error(res.message || '發布失敗')
