@@ -176,7 +176,7 @@ const handleToggleMatching = async () => {
     if (userStore.updateProfile) {
       userStore.updateProfile({ isMatchingEnabled: newValue })
     }
-  } catch (error) {
+  } catch {
     isMatchingEnabled.value = !newValue
     alert('設定失敗，請稍後再試')
   }
@@ -199,7 +199,7 @@ const handleSaveCard = async (formData) => {
     userStore.updateProfile(updateData)
 
     await loadProfileData()
-  } catch (error) {
+  } catch {
     alert('儲存失敗')
   }
 }
@@ -323,7 +323,8 @@ const loadProfileData = async () => {
       const { fetchPosts } = await import('@/api/discussions')
       const postsRes = await fetchPosts({ author_uid: uidToLoad, limit: 100 })
       if (postsRes?.posts) userPosts.value = postsRes.posts
-    } catch (e) {
+    } catch {
+      void 0
     }
 
     if (profileData) {
@@ -369,7 +370,8 @@ const loadProfileData = async () => {
       }
       profileStats.value = profileData.stats || profileStats.value
     }
-  } catch (error) {
+  } catch {
+    void 0
   } finally {
     loading.value = false
   }
@@ -396,7 +398,8 @@ const loadHostedTravelers = async (uid = targetUid.value) => {
         return travelerAuthorUid === uid
       })
     }
-  } catch (error) {
+  } catch {
+    void 0
   }
 }
 
@@ -414,7 +417,7 @@ const handleSaveField = async ({ field, data }) => {
     const { updateUserProfile } = await import('@/api/users')
     await updateUserProfile(user.value.uid, data || {})
     userStore.updateProfile(data || {})
-  } catch (error) {
+  } catch {
     alert('儲存失敗，請稍後再試')
   }
 }
@@ -555,6 +558,20 @@ const handleSelectPresetAvatar = async (avatarUrl) => {
   }
 }
 
+const handleSelectDraft = (draft) => {
+  if (!draft || !draft.id) return
+
+  const draftId = draft.id
+
+  if (draft.type === 'discussion') {
+    router.push({ path: '/discussion', query: { openDraft: draftId } })
+  } else if (draft.type === 'traveler') {
+    router.push({ path: '/traveler', query: { openDraft: draftId } })
+  } else if (draft.type === 'itinerary' || draft.type === 'my_itinerary') {
+    router.push({ path: '/my-itinerary', query: { openDraft: draftId } })
+  }
+}
+
 watch(
   () => route.params.uid,
   (newUid, oldUid) => {
@@ -666,7 +683,7 @@ onMounted(() => {
               :reviews="activeTabsData.reviews"
               :user="user"
             />
-            <TabDrafts v-if="activeTab === 'drafts'" />
+            <TabDrafts v-if="activeTab === 'drafts'" @select-draft="handleSelectDraft" />
           </div>
         </div>
       </div>

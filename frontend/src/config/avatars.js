@@ -24,30 +24,69 @@ export function getAvatarStoragePath(category, filename) {
 }
 
 export async function getAvatarUrl(category, filename) {
-  try {
-    const storagePath = getAvatarStoragePath(category, filename)
-    const storageRef = ref(storage, storagePath)
-    const url = await getDownloadURL(storageRef)
-    return url
-  } catch {
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(category)}-${encodeURIComponent(filename)}`
+  const pathsToTry = [
+    getAvatarStoragePath(category, filename),
+    `preset-avatars/${category}/${filename}`,
+    `preset-avatars/${encodeURIComponent(category)}/${filename}`,
+    `preset-avatars/${category}/${encodeURIComponent(filename)}`,
+  ]
+
+  for (const storagePath of pathsToTry) {
+    try {
+      const storageRef = ref(storage, storagePath)
+      const url = await getDownloadURL(storageRef)
+      return url
+    } catch {
+      continue
+    }
   }
+
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(category)}-${encodeURIComponent(filename)}`
 }
 
 export async function getCategoryFilenames(category) {
   try {
-    const categoryPath = `preset-avatars/${encodeURIComponent(category)}`
-    const categoryRef = ref(storage, categoryPath)
-    const result = await listAll(categoryRef)
+    const categoryPathEncoded = `preset-avatars/${encodeURIComponent(category)}`
+    const categoryPathRaw = `preset-avatars/${category}`
+
+    let categoryRef = ref(storage, categoryPathEncoded)
+    let result = await listAll(categoryRef)
+
+    if (result.items.length === 0) {
+      try {
+        categoryRef = ref(storage, categoryPathRaw)
+        result = await listAll(categoryRef)
+      } catch {
+        return []
+      }
+    }
 
     const filenames = result.items.map((item) => {
       const fullPath = item.fullPath
-      const filename = fullPath.replace(`${categoryPath}/`, '')
-      return decodeURIComponent(filename)
-    })
+      let filename = fullPath
+
+      if (fullPath.startsWith(categoryPathEncoded + '/')) {
+        filename = fullPath.substring(categoryPathEncoded.length + 1)
+      }
+      else if (fullPath.startsWith(categoryPathRaw + '/')) {
+        filename = fullPath.substring(categoryPathRaw.length + 1)
+      }
+      else if (fullPath.includes('/')) {
+        const parts = fullPath.split('/')
+        filename = parts[parts.length - 1]
+      }
+
+      try {
+        return decodeURIComponent(filename)
+      } catch {
+        return filename
+      }
+    }).filter(Boolean)
 
     return filenames
-  } catch {
+  } catch (error) {
+    console.error('getCategoryFilenames - error:', error)
+    console.error('getCategoryFilenames - category:', category)
     return []
   }
 }
@@ -70,8 +109,15 @@ export async function getAvailableCategories() {
 
     const categories = result.prefixes.map((prefix) => {
       const fullPath = prefix.fullPath
-      const categoryName = fullPath.replace('preset-avatars/', '')
-      return decodeURIComponent(categoryName)
+      let categoryName = fullPath.replace(/^preset-avatars\//, '')
+
+      try {
+        categoryName = decodeURIComponent(categoryName)
+      } catch {
+        // 如果解碼失敗，使用原始本來的名字
+      }
+
+      return categoryName
     })
 
     return categories.sort()
@@ -84,8 +130,8 @@ export async function getAvailableCategories() {
         if (filenames.length > 0) {
           availableCategories.push(category)
         }
-      } catch {
-        console.error('讀取分類列表失敗:', category, 'error:', error)
+      } catch (err) {
+        console.error('讀取分類列表失敗:', category, 'error:', err)
       }
     }
     return availableCategories
