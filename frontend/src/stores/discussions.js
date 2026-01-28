@@ -1,4 +1,3 @@
-// src/stores/discussions.js
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { fetchPosts, fetchPostById, createPost, updatePost, deletePost } from '@/api/discussions'
@@ -11,8 +10,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
   const error = ref(null)
   const userInfoCache = new Map()
 
-  // ... (formatTime, formatComments, transformPost, getUserInfoFromFirestore, enrichPostsWithUserInfo 保持不變) ...
-  // (為了節省篇幅，中間輔助函式請保留原樣，不要刪除)
   const formatTime = (timestamp) => {
     if (!timestamp) return '剛剛'
     const now = new Date()
@@ -45,17 +42,12 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     }))
   }
 
-  // 將後端數據格式轉換為前端格式
-  // 後端已經從 Neon 資料庫返回 author_avatar（Firebase Storage URL）、author_name、author_spirit_animal
   const transformPost = (post) => {
     return {
       id: post.id,
-      // 後端返回 author_name（來自 users.nickname），優先使用
       author: post.author_name || post.author_nickname || post.author_uid || '匿名用戶',
       author_uid: post.author_uid,
       spiritAnimal: post.author_spirit_animal || '',
-      // 後端返回的 author_avatar 是 Firebase Storage URL（從 Neon 資料庫的 users.avatar 欄位）
-      // 只使用資料庫中的頭像，如果沒有則為 null（不顯示默認頭像）
       avatar: post.author_avatar || null,
       time: formatTime(post.created_at),
       title: post.title,
@@ -86,8 +78,7 @@ export const useDiscussionsStore = defineStore('discussions', () => {
         userInfoCache.set(uid, data)
         return data
       }
-    } catch (error) {
-      console.error(`獲取用戶 ${uid} 資訊失敗：`, error)
+    } catch {
     }
     return null
   }
@@ -106,12 +97,9 @@ export const useDiscussionsStore = defineStore('discussions', () => {
     return posts.map((post) => {
       const userInfo = userInfoMap[post.author_uid]
       if (userInfo) {
-        // 優先使用後端返回的資料（從 Neon 資料庫獲取的 Firebase Storage URL）
-        // 只有在後端沒有返回時，才使用 Firestore 的資料
         if (!post.author_nickname) {
           post.author_nickname = userInfo.nickname
         }
-        // 如果後端沒有返回 author_avatar，使用 Firestore 的資料作為備用
         if (!post.author_avatar && userInfo.avatar) {
           post.author_avatar = userInfo.avatar
         }
@@ -149,7 +137,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       return data
     } catch (err) {
       error.value = err.message
-      console.error('獲取貼文失敗：', err)
       throw err
     } finally {
       loading.value = false
@@ -195,7 +182,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       return transformPost(post)
     } catch (err) {
       error.value = err.message
-      console.error('獲取貼文失敗：', err)
       throw err
     } finally {
       loading.value = false
@@ -222,7 +208,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       discussions.value.unshift(transformedPost)
       return transformedPost
     } catch (err) {
-      console.error('建立貼文失敗：', err)
       throw err
     }
   }
@@ -237,7 +222,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       }
       return transformedPost
     } catch (err) {
-      console.error('更新貼文失敗：', err)
       throw err
     }
   }
@@ -247,7 +231,6 @@ export const useDiscussionsStore = defineStore('discussions', () => {
       await deletePost(id)
       discussions.value = discussions.value.filter((p) => p.id !== id)
     } catch (err) {
-      console.error('刪除貼文失敗：', err)
       throw err
     }
   }

@@ -2,23 +2,17 @@
 const pool = require('../database/connection')
 const { createNotification } = require('./notifications')
 
-/**
- * 檢查並發送找旅伴到期提醒通知
- * 在到期前7天、3天、當天發送通知
- */
 async function checkAndSendTravelerReminders() {
   try {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     
-    // 計算7天後、3天後、當天的日期
     const sevenDaysLater = new Date(today)
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
     
     const threeDaysLater = new Date(today)
     threeDaysLater.setDate(threeDaysLater.getDate() + 3)
     
-    // 查詢即將到期的找旅伴貼文（狀態為招募中）
     const query = `
       SELECT 
         t.id,
@@ -48,12 +42,10 @@ async function checkAndSendTravelerReminders() {
       
       const daysUntilEnd = Math.floor((endDate - today) / (1000 * 60 * 60 * 24))
       
-      // 只處理7天、3天、當天的提醒
       if (daysUntilEnd !== 0 && daysUntilEnd !== 3 && daysUntilEnd !== 7) {
         continue
       }
       
-      // 檢查是否已經發送過這個提醒（避免重複發送）
       const reminderText = daysUntilEnd === 0 ? '今天到期' : `${daysUntilEnd}天後到期`
       const notificationCheck = await pool.query(
         `SELECT id FROM public.notifications
@@ -72,7 +64,7 @@ async function checkAndSendTravelerReminders() {
       )
       
       if (notificationCheck.rows.length > 0) {
-        continue // 已經發送過，跳過
+        continue
       }
       
       let title = ''
@@ -90,7 +82,6 @@ async function checkAndSendTravelerReminders() {
       }
       
       if (title) {
-        // 發送通知給貼文作者
         await createNotification({
           user_uid: traveler.author_uid,
           type: 'traveler_reminder',
@@ -104,7 +95,6 @@ async function checkAndSendTravelerReminders() {
           link: `/travelers/${traveler.id}`,
         })
         
-        // 發送通知給已接受的申請者
         const acceptedApplications = await pool.query(
           `SELECT author_uid, author_name, author_avatar
            FROM travelers.traveler_applications
@@ -113,7 +103,6 @@ async function checkAndSendTravelerReminders() {
         )
         
         for (const applicant of acceptedApplications.rows) {
-          // 檢查是否已經發送過
           const applicantCheck = await pool.query(
             `SELECT id FROM public.notifications
              WHERE user_uid = $1
@@ -151,7 +140,6 @@ async function checkAndSendTravelerReminders() {
     }
     
   } catch (error) {
-    console.error('[Traveler Reminders] 檢查失敗：', error)
   }
 }
 

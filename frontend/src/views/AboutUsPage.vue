@@ -9,10 +9,9 @@ import {
   Code as CodeIcon,
   Server as ServerIcon,
   Database as DatabaseIcon,
-  Zap as ZapIcon, // 新增：用於 Neon 的閃電圖示
+  Zap as ZapIcon,
 } from 'lucide-vue-next'
 
-// 1. 引入本地圖片
 import heroPixelImg from '@/assets/pic/mayoyo.png'
 import yuanImg from '@/assets/pic/yuan.jpg'
 import thomasImg from '@/assets/pic/thomas.webp'
@@ -22,7 +21,6 @@ import chungImg from '@/assets/pic/Jhong.jpg'
 
 const router = useRouter()
 
-// 2. 成員資料
 const teamMembers = [
   {
     name: '源泰',

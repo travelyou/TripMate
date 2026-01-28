@@ -40,27 +40,39 @@ const hasChanges = ref(false)
 watch(currentVendor, (vendor) => {
   // 🔧 修復：編輯模式時不要重置表單，避免清空用戶正在編輯的內容
   if (vendor && !isEditing.value) {
+    // 處理 regionTags：支援兩種字段名格式
+    const regionTagsData = vendor.regionTags || vendor.region_tags || []
+    const regionTagsArray = Array.isArray(regionTagsData) ? regionTagsData : []
+
     form.value = {
       name: vendor.name || '',
       slogan: vendor.slogan || '',
       description: vendor.description || '',
-      regionTags: vendor.regionTags || [],
+      regionTags: regionTagsArray,
       avatar: vendor.avatar || '',
       bannerImage: vendor.bannerImage || '',
     }
 
     // 解析主打地區
     try {
-      if (vendor.bannerImage && vendor.bannerImage.startsWith('[')) {
-        mainRegions.value = JSON.parse(vendor.bannerImage)
+      const bannerImageData = vendor.bannerImage || vendor.banner_image || ''
+      if (bannerImageData && typeof bannerImageData === 'string') {
+        if (bannerImageData.startsWith('[') || bannerImageData.startsWith('{')) {
+          mainRegions.value = JSON.parse(bannerImageData)
+        } else {
+          // 如果不是 JSON 格式，初始化為空陣列
+          mainRegions.value = []
+        }
+      } else if (Array.isArray(bannerImageData)) {
+        // 如果已經是陣列，直接使用
+        mainRegions.value = bannerImageData
       } else {
         // 舊資料或空資料，初始化為空陣列
-        mainRegions.value = []
-      }
-    } catch {
-      console.error('解析主打地區失敗')
       mainRegions.value = []
     }
+  } catch (err) {
+    mainRegions.value = []
+  }
   }
 }, { immediate: true })
 
@@ -119,15 +131,10 @@ const handleRegionImageUpload = async (event, index) => {
   const file = event.target.files[0]
   if (!file) return
 
-  console.log('📸 開始上傳地區圖片...', { index, fileName: file.name })
-  console.log('📊 當前 mainRegions:', mainRegions.value)
 
   try {
     saving.value = true
     const url = await vendorStore.uploadVendorImage(file, 'bannerImage')
-    console.log('✅ 圖片 URL 已取得:', url)
-
-    // 🔧 修復 Vue 響應式：創建新陣列參照
     const updatedRegions = [...mainRegions.value]
     updatedRegions[index] = {
       ...updatedRegions[index],
@@ -135,13 +142,9 @@ const handleRegionImageUpload = async (event, index) => {
     }
     mainRegions.value = updatedRegions
 
-    console.log('✅ 已更新 mainRegions[' + index + ']:', mainRegions.value[index])
-    console.log('📊 更新後的完整 mainRegions:', mainRegions.value)
-
     hasChanges.value = true
     success('圖片上傳成功！')
   } catch (err) {
-    console.error('❌ 上傳失敗:', err)
     error('圖片上傳失敗')
   } finally {
     saving.value = false
@@ -243,13 +246,19 @@ const handleSave = async () => {
     bannerImage: JSON.stringify(sanitizedRegions) // 使用清理後的地區資料
   }
 
+  console.log('💾 [TabBasicInfo] 準備儲存資料:', {
+    vendorId: currentVendor.value.id,
+    bannerImage: sanitizedForm.bannerImage,
+    sanitizedRegions: sanitizedRegions,
+    regionTags: sanitizedForm.regionTags
+  })
+
   try {
     await vendorStore.updateVendorProfile(currentVendor.value.id, sanitizedForm)
     hasChanges.value = false
     isEditing.value = false
     success('儲存成功！')
-  } catch (error) {
-    console.error('儲存失敗:', error)
+  } catch (err) {
     error('儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -268,7 +277,6 @@ const handleAvatarUpload = async (event) => {
     hasChanges.value = true
     success('頭像上傳成功！')
   } catch (err) {
-    console.error('上傳失敗:', err)
     error('頭像上傳失敗')
   } finally {
     saving.value = false

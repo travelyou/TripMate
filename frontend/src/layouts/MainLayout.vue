@@ -6,6 +6,9 @@ import { useDiscussionsStore } from '@/stores/discussions'
 import { auth } from '@/firebase/config'
 import { getChatMessages } from '@/api/profile'
 import { API_BASE_URL } from '@/api/config'
+import { showError, showSuccess, showConfirm } from '@/utils/alert'
+import { handleError } from '@/utils/errorHandler'
+import { updateSEOMeta, addStructuredData, getDefaultStructuredData, getOrganizationStructuredData } from '@/utils/seo'
 
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -56,9 +59,9 @@ const isPrivateChatOpen = ref(false)
 const isAiChatOpen = ref(false)
 const isMobileActionMenuOpen = ref(false)
 const isSwipeModalOpen = ref(false)
-const openChatWithUser = ref(null) // 要開啟聊天的用戶資訊
-const openChatIsVendor = ref(false) // 是否為廠商聊天
-const unreadMessageCount = ref(0) // 未讀訊息總數
+const openChatWithUser = ref(null)
+const openChatIsVendor = ref(false)
+const unreadMessageCount = ref(0)
 const incomingMessageToasts = ref([])
 let incomingToastTimer = null
 let chatSyncTimer = null
@@ -297,7 +300,6 @@ const handleIncomingChatMessage = (payload) => {
   }
   const storedMessages = Array.isArray(room.messages) ? room.messages : []
 
-  // 檢查訊息是否已存在，避免重複
   const exists = storedMessages.some(msg => {
     if (msg.id && mappedMessage.id && msg.id === mappedMessage.id) {
       return true
@@ -453,7 +455,6 @@ const handleTogglePrivateChat = (user = null) => {
   isMobileActionMenuOpen.value = false
 }
 
-// 監聽全局事件來開啟聊天（從 ProfilePage 觸發）
 const handleOpenChat = (event) => {
   if (!ensureLoggedIn()) {
     isPrivateChatOpen.value = false
@@ -472,7 +473,6 @@ const handleOpenChat = (event) => {
   }
 }
 
-// 計算未讀訊息總數
 const calculateUnreadCount = () => {
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (!currentUid) {
@@ -483,7 +483,6 @@ const calculateUnreadCount = () => {
   try {
     let totalUnread = 0
 
-    // 檢查好友請求
     const friendRequestsKey = `friend_requests_${currentUid}`
     const friendRequestsData = localStorage.getItem(friendRequestsKey)
     if (friendRequestsData) {
@@ -497,7 +496,6 @@ const calculateUnreadCount = () => {
       }
     }
 
-    // 檢查聊天室和未讀訊息
     const chatRoomsKey = `tripmate-private-chats-${currentUid}`
     const chatRoomsData = localStorage.getItem(chatRoomsKey)
     if (chatRoomsData) {
@@ -539,7 +537,6 @@ const calculateUnreadCount = () => {
       }
     }
 
-    // 檢查新建的聊天室（透過檢查是否有新訊息但未打開過）
     const newChatRoomsKey = `new_chat_rooms_${currentUid}`
     const newChatRoomsData = localStorage.getItem(newChatRoomsKey)
     if (newChatRoomsData) {
@@ -553,7 +550,6 @@ const calculateUnreadCount = () => {
       }
     }
 
-    // 檢查新增加好友
     const friendSnapshotKey = `friends_seen_${currentUid}`
     const friendSnapshotData = localStorage.getItem(friendSnapshotKey)
     const currentFriendIds = getFriendIds()
@@ -568,11 +564,9 @@ const calculateUnreadCount = () => {
         console.warn('解析好友快照失敗:', e)
       }
     } else {
-      // 初次沒有快照，避免直接計入未讀
       saveFriendSnapshot()
     }
 
-    // 限制最多顯示9
     unreadMessageCount.value = Math.min(totalUnread, 9)
   } catch (error) {
     console.error('計算未讀訊息失敗:', error)
@@ -620,7 +614,6 @@ const handleChatSend = (event) => {
   const toUid = detail.toUid
   if (!toUid) return
 
-  // 防止發送訊息給自己
   if (toUid === currentUid) {
     console.warn('⚠️ 不能發送訊息給自己')
     return
@@ -629,7 +622,7 @@ const handleChatSend = (event) => {
   sendChatSocketMessage({
     type: 'chat_message',
     fromUid: currentUid,
-    receiver_uid: toUid, // 修改為 receiver_uid 以符合後端 WebSocket 處理
+    receiver_uid: toUid,
     content: detail.content || '',
     isImage: Boolean(detail.isImage),
     timestamp: detail.timestamp || new Date().toISOString(),
@@ -644,18 +637,22 @@ const handleAppLoading = (event) => {
   isAppLoading.value = Boolean(detail.active)
 }
 
-// 監聽訊息變化
 const handleMessageUpdate = () => {
   calculateUnreadCount()
 }
 
-// 監聽新建聊天室
 const handleNewChatRoom = () => {
   calculateUnreadCount()
 }
 
-// 在組件掛載時監聽全局事件
 onMounted(() => {
+  updateSEOMeta({
+    title: route.meta.title,
+    description: route.meta.description,
+    keywords: route.meta.keywords,
+  })
+  addStructuredData(getDefaultStructuredData())
+  addStructuredData(getOrganizationStructuredData())
   window.addEventListener('open-chat', handleOpenChat)
   window.addEventListener('message-updated', handleMessageUpdate)
   window.addEventListener('new-chat-room', handleNewChatRoom)
@@ -663,23 +660,33 @@ onMounted(() => {
   window.addEventListener('incoming-message', handleIncomingMessage)
   window.addEventListener('chat-send', handleChatSend)
   window.addEventListener('app-loading', handleAppLoading)
-  // 初始計算未讀訊息
   calculateUnreadCount()
   syncChatRoomsInBackground()
   const currentUid = userStore.currentUser?.uid || userStore.currentUser?.id
   if (currentUid) {
     connectChatSocket(currentUid)
   }
-  // 定期檢查未讀訊息（每5秒）
   const interval = setInterval(() => {
     calculateUnreadCount()
   }, 5000)
-  // 存储interval以便清理
   window._unreadMessageInterval = interval
   chatSyncTimer = setInterval(() => {
     syncChatRoomsInBackground()
   }, 6000)
 })
+
+watch(
+  () => route.path,
+  () => {
+    updateSEOMeta({
+      title: route.meta.title,
+      description: route.meta.description,
+      keywords: route.meta.keywords,
+    })
+  },
+  { immediate: false },
+)
+
 onUnmounted(() => {
   window.removeEventListener('open-chat', handleOpenChat)
   window.removeEventListener('message-updated', handleMessageUpdate)
@@ -703,7 +710,6 @@ onUnmounted(() => {
   }
 })
 
-// 監聽用戶 UID 變化，建立 WebSocket 連接
 watch(
   () => userStore.currentUser?.uid || userStore.currentUser?.id,
   (uid) => {
@@ -716,33 +722,26 @@ watch(
   { immediate: true },
 )
 
-// 監聽認證狀態，確保在用戶登入後建立 WebSocket 連接
 watch(
   () => [userStore.authReady, userStore.isLoggedIn, userStore.currentUser?.uid || userStore.currentUser?.id],
   ([authReady, isLoggedIn, uid]) => {
-    // 當認證已準備好且用戶已登入且有 UID 時，確保建立連接
     if (authReady && isLoggedIn && uid) {
-      // 如果還沒有連接，或者連接的 UID 不匹配，則建立連接
       if (!chatSocket || chatSocketUid !== uid) {
         connectChatSocket(uid)
       }
     } else if (!isLoggedIn || !uid) {
-      // 如果用戶未登入或沒有 UID，則斷開連接
       disconnectChatSocket()
     }
   },
   { immediate: true },
 )
 
-// 監聽聊天視窗打開/關閉，更新未讀計數
 watch(
   () => isPrivateChatOpen.value,
   (isOpen) => {
     if (isOpen) {
-      // 打開聊天視窗時，延遲一下再重新計算（給時間載入資料）
       setTimeout(calculateUnreadCount, 500)
     } else {
-      // 關閉時也重新計算
       calculateUnreadCount()
     }
   },
@@ -759,28 +758,20 @@ const handleSubmitPost = async (postData) => {
     const uid = firebaseUser?.uid || userStore.firebaseUser?.uid
 
     if (!uid) {
-      alert('請先登入後才能發布貼文')
-      console.error('發布貼文失敗：用戶未登入')
-      // 導向登入頁面
+      await showError('請先登入後才能發布貼文')
       router.push('/login')
       return
     }
 
-    console.log('⏳ 準備發布貼文，用戶 UID：', uid)
-
-    // 如果有圖片，先上傳圖片到 Firebase Storage
     let imageUrls = []
     if (postData.imageFiles && postData.imageFiles.length > 0) {
       try {
         const { uploadMultipleImages } = await import('@/api/storage')
-        console.log('開始上傳圖片...')
         imageUrls = await uploadMultipleImages(postData.imageFiles, 'posts')
-        console.log('圖片上傳成功:', imageUrls)
       } catch (error) {
-        console.error('圖片上傳失敗：', error)
-        // 詢問用戶是否要繼續發布（不帶圖片）
-        const shouldContinue = confirm(
-          '圖片上傳失敗：' + error.message + '\n\n是否要繼續發布貼文（不帶圖片）？',
+        const appError = handleError(error, '圖片上傳')
+        const shouldContinue = await showConfirm(
+          `圖片上傳失敗：${appError.message}\n\n是否要繼續發布貼文（不帶圖片）？`,
         )
         if (!shouldContinue) {
           return
@@ -788,7 +779,6 @@ const handleSubmitPost = async (postData) => {
       }
     }
 
-    // 準備提交的資料
     const submitData = {
       author_uid: uid,
       board: postData.board || 'general',
@@ -798,46 +788,23 @@ const handleSubmitPost = async (postData) => {
       image_urls: imageUrls,
     }
 
-    console.log('提交貼文資料：', {
-      author_uid: submitData.author_uid,
-      board: submitData.board,
-      title: submitData.title?.substring(0, 50),
-      contentLength: submitData.content?.length,
-      tagsCount: submitData.tags?.length,
-      imageUrlsCount: submitData.image_urls?.length,
-    })
+    await discussionsStore.addPost(submitData)
 
-    // 調用 API 創建貼文
-    console.log('調用 addPost API...')
-    const newPost = await discussionsStore.addPost(submitData)
-
-    console.log('貼文發布成功：', newPost)
-
-    // 關閉模態框
     isPostingModalOpen.value = false
 
-    // 如果在討論頁面，重新載入貼文列表
     if (route.name === 'discussion') {
       await discussionsStore.loadDiscussions()
     } else {
-      // 如果不在討論頁面，導向討論頁面
       router.push('/discussion')
-      // 等待路由切換後再載入
       setTimeout(async () => {
         await discussionsStore.loadDiscussions()
       }, 300)
     }
 
-    // 顯示成功訊息
-    alert('貼文發布成功！')
+    await showSuccess('貼文發布成功！')
   } catch (error) {
-    console.error('發布貼文失敗：', error)
-    console.error('錯誤詳情：', {
-      message: error.message,
-      stack: error.stack,
-      firebaseUser: auth.currentUser?.uid,
-    })
-    alert(`發布貼文失敗：${error.message || '請稍後再試'}`)
+    const appError = handleError(error, '發布貼文')
+    await showError(appError.message || '發布貼文失敗，請稍後再試')
   }
 }
 
@@ -855,6 +822,12 @@ const handleClosePrivateChat = () => {
       hideLayout ? 'bg-secondary-50' : 'bg-secondary-50 bg-cover bg-center md:bg-fixed bg-no-repeat'
     "
   >
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:shadow-lg"
+    >
+      跳至主要內容
+    </a>
     <div class="transition-[filter] duration-300">
       <AppHeader v-if="!hideLayout" @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
@@ -865,14 +838,16 @@ const handleClosePrivateChat = () => {
       >
         <div
           v-if="!isSearchPage && !hideSidebar"
-          class="contents lg:block shrink-0 sticky top-16 md:top-18 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar"
+          class="contents lg:block shrink-0 sticky top-16 md:top-[72px] h-[calc(100vh-64px)] md:h-[calc(100vh-72px)] overflow-y-auto custom-scrollbar"
         >
           <AppSidebar @open-mobile-actions="isMobileActionMenuOpen = true" />
         </div>
 
         <main
+          id="main-content"
           class="min-w-0 transition-all duration-300"
           :class="[isSearchPage ? 'pb-0' : 'pb-24 md:pb-20 ']"
+          tabindex="-1"
         >
           <RouterView />
         </main>
@@ -905,9 +880,14 @@ const handleClosePrivateChat = () => {
       <div
         v-for="(toast, idx) in incomingMessageToasts"
         :key="toast.id"
-        class="fixed right-4 z-[60] max-w-[90vw] sm:max-w-md bg-primary-600 text-white border-2 border-primary-700 rounded-lg shadow-xl p-5 flex items-center gap-4 cursor-pointer hover:bg-primary-700 transition"
+        role="alert"
+        aria-live="polite"
+        class="fixed right-4 z-[60] max-w-[90vw] sm:max-w-md bg-primary-600 text-white border-2 border-primary-700 rounded-lg shadow-xl p-5 flex items-center gap-4 cursor-pointer hover:bg-primary-700 transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
         :style="{ bottom: `${16 + idx * 88}px` }"
+        tabindex="0"
         @click="handleIncomingToastClick(toast)"
+        @keydown.enter="handleIncomingToastClick(toast)"
+        @keydown.space.prevent="handleIncomingToastClick(toast)"
       >
         <div class="w-12 h-12 rounded-md bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
           <img

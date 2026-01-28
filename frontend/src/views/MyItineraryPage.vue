@@ -9,7 +9,6 @@ import MyItineraryTab from '@/components/itinerary-tabs/MyItineraryTab.vue'
 import FindPartnerTab from '@/components/itinerary-tabs/FindPartnerTab.vue'
 import { showAlert, showConfirm } from '@/utils/alert'
 import { auth } from '@/firebase/config'
-// [新增] 引入剛剛建立的 API
 import { submitReview } from '@/api/reviews'
 
 const myItineraryStore = useMyItineraryStore()
@@ -27,13 +26,11 @@ const tabs = [
   { id: 'partner', label: '找旅伴行程規劃' },
 ]
 
-// 打開現有行程詳情
 const openItineraryDetail = (itinerary) => {
   selectedItinerary.value = JSON.parse(JSON.stringify(itinerary))
   isDetailModalOpen.value = true
 }
 
-// 開啟新增行程視窗
 const openAddItineraryModal = () => {
   selectedItinerary.value = {
     id: Date.now(),
@@ -69,7 +66,6 @@ const handleSaveDraft = (draftItinerary) => {
   showAlert('草稿已儲存')
 }
 
-// 儲存邏輯
 const handleSaveItinerary = async (updatedItinerary) => {
   if (!updatedItinerary.title.trim()) updatedItinerary.title = '新旅程'
 
@@ -99,53 +95,48 @@ const handleDeleteItinerary = async (id) => {
   }
 }
 
-// [新增] 處理評價提交
 const handleReviewSubmit = async (payload) => {
-  // payload 來自 FindPartnerTab: { id: 行程ID, comment: 內容, reviewLabel: 讚/超讚 }
-
-  // 1. 檢查登入狀態
   const currentUser = auth.currentUser
   if (!currentUser) {
-    showAlert('請先登入才能評價')
+    await showAlert('請先登入才能評價')
     return
   }
 
-  // 2. 從 partnerItineraries 中找到該行程的詳細資料，為了拿到「主揪是誰 (target_uid)」
-  // 注意：這裡假設 partnerItineraries 裡的物件有 author_uid 或 authorUid 欄位
   const trip = partnerItineraries.value.find((p) => p.id === payload.id)
   if (!trip) {
-    showAlert('找不到該行程資料')
+    await showAlert('找不到該行程資料')
     return
   }
 
-  // 容錯處理：有些資料庫欄位可能是 author_uid (Snake case) 或 authorUid (Camel case)
   const targetUid = trip.author_uid || trip.authorUid
 
   if (!targetUid) {
-    console.error('行程資料遺失主揪 ID:', trip)
-    showAlert('無法確認該行程的主揪，無法評價')
+    await showAlert('無法確認該行程的主揪，無法評價')
     return
   }
 
-  // 3. 呼叫後端 API
+  try {
   const res = await submitReview({
-    author_uid: currentUser.uid, // 我是評論者
-    target_uid: targetUid, // 對方是被評論者
-    trip_id: payload.id, // 行程 ID
+    author_uid: currentUser.uid,
+    target_uid: targetUid,
+    trip_id: payload.id,
     content: payload.comment,
     sentiment: payload.reviewLabel,
   })
 
   if (res.success) {
-    showAlert('評價已送出！')
-    // 這裡可以選擇重新載入資料，讓畫面上的評論更新
-    // await myItineraryStore.loadJoinedData(currentUser.uid)
-
-    // 或者直接更新本地狀態 (如果 Store 支援)
+      await showAlert('評價已送出！')
     trip.comment = payload.comment
     trip.reviewLabel = payload.reviewLabel
+      const uid = auth.currentUser?.uid
+      if (uid) {
+        await myItineraryStore.loadJoinedData(uid)
+      }
   } else {
-    showAlert('評價失敗：' + res.message)
+      await showAlert('評價失敗：' + (res.message || '未知錯誤'))
+    }
+  } catch (error) {
+    await showAlert('評價失敗：' + (error.message || '網路錯誤，請稍後再試'))
   }
 }
 

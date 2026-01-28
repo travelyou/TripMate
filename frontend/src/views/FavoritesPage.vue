@@ -8,17 +8,14 @@ import DiscussionDetailModal from '@/components/modals/DiscussionDetailModal.vue
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import ItineraryDetailModal from '@/components/modals/ItineraryDetailModal.vue'
 
-// 引入你的卡片元件
 import PostCard from '@/components/cards/DiscussionCard.vue'
 import TravelerCard from '@/components/cards/TravelerCard.vue'
 import ItineraryCard from '@/components/cards/ItineraryCard.vue'
 
-// 2. 初始化 Store
 const userStore = useUserStore()
 
 const currentUserUid = computed(() => userStore.currentUser?.uid || userStore.currentUser?.id)
 
-// --- 篩選邏輯 ---
 const activeTab = ref('all')
 const isLoadingFavorites = ref(true)
 
@@ -29,14 +26,12 @@ const tabs = [
   { id: 'itinerary', label: '精選行程', icon: Map },
 ]
 
-// 3. 改成從 Store 讀取 favorites
 const filteredItems = computed(() => {
   const items = userStore.favorites || []
   if (activeTab.value === 'all') return items
   return items.filter((item) => item.type === activeTab.value)
 })
 
-// --- 詳細內容 Modal 狀態 ---
 const isDiscussionModalOpen = ref(false)
 const isTravelerModalOpen = ref(false)
 const isItineraryModalOpen = ref(false)
@@ -50,6 +45,9 @@ const travelerScrollToComments = ref(false)
 const itineraryScrollToComments = ref(false)
 
 const openDiscussionDetail = (post, focusComments = false) => {
+  if (!post) {
+    return
+  }
   selectedDiscussion.value = post
   discussionScrollToComments.value = focusComments
   isDiscussionModalOpen.value = true
@@ -236,8 +234,9 @@ onUnmounted(() => {
           <PostCard
             v-else-if="item.type === 'discussion'"
             :post="item"
-            @click="openDiscussionDetail(item, false)"
-            @comment="openDiscussionDetail(item, true)"
+            class="cursor-pointer"
+            @click="(post) => openDiscussionDetail(post || item, false)"
+            @comment="(post) => openDiscussionDetail(post || item, true)"
           />
 
           <ItineraryCard
@@ -282,6 +281,4 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(20px);
 }
-
-/* scrollbar rules moved to src/assets/main.css */
 </style>

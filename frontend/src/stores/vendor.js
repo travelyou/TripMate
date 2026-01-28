@@ -6,9 +6,7 @@ import {
   getVendorPosts,
   updateVendorProfile as updateVendorProfileAPI,
 } from '@/api/vendor'
-import { createItinerary as createItineraryApi } from '@/api/itinerary'
-// 若有 discussion API 請解開下方註解
-// import { createDiscussion as createDiscussionApi } from '@/api/discussions'
+import { createItinerary as createItineraryApi } from '@/api/vendor'
 
 export const useVendorStore = defineStore('vendor', () => {
   const currentVendor = ref(null)
@@ -18,190 +16,6 @@ export const useVendorStore = defineStore('vendor', () => {
   const loading = ref(false)
   const error = ref(null)
 
-  // 🔴 MOCK DATA - 廠商基本資料 (Deprecated: Use API)
-  /*
-  const mockVendor = {
-    id: 'vendor001',
-    name: '環遊世界旅行社',
-    slogan: '帶您探索世界的每一個角落',
-    avatar: 'https://picsum.photos/200?random=vendor',
-    bannerImage: 'https://picsum.photos/1200/600?random=banner',
-    isBannerVisible: true,
-    regionTags: ['日本', '韓國', '東南亞', '歐洲', '美洲'],
-    rating: 4.8,
-    reviewCount: 328,
-    description:
-      '我們是一家專注於深度旅遊體驗的旅行社，致力於為每位旅客打造獨特而難忘的旅程。無論是探索異國文化、品嚐在地美食，還是體驗刺激冒險，我們都能為您量身定制完美的行程。',
-    isVerified: true,
-  }
-  */
-
-  // 🔴 MOCK DATA - 貼文 (Deprecated)
-  /*
-  const mockPosts = [
-    {
-      id: 1,
-      title: '京都賞楓最佳時機分享',
-      content:
-        '每年11月中旬到12月初，是京都賞楓的黃金時期。清水寺、嵐山、東福寺都是絕佳的賞楓景點，建議避開週末人潮...',
-      image: 'https://picsum.photos/600/400?random=kyoto',
-      likes: 245,
-      collects: 120,
-      comments: 38,
-      time: '2025-11-15',
-      tags: ['日本', '賞楓', '京都', '東北亞'],
-    },
-    {
-      id: 2,
-      title: '峇里島私房景點大公開',
-      content:
-        '除了烏布和庫塔，峇里島還有許多鮮為人知的絕美景點。今天要跟大家分享我們最近發掘的幾個私房景點，包括隱藏版瀑布和秘境海灘...',
-      image: 'https://picsum.photos/600/400?random=bali',
-      likes: 189,
-      collects: 85,
-      comments: 25,
-      time: '2025-11-10',
-      tags: ['峇里島', '印尼', '秘境', '東南亞'],
-    },
-    {
-      id: 3,
-      title: '冰島極光攝影技巧',
-      content:
-        '想要拍出震撼的極光照片嗎？相機設置、拍攝地點、時機選擇都是關鍵。這篇文章分享我們多年來累積的極光攝影經驗...',
-      image: 'https://picsum.photos/600/400?random=aurora',
-      likes: 412,
-      collects: 340,
-      comments: 56,
-      time: '2025-10-28',
-      tags: ['冰島', '極光', '攝影', '歐洲', '北歐'],
-    },
-  ]
-  */
-
-  // 🔴 MOCK DATA - 行程 (Deprecated)
-  /*
-  const mockItineraries = [
-    {
-      id: 1,
-      name: '日本關西經典五日遊',
-      image: 'https://picsum.photos/400/300?random=osaka',
-      price: 32800,
-      originalPrice: 38800,
-      days: 5,
-      nights: 4,
-      rating: 4.9,
-      reviewCount: 156,
-      region: '日本',
-      tags: ['熱門', '限時優惠'],
-      highlights: ['大阪環球影城', '京都古寺巡禮', '奈良餵鹿'],
-    },
-    {
-      id: 2,
-      name: '峇里島奢華度假七日',
-      image: 'https://picsum.photos/400/300?random=bali2',
-      price: 45600,
-      originalPrice: null,
-      days: 7,
-      nights: 6,
-      rating: 4.8,
-      reviewCount: 89,
-      region: '東南亞',
-      tags: ['精選'],
-      highlights: ['五星級Villa', '私人海灘', 'SPA體驗'],
-    },
-    {
-      id: 3,
-      name: '冰島極光追尋八日',
-      image: 'https://picsum.photos/400/300?random=iceland',
-      price: 89900,
-      originalPrice: 95900,
-      days: 8,
-      nights: 7,
-      rating: 5.0,
-      reviewCount: 42,
-      region: '歐洲',
-      tags: ['熱門', '小團限定'],
-      highlights: ['極光獵人', '藍湖溫泉', '冰川健行'],
-    },
-    {
-      id: 4,
-      name: '泰國清邁慢活五日',
-      image: 'https://picsum.photos/400/300?random=chiangmai',
-      price: 18900,
-      originalPrice: null,
-      days: 5,
-      nights: 4,
-      rating: 4.7,
-      reviewCount: 203,
-      region: '東南亞',
-      tags: [],
-      highlights: ['水燈節體驗', '大象保護區', '手作工藝課程'],
-    },
-    {
-      id: 5,
-      name: '紐西蘭南島自駕十日',
-      image: 'https://picsum.photos/400/300?random=newzealand',
-      price: 76800,
-      originalPrice: 82800,
-      days: 10,
-      nights: 9,
-      rating: 4.9,
-      reviewCount: 67,
-      region: '美洲',
-      tags: ['限時優惠'],
-      highlights: ['米佛峽灣', '皇后鎮跳傘', '魔戒拍攝地'],
-    },
-    {
-      id: 6,
-      name: '越南胡志明美食三日',
-      image: 'https://picsum.photos/400/300?random=vietnam',
-      price: 12800,
-      originalPrice: null,
-      days: 3,
-      nights: 2,
-      rating: 4.6,
-      reviewCount: 124,
-      region: '東南亞',
-      tags: [],
-      highlights: ['在地小吃', '咖啡文化', '法式建築'],
-    },
-  ]
-  */
-
-  // 🔴 MOCK DATA - 評價 (Deprecated)
-  /*
-  const mockReviews = [
-    {
-      id: 1,
-      userName: 'Alice',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
-      rating: 5,
-      date: '2023-12-15',
-      content: '參加了他們的京都團，導遊非常專業，行程安排也很鬆弛有度，非常推薦！',
-    },
-    {
-      id: 2,
-      userName: 'Bob',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
-      rating: 4.5,
-      date: '2023-11-20',
-      content: '整體的體驗很棒，住宿也很舒適。唯一的小缺點是遊覽車坐得有點久。',
-    },
-    {
-      id: 3,
-      userName: 'Charlie',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
-      rating: 5,
-      date: '2023-10-05',
-      content: '這是我參加過最棒的極光團！真的看到極光大爆發，太感動了！',
-    },
-  ]
-  */
-
-  // ========================================
-  // Actions
-  // ========================================
-
   const fetchVendorProfile = async (id) => {
     loading.value = true
     error.value = null
@@ -210,12 +24,10 @@ export const useVendorStore = defineStore('vendor', () => {
       if (res.success && res.data && res.data.name !== '預設廠商') {
         currentVendor.value = res.data
       } else {
-        // API 失敗不再使用 Mock Data
         currentVendor.value = null
         error.value = '無法讀取廠商資料'
       }
     } catch (err) {
-      console.error('Error:', err)
       currentVendor.value = null
       error.value = err.message
     } finally {
@@ -225,68 +37,133 @@ export const useVendorStore = defineStore('vendor', () => {
 
   const fetchVendorPosts = async (id) => {
     try {
-      const res = await getVendorPosts(id)
-      // Backend returns { data: [...], pagination: {...} } or { success: true, data: [...] }
-      // Check if res has data property directly or if it's nested in success response
-      const posts = res.data || (res.success ? res.data : null)
-
-      if (Array.isArray(posts)) {
-        vendorPosts.value = posts
-      } else if (res.posts) {
-         // Support alternative format if backend returns { posts: [...] }
-         vendorPosts.value = res.posts
-      } else {
-        // Fallback or empty
+      if (!id) {
         vendorPosts.value = []
-        console.warn('fetchVendorPosts: Unexpected response format', res)
+        return
+      }
+      
+      const res = await getVendorPosts(id)
+      
+      let posts = null
+      if (res && res.success !== false) {
+        if (Array.isArray(res.data)) {
+          posts = res.data
+        } else if (res.data && Array.isArray(res.data.data)) {
+          posts = res.data.data
+        } else if (Array.isArray(res)) {
+          posts = res
+        } else if (res.posts && Array.isArray(res.posts)) {
+          posts = res.posts
+        }
+      }
+
+      if (Array.isArray(posts) && posts.length > 0) {
+        vendorPosts.value = posts.map((item) => ({
+          ...item,
+          id: item.id,
+          title: item.title || '',
+          content: item.content || '',
+          image: item.image || (Array.isArray(item.image_urls) && item.image_urls[0]) || '',
+          image_urls: item.image_urls || [],
+          tags: item.tags || [],
+          likes: item.likes || 0,
+          comments: item.comments || 0,
+          time: item.time || item.createdAt || item.created_at,
+          createdAt: item.createdAt || item.created_at,
+          updatedAt: item.updatedAt || item.updated_at,
+        }))
+      } else {
+        vendorPosts.value = []
       }
     } catch (e) {
-      console.error('fetchVendorPosts Error:', e)
       vendorPosts.value = []
+      throw e
     }
   }
 
   const fetchVendorItineraries = async (id, filter = {}) => {
     try {
+      if (!id) {
+        vendorItineraries.value = []
+        return
+      }
+      
       const res = await getVendorItineraries(id)
-      const itineraries = res.data || (res.success ? res.data : null)
 
-      if (Array.isArray(itineraries)) {
-        let result = itineraries
-        // 前端簡單過濾 (若後端未做)
+      let itineraries = null
+      if (res && res.success !== false) {
+        if (Array.isArray(res.data)) {
+          itineraries = res.data
+        } else if (res.data && Array.isArray(res.data.data)) {
+          itineraries = res.data.data
+        } else if (Array.isArray(res)) {
+          itineraries = res
+        } else if (res.itineraries && Array.isArray(res.itineraries)) {
+          itineraries = res.itineraries
+        }
+      }
+
+      if (Array.isArray(itineraries) && itineraries.length > 0) {
+        let result = itineraries.map((item) => ({
+          ...item,
+          id: item.id,
+          name: item.name || item.title,
+          title: item.title || item.name,
+          region: item.region || item.location,
+          location: item.location || item.region,
+          coverImage: item.coverImage || item.image || item.banner_image,
+          image: item.image || item.coverImage || item.banner_image,
+          banner_image: item.banner_image || item.image || item.coverImage,
+          durationDays: item.durationDays || item.days,
+          days: item.days || item.durationDays,
+          price: item.price || 0,
+          tags: item.tags || [],
+          rating: item.rating || 0,
+          reviewCount: item.reviewCount || 0,
+        }))
+        
         if (filter.region && filter.region !== '全部') {
-          result = result.filter((item) => item.region === filter.region)
+          result = result.filter((item) => item.region === filter.region || item.location === filter.region)
         }
         vendorItineraries.value = result
       } else {
         vendorItineraries.value = []
-         console.warn('fetchVendorItineraries: Unexpected response format', res)
       }
     } catch (e) {
-      console.error('fetchVendorItineraries Error:', e)
       vendorItineraries.value = []
+      throw e
     }
   }
 
   const fetchVendorReviews = async () => {
-    // API 尚未完成，暫時置空
     vendorReviews.value = []
   }
 
   const updateVendorProfile = async (vendorId, profileData) => {
-    // 🔧 不設定全域 loading，避免觸發頁面重新渲染
     error.value = null
     try {
-      // 呼叫真實 API 更新廠商資料
       const res = await updateVendorProfileAPI(vendorId, profileData)
 
       if (!res.success) {
         throw new Error(res.message || '更新失敗')
       }
 
-      // 🔧 直接更新 currentVendor，不要重新 fetch（避免觸發 watch 和頁面重置）
       if (res.data) {
-        currentVendor.value = res.data
+        const updatedVendor = {
+          ...res.data,
+          bannerImage: res.data.bannerImage || res.data.banner_image || '',
+          regionTags: res.data.regionTags || res.data.region_tags || [],
+          isBannerVisible: res.data.isBannerVisible !== undefined ? res.data.isBannerVisible : res.data.is_banner_visible,
+          reviewCount: res.data.reviewCount || res.data.review_count || 0,
+          isVerified: res.data.isVerified !== undefined ? res.data.isVerified : res.data.is_verified,
+        }
+        if (updatedVendor.banner_image) delete updatedVendor.banner_image
+        if (updatedVendor.region_tags) delete updatedVendor.region_tags
+        if (updatedVendor.is_banner_visible !== undefined) delete updatedVendor.is_banner_visible
+        if (updatedVendor.review_count !== undefined) delete updatedVendor.review_count
+        if (updatedVendor.is_verified !== undefined) delete updatedVendor.is_verified
+
+        currentVendor.value = updatedVendor
       }
 
       return { success: true, data: res.data }
@@ -299,10 +176,7 @@ export const useVendorStore = defineStore('vendor', () => {
   const createItinerary = async (vendorId, itineraryData) => {
     loading.value = true
     try {
-      const res = await createItineraryApi({
-        ...itineraryData,
-        author_uid: vendorId,
-      })
+      const res = await createItineraryApi(vendorId, itineraryData)
 
       if (!res.success) {
         throw new Error(res.message || '發布失敗')
@@ -434,28 +308,16 @@ export const useVendorStore = defineStore('vendor', () => {
     }
   }
 
-  /**
-   * 上傳廠商圖片到 Firebase Storage
-   * @param {File} file - 圖片檔案
-   * @param {string} type - 圖片類型 ('avatar' | 'bannerImage')
-   * @returns {Promise<string>} 圖片 URL
-   */
   const uploadVendorImage = async (file, type = 'avatar') => {
     try {
-      // 引入 Firebase Storage 上傳函數
       const { uploadImage } = await import('@/api/storage')
 
-      // 根據類型決定儲存資料夾
       const folder = type === 'avatar' ? 'vendor-avatars' : 'vendor-banners'
 
-      // 上傳到 Firebase Storage
       const downloadURL = await uploadImage(file, folder)
-
-      console.log(`✅ 廠商${type === 'avatar' ? '頭像' : '圖片'}上傳成功:`, downloadURL)
 
       return downloadURL
     } catch (err) {
-      console.error('❌ 圖片上傳失敗:', err)
       error.value = err.message
       throw err
     }

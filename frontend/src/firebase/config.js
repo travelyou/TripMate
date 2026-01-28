@@ -1,4 +1,3 @@
-// Import the functions you need from the SDKs you need
 import { getAnalytics } from 'firebase/analytics'
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
@@ -21,34 +20,15 @@ if (import.meta.env.DEV) {
     .map(([key]) => key)
 
   if (missingFields.length > 0) {
-    console.warn('Firebase 配置缺失：', missingFields.join(', '))
-    console.warn('請檢查 .env 文件中的環境變數設置')
-  } else {
-    console.log('Firebase 配置已載入')
-    console.log('Project ID:', firebaseConfig.projectId)
-    // 只顯示 API Key 的前後部分，保護敏感信息
-    if (firebaseConfig.apiKey) {
-      const key = firebaseConfig.apiKey
-      const maskedKey =
-        key.length > 14 ? key.substring(0, 10) + '...' + key.substring(key.length - 4) : key
-      console.log('API Key:', maskedKey)
-    }
   }
 }
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig)
 
-// 初始化 Analytics（在開發環境中可能會失敗，但不影響其他功能）
 let analytics = null
 try {
   analytics = getAnalytics(app)
 } catch (error) {
-  if (import.meta.env.DEV) {
-    console.warn('Firebase Analytics 初始化失敗（開發環境中這是正常的）：', error.message)
-  } else {
-    console.error('Firebase Analytics 初始化失敗：', error)
-  }
 }
 
 export const auth = getAuth(app)

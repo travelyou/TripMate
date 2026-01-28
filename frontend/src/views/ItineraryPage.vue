@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue' // ★ 加入 onUnmounted
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { Map as MapIcon, XCircle as XCircleIcon } from 'lucide-vue-next'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useRoute, useRouter } from 'vue-router'
@@ -18,7 +18,6 @@ const setAppLoading = (active) => {
   window.dispatchEvent(new CustomEvent('app-loading', { detail: { active } }))
 }
 
-// --- 模態框狀態管理 ---
 const isDetailModalOpen = ref(false)
 const isShareModalOpen = ref(false)
 const isPostModalOpen = ref(false)
@@ -28,11 +27,9 @@ const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const itineraryToEdit = ref(null)
 
-// ★ 修改：更新為新的分類選項
 const filterOptions = ref(ITINERARY_CATEGORY_OPTIONS)
 const activeFilter = ref('全部')
 
-// --- ★ 分頁與捲動狀態 [新增] ---
 const currentPage = ref(1)
 const hasMore = ref(true)
 const loadMoreTrigger = ref(null)
@@ -44,31 +41,27 @@ const filteredItineraries = computed(() => {
   return itineraries.filter((item) => (item.category || '其他') === activeFilter.value)
 })
 
-// [修正] 核心載入邏輯：支援 15 則分頁載入
 const loadItinerariesData = async (isLoadMore = false) => {
   if (itinerariesStore.loading) return
 
-  // 1. 單篇顯示模式 (網址帶 ID)
   if (route.params.id && !isLoadMore) {
     setAppLoading(true)
     try {
       const response = await getItineraryById(route.params.id)
       const item = response?.data || response
       if (item) {
-        itinerariesStore.itineraries = [item] // 背景只留一張
+        itinerariesStore.itineraries = [item]
         selectedItinerary.value = item
         isDetailModalOpen.value = true
-        hasMore.value = false // 關閉無限捲動
+        hasMore.value = false
       }
     } catch (error) {
-      console.error('抓取行程失敗:', error)
     } finally {
       setAppLoading(false)
     }
     return
   }
 
-  // 2. 正常列表分頁模式
   try {
     if (!isLoadMore) {
       currentPage.value = 1
@@ -77,14 +70,12 @@ const loadItinerariesData = async (isLoadMore = false) => {
 
     const params = {
       page: currentPage.value,
-      limit: 15, // ★ 每次載入 15 則
+      limit: 15,
       category: activeFilter.value !== '全部' ? activeFilter.value : null,
     }
 
-    // 呼叫 Store Action，傳入分頁參數
     const newData = await itinerariesStore.fetchItineraries(params, isLoadMore)
 
-    // 判斷是否還有資料
     if (newData && newData.length < 15) {
       hasMore.value = false
     }
@@ -95,11 +86,9 @@ const loadItinerariesData = async (isLoadMore = false) => {
       if (hasMore.value) currentPage.value = 2
     }
   } catch (error) {
-    console.error('載入行程失敗:', error)
   }
 }
 
-// 監聽網址參數：處理 Modal 開啟與列表刷新
 watch(
   () => route.params.id,
   () => {
@@ -108,7 +97,6 @@ watch(
   { immediate: true },
 )
 
-// 監聽篩選條件：切換時若在單篇模式則回到列表
 watch(activeFilter, () => {
   if (route.params.id) {
     router.push('/featured-itinerary')
@@ -128,10 +116,9 @@ const closeDetailModal = () => {
   isDetailModalOpen.value = false
   selectedItinerary.value = null
   shouldScrollToComments.value = false
-  router.push('/featured-itinerary') // 網址重置會自動觸發 watch 載入列表
+  router.push('/featured-itinerary')
 }
 
-// 處理開啟分享模態框
 const openShareModal = (itineraryId) => {
   shareLink.value = `${window.location.origin}/featured-itinerary/${itineraryId}`
   isShareModalOpen.value = true
@@ -164,18 +151,15 @@ const handleDetailEdit = (itinerary) => {
 }
 
 const handleCardDelete = () => {
-  // 刪除已經在卡片組件中處理，這裡只需要重新整理列表
   itinerariesStore.fetchItineraries()
 }
 
-// 初始化載入資料
 onMounted(() => {
-  // 設定無限捲動偵測器
   observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
       if (entry.isIntersecting && hasMore.value && !itinerariesStore.loading) {
-        loadItinerariesData(true) // 下載更多 15 則
+        loadItinerariesData(true)
       }
     },
     { rootMargin: '200px' },
@@ -185,7 +169,6 @@ onMounted(() => {
     observer.observe(loadMoreTrigger.value)
   }
 
-  // 舊式查詢參數導航兼容處理
   if (route.query.itineraryId) {
     router.replace(`/featured-itinerary/${route.query.itineraryId}`)
   }

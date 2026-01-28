@@ -5,53 +5,69 @@
     <div
       class="max-w-[1500px] mx-auto w-full h-full grid grid-cols-[1fr,1fr] lg:grid-cols-[2fr,5fr,2fr] items-center gap-4 px-4"
     >
-      <div class="cursor-pointer flex" @click="router.push('/')">
+      <a
+        href="/"
+        class="cursor-pointer flex focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 rounded"
+        aria-label="返回首頁"
+        @click.prevent="router.push('/')"
+      >
         <div class="shrink-0">
           <img :src="TripMateIcon" alt="TripMate Logo" class="h-10 md:h-12 w-auto object-contain" />
         </div>
-      </div>
+      </a>
 
       <div class="hidden lg:block max-w-xl w-full">
         <div class="relative w-full max-w-[400px]">
+          <label for="header-search" class="sr-only">搜尋文章、行程</label>
           <input
+            id="header-search"
             v-model="headerSearchQuery"
             type="text"
             placeholder="搜尋文章、行程..."
+            aria-label="搜尋文章、行程"
             class="w-full h-11 bg-white text-base rounded-full pl-5 pr-12 outline-none transition-all duration-200 focus:ring-2 focus:ring-primary-200 shadow-sm"
             @keyup.enter="handleDesktopSearch"
           />
           <button
-            class="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-secondary-100 rounded-full transition cursor-pointer"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-secondary-100 rounded-full transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+            aria-label="執行搜尋"
             @click="handleDesktopSearch"
           >
-            <SearchIcon class="w-5 h-5 text-secondary-600" />
+            <SearchIcon class="w-5 h-5 text-secondary-600" aria-hidden="true" />
           </button>
         </div>
       </div>
 
       <div class="flex gap-1 md:gap-3 justify-end">
         <button
-          class="p-2 hover:bg-primary-600 rounded-full transition lg:hidden text-secondary-50"
+          class="p-2 hover:bg-primary-600 rounded-full transition lg:hidden text-secondary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+          aria-label="前往搜尋頁面"
           @click="goToSearchPage"
         >
-          <SearchIcon class="w-6 h-6" />
+          <SearchIcon class="w-6 h-6" aria-hidden="true" />
         </button>
 
         <NotificationBell v-if="userStore.isLoggedIn" />
         <button
           v-else
-          class="p-2 hover:bg-primary-600 rounded-full transition text-secondary-50"
+          class="p-2 hover:bg-primary-600 rounded-full transition text-secondary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+          aria-label="前往登入頁面"
           @click="goToLogin"
         >
-          <BellIcon class="w-6 h-6" />
+          <BellIcon class="w-6 h-6" aria-hidden="true" />
         </button>
 
-        <router-link to="/cart" class="relative p-2 hover:bg-primary-600 rounded-full transition">
+        <router-link
+          to="/cart"
+          class="relative p-2 hover:bg-primary-600 rounded-full transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+          :aria-label="hasCartItems ? '購物車（有商品）' : '購物車'"
+        >
           <span
             v-if="hasCartItems"
             class="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-primary-700"
+            aria-label="購物車中有商品"
           ></span>
-          <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-secondary-50" />
+          <ShoppingCartIcon class="w-5 h-5 md:w-6 md:h-6 text-secondary-50" aria-hidden="true" />
         </router-link>
 
         <div
@@ -60,7 +76,8 @@
           class="relative ml-1 group"
         >
           <button
-            class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 hover:bg-primary-400 rounded-xl transition whitespace-nowrap flex items-center gap-1"
+            class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-secondary-50 hover:bg-primary-400 rounded-xl transition whitespace-nowrap flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+            aria-label="登入或註冊"
             @click="goToLogin"
           >
             <span class="hidden sm:inline">登入 / 註冊</span>
@@ -123,15 +140,18 @@
         <div v-else ref="menuRef" class="relative ml-1 flex items-center gap-2 group">
           <div class="relative">
             <button
-              class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm"
+              class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-secondary-200 hover:border-secondary-300 transition overflow-hidden bg-secondary-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+              :aria-label="`${userStore.userProfile.nickname || userStore.userProfile.name || '用戶'}的選單`"
+              aria-haspopup="true"
+              aria-expanded="false"
             >
               <img
                 v-if="userStore.userProfile.avatar"
                 :src="userStore.userProfile.avatar"
                 class="w-full h-full object-cover"
-                alt="User Avatar"
+                :alt="`${userStore.userProfile.nickname || userStore.userProfile.name || '用戶'}的頭像`"
               />
-              <UserIcon v-else class="w-6 h-6 text-gray-400" />
+              <UserIcon v-else class="w-6 h-6 text-gray-400" aria-hidden="true" />
             </button>
           </div>
 

@@ -12,13 +12,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-// 引入設定檔 (請確保您的 aiConfig.js 已改為使用 gemini-pro)
 import { GEMINI_MODEL_NAME, TRIPMATE_SYSTEM_PROMPT } from '@/config/aiConfig'
 import { searchFeatureLocations, searchDiscussionPosts } from '@/api/AiPrompt'
 
 const emit = defineEmits(['close'])
 
-// ESC 鍵關閉功能
 useEscapeKey(() => {
   emit('close')
 })
@@ -27,27 +25,21 @@ const messageInput = ref('')
 const messagesContainer = ref(null)
 const isLoading = ref(false)
 
-// 初始化變數
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 let chat = null
 
-// 初始化聊天室函數 (相容性修正版：解決 404 與 SDK 版本問題)
 const initChat = async () => {
   if (!apiKey) {
-    console.error('❌ 沒有 VITE_GEMINI_API_KEY ！')
     return
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
 
-    // 1. 獲取模型 (使用設定檔中的名稱，建議先用 'gemini-pro')
     const model = genAI.getGenerativeModel({
       model: GEMINI_MODEL_NAME,
     })
 
-    // 2. 使用 history 來注入您的 50 題業務規則
-    // 這種寫法對所有版本的 Gemini 模型都通用，不會報錯
     chat = model.startChat({
       history: [
         {
@@ -60,16 +52,11 @@ const initChat = async () => {
         },
       ],
     })
-    console.log(`✅ AI 初始化成功，使用模型: ${GEMINI_MODEL_NAME}`)
   } catch (error) {
-    console.error('❌ AI 初始化失敗:', error)
   }
 }
 
-// 執行初始化
 initChat()
-
-// 預設歡迎訊息
 
 const messages = ref([
   {
@@ -87,7 +74,6 @@ const sendMessage = async () => {
   const text = messageInput.value.trim()
   if (!text || isLoading.value) return
 
-  // 1. 加入使用者訊息到畫面
   messages.value.push({
     id: Date.now(),
     type: 'user',
@@ -99,7 +85,6 @@ const sendMessage = async () => {
   isLoading.value = true
   scrollToBottom()
 
-  // 確保聊天室已初始化
   if (!chat) {
     await initChat()
     if (!chat) {
@@ -114,7 +99,6 @@ const sendMessage = async () => {
   }
 
   try {
-    // 2. 檢查是否需要查詢功能位置
     const featureKeywords = [
       '在哪裡', '哪裡', '如何', '怎麼', '功能', '頁面', '位置', '找到',
       '討論區', '找旅伴', '行程', '個人', '購物車', '訂單', '收藏', '配對',
@@ -125,7 +109,6 @@ const sendMessage = async () => {
       currentInput.toLowerCase().includes(keyword)
     )
 
-    // 2.5. 檢查是否需要搜尋文章
     const searchKeywords = [
       '有沒有', '有沒有相關', '有沒有關於', '搜尋', '找', '查', '相關的文', '相關文章',
       '相關貼文', '相關討論', '關於', '的討論', '的文章', '的貼文'
@@ -139,7 +122,6 @@ const sendMessage = async () => {
     let featureContext = ''
     let postSearchContext = ''
 
-    // 如果問題可能涉及功能位置，先查詢相關功能
     if (needsFeatureSearch) {
       try {
         const features = await searchFeatureLocations(currentInput)
@@ -155,14 +137,11 @@ const sendMessage = async () => {
           featureContext += '\n請根據以上資訊指引使用者找到相關功能。'
         }
       } catch (error) {
-        console.warn('[AI Chat] 查詢功能位置失敗，繼續使用原始問題:', error)
       }
     }
 
-    // 如果問題可能涉及搜尋文章，先搜尋相關文章
     if (needsPostSearch) {
       try {
-        // 從問題中提取搜尋關鍵字（移除搜尋相關的詞彙）
         const searchQuery = currentInput
           .replace(/有沒有|有沒有相關|有沒有關於|搜尋|找|查|相關的|關於|的討論|的文章|的貼文/gi, '')
           .trim()
@@ -187,18 +166,14 @@ const sendMessage = async () => {
           }
         }
       } catch (error) {
-        console.warn('[AI Chat] 搜尋文章失敗，繼續使用原始問題:', error)
       }
     }
 
-    // 3. 將功能位置資訊和文章搜尋結果加入問題中
     enhancedInput = currentInput + featureContext + postSearchContext
 
-    // 4. 呼叫 AI API
     const result = await chat.sendMessage(enhancedInput)
     const responseText = result.response.text()
 
-    // 5. 轉 HTML 並消毒
     const rawHtml = await marked(responseText)
     const sanitizedHtml = DOMPurify.sanitize(rawHtml)
 
@@ -208,11 +183,8 @@ const sendMessage = async () => {
       content: sanitizedHtml,
     })
   } catch (error) {
-    console.error('❌ AI Error:', error)
-
     let errorMessage = '抱歉，我目前有點忙碌，請稍後再試一次 😵‍💫'
 
-    // 錯誤判斷
     if (error.message?.includes('API key')) {
       errorMessage = '⚠️ API Key 無效或已過期'
     } else if (error.message?.includes('404')) {

@@ -77,7 +77,6 @@ const loadDiscussionsData = async (isLoadMore = false) => {
       }
     }
   } catch (error) {
-    console.error('載入貼文失敗：', error)
   }
 }
 
@@ -273,7 +272,6 @@ const tryOpenSharedPost = async () => {
       try {
       postToOpen = await fetchPostById(postId)
       } catch (apiError) {
-        console.error('API 獲取貼文失敗：', apiError)
         await router.replace({ path: '/discussion', query: {}, hash: '' })
         await showError('無法找到該貼文，可能已被刪除或不存在')
         return
@@ -289,7 +287,6 @@ const tryOpenSharedPost = async () => {
       await showError('無法找到該貼文')
     }
   } catch (error) {
-    console.error('開啟分享貼文失敗：', error)
     await router.replace({ path: '/discussion', query: {}, hash: '' }).catch(() => {})
     await showError('開啟貼文時發生錯誤，請稍後再試')
   } finally {
@@ -309,7 +306,6 @@ const tryOpenEditPost = async () => {
       router.replace({ path: '/discussion', query: {} })
     }
   } catch (error) {
-    console.error('開啟編輯貼文失敗：', error)
   } finally {
     setAppLoading(false)
   }

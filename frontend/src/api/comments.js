@@ -1,6 +1,5 @@
 import { API_BASE_URL } from './config'
 
-// 創建留言
 export async function createComment(postId, commentData) {
   try {
     const response = await fetch(`${API_BASE_URL}/posts/${postId}/comments`, {
@@ -17,12 +16,10 @@ export async function createComment(postId, commentData) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('創建留言錯誤：', error)
     throw error
   }
 }
 
-// 更新留言
 export async function updateComment(id, content) {
   try {
     const response = await fetch(`${API_BASE_URL}/comments/${id}`, {
@@ -38,12 +35,10 @@ export async function updateComment(id, content) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('更新留言錯誤：', error)
     throw error
   }
 }
 
-// 刪除留言
 export async function deleteComment(id) {
   try {
     const response = await fetch(`${API_BASE_URL}/comments/${id}`, {
@@ -55,12 +50,10 @@ export async function deleteComment(id) {
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('刪除留言錯誤：', error)
     throw error
   }
 }
 
-// 留言按讚/取消按讚（僅更新 likes_count）
 export async function toggleCommentLike(commentId, action) {
   try {
     const response = await fetch(`${API_BASE_URL}/comments/${commentId}/likes`, {
@@ -76,7 +69,6 @@ export async function toggleCommentLike(commentId, action) {
     }
     return await response.json()
   } catch (error) {
-    console.error('更新留言按讚錯誤：', error)
     throw error
   }
 }

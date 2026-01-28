@@ -9,7 +9,6 @@ async function queryWithSearchPath(queryText, params) {
     await pool.query('SET search_path TO public, travelers, discussion')
     return await pool.query(queryText, params)
   } catch (error) {
-    console.warn('⚠️ 設置 search_path 失敗，直接執行查詢:', error.message)
     return await pool.query(queryText, params)
   }
 }
@@ -45,16 +44,12 @@ router.post('/', async (req, res) => {
       finalRole = role
     }
 
-    console.log('🔍 [Backend] 收到的 role:', role)
-    console.log('🔍 [Backend] 最終 finalRole:', finalRole)
 
     let finalVendorId = vendor_id
 
-    // 根據角色決定是否需要 vendor_id
     if (finalRole === 'user' || finalRole === 'admin') {
       finalVendorId = null
     } else if (finalRole === 'vendor') {
-      // 使用重構後的 vendor 創建邏輯
       try {
         const { createVendor } = require('../utils/vendorHelper')
 
@@ -64,15 +59,11 @@ router.post('/', async (req, res) => {
           email: email
         })
       } catch (vendorCreateError) {
-        console.error('❌ [Backend] Vendor 創建錯誤:', vendorCreateError)
-
-        // 安全的錯誤回應（不暴露內部細節）
         const errorResponse = {
           error: '創建廠商記錄失敗',
           message: '無法創建廠商記錄，請稍後再試'
         }
 
-        // 僅開發環境回傳詳細錯誤
         if (process.env.NODE_ENV === 'development') {
           errorResponse.details = vendorCreateError.message
           errorResponse.code = vendorCreateError.code
@@ -145,17 +136,7 @@ router.post('/', async (req, res) => {
         finalVendorId,
       ]
 
-      console.log('📝 [Backend] 準備 INSERT users，參數:', {
-        uid,
-        email,
-        nickname,
-        role: finalRole,
-        vendor_id: finalVendorId
-      })
-
       const result = await pool.query(insertQuery, insertParams)
-
-      console.log('✅ [Backend] INSERT 成功，返回:', result.rows[0])
 
       res.status(201).json({ data: result.rows[0] })
     }
@@ -269,7 +250,6 @@ router.get('/', async (req, res) => {
       params.push(role)
     }
 
-    // Add GROUP BY to support ARRAY_AGG
     query += ` GROUP BY u.uid ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
     params.push(parseInt(limit), offset)
 
@@ -316,7 +296,6 @@ router.get('/', async (req, res) => {
   }
 })
 
-// 修复API：为已存在的Firebase用户创建Neon记录
 router.post('/:uid/fix', async (req, res) => {
   try {
     const { uid } = req.params
@@ -329,7 +308,6 @@ router.post('/:uid/fix', async (req, res) => {
       })
     }
 
-    // 检查用户是否已存在
     const existingUser = await pool.query('SELECT uid FROM users WHERE uid = $1', [uid])
 
     if (existingUser.rows.length > 0) {
@@ -339,7 +317,6 @@ router.post('/:uid/fix', async (req, res) => {
       })
     }
 
-    // 创建新用户
     const finalRole = role && ['user', 'vendor', 'admin'].includes(role) ? role : 'user'
     let finalVendorId = vendor_id
 
@@ -371,7 +348,6 @@ router.post('/:uid/fix', async (req, res) => {
       user: result.rows[0],
     })
   } catch (error) {
-    console.error('修復用戶失敗：', error)
     res.status(500).json({
       error: '修復用戶失敗',
       message: error?.message || '無法修復用戶',
@@ -394,16 +370,19 @@ router.get('/:uid', async (req, res) => {
     const result = await queryWithSearchPath('SELECT uid, email, nickname, real_name, avatar, bio, spirit_animal, role, vendor_id, location, is_matching_enabled, created_at, updated_at, tags, card_bio, card_photo, card_tags, gallery FROM users WHERE uid = $1', [uid])
 
     if (result.rows.length === 0) {
-      return res.status(440).json({
+      return res.status(404).json({
         error: '用戶不存在',
         message: '找不到指定的用戶',
       })
     }
 
+    const userData = result.rows[0]
+    if (userData.vendor_id && typeof userData.vendor_id === 'string' && userData.vendor_id.startsWith('vendor-')) {
+      userData.vendor_id = null
+    }
+
     res.json({ data: result.rows[0] })
   } catch (error) {
-    console.error('獲取用戶資料失敗:', error)
-
     if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
       return res.status(503).json({
         error: '資料庫連接失敗',
@@ -414,8 +393,7 @@ router.get('/:uid', async (req, res) => {
 
     res.status(500).json({
       error: '獲取用戶資料失敗',
-      details: error.message,
-      message: error.message
+      message: error.message || '未知錯誤',
     })
   }
 })
@@ -468,7 +446,6 @@ router.put('/:uid', async (req, res) => {
 
     const addUpdate = (field, value) => {
       if (value !== undefined) {
-        // 直接更新，不使用 COALESCE，確保空字符串和 null 都能正確更新
         setClauses.push(`${field} = $${paramIndex}`)
         params.push(value === '' ? null : value)
         paramIndex++
@@ -483,7 +460,7 @@ router.put('/:uid', async (req, res) => {
     addUpdate('spirit_animal', spirit_animal)
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'tags')) {
-      const val = Array.isArray(tags) ? tags : []
+      const val = Array.isArray(tags) ? tags : tags ? [tags] : []
       setClauses.push(`tags = $${paramIndex}`)
       params.push(val)
       paramIndex++
@@ -519,11 +496,6 @@ router.put('/:uid', async (req, res) => {
       paramIndex++
     }
 
-    const tagsValue = Array.isArray(tags) ? tags : tags ? [tags] : []
-    setClauses.push(`tags = $${paramIndex}`)
-    params.push(tagsValue)
-    paramIndex++
-
     setClauses.push('updated_at = CURRENT_TIMESTAMP')
 
     const updateQuery = `
@@ -536,13 +508,6 @@ router.put('/:uid', async (req, res) => {
     const result = await queryWithSearchPath(updateQuery, params)
 
     if (result.rows.length === 0) {
-      // Logic from Incoming to Insert if not exists (but HEAD didn't have this in PUT?)
-      // Incoming HAD Insert logic in PUT.
-      // HEAD did NOT.
-      // I will keep Incoming's Insert logic if helpful, but HEAD didn't have it.
-      // Incoming's PUT had logic to INSERT if update returned 0.
-      // I'll add it back.
-
       if (!email) {
         email = `${uid}@example.com`
       }

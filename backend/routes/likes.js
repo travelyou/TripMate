@@ -155,7 +155,6 @@ router.post('/', async (req, res) => {
                   likerAvatar = user.avatar && user.avatar.trim() !== '' ? user.avatar : null
                 }
               } catch (error) {
-                console.error('查詢用戶資訊失敗:', error.message)
               }
 
               await createLikeNotification({
@@ -171,7 +170,6 @@ router.post('/', async (req, res) => {
           }
         }
       } catch (notifError) {
-        console.error('創建按讚通知失敗（不影響主流程）：', notifError)
       }
     }
 
@@ -180,7 +178,6 @@ router.post('/', async (req, res) => {
       likesCount,
     })
   } catch (error) {
-    console.error('按讚操作失敗：', error)
     res.status(500).json({
       error: '按讚操作失敗',
       details: error?.message || String(error),
@@ -246,7 +243,6 @@ router.get('/user/:uid', async (req, res) => {
           i.location,
           i.start_date,
           i.end_date,
-          COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
           COALESCE(i.end_date - i.start_date + 1, 1) AS duration_days,
           i.agency_name,
           i.author_uid,
@@ -328,14 +324,6 @@ router.get('/user/:uid', async (req, res) => {
 
     res.json(favorites)
   } catch (error) {
-    console.error('獲取收藏失敗：', error)
-    console.error('錯誤詳情：', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint,
-      query: board === 'itinerary' ? 'itinerary query' : board === 'traveler' ? 'traveler query' : 'discussion query',
-    })
     res.status(500).json({
       error: '獲取收藏失敗',
       details: error.message || String(error),
@@ -385,7 +373,6 @@ router.get('/:postId', async (req, res, next) => {
       isLiked: !!row.is_liked,
     })
   } catch (error) {
-    console.error('獲取按讚資訊失敗：', error)
     res.status(500).json({
       error: '獲取按讚資訊失敗',
       details: error?.message || String(error),

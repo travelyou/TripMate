@@ -7,13 +7,11 @@ const resetLoaderIfNeeded = (apiKey) => {
       const scripts = document.querySelectorAll('script[src*="maps.googleapis.com/maps/api/js"]')
       scripts.forEach((script) => script.parentNode?.removeChild(script))
     } catch (error) {
-      console.warn('[Google Maps] 清理舊 Script 失敗:', error)
     }
 
     try {
       if (window.google) delete window.google
     } catch (error) {
-      console.warn('[Google Maps] 移除 google 物件失敗:', error)
       window.google = undefined
     }
 
@@ -27,22 +25,13 @@ export function loadGoogleMaps() {
   const apiKeyRaw = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   const apiKey = typeof apiKeyRaw === 'string' ? apiKeyRaw.replace(/^\uFEFF/, '').trim() : ''
   if (!apiKey) {
-    console.error('[Google Maps] 未讀到 VITE_GOOGLE_MAPS_API_KEY')
-    console.error('[Google Maps] 請確認 frontend/.env 並重啟前端 dev server')
     throw new Error('Missing Google Maps API key')
-  }
-
-  if (import.meta.env.DEV) {
-    console.log('[Google Maps] API Key 已讀取 (長度):', apiKey.length)
   }
 
   try {
     const scripts = document.querySelectorAll('script[src*="maps.googleapis.com/maps/api/js"]')
     scripts.forEach((script) => {
       const src = script.getAttribute('src') || ''
-      if (import.meta.env.DEV) {
-        console.log('[Google Maps] 現有 Script src:', src)
-      }
       const hasKey = src.includes('key=')
       const keyMatches = hasKey ? src.includes(`key=${apiKey}`) : false
       if (!hasKey || !keyMatches) {
@@ -53,7 +42,6 @@ export function loadGoogleMaps() {
       }
     })
   } catch (error) {
-    console.warn('[Google Maps] 檢查舊 Script 失敗:', error)
   }
 
   resetLoaderIfNeeded(apiKey)
@@ -77,15 +65,6 @@ export function loadGoogleMaps() {
 
         ensureGoogleNamespace()
         window.google.maps[callbackName] = () => {
-          if (import.meta.env.DEV) {
-            const scripts = document.querySelectorAll(
-              'script[src*="maps.googleapis.com/maps/api/js"]',
-            )
-            scripts.forEach((script) => {
-              console.log('[Google Maps] 載入後 Script src:', script.getAttribute('src') || '')
-            })
-          }
-
           if (!window.google) {
             reject(new Error('Google Maps failed to load'))
             return

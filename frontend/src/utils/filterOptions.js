@@ -1,9 +1,5 @@
-// 統一的篩選選項配置
-
-// 找旅伴 - 狀態篩選
 export const TRAVELER_STATUS_OPTIONS = ['全部', '招募中', '已額滿']
 
-// 找旅伴 - 分類篩選
 export const TRAVELER_CATEGORY_OPTIONS = [
   '全部',
   '國內旅遊',
@@ -16,7 +12,6 @@ export const TRAVELER_CATEGORY_OPTIONS = [
   '其他',
 ]
 
-// 討論區 - 分類篩選
 export const DISCUSSION_CATEGORY_OPTIONS = [
   '全部',
   '國內旅遊',
@@ -30,7 +25,6 @@ export const DISCUSSION_CATEGORY_OPTIONS = [
   '其他',
 ]
 
-// 精選行程 - 分類篩選
 export const ITINERARY_CATEGORY_OPTIONS = [
   '全部',
   '國內旅遊',
@@ -43,7 +37,6 @@ export const ITINERARY_CATEGORY_OPTIONS = [
   '其他',
 ]
 
-// 搜尋頁面 - 各版塊的子篩選選項
 export const SEARCH_SUB_FILTER_OPTIONS = {
   all: [],
   traveler: ['全部', '招募中', '已額滿', ...TRAVELER_CATEGORY_OPTIONS.filter((opt) => opt !== '全部')],
@@ -52,7 +45,6 @@ export const SEARCH_SUB_FILTER_OPTIONS = {
   user: ['全部'],
 }
 
-// 篩選關鍵字映射 - 用於搜尋匹配
 export const FILTER_KEYWORDS = {
   '國內旅遊': [
     '台灣', '國內', '本島', '離島', '澎湖', '金門', '馬祖', '花蓮', '台東', '墾丁', '阿里山', '日月潭',

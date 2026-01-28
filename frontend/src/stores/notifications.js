@@ -41,14 +41,6 @@ export const useNotificationsStore = defineStore('notifications', {
           this.lastFetchTime = Date.now()
         }
       } catch (error) {
-        console.error('獲取通知列表失敗：', error)
-        console.error('錯誤詳情：', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          message: error.message
-        })
-        // 發生錯誤時設置為空數組，避免阻塞應用
         this.notifications = []
       } finally {
         this.isLoading = false
@@ -64,14 +56,6 @@ export const useNotificationsStore = defineStore('notifications', {
           this.unreadCount = response.count || 0
         }
       } catch (error) {
-        console.error('獲取未讀通知數量失敗：', error)
-        console.error('錯誤詳情：', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          message: error.message
-        })
-        // 發生錯誤時設置為 0，避免阻塞應用
         this.unreadCount = 0
       }
     },
@@ -89,7 +73,6 @@ export const useNotificationsStore = defineStore('notifications', {
           }
         }
       } catch (error) {
-        console.error('標記通知已讀失敗：', error)
       }
     },
 
@@ -103,7 +86,6 @@ export const useNotificationsStore = defineStore('notifications', {
           this.unreadCount = 0
         }
       } catch (error) {
-        console.error('標記所有通知已讀失敗：', error)
       }
     },
 
@@ -113,21 +95,17 @@ export const useNotificationsStore = defineStore('notifications', {
         if (response.success) {
           const index = this.notifications.findIndex((n) => n.id === notificationId)
           if (index !== -1) {
-            // 先保存通知資訊，再刪除
             const notification = this.notifications[index]
             this.notifications.splice(index, 1)
-            // 如果刪除的是未讀通知，減少未讀數量
             if (notification && !notification.is_read && this.unreadCount > 0) {
               this.unreadCount--
             }
           }
         }
       } catch (error) {
-        console.error('刪除通知失敗：', error)
       }
     },
 
-    // 刷新通知（用於輪詢）
     async refreshNotifications(uid) {
       await Promise.all([
         this.fetchNotifications(uid),

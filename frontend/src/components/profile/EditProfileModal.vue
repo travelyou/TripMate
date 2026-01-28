@@ -115,7 +115,6 @@ function save() {
     tags: Array.isArray(editForm.tags) ? editForm.tags : [],
   }
   
-  console.log('EditProfileModal save() - formData:', formData)
   emit('save', formData)
 }
 
@@ -133,7 +132,6 @@ async function saveField(fieldName) {
     
     emit('save-field', { field: fieldName, data: fieldData })
   } catch (error) {
-    console.error(`保存 ${fieldName} 失敗：`, error)
   } finally {
     savingFields[fieldName] = false
   }

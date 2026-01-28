@@ -1,6 +1,7 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, watch } from 'vue'
 import { useVendorStore } from '@/stores/vendor'
+import { useUserStore } from '@/stores/user'
 import {
   Plus,
   Edit,
@@ -12,35 +13,52 @@ import {
   Image as ImageIcon,
 } from 'lucide-vue-next'
 
-// 1. 定義 emit
-const emit = defineEmits(['create', 'edit'])
+defineEmits(['create', 'edit'])
 
 const vendorStore = useVendorStore()
+const userStore = useUserStore()
 const posts = computed(() => vendorStore.vendorPosts)
 const currentVendor = computed(() => vendorStore.currentVendor)
 
-// 刪除確認
+const getVendorId = () => {
+  const user = userStore.currentUser
+  if (!user) return null
+
+  const vendorIdValue = user.vendorId || user.vendor_id
+  if (vendorIdValue && typeof vendorIdValue === 'string' && vendorIdValue.trim() && !vendorIdValue.startsWith('vendor-')) {
+    return vendorIdValue.trim()
+  }
+
+  return currentVendor.value?.id || user.uid || user.id || null
+}
+
 const handleDelete = async (id) => {
   if (confirm('確定要刪除此貼文嗎？此動作無法復原。')) {
     try {
       await vendorStore.deletePost(id)
-      if (currentVendor.value?.id) {
-        await vendorStore.fetchVendorPosts(currentVendor.value.id)
+      const vendorId = getVendorId()
+      if (vendorId) {
+        await vendorStore.fetchVendorPosts(vendorId)
       }
     } catch (error) {
-      console.error('刪除失敗:', error)
       alert('刪除失敗，請稍後再試')
     }
   }
 }
 
-// 2. 移除原本的 handleCreate/handleEdit 函式，直接在 template 使用 $emit
-
-// 載入資料
-onMounted(() => {
-  if (currentVendor.value?.id) {
-    vendorStore.fetchVendorPosts(currentVendor.value.id)
+const loadPosts = async () => {
+  const vendorId = getVendorId()
+  if (vendorId) {
+    await vendorStore.fetchVendorPosts(vendorId)
   }
+}
+
+onMounted(() => {
+  loadPosts()
+})
+
+watch(() => currentVendor.value?.id, () => {
+  loadPosts()
 })
 </script>
 

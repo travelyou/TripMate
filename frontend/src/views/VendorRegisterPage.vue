@@ -48,7 +48,6 @@
         </div>
 
         <div class="space-y-6">
-          <!-- 申請須知 -->
           <div class="bg-primary-50 border-2 border-primary-200 rounded-lg p-4">
             <h2 class="text-lg font-bold text-primary mb-3">申請須知</h2>
             <ul class="space-y-2 text-sm text-secondary-700">
@@ -67,7 +66,6 @@
             </ul>
           </div>
 
-          <!-- 返回按鈕 -->
           <div class="flex justify-center pt-4">
             <button
               type="button"

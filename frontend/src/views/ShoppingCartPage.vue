@@ -9,9 +9,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 onMounted(() => {
-  // 購物車永遠以後端為準：每次進來都抓一次
   checkoutStore.loadCartFromDb()
-  // 標記購物車已查看，隱藏紅點
   checkoutStore.markCartAsViewed()
 })
 
@@ -22,10 +20,8 @@ const selectedTourId = computed({
   set: (val) => (checkoutStore.selectedCartTourId = Number(val)),
 })
 
-// 選擇的項目本身（從後端資料合併後的 tourGroups 找）
 const selectedTour = computed(() => checkoutStore.cartSelectedTour)
 
-// 結算總金額（也是從後端 tourGroups 算）
 const totalPrice = computed(() => checkoutStore.cartTotalPrice)
 
 const isCartLoading = computed(() => checkoutStore.isCartLoading)
@@ -38,7 +34,6 @@ const toggleTestButtons = () => {
   showTestButtons.value = !showTestButtons.value
 }
 
-// 增加/減少人數（store 內會 debounce 同步回後端）
 function increasePersons(tour) {
   checkoutStore.increasePersons(tour.id)
 }
@@ -46,14 +41,11 @@ function decreasePersons(tour) {
   checkoutStore.decreasePersons(tour.id)
 }
 
-// 刪除購物車項目（store 內會呼叫後端）
 function removeTour(id) {
   checkoutStore.removeTour(id)
 }
 
-// 去結帳：只帶 itineraryId，不要再寫 selectedTour
 const goCheckout = async () => {
-  // 確保資料已載入
   if (!checkoutStore.tourGroups.length) {
     await checkoutStore.loadCartFromDb()
   }
@@ -64,11 +56,9 @@ const goCheckout = async () => {
     return
   }
 
-  // 只把「選到哪個 itinerary」交給後續步驟
   router.push(`/checkout/step1?itineraryId=${selected.id}`)
 }
 
-// 去精選行程頁
 function goToFeatured() {
   router.push('/featured-itinerary')
 }
@@ -103,9 +93,7 @@ function goToFeatured() {
         加入itinerary #2 到購物車
       </button>
     </div>
-    <!-- 購物車整個區塊 -->
 
-    <!-- 載入骨架 -->
     <div v-show="showLoading" class="rounded-2xl">
       <div class="flex flex-col gap-5 lg:flex-row">
         <div class="rounded-2xl flex-1">
@@ -180,7 +168,6 @@ function goToFeatured() {
       </div>
     </div>
     <div class="flex flex-col gap-5 lg:flex-row">
-      <!-- 購物車列表 -->
       <div v-show="showCartList" class="rounded-2xl">
         <ul class="grid gap-5">
           <li
@@ -198,9 +185,6 @@ function goToFeatured() {
               已選擇
             </span>
             <div class="flex flex-col justify-between gap-10 sm:flex-row">
-              <!-- radio -->
-
-              <!-- radio/圖/資料 -->
               <div class="flex flex-col gap-5 sm:flex-row">
                 <input
                   :id="`tour-${tour.id}`"

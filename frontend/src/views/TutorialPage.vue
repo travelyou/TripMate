@@ -14,9 +14,7 @@ import {
 
 const router = useRouter()
 
-// 处理文本中的链接
 const processTextWithLinks = (text) => {
-  // 定义链接映射
   const linkMap = {
     '討論區': '/discussion',
     '找旅伴': '/travelers',
@@ -24,7 +22,6 @@ const processTextWithLinks = (text) => {
   }
 
   let processed = text
-  // 处理加粗文本中的链接（在 replace 之后处理，因为此时已经是 HTML）
   Object.keys(linkMap).forEach((key) => {
     const regex = new RegExp(`<strong class='text-primary-700'>${key}</strong>`, 'g')
       processed = processed.replace(
@@ -36,7 +33,6 @@ const processTextWithLinks = (text) => {
   return processed
 }
 
-// 处理链接点击事件
 const handleLinkClick = (event) => {
   const target = event.target.closest('[data-route]')
   if (target) {
@@ -70,8 +66,8 @@ const steps = [
         desc: '你的創作與管理中心。',
         feature: '規劃個人行程 / 管理主揪團',
         detail: '你可以從零規劃行程，也能將做好的行程「匯入」到找旅伴貼文中，讓揪團更專業！',
-        route: '/my-itinerary', // 新增路由
-        btnText: '前往我的行程', // 按鈕文字
+        route: '/my-itinerary',
+        btnText: '前往我的行程',
       },
       {
         name: '訂單管理',
@@ -80,8 +76,8 @@ const steps = [
         desc: '你的購買紀錄。',
         feature: '查看已購買的精選行程',
         detail: '你在「精選行程」購買的付費商品，會統一歸檔在這裡，不會跟自己排的行程混在一起。',
-        route: '/my-order', // 新增路由
-        btnText: '前往我的訂單', // 按鈕文字
+        route: '/my-order',
+        btnText: '前往我的訂單',
       },
     ],
   },
@@ -152,7 +148,6 @@ const steps = [
               @click="handleLinkClick"
             >
               <template v-if="line.match(/^.{1,2} /)">
-                <!-- 有 emoji 的行 -->
                 <span class="shrink-0 text-xl mr-3">{{ line.split(' ')[0] }}</span>
                 <span
                   class="flex-1 min-w-0"

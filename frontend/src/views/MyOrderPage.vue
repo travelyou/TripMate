@@ -3,21 +3,34 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Map as MapIcon } from 'lucide-vue-next'
 import FeaturedItineraryTab from '@/components/itinerary-tabs/FeaturedItineraryTab.vue'
-import { fetchOrders } from '@/api/orders'
+import { fetchOrders, updateOrderReview } from '@/api/orders'
+import { showSuccess, showError } from '@/utils/alert'
 
 const orders = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const router = useRouter()
 
-const handleFeaturedRate = ({ id, rating, comment }) => {
+const handleFeaturedRate = async ({ id, rating, comment }) => {
+  try {
+    await updateOrderReview(id, { rating, comment })
   orders.value = orders.value.map((item) => (item.id === id ? { ...item, rating, comment } : item))
+    await showSuccess('評價已儲存')
+  } catch (error) {
+    await showError(error.message || '儲存評價失敗，請稍後再試')
+  }
 }
 
-const handleFeaturedClear = (id) => {
+const handleFeaturedClear = async (id) => {
+  try {
+    await updateOrderReview(id, { rating: null, comment: '' })
   orders.value = orders.value.map((item) =>
     item.id === id ? { ...item, rating: null, comment: '' } : item,
   )
+    await showSuccess('評價已清除')
+  } catch (error) {
+    await showError(error.message || '清除評價失敗，請稍後再試')
+  }
 }
 
 const handlePayOrder = (id) => {
@@ -57,7 +70,6 @@ const loadOrders = async () => {
     const data = await fetchOrders()
     orders.value = data.map(mapOrderToCard)
   } catch (error) {
-    console.error('[MyOrderPage] load orders failed:', error)
     errorMessage.value = error?.message || '載入訂單失敗'
     orders.value = []
   } finally {

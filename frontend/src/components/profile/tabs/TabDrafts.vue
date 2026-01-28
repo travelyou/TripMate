@@ -22,6 +22,14 @@ const getTagColor = (type) => {
   return 'bg-secondary-500 text-white'
 }
 
+const getTypeLabel = (draft) => {
+  if (draft.typeLabel) return draft.typeLabel
+  if (draft.type === 'discussion') return '討論區'
+  if (draft.type === 'traveler') return '找旅伴'
+  if (draft.type === 'my_itinerary' || draft.type === 'itinerary') return '我的行程'
+  return '草稿'
+}
+
 const getDraftPreviewText = (content) => {
   if (!content) return ''
   try {
@@ -71,7 +79,7 @@ const handleDraftClick = (draft) => {
               'text-[10px] px-2 py-0.5 rounded border font-bold uppercase tracking-wider',
             ]"
           >
-            {{ draft.typeLabel }}
+            {{ getTypeLabel(draft) }}
           </span>
           <!-- 顯示儲存時間 -->
           <span class="text-[10px] text-secondary-400 font-medium"

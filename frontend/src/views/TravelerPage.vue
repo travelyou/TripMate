@@ -8,7 +8,7 @@ import TravelerPostModal from '@/components/modals/TravelerPostModal.vue'
 import TravelerDetailModal from '@/components/modals/TravelerDetailModal.vue'
 import TravelerApplyModal from '@/components/modals/TravelerApplyModal.vue'
 import TravelerApplicationsModal from '@/components/modals/TravelerApplicationsModal.vue'
-import ShareModal from '@/components/modals/ShareModal.vue' // [新增] 確保功能不遺失
+import ShareModal from '@/components/modals/ShareModal.vue'
 import { getTravelers, getTravelerById } from '@/api/travelers'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { TRAVELER_STATUS_OPTIONS, TRAVELER_CATEGORY_OPTIONS } from '@/utils/filterOptions'
@@ -26,36 +26,32 @@ const isPostingModalOpen = ref(false)
 const isDetailModalOpen = ref(false)
 const isApplyModalOpen = ref(false)
 const isApplicationsModalOpen = ref(false)
-const isShareModalOpen = ref(false) // [新增] 功能回填
+const isShareModalOpen = ref(false)
 
 const selectedTraveler = ref(null)
 const selectedDraft = ref(null)
-const shareLink = ref('') // [新增] 功能回填
+const shareLink = ref('')
 const shouldScrollToComments = ref(false)
 const travelers = ref([])
 const isLoading = ref(false)
 
-// --- 篩選狀態 ---
 const filterOptions = ref(TRAVELER_STATUS_OPTIONS)
-const activeFilter = ref('全部') // 對應後端的 status
+const activeFilter = ref('全部')
 
 const categoryOptions = ref(TRAVELER_CATEGORY_OPTIONS)
-const activeCategory = ref('全部') // 對應後端的 category
+const activeCategory = ref('全部')
 
-// --- 分頁狀態 ---
 const currentPage = ref(1)
 const hasMore = ref(true)
 const loadMoreTrigger = ref(null)
 let observer = null
 
-// [核心修正] 統一載入邏輯：嚴格區分單篇模式與列表模式
 const loadTravelers = async (isLoadMore = false) => {
   if (isLoading.value) return
 
   try {
     isLoading.value = true
 
-    // A. 單篇模式：網址帶有 ID (例如 /travelers/77)
     if (route.params.id && !isLoadMore) {
       const response = await getTravelerById(route.params.id)
       if (response.success && response.data) {
@@ -64,7 +60,6 @@ const loadTravelers = async (isLoadMore = false) => {
         isDetailModalOpen.value = true
         hasMore.value = false
         
-        // 檢查是否需要滾動到留言區
         const shouldScroll = route.query.scrollTo === 'comments'
         if (shouldScroll) {
           shouldScrollToComments.value = true
@@ -77,7 +72,6 @@ const loadTravelers = async (isLoadMore = false) => {
       return
     }
 
-    // B. 列表模式：網址無 ID
     if (!isLoadMore) {
       currentPage.value = 1
       hasMore.value = true
@@ -85,7 +79,7 @@ const loadTravelers = async (isLoadMore = false) => {
 
     const params = {
       page: currentPage.value,
-      limit: 20, // 每次載入 20 則
+      limit: 20,
     }
 
     if (activeFilter.value !== '全部') params.status = activeFilter.value
@@ -96,7 +90,6 @@ const loadTravelers = async (isLoadMore = false) => {
     if (response.success) {
       let newData = response.data || []
 
-      // 過濾已過期的招募
       const today = new Date().setHours(0, 0, 0, 0)
       newData = newData.filter((t) => !t.end_date || new Date(t.end_date) >= today)
 
@@ -111,13 +104,12 @@ const loadTravelers = async (isLoadMore = false) => {
       }
     }
   } catch (error) {
-    console.error('載入旅伴失敗:', error)
+    console.error('載入旅伴資料失敗:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-// [修正] 監聽路由 ID：這是唯一的進入點，避免 onMounted 重複呼叫
 watch(
   () => route.params.id,
   () => {
@@ -126,7 +118,6 @@ watch(
   { immediate: true },
 )
 
-// 監聽 query 參數變化，處理通知跳轉等情況
 watch(() => route.query.travelerId, async (newTravelerId) => {
   if (newTravelerId) {
     await nextTick()
@@ -144,10 +135,9 @@ const openTravelerDetail = (traveler, focusComment = false) => {
 const closeTravelerDetail = () => {
   isDetailModalOpen.value = false
   selectedTraveler.value = null
-  router.push('/travelers') // 網址變更會自動觸發上方 watch 重新載入列表
+  router.push('/travelers')
 }
 
-// [新增] 整合分享視窗功能
 const openShareModal = (travelerId) => {
   shareLink.value = `${window.location.origin}/travelers/${travelerId}`
   isShareModalOpen.value = true
@@ -178,7 +168,6 @@ const handleCardEdit = async (traveler) => {
     const response = await getTravelerById(traveler.id)
     if (response?.success && response.data) source = response.data
   } catch (error) {
-    console.error(error)
   }
   openEditModalFromTraveler(source)
   nextTick(() => setAppLoading(false))
@@ -187,6 +176,8 @@ const handleCardEdit = async (traveler) => {
 const openEditModalFromTraveler = (source) => {
   selectedDraft.value = {
     type: 'traveler',
+    id: source.id,
+    travelerId: source.id,
     data: {
       category: source.category || '',
       title: source.title || '',
@@ -239,16 +230,13 @@ const handlePostModalClose = () => {
   selectedDraft.value = null
 }
 
-// 開啟草稿編輯
 const openDraft = (draft) => {
   if (draft.type === 'traveler' && draft.data) {
-    // 設置草稿數據並打開 Modal
     selectedDraft.value = draft
     isPostingModalOpen.value = true
   }
 }
 
-// 嘗試打開草稿的函數
 const tryOpenDraft = () => {
   const draftId = route.query.openDraft
   if (draftId) {
@@ -256,7 +244,6 @@ const tryOpenDraft = () => {
     if (draft && draft.type === 'traveler') {
       nextTick(() => {
         openDraft(draft)
-        // 清除查詢參數
         router.replace({ path: '/traveler', query: {} })
       })
     }
@@ -273,39 +260,30 @@ const tryOpenSharedTraveler = async () => {
   }
   if (!travelerId) return
 
-  // 防止重複打開
   if (isDetailModalOpen.value && String(selectedTraveler.value?.id) === String(travelerId)) {
     return
   }
 
-  // 檢查是否需要滾動到留言區
   const shouldScroll = route.query.scrollToComments === 'true'
 
   setAppLoading(true)
   try {
     const response = await getTravelerById(travelerId)
     if (response?.success && response.data) {
-      // 先清除 URL 參數，避免重複觸發
       await router.replace({ path: '/travelers', query: {}, hash: '' })
 
-      // 確保 URL 更新後再打開模態框
       await nextTick()
 
       selectedTraveler.value = response.data
       shouldScrollToComments.value = shouldScroll
       isDetailModalOpen.value = true
     } else {
-      // API 回應格式不正確或無資料
-      console.error('旅伴資料格式錯誤：', response)
       await router.replace({ path: '/travelers', query: {}, hash: '' })
       alert('無法找到該找旅伴貼文')
     }
   } catch (error) {
-    console.error('開啟分享旅伴失敗：', error)
-    // 清除 URL 參數
     await router.replace({ path: '/travelers', query: {}, hash: '' }).catch(() => {})
 
-    // 根據錯誤類型給予不同提示
     const errorMessage = error.response?.status === 404
       ? '找旅伴貼文不存在或已被刪除'
       : '開啟找旅伴貼文時發生錯誤，請稍後再試'
@@ -326,20 +304,17 @@ const tryOpenEditTraveler = async () => {
       router.replace({ path: '/travelers', query: {} })
     }
   } catch (error) {
-    console.error('開啟編輯旅伴失敗：', error)
   } finally {
     nextTick(() => setAppLoading(false))
   }
 }
 
 onMounted(() => {
-  // 注意：這裡不需要呼叫 loadTravelers，因為 watch(..., {immediate: true}) 已經幫你做了
-
   observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
       if (entry.isIntersecting && hasMore.value && !isLoading.value) {
-        loadTravelers(true) // 下載更多 20 則
+        loadTravelers(true)
       }
     },
     { rootMargin: '200px' },

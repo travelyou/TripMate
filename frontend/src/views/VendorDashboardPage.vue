@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useVendorStore } from '@/stores/vendor'
 import { useUserStore } from '@/stores/user'
@@ -24,28 +24,33 @@ const activeTab = ref('basic_info')
 const showItineraryModal = ref(false)
 const showPostModal = ref(false)
 
-// Edit State
 const editItineraryData = ref(null)
 const isItineraryEdit = ref(false)
 
+const postFromItinerary = ref(null)
+
 const vendorId = computed(() => {
-  const id = userStore.currentUser?.vendorId || userStore.currentUser?.id || 'vendor001'
-  console.log('🔄 [Dashboard] Computed vendorId:', id)
-  return id
+  const user = userStore.currentUser
+  if (!user) return null
+
+  const vendorIdValue = user.vendorId || user.vendor_id
+
+  if (vendorIdValue && typeof vendorIdValue === 'string' && vendorIdValue.trim() && !vendorIdValue.startsWith('vendor-')) {
+    return vendorIdValue.trim()
+  }
+
+  return user.uid || user.id || null
 })
 const currentVendor = computed(() => vendorStore.currentVendor)
 const loading = computed(() => vendorStore.loading)
 
 const handleLogout = () => {
-  console.log('🚪 handleLogout triggered')
   userStore.logout()
   router.push('/login')
 }
 
 const handleSwitchToFrontend = () => {
-  console.log('🚀 handleSwitchToFrontend triggered')
   const route = getVendorProfileRoute(userStore.currentUser)
-  console.log('🚀 handleSwitchToFrontend -> target route:', route)
   router.push(route)
 }
 
@@ -56,52 +61,74 @@ const openItineraryModal = () => {
 }
 
 const handleEditItinerary = (item) => {
-  console.log('✏️ Edit Itinerary:', item)
   isItineraryEdit.value = true
   editItineraryData.value = item
   showItineraryModal.value = true
 }
 
-const openPostModal = () => {
+const openPostModal = (itineraryData = null) => {
+  postFromItinerary.value = itineraryData
   showPostModal.value = true
 }
 
-// ... (success handlers)
-
-// Template changes below
-
-// In TabItineraryList:
-// @edit="handleEditItinerary"
-
-// In ItineraryPostModal:
-// :initial-data="editItineraryData"
-// :is-edit="isItineraryEdit"
+const handleCreatePostFromItinerary = (itinerary) => {
+  openPostModal(itinerary)
+}
 
 const handleItinerarySuccess = async () => {
   showItineraryModal.value = false
-  // 重新載入資料以更新列表
-  await vendorStore.fetchVendorItineraries(vendorId.value)
-  alert('行程發布成功！')
+  editItineraryData.value = null
+  isItineraryEdit.value = false
+
+  try {
+    if (vendorId.value) {
+    await vendorStore.fetchVendorItineraries(vendorId.value)
+    } else {
+      alert('行程已創建，但刷新列表時發生錯誤，請手動刷新頁面')
+    }
+  } catch {
+    alert('行程已創建，但刷新列表時發生錯誤，請手動刷新頁面')
+  }
 }
 
 const handlePostSuccess = async () => {
   showPostModal.value = false
-  // 重新載入資料 (雖然現在是 Mock，但這是正確的邏輯)
+  postFromItinerary.value = null
+
+  try {
+    if (vendorId.value) {
   await vendorStore.fetchVendorPosts(vendorId.value)
   alert('貼文發布成功！且已同步至前台討論區')
+    } else {
+      alert('貼文發布成功！但刷新列表時發生錯誤，請手動刷新頁面')
+    }
+  } catch {
+    alert('貼文發布成功！但刷新列表時發生錯誤，請手動刷新頁面')
+  }
 }
 
-onMounted(async () => {
-  console.log('🔍 [Dashboard] 當前用戶:', userStore.currentUser)
-  console.log('🔍 [Dashboard] vendorId:', vendorId.value)
-
-  console.log('🔍 [Dashboard] role:', userStore.currentUser?.role)
-
+const loadData = async () => {
+  if (vendorId.value) {
   await vendorStore.fetchVendorProfile(vendorId.value)
   await Promise.all([
     vendorStore.fetchVendorItineraries(vendorId.value),
     vendorStore.fetchVendorPosts(vendorId.value),
   ])
+  }
+}
+
+watch(() => activeTab.value, () => {
+  if (vendorId.value) {
+    if (activeTab.value === 'itineraries') {
+      vendorStore.fetchVendorItineraries(vendorId.value)
+    } else if (activeTab.value === 'posts') {
+      vendorStore.fetchVendorPosts(vendorId.value)
+    }
+  }
+})
+
+onMounted(() => {
+  loadData()
 })
 </script>
 
@@ -122,8 +149,8 @@ onMounted(async () => {
         <DashboardHeader
           v-if="currentVendor && !loading"
           :vendor="currentVendor"
-          :itineraries="vendorStore.itineraries"
-          :posts="vendorStore.posts"
+          :itineraries="vendorStore.vendorItineraries"
+          :posts="vendorStore.vendorPosts"
         />
 
         <div class="p-8">
@@ -148,6 +175,7 @@ onMounted(async () => {
                 <TabItineraryList
                   @create="openItineraryModal"
                   @edit="handleEditItinerary"
+                  @create-post="handleCreatePostFromItinerary"
                 />
               </div>
             </div>
@@ -156,7 +184,6 @@ onMounted(async () => {
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                 <TabPostList
                   @create="openPostModal"
-                  @edit="(item) => console.log('Edit post', item)"
                 />
               </div>
             </div>
@@ -183,6 +210,7 @@ onMounted(async () => {
 
     <DiscussionPostModal
       v-if="showPostModal"
+      :itinerary-data="postFromItinerary"
       @close="showPostModal = false"
       @success="handlePostSuccess"
     />

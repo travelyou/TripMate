@@ -4,11 +4,8 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../database/connection')
 
-// 確保功能位置表存在
 const ensureFeatureLocationsTable = async () => {
   try {
-    console.log('[AI Features] 開始檢查/創建功能位置表...')
-
     await pool.query(
       `CREATE TABLE IF NOT EXISTS public.feature_locations (
         id SERIAL PRIMARY KEY,
@@ -24,7 +21,6 @@ const ensureFeatureLocationsTable = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
     )
-    console.log('[AI Features] 功能位置表已確保存在')
 
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_feature_locations_keywords 
@@ -38,17 +34,13 @@ const ensureFeatureLocationsTable = async () => {
       `CREATE INDEX IF NOT EXISTS idx_feature_locations_is_active 
        ON public.feature_locations(is_active)`,
     )
-    console.log('[AI Features] 功能位置表索引已確保存在')
 
-    // 初始化一些基本功能位置数据
     await initializeDefaultFeatures()
   } catch (error) {
-    console.error('[AI Features] 創建功能位置表或索引失敗：', error)
     throw error
   }
 }
 
-// 初始化預設功能位置資料
 const initializeDefaultFeatures = async () => {
   try {
     const defaultFeatures = [
@@ -169,13 +161,10 @@ const initializeDefaultFeatures = async () => {
         ],
       )
     }
-    console.log('[AI Features] 預設功能位置資料已初始化')
   } catch (error) {
-    console.error('[AI Features] 初始化預設功能位置資料失敗：', error)
   }
 }
 
-// GET: 根據關鍵字搜尋功能位置
 router.get('/search', async (req, res) => {
   try {
     await ensureFeatureLocationsTable()
@@ -229,7 +218,6 @@ router.get('/search', async (req, res) => {
       count: result.rows.length,
     })
   } catch (error) {
-    console.error('[AI Features] 搜尋功能位置失敗：', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -237,7 +225,6 @@ router.get('/search', async (req, res) => {
   }
 })
 
-// GET: 獲取所有功能位置（用於 AI 系統提示詞）
 router.get('/all', async (req, res) => {
   try {
     await ensureFeatureLocationsTable()
@@ -261,7 +248,6 @@ router.get('/all', async (req, res) => {
       count: result.rows.length,
     })
   } catch (error) {
-    console.error('[AI Features] 獲取所有功能位置失敗：', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -269,7 +255,6 @@ router.get('/all', async (req, res) => {
   }
 })
 
-// POST: 創建或更新功能位置（管理用）
 router.post('/', async (req, res) => {
   try {
     await ensureFeatureLocationsTable()
@@ -320,7 +305,6 @@ router.post('/', async (req, res) => {
       data: result.rows[0],
     })
   } catch (error) {
-    console.error('[AI Features] 創建功能位置失敗：', error)
     res.status(500).json({
       success: false,
       error: error.message,

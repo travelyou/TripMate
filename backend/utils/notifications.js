@@ -2,9 +2,6 @@
 /* global require, module */
 const pool = require('../database/connection')
 
-/**
- * 確保通知表存在
- */
 async function ensureNotificationsTable() {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS public.notifications (
@@ -26,12 +23,6 @@ async function ensureNotificationsTable() {
   )
 }
 
-/**
- * 查找現有通知（用於合併）
- * @param {Object} params - 查找參數
- * @param {Boolean} onlyUnread - 是否只查找未讀通知（默認 false，查找所有通知）
- * @returns {Promise<Object|null>} 現有通知或 null
- */
 async function findExistingNotification({ user_uid, type, related_id, related_type }, onlyUnread = false) {
   try {
     let query = `SELECT * FROM public.notifications
@@ -52,17 +43,10 @@ async function findExistingNotification({ user_uid, type, related_id, related_ty
 
     return result.rows.length > 0 ? result.rows[0] : null
   } catch (error) {
-    console.error('查找現有通知失敗：', error.message)
     return null
   }
 }
 
-/**
- * 更新現有通知
- * @param {Number} notificationId - 通知 ID
- * @param {Object} updateData - 更新資料
- * @returns {Promise<Object>} 更新後的通知
- */
 async function updateNotification(notificationId, updateData) {
   try {
     const {
@@ -98,17 +82,10 @@ async function updateNotification(notificationId, updateData) {
     }
     return null
   } catch (error) {
-    console.error('更新通知失敗：', error.message)
     return null
   }
 }
 
-/**
- * 創建通知
- * @param {Object} notificationData - 通知資料
- * @param {Boolean} mergeIfExists - 如果存在相同通知是否合併（默認 false）
- * @returns {Promise<Object>} 創建的通知
- */
 async function createNotification(notificationData, mergeIfExists = false) {
   try {
     await ensureNotificationsTable()
@@ -127,22 +104,18 @@ async function createNotification(notificationData, mergeIfExists = false) {
     } = notificationData
 
     if (!user_uid || !type || !title) {
-      console.error('創建通知失敗：缺少必填欄位')
       return null
     }
 
-    // 如果需要合併且存在相同通知，則更新現有通知
-    // 對於按讚和回覆，無論是否已讀都應該更新（onlyUnread = false）
     if (mergeIfExists && related_id && related_type) {
       const existingNotification = await findExistingNotification({
         user_uid,
         type,
         related_id,
         related_type,
-      }, false) // 查找所有通知，包括已讀的
+      }, false)
 
       if (existingNotification) {
-        // 更新現有通知（標記為未讀，因為有新活動）
         const updateResult = await updateNotification(existingNotification.id, {
           title,
           content,
@@ -151,7 +124,6 @@ async function createNotification(notificationData, mergeIfExists = false) {
           sender_avatar,
         })
 
-        // 如果更新成功且通知原本是已讀的，標記為未讀
         if (updateResult?.success && existingNotification.is_read) {
           try {
             await pool.query(
@@ -159,7 +131,6 @@ async function createNotification(notificationData, mergeIfExists = false) {
               [existingNotification.id]
             )
           } catch (error) {
-            console.error('標記通知為未讀失敗：', error.message)
           }
         }
 
@@ -167,7 +138,6 @@ async function createNotification(notificationData, mergeIfExists = false) {
       }
     }
 
-    // 創建新通知
     const result = await pool.query(
       `INSERT INTO public.notifications
        (user_uid, type, title, content, related_id, related_type, sender_uid, sender_name, sender_avatar, link)
@@ -189,20 +159,13 @@ async function createNotification(notificationData, mergeIfExists = false) {
 
     return { success: true, data: result.rows[0] }
   } catch (error) {
-    console.error('創建通知失敗：', error.message)
-    console.error('創建通知失敗詳情：', error)
-    // 不拋出錯誤，避免影響主流程
     return null
   }
 }
 
-/**
- * 創建按讚通知（會合併同一篇文章的多個按讚）
- */
 async function createLikeNotification({ user_uid, post_id, board, liker_uid, liker_name, liker_avatar, post_title }) {
   const boardName = board === 'discussion' ? '討論' : board === 'traveler' ? '找旅伴' : '貼文'
 
-  // 使用 mergeIfExists = true 來合併同一篇文章的多個按讚
   return await createNotification({
     user_uid,
     type: 'like',
@@ -218,25 +181,15 @@ async function createLikeNotification({ user_uid, post_id, board, liker_uid, lik
       : board === 'traveler'
       ? `/travelers/${post_id}`
       : null,
-  }, true) // 啟用合併功能
+  }, true)
 }
 
-/**
- * 檢查評論內容是否 tag 了作者本人
- * @param {String} content - 評論內容
- * @param {String} authorName - 作者名稱
- * @returns {Boolean} 是否 tag 了作者
- */
 function hasMentionAuthor(content, authorName) {
   if (!content || !authorName) return false
-  // 檢查是否包含 @作者名稱
   const mentionPattern = new RegExp(`@${authorName}`, 'i')
   return mentionPattern.test(content)
 }
 
-/**
- * 創建回覆通知（會合併同一篇文章的多個回覆，除非 tag 了作者本人）
- */
 async function createCommentNotification({
   user_uid,
   post_id,
@@ -251,7 +204,6 @@ async function createCommentNotification({
   const boardName = board === 'discussion' ? '討論' : board === 'traveler' ? '找旅伴' : '貼文'
   const contentPreview = comment_content?.substring(0, 50) || '回覆了你的貼文'
 
-  // 如果評論 tag 了作者本人，則創建獨立通知（不合併）
   const mentionedAuthor = hasMentionAuthor(comment_content, author_name)
 
   return await createNotification({
@@ -269,12 +221,9 @@ async function createCommentNotification({
       : board === 'traveler'
       ? `/travelers/${post_id}`
       : null,
-  }, !mentionedAuthor) // 如果 tag 了作者，不合併（創建獨立通知）；否則合併
+  }, !mentionedAuthor)
 }
 
-/**
- * 創建加好友申請通知
- */
 async function createFriendRequestNotification({
   user_uid,
   requester_uid,
@@ -295,9 +244,6 @@ async function createFriendRequestNotification({
   })
 }
 
-/**
- * 創建找旅伴申請通知
- */
 async function createTravelerApplicationNotification({
   user_uid,
   traveler_id,

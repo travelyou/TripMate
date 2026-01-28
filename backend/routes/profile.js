@@ -5,7 +5,6 @@ const router = express.Router()
 const pool = require('../database/connection')
 const { createFriendRequestNotification } = require('../utils/notifications')
 
-// --- Helper Functions ---
 const ensureFriendsTable = async () => {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS friends (
@@ -48,9 +47,6 @@ const ensureChatMessagesTable = async () => {
   )
 }
 
-// --- Routes ---
-
-// 新增去過的地方
 router.post('/:uid/visited-places', async (req, res) => {
   try {
     const { uid } = req.params
@@ -73,7 +69,6 @@ router.post('/:uid/visited-places', async (req, res) => {
 
     res.status(201).json(result.rows[0])
   } catch (error) {
-    console.error('新增去過的地方失敗：', error)
     res.status(500).json({
       error: '新增去過的地方失敗',
       message: error.message || '未知錯誤',
@@ -81,7 +76,6 @@ router.post('/:uid/visited-places', async (req, res) => {
   }
 })
 
-// 刪除去過的地方
 router.delete('/:uid/visited-places/:id', async (req, res) => {
   try {
     const { uid, id } = req.params
@@ -97,7 +91,6 @@ router.delete('/:uid/visited-places/:id', async (req, res) => {
 
     res.json({ success: true, message: '已刪除' })
   } catch (error) {
-    console.error('刪除去過的地方失敗：', error)
     res.status(500).json({
       error: '刪除去過的地方失敗',
       message: error.message || '未知錯誤',
@@ -105,7 +98,6 @@ router.delete('/:uid/visited-places/:id', async (req, res) => {
   }
 })
 
-// 新增許願池項目
 router.post('/:uid/wishlist', async (req, res) => {
   try {
     const { uid } = req.params
@@ -129,7 +121,6 @@ router.post('/:uid/wishlist', async (req, res) => {
 
     res.status(201).json(result.rows[0])
   } catch (error) {
-    console.error('新增許願球池項目失敗：', error)
     res.status(500).json({
       error: '新增許願球池項目失敗',
       message: error.message || '未知錯誤',
@@ -137,7 +128,6 @@ router.post('/:uid/wishlist', async (req, res) => {
   }
 })
 
-// 刪除許願池項目
 router.delete('/:uid/wishlist/:id', async (req, res) => {
   try {
     const { uid, id } = req.params
@@ -153,7 +143,6 @@ router.delete('/:uid/wishlist/:id', async (req, res) => {
 
     res.json({ success: true, message: '已刪除' })
   } catch (error) {
-    console.error('刪除許願球池項目失敗：', error)
     res.status(500).json({
       error: '刪除許願球池項目失敗',
       message: error.message || '未知錯誤',
@@ -161,7 +150,6 @@ router.delete('/:uid/wishlist/:id', async (req, res) => {
   }
 })
 
-// 更新許願池 (整批更新)
 router.put('/:uid/wishlist', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -207,7 +195,6 @@ router.put('/:uid/wishlist', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {})
     client.release()
-    console.error('更新許願球池失敗：', error)
     res.status(500).json({
       error: '更新許願球池失敗',
       message: error.message || '未知錯誤',
@@ -216,11 +203,10 @@ router.put('/:uid/wishlist', async (req, res) => {
   }
 })
 
-// 加好友 API
 router.post('/:uid/friends', async (req, res) => {
   try {
-    const { uid } = req.params // 當前用戶的 uid
-    const { friend_uid } = req.body // 要添加的好友的 uid
+    const { uid } = req.params
+    const { friend_uid } = req.body
 
     if (!friend_uid) {
       return res.status(400).json({ error: 'friend_uid 為必填欄位' })
@@ -232,7 +218,6 @@ router.post('/:uid/friends', async (req, res) => {
 
     await ensureFriendsTable()
 
-    // 檢查 friends 表是否有 status 欄位
     const statusCheck = await pool.query(
       `SELECT column_name
        FROM information_schema.columns
@@ -241,7 +226,6 @@ router.post('/:uid/friends', async (req, res) => {
 
     const hasStatus = statusCheck.rows.length > 0
 
-    // 檢查好友關係是否已存在
     let existingCheck
     if (hasStatus) {
       existingCheck = await pool.query(
@@ -258,7 +242,6 @@ router.post('/:uid/friends', async (req, res) => {
       )
     }
 
-    // 如果已存在 pending 或 accepted 狀態的請求，返回錯誤或自動接受
     if (existingCheck.rows.length > 0) {
       if (hasStatus) {
         const accepted = existingCheck.rows.find((row) => row.status === 'accepted')
@@ -310,7 +293,6 @@ router.post('/:uid/friends', async (req, res) => {
 
           const updated = await pool.query(updateQuery, [friend_uid, uid])
 
-          // 清除可能存在的反向 pending（避免重複）
           await pool.query(
             `DELETE FROM friends
              WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'`,
@@ -329,7 +311,6 @@ router.post('/:uid/friends', async (req, res) => {
       }
     }
 
-    // 插入好友請求（狀態為 pending）
     let result
     if (hasStatus) {
       result = await pool.query(
@@ -347,7 +328,6 @@ router.post('/:uid/friends', async (req, res) => {
       )
     }
 
-    // 創建好友申請通知
     try {
       const requesterResult = await pool.query(
         `SELECT uid, nickname, avatar FROM users WHERE uid = $1`,
@@ -365,7 +345,6 @@ router.post('/:uid/friends', async (req, res) => {
         })
       }
     } catch (notifError) {
-      console.error('創建好友申請通知失敗（不影響主流程）：', notifError)
     }
 
     res.status(201).json({
@@ -374,7 +353,6 @@ router.post('/:uid/friends', async (req, res) => {
       friend: result.rows[0],
     })
   } catch (error) {
-    console.error('加好友失敗：', error)
     res.status(500).json({
       error: '加好友失敗',
       message: error.message || '未知錯誤',
@@ -382,7 +360,6 @@ router.post('/:uid/friends', async (req, res) => {
   }
 })
 
-// 取消好友請求
 router.delete('/:uid/friends/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -419,7 +396,6 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
 
     res.json({ success: true, message: '已取消好友請求' })
   } catch (error) {
-    console.error('取消好友請求失敗：', error)
     res.status(500).json({
       error: '取消好友請求失敗',
       message: error.message || '未知錯誤',
@@ -427,7 +403,6 @@ router.delete('/:uid/friends/:friend_uid', async (req, res) => {
   }
 })
 
-// 解除好友關係
 router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -467,7 +442,6 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
 
     res.json({ success: true, message: '已解除好友關係' })
   } catch (error) {
-    console.error('解除好友關係失敗：', error)
     res.status(500).json({
       error: '解除好友關係失敗',
       message: error.message || '未知錯誤',
@@ -475,7 +449,6 @@ router.delete('/:uid/friends/:friend_uid/remove', async (req, res) => {
   }
 })
 
-// 接受好友請求
 router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -543,12 +516,10 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
         )
       }
     } catch (clearError) {
-      console.warn(`[acceptFriendRequest] ⚠️ 清除聊天次數失敗:`, clearError.message)
     }
 
     res.json({ success: true, message: '已接受好友請求' })
   } catch (error) {
-    console.error('接受好友請求失敗：', error)
     res.status(500).json({
       error: '接受好友請求失敗',
       message: error.message || '未知錯誤',
@@ -556,7 +527,6 @@ router.patch('/:uid/friends/:friend_uid/accept', async (req, res) => {
   }
 })
 
-// 拒絕好友請求
 router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -587,7 +557,6 @@ router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
 
     res.json({ success: true, message: '已拒絕好友請求' })
   } catch (error) {
-    console.error('拒絕好友請求失敗：', error)
     res.status(500).json({
       error: '拒絕好友請求失敗',
       message: error.message || '未知錯誤',
@@ -595,7 +564,6 @@ router.patch('/:uid/friends/:friend_uid/reject', async (req, res) => {
   }
 })
 
-// 獲取或記錄聊天對話次數
 router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -659,12 +627,10 @@ router.get('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     res.json({ count, remaining, canSend, isFriend: false })
   } catch (error) {
-    console.error('獲取對話次數失敗：', error)
     res.json({ count: 0, remaining: 3, canSend: true })
   }
 })
 
-// 增加聊天對話次數
 router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -759,7 +725,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
 
     res.json({ success: true, count, remaining, canSend })
   } catch (error) {
-    console.error('增加對話次數失敗：', error)
     res.status(500).json({
       error: '增加對話次數失敗',
       message: error.message || '未知錯誤',
@@ -767,7 +732,6 @@ router.post('/:uid/chat-interactions/:friend_uid/increment', async (req, res) =>
   }
 })
 
-// 重置聊天對話次數
 router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -790,7 +754,6 @@ router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
 
     res.json({ success: true })
   } catch (error) {
-    console.error('重置對話次數失敗：', error)
     res.status(500).json({
       error: '重置對話次數失敗',
       message: error.message || '未知錯誤',
@@ -798,7 +761,6 @@ router.delete('/:uid/chat-interactions/:friend_uid', async (req, res) => {
   }
 })
 
-// 保存聊天消息
 router.post('/:uid/chat-messages/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -829,7 +791,6 @@ router.post('/:uid/chat-messages/:friend_uid', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('保存聊天消息失敗：', error)
     res.status(500).json({
       error: '保存聊天消息失敗',
       message: error.message || '未知錯誤',
@@ -837,7 +798,6 @@ router.post('/:uid/chat-messages/:friend_uid', async (req, res) => {
   }
 })
 
-// 獲取聊天記錄
 router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
   try {
     const { uid, friend_uid } = req.params
@@ -864,7 +824,6 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
 
     res.json({ messages })
   } catch (error) {
-    console.error('獲取聊天記錄失敗：', error)
     res.status(500).json({
       error: '獲取聊天記錄失敗',
       message: error.message || '未知錯誤',
@@ -872,7 +831,6 @@ router.get('/:uid/chat-messages/:friend_uid', async (req, res) => {
   }
 })
 
-// 獲取好友請求列表
 router.get('/:uid/friend-requests', async (req, res) => {
   try {
     const { uid } = req.params
@@ -932,7 +890,6 @@ router.get('/:uid/friend-requests', async (req, res) => {
 
     res.json({ received, sent })
   } catch (error) {
-    console.error('獲取好友請求列表失敗：', error)
     res.status(500).json({
       error: '獲取好友請求列表失敗',
       message: error.message || '未知錯誤',
@@ -940,7 +897,6 @@ router.get('/:uid/friend-requests', async (req, res) => {
   }
 })
 
-// 獲取個人檔案 (包含評價與行程標題關聯)
 router.get('/:uid', async (req, res) => {
   try {
     const { uid } = req.params
@@ -949,14 +905,12 @@ router.get('/:uid', async (req, res) => {
       return res.status(400).json({ error: 'UID 不能為空' })
     }
 
-    // 1. 獲取使用者基本資料
     const userResult = await pool.query('SELECT * FROM users WHERE uid = $1', [uid])
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: '用戶不存在' })
     }
     const user = userResult.rows[0]
 
-    // 2. 獲取去過的地方
     const visitedPlacesResult = await pool.query(
       'SELECT id, name, date, type, icon FROM visited_places WHERE user_uid = $1 ORDER BY date DESC',
       [uid],
@@ -971,14 +925,12 @@ router.get('/:uid', async (req, res) => {
         .map((p) => ({ id: p.id, name: p.name, date: p.date, icon: p.icon })),
     }
 
-    // 3. 獲取許願清單
     const wishlistResult = await pool.query(
       'SELECT item FROM wishlist WHERE user_uid = $1 ORDER BY created_at DESC',
       [uid],
     )
     const wishlist = wishlistResult.rows.map((row) => row.item)
 
-    // 4. 獲取好友列表
     let friendsResult
     try {
       const checkStatusQuery = `SELECT column_name FROM information_schema.columns WHERE table_name = 'friends' AND column_name = 'status'`
@@ -1013,7 +965,6 @@ router.get('/:uid', async (req, res) => {
       email: f.email,
     }))
 
-    // 5. [修正] 獲取評價 (同時獲取「收到的」與「給出的」)
     const reviewsResult = await pool.query(
       `SELECT r.*,
               u1.nickname as author_name, u1.avatar as author_avatar,
@@ -1043,7 +994,6 @@ router.get('/:uid', async (req, res) => {
       date: r.created_at,
     }))
 
-    // 6. 統計數據
     let friendsCountQuery = `(SELECT COUNT(*) FROM friends WHERE user_uid = $1 OR friend_uid = $1) as friends_count`
     try {
       const statusCheck = await pool.query(
@@ -1101,7 +1051,6 @@ router.get('/:uid', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('獲取個人檔案失敗：', error)
     res.status(500).json({
       error: '獲取個人檔案失敗',
       message: error.message || '未知錯誤',

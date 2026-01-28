@@ -22,7 +22,7 @@ const policies = [
   {
     title: '2. 旅遊風險免責聲明 (Risk Disclaimer)',
     icon: AlertIcon,
-    iconColor: 'text-rose-600 bg-rose-50', // 紅色強調風險
+    iconColor: 'text-rose-600 bg-rose-50',
     content: [
       '**自主行為**：「找旅伴」專區之行程皆由網友（主揪）自行發起。TripMate 僅提供資訊媒合平台，**不介入**旅伴間的行程規劃、費用分攤或交通安排。',
       '**風險承擔**：參加網友發起的行程時，請自行評估主揪的可信度與行程安全性。若在旅途中發生意外、財物損失或人身糾紛，TripMate **不承擔**任何法律責任或賠償義務。',

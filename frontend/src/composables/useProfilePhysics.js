@@ -1,4 +1,3 @@
-// src/composables/useProfilePhysics.js
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 export function useProfilePhysics() {
@@ -23,7 +22,6 @@ export function useProfilePhysics() {
     window.removeEventListener('resize', handleResize)
   })
 
-  // 封面圖視差效果
   const headerStyle = computed(() => {
     const offset = scrollTop.value * 0.5
     return {
@@ -32,12 +30,9 @@ export function useProfilePhysics() {
     }
   })
 
-  // 頭像縮放與位移效果
   const avatarStyle = computed(() => {
-    // 當滾動超過 100px 時開始縮小，最大縮小到 0.6 倍
     const scale = Math.max(0.6, 1 - scrollTop.value / 500)
 
-    // 簡單的位移效果 (可根據需求調整)
     const translateY = Math.min(50, scrollTop.value * 0.2)
 
     return {

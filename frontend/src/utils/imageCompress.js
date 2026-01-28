@@ -56,10 +56,6 @@ export function compressImage(file, options = {}) {
               lastModified: Date.now(),
             })
 
-            console.log(
-              `📦 [圖片壓縮] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${((1 - compressedFile.size / file.size) * 100).toFixed(1)}% 減少)`,
-            )
-
             resolve(compressedFile)
           },
           file.type,

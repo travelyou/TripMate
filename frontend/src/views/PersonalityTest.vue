@@ -8,8 +8,8 @@ import { usePersonalityStore } from '@/stores/personality'
 
 const store = usePersonalityStore()
 const router = useRouter()
-const step = computed(() => store.step) // 當前測驗階段
-const result = computed(() => store.result) // 測驗結果
+const step = computed(() => store.step)
+const result = computed(() => store.result)
 
 const handleSave = async () => {
   try {
@@ -21,7 +21,6 @@ const handleSave = async () => {
     alert('性格測驗結果已成功儲存！')
     router.push('/profile')
   } catch (error) {
-    console.error('儲存性格測驗結果時發生錯誤:', error)
     alert('儲存失敗，請稍後再試。如果問題持續，請聯繫管理員。')
   }
 }

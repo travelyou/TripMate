@@ -37,7 +37,7 @@ import LocationPickerModal from './LocationPickerModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useMyItineraryStore } from '@/stores/myItinerary'
 import { auth } from '@/firebase/config'
-import { createTraveler } from '@/api/travelers'
+import { createTraveler, updateTraveler } from '@/api/travelers'
 import { uploadImage } from '@/api/storage'
 import { compressImage } from '@/utils/imageCompress'
 import { showAlert, showConfirm, showError, showSuccess } from '@/utils/alert'
@@ -143,6 +143,8 @@ const setColor = (color) => {
   editor.value.chain().focus().setColor(color).run()
   showColorPicker.value = false
 }
+
+const editingTravelerId = ref(null)
 
 const postData = ref({
   category: '',
@@ -327,6 +329,7 @@ watch(
   (newDraft) => {
     if (newDraft && newDraft.data) {
       const draft = newDraft.data
+      editingTravelerId.value = newDraft.id || newDraft.travelerId || null
       postData.value.category = draft.category || ''
       postData.value.title = draft.title || ''
       postData.value.content = draft.content || ''
@@ -349,10 +352,11 @@ watch(
           try {
             editor.value.commands.setContent(draft.content, false)
           } catch (error) {
-            console.error('[發文編輯器] 載入草稿內容失敗:', error)
           }
         })
       }
+    } else {
+      editingTravelerId.value = null
     }
   },
   { immediate: true },
@@ -372,9 +376,7 @@ const handleEditorImageSelect = async (event) => {
       maxHeight: 1200,
       quality: 0.8,
     })
-    const imageUrl = await uploadImage(compressedFile, 'travelers', (progress) =>
-      console.log(`內文圖片: ${progress}%`),
-    )
+    const imageUrl = await uploadImage(compressedFile, 'travelers')
     if (imageUrl && editor.value) editor.value.chain().focus().setImage({ src: imageUrl }).run()
   } catch (error) {
     await showAlert('圖片插入失敗：' + error.message)
@@ -683,7 +685,6 @@ const insertTransportActivity = async () => {
 
   // 防止重複調用
   if (isCalculatingRoute.value) {
-    console.warn('[Google Maps] 正在計算路線中，請稍候...')
     return
   }
 
@@ -698,7 +699,6 @@ const insertTransportActivity = async () => {
 
   try {
     isCalculatingRoute.value = true
-    console.log('[Google Maps] 開始計算路線...')
 
     // 計算路線
     const result = await getDirections(origin, destination, transportMode.value)
@@ -735,7 +735,6 @@ const insertTransportActivity = async () => {
     // 插入到兩個活動之間
     currentDay.value.activities.splice(index + 1, 0, newActivity)
 
-    console.log('[Google Maps] 交通活動已插入')
     isTransportModalOpen.value = false
   } catch (error) {
     console.error('[Google Maps] 計算路線時發生錯誤:', error)
@@ -747,7 +746,6 @@ const insertTransportActivity = async () => {
 
 const getDirections = async (origin, destination, mode = 'DRIVING') => {
   if (directionsCallCount >= DIRECTIONS_LIMIT_PER_SESSION) {
-    console.warn('[Google Maps] 已達到 Directions API 調用限制')
     return null
   }
   directionsCallCount += 1
@@ -772,7 +770,6 @@ const getDirections = async (origin, destination, mode = 'DRIVING') => {
         if (status === 'OK') {
           resolve(result.routes[0])
         } else {
-          console.warn('[Directions failed]', status)
           resolve(null)
         }
       },
@@ -900,14 +897,12 @@ const handleTimeSelect = (val, activity) => {
 
   if (oldH === newH) {
     // 小時相同，代表是在選分鐘，或是確認
-    console.log('[TimePicker] Selected minute, updating time:', newTimeStr)
     // 使用 nextTick 確保數值已更新後再關閉，避免被還原
     nextTick(() => {
       activity.isOpen = false
     })
   } else {
     // 小時不同，更新 prevTime，等待下一次（選分鐘）
-    console.log('[TimePicker] Selected hour:', newH)
     activity.prevTime = newTimeStr
   }
 }
@@ -1164,10 +1159,7 @@ const handleGlobalEnter = (e) => {
 }
 
 const handleSaveDraft = () => {
-  console.log('[DraftDebug] handleSaveDraft triggered')
-
   if (!postData.value.title.trim()) {
-    console.warn('[DraftDebug] Title empty, aborting save')
     formError.value = '請至少輸入標題才能儲存草稿'
     return
   }
@@ -1182,15 +1174,8 @@ const handleSaveDraft = () => {
     data: JSON.parse(JSON.stringify(postData.value)),
   }
 
-  console.log('[DraftDebug] Preparing to save draft:', draftData)
-
   try {
-    console.log('[DraftDebug] Calling store.addDraft...')
     myItineraryStore.addDraft(draftData)
-    console.log(
-      '[DraftDebug] store.addDraft success. Current drafts count:',
-      myItineraryStore.drafts.length,
-    )
   } catch (err) {
     console.error('[DraftDebug] Store addDraft failed:', err)
   }
@@ -1309,7 +1294,7 @@ const executeSubmit = async () => {
 
     const optimizedPayload = {
       title: payload.title.trim(),
-      content: payload.content.trim(),
+      content: payload.content || '',
       location: payload.location.trim(),
       category: (payload.category || '').trim(),
       start_date: payload.start_date,
@@ -1356,21 +1341,23 @@ const executeSubmit = async () => {
     }
 
     submitProgress.value = 70
-    submitStatus.value = '正在提交貼文中...'
+    submitStatus.value = editingTravelerId.value ? '正在更新貼文中...' : '正在提交貼文中...'
 
-    const response = await createTraveler(optimizedPayload)
+    const response = editingTravelerId.value
+      ? await updateTraveler(editingTravelerId.value, optimizedPayload)
+      : await createTraveler(optimizedPayload)
 
     if (response.success) {
       sessionStorage.removeItem('is_submitting_traveler_post')
       sessionStorage.removeItem('submit_start_time')
 
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('旅伴招募發布成功！', {
-          body: '您的貼文已成功發布',
+        new Notification(editingTravelerId.value ? '旅伴招募更新成功！' : '旅伴招募發布成功！', {
+          body: editingTravelerId.value ? '您的貼文已成功更新' : '您的貼文已成功發布',
           icon: '/favicon.ico',
         })
       } else {
-        await showSuccess('旅伴招募發布成功！')
+        await showSuccess(editingTravelerId.value ? '旅伴招募更新成功！' : '旅伴招募發布成功！')
       }
       emit('success')
       emit('close')

@@ -88,7 +88,7 @@ export const useUserStore = defineStore('user', () => {
 
       favorites.value = [...normalizedDiscussion, ...normalizedTraveler, ...normalizedItinerary]
     } catch {
-      // 獲取收藏列表失敗，使用空陣列
+      favorites.value = []
     }
   }
 
@@ -263,7 +263,6 @@ export const useUserStore = defineStore('user', () => {
         }
       })
     } catch {
-      // 獲取收藏分類失敗
     }
   }
 
@@ -406,30 +405,23 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserProfile = (profileData) => {
     if (profileData) {
-      // 統一使用 public.users.avatar（來自資料庫）
-      // 如果明確傳入了 avatar（包括 null 或空字符串），使用傳入的值
       let avatarValue = profileData.avatar
 
-      // 只有在 avatar 為 undefined 時才使用預設值
       if (avatarValue === undefined) {
         if (profileData.uid) {
               avatarValue = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.uid}`
         } else {
-          // 只有在沒有 uid 時才保留舊的頭像
           avatarValue = currentUser.value.avatar || ''
         }
       } else if (avatarValue !== null && typeof avatarValue === 'string') {
-        // 如果是字符串，去除前後空格
         avatarValue = avatarValue.trim()
       }
 
-      // 處理 nickname：只有在 undefined 時才使用回退值
       let nicknameValue = profileData.nickname
       if (nicknameValue === undefined) {
         nicknameValue = profileData.email?.split('@')[0] || '用戶'
       }
 
-      // 處理 name：優先使用 realName，如果沒有則使用 nickname
       let nameValue = profileData.realName
       if (nameValue === undefined || nameValue === null) {
         nameValue = nicknameValue || '用戶'
@@ -499,13 +491,10 @@ export const useUserStore = defineStore('user', () => {
         const neonUserData = await getUserProfile(uid)
 
         if (neonUserData) {
-          // 統一使用 public.users.avatar（來自資料庫）
-          // 明確傳入 avatar，保留資料庫中的值（包括 null 和空字符串）
           let avatar = neonUserData.avatar !== undefined
             ? (typeof neonUserData.avatar === 'string' ? neonUserData.avatar.trim() : neonUserData.avatar)
             : undefined
 
-          // 明確傳入 nickname，保留資料庫中的值（包括 null 和空字符串）
           let nickname = neonUserData.nickname !== undefined
             ? neonUserData.nickname
             : undefined
@@ -513,9 +502,9 @@ export const useUserStore = defineStore('user', () => {
           setUserProfile({
             uid: uid,
             email: firebaseUser.value?.email || neonUserData.email || '',
-            nickname: nickname, // 明確傳入 nickname，保留資料庫中的值
+            nickname: nickname,
             realName: neonUserData.real_name || neonUserData.realName || null,
-            avatar: avatar, // 明確傳入 avatar，保留資料庫中的值
+            avatar: avatar,
             bio: neonUserData.bio || '',
             spiritAnimal: neonUserData.spirit_animal || '',
             role: neonUserData.role || 'user',
@@ -536,17 +525,10 @@ export const useUserStore = defineStore('user', () => {
           neonError.message?.includes('Not Found') ||
           neonError.response?.status === 404
         if (is404Error) {
-          // 如果是 404，用戶不存在，不從 Firestore 回退
-          console.warn('用戶在 Neon 資料庫中不存在:', uid)
           return
-        } else {
-          // 非 404 錯誤，記錄但不回退到 Firestore（避免使用舊數據）
-          console.error('從 Neon 資料庫載入用戶資料失敗:', neonError)
-          // 不從 Firestore 回退，確保只使用 Neon 資料庫的最新數據
         }
       }
     } catch (error) {
-      console.error('載入用戶資料失敗：', error)
     }
   }
 
@@ -569,7 +551,7 @@ export const useUserStore = defineStore('user', () => {
     if (user && user.uid) {
       try {
         if (recentlyRegisteredUsers.has(user.uid)) {
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+          await new Promise((resolve) => setTimeout(resolve, 3000))
         } else {
           await new Promise((resolve) => setTimeout(resolve, 500))
         }
@@ -579,7 +561,6 @@ export const useUserStore = defineStore('user', () => {
       } catch (error) {
         const is404Error = error.message?.includes('404') || error.message?.includes('Not Found')
         if (!is404Error) {
-          console.error('載入用戶資料失敗：', error)
         }
       }
     } else {
@@ -620,8 +601,7 @@ export const useUserStore = defineStore('user', () => {
   const logout = async () => {
     try {
       await signOut(auth)
-    } catch (error) {
-      console.error('Firebase signOut 失敗：', error)
+    } catch {
     } finally {
       isLoggedIn.value = false
     }
@@ -629,9 +609,6 @@ export const useUserStore = defineStore('user', () => {
 
   const userProfile = computed(() => currentUser.value)
 
-  // ----------------------------------------------------------------
-  // Computed Properties for Permissions
-  // ----------------------------------------------------------------
   const isVendor = computed(() => currentUser.value.role === 'vendor')
   const isAdmin = computed(() => currentUser.value.role === 'admin')
 

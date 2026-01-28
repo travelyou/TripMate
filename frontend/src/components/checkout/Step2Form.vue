@@ -98,8 +98,9 @@ function backStep() {
           <h1 class="mb-5 text-xl">聯絡資訊</h1>
           <div class="flex flex-col gap-2">
             <div>
-              <p>聯絡人姓名<span class="text-red-500">*</span></p>
+              <label for="contactName" class="block">聯絡人姓名<span class="text-red-500">*</span></label>
               <input
+                id="contactName"
                 v-model="checkoutStore.contact.name"
                 placeholder="請輸入真實姓名"
                 class="border border-gray-300 rounded p-2 my-2"
@@ -108,8 +109,9 @@ function backStep() {
               />
             </div>
             <div>
-              <p>聯絡電話(手機)<span class="text-red-500">*</span></p>
+              <label for="contactPhone" class="block">聯絡電話(手機)<span class="text-red-500">*</span></label>
               <input
+                id="contactPhone"
                 v-model="checkoutStore.contact.phone"
                 @input="clearPhoneError"
                 placeholder="0900-000-000"
@@ -122,8 +124,9 @@ function backStep() {
               <p v-if="phoneError" class="text-red-500 text-sm mt-1">{{ phoneError }}</p>
             </div>
             <div>
-              <p>電子郵件<span class="text-red-500">*</span></p>
+              <label for="contactEmail" class="block">電子郵件<span class="text-red-500">*</span></label>
               <input
+                id="contactEmail"
                 v-model="checkoutStore.contact.email"
                 type="email"
                 placeholder="example@email.com"
@@ -140,8 +143,9 @@ function backStep() {
           <h1 class="mb-5 text-xl">緊急聯絡人</h1>
           <div>
             <div>
-              <p>緊急聯絡人姓名<span class="text-red-500">*</span></p>
+              <label for="emergencyName" class="block">緊急聯絡人姓名<span class="text-red-500">*</span></label>
               <input
+                id="emergencyName"
                 v-model="checkoutStore.emergencyContact.name"
                 placeholder="緊急聯絡人姓名"
                 class="border border-gray-300 rounded p-2 my-2"
@@ -150,8 +154,9 @@ function backStep() {
               />
             </div>
             <div>
-              <p>緊急聯絡人電話<span class="text-red-500">*</span></p>
+              <label for="emergencyPhone" class="block">緊急聯絡人電話<span class="text-red-500">*</span></label>
               <input
+                id="emergencyPhone"
                 v-model="checkoutStore.emergencyContact.phone"
                 @input="clearEmergencyPhoneError"
                 placeholder="0900-000-000"
@@ -169,11 +174,13 @@ function backStep() {
 
         <!-- 備註欄 -->
         <div class="bg-white p-5 rounded-xl">
-          <h1 class="mb-2 text-xl">特殊需求（選填）</h1>
+          <label for="contactNote" class="block mb-2 text-xl">特殊需求（選填）</label>
           <textarea
             v-model="checkoutStore.contact.note"
             placeholder="例如：飲食限制、身體狀況、特殊需求等..."
             class="w-full border border-gray-300 rounded p-2 my-2"
+            id="contactNote"
+            name="contactNote"
           ></textarea>
         </div>
       </div>

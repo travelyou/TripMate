@@ -9,12 +9,14 @@ import {
   Bookmark as BookmarkIcon,
   Heart as HeartIcon,
   Menu as MenuIcon,
+  Award as AwardIcon,
 } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { getVendorProfileRoute } from '@/utils/navigation'
+import TripMateIcon from '@/assets/icons/TripMate_icon_white.png'
 
 const emit = defineEmits(['open-mobile-actions'])
 const router = useRouter()
@@ -22,56 +24,68 @@ const route = useRoute()
 const userStore = useUserStore()
 const isMobileItineraryMenuOpen = ref(false)
 
-const menuItems = [
-  {
-    name: 'home',
-    label: '為你推薦',
-    icon: HomeIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-  },
-  {
-    name: 'discussion',
-    label: '討論區',
-    icon: ForumIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-  },
-  {
-    name: 'travelers',
-    label: '找旅伴',
-    icon: UsersIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-  },
-  {
-    name: 'featured_itinerary',
-    label: '精選行程',
-    icon: MapIcon,
-    iconColor: 'text-primary-600',
-    textColor: 'text-secondary',
-  },
-]
-
 const { isVendor } = storeToRefs(userStore)
 
-const bottomMenuItems = computed(() => {
+// 根據用戶身份動態生成菜單項
+const menuItems = computed(() => {
   const items = [
     {
-      name: 'my_itinerary',
-      label: '我的行程',
-      icon: CalendarIcon,
+      name: 'discussion',
+      label: '討論區',
+      icon: ForumIcon,
       iconColor: 'text-primary-600',
       textColor: 'text-secondary',
     },
     {
-      name: 'my_order',
-      label: '訂單管理',
+      name: 'travelers',
+      label: '找旅伴',
+      icon: UsersIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    },
+    {
+      name: 'featured_itinerary',
+      label: '精選行程',
       icon: MapIcon,
       iconColor: 'text-primary-600',
       textColor: 'text-secondary',
     },
   ]
+
+  // 只有非廠商身份才顯示"為你推薦"
+  if (!isVendor.value) {
+    items.unshift({
+      name: 'home',
+      label: '為你推薦',
+      icon: HomeIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    })
+  }
+
+  return items
+})
+
+const bottomMenuItems = computed(() => {
+  const items = []
+
+  // 只有非廠商用戶才顯示"我的行程"和"訂單管理"
+  if (!isVendor.value) {
+    items.push({
+      name: 'my_itinerary',
+      label: '我的行程',
+      icon: CalendarIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    })
+    items.push({
+      name: 'my_order',
+      label: '訂單管理',
+      icon: MapIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    })
+  }
 
   if (isVendor.value) {
     const routeObj = getVendorProfileRoute(userStore.currentUser)
@@ -80,6 +94,13 @@ const bottomMenuItems = computed(() => {
       params: routeObj.params,
       label: '廠商檔案',
       icon: UserIcon,
+      iconColor: 'text-primary-600',
+      textColor: 'text-secondary',
+    })
+    items.push({
+      name: 'VendorDashboard',
+      label: '廠商後台',
+      icon: AwardIcon,
       iconColor: 'text-primary-600',
       textColor: 'text-secondary',
     })
@@ -96,14 +117,24 @@ const bottomMenuItems = computed(() => {
   return items
 })
 
-const mobileNavItems = [
-  { name: 'home', label: '首頁', icon: HomeIcon },
-  { name: 'discussion', label: '討論', icon: ForumIcon },
-  { name: 'travelers', label: '找伴', icon: UsersIcon },
-  { name: 'featured_itinerary', label: '精選', icon: MapIcon },
-  { name: 'itinerary_menu', label: '行程', icon: CalendarIcon },
-  { name: 'menu', label: '更多', icon: MenuIcon },
-]
+// 移動端菜單項（根據用戶身份動態生成）
+const mobileNavItems = computed(() => {
+  const items = [
+    { name: 'home', label: '首頁', icon: HomeIcon },
+    { name: 'discussion', label: '討論', icon: ForumIcon },
+    { name: 'travelers', label: '找伴', icon: UsersIcon },
+    { name: 'featured_itinerary', label: '精選', icon: MapIcon },
+  ]
+
+  // 只有非廠商用戶才顯示"行程"菜單
+  if (!isVendor.value) {
+    items.push({ name: 'itinerary_menu', label: '行程', icon: CalendarIcon })
+  }
+
+  items.push({ name: 'menu', label: '更多', icon: MenuIcon })
+
+  return items
+})
 
 function goToFavorites() {
   router.push({ name: 'favorites' })
@@ -116,6 +147,11 @@ function goToCollections() {
 
 // 判斷是否為當前活躍路由
 function isActiveRoute(item) {
+  // 對於有 params 的項目（如廠商檔案），需要比較 name 和 params
+  if (item.params) {
+    return route.name === item.name && JSON.stringify(route.params) === JSON.stringify(item.params)
+  }
+
   // 如果不是 profile 路由，直接比較 route.name
   if (item.name !== 'profile') {
     return route.name === item.name
@@ -157,7 +193,17 @@ const handleMobileItinerarySelect = (name) => {
   <aside
     class="w-full min-h-full bg-white border-x border-secondary-100 hidden lg:flex lg:min-w-40 flex-col p-2 overflow-hidden"
   >
-    <div class="flex justify-between my-4 p-2 gap-4">
+    <!-- TripMate Logo -->
+    <div>
+      <RouterLink
+        :to="{ name: 'home' }"
+        class="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+      >
+        <img :src="TripMateIcon" alt="TripMate Logo" class="h-8 w-auto object-contain" />
+      </RouterLink>
+    </div>
+
+    <div class="flex justify-between px-2 pt-0 -mt-4 pb-2 gap-4">
       <div
         class="cursor-pointer w-[48%] aspect-square flex flex-col gap-2 items-center justify-center bg-white rounded-xl shadow-md ring-1 ring-slate-200 transition-transform active:translate-y-1 hover:shadow-md"
         @click="goToFavorites"
@@ -255,7 +301,7 @@ const handleMobileItinerarySelect = (name) => {
         leave-to-class="opacity-0 translate-y-2"
       >
         <div
-          v-if="isMobileItineraryMenuOpen"
+          v-if="isMobileItineraryMenuOpen && !isVendor"
           class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg p-2 w-32 border border-secondary-100`"
         >
           <button

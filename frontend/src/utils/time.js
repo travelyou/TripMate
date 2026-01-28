@@ -1,16 +1,13 @@
-// src/utils/time.js
 export const formatTime = (timestamp) => {
   if (!timestamp) return ''
 
   const now = new Date()
   const time = new Date(timestamp)
   if (Number.isNaN(time.getTime())) return ''
-  const diff = Math.floor((now - time) / 1000)
+    const diff = Math.floor((now - time) / 1000)
 
-  // 3分鐘內：剛剛
   if (diff < 180) return '剛剛'
 
-  // 超過3分鐘：顯示完整日期時間 YYYY/MM/DD HH:mm
   return new Intl.DateTimeFormat('zh-TW', {
     timeZone: 'Asia/Taipei',
     year: 'numeric',
