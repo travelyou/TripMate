@@ -24,14 +24,14 @@ const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || '0.0.0.0'
 
 const allowedOrigins = [
-  'https://tripmate.zeabur.app',
-  'https://tripmate-backend.zeabur.app',
+  'https://tripmate-mayoyo.netlify.app',
   'https://tripmate-mayoyo.com',
+  'https://www.tripmate-mayoyo.com',
+  'https://tripmate-5vcj.onrender.com',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
-  'https://trip-mate-xi.vercel.app',
   process.env.ALLOWED_ORIGIN,
 ].filter(Boolean)
 
