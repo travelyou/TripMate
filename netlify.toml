@@ -1,10 +1,16 @@
 [build]
-  # 基礎目錄：指向 frontend 目錄
   base = "frontend"
-  # 建置命令（在 frontend 目錄下執行）
   command = "npm run build"
-  # 發布目錄（相對於 base 目錄）
   publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Vue Router SPA：所有路徑都導回 index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 # 環境變數需要在 Netlify UI 中設定：
 # - VITE_FIREBASE_API_KEY
@@ -14,6 +20,8 @@
 # - VITE_FIREBASE_MESSAGING_SENDER_ID
 # - VITE_FIREBASE_APP_ID
 # - VITE_FIREBASE_MEASUREMENT_ID
-# - VITE_API_BASE_URL
+# - VITE_API_BASE_URL（設為你後端的 URL，例如 https://tripmate-backend.zeabur.app）
 # - VITE_GEMINI_API_KEY
+# - VITE_GOOGLE_MAPS_API_KEY
+# - VITE_WS_BASE_URL
 
