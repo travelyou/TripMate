@@ -1,4 +1,4 @@
-export const TRAVELER_STATUS_OPTIONS = ['全部', '招募中', '已額滿']
+export const TRAVELER_STATUS_OPTIONS = ['全部', '招募中', '已額滿', '已結束']
 
 export const TRAVELER_CATEGORY_OPTIONS = [
   '全部',

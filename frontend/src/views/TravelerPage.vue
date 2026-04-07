@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -82,7 +82,9 @@ const loadTravelers = async (isLoadMore = false) => {
       limit: 20,
     }
 
-    if (activeFilter.value !== '全部') params.status = activeFilter.value
+    if (activeFilter.value !== '全部' && activeFilter.value !== '已結束') {
+      params.status = activeFilter.value
+    }
     if (activeCategory.value !== '全部') params.category = activeCategory.value
 
     const response = await getTravelers(params)
@@ -90,8 +92,12 @@ const loadTravelers = async (isLoadMore = false) => {
     if (response.success) {
       let newData = response.data || []
 
-      const today = new Date().setHours(0, 0, 0, 0)
-      newData = newData.filter((t) => !t.end_date || new Date(t.end_date) >= today)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      if (activeFilter.value === '已結束') {
+        newData = newData.filter((t) => t.end_date && new Date(t.end_date) < today)
+      }
 
       if (newData.length < 20) hasMore.value = false
 

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
@@ -157,7 +157,7 @@ const isFull = computed(() => {
 })
 
 const displayStatus = computed(() => {
-  if (isExpired.value) return '已成行'
+  if (isExpired.value) return '已結束'
   if (isFull.value) return '已額滿'
   return props.traveler.status || '招募中'
 })
@@ -172,6 +172,8 @@ const getStatusClasses = (status) => {
       return 'bg-secondary-600 text-white'
     case '已出發':
       return 'bg-secondary-500 text-white'
+    case '已結束':
+      return 'bg-gray-500 text-white'
     default:
       return 'bg-primary-100 text-primary-800'
   }
@@ -186,7 +188,7 @@ const isAuthor = computed(() => {
 const handleApply = (e) => {
   e.stopPropagation()
 
-  if (displayStatus.value === '已額滿' || displayStatus.value === '已成行') {
+  if (displayStatus.value === '已額滿' || displayStatus.value === '已成行' || displayStatus.value === '已結束') {
     return
   }
 
@@ -573,15 +575,15 @@ onUnmounted(() => {
 
                 <button
                   v-if="!isAuthor"
-                  :disabled="displayStatus === '已額滿' || displayStatus === '已成行'"
+                  :disabled="displayStatus === '已額滿' || displayStatus === '已成行' || displayStatus === '已結束'"
                   :class="
-                    displayStatus === '已額滿' || displayStatus === '已成行'
+                    displayStatus === '已額滿' || displayStatus === '已成行' || displayStatus === '已結束'
                       ? 'cursor-not-allowed bg-white/20 text-white/60'
                       : 'bg-white text-primary-700 hover:bg-white/90'
                   "
                   class="relative z-30 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md transition shrink-0 whitespace-nowrap"
                   @click.stop="
-                    displayStatus !== '已額滿' && displayStatus !== '已成行' && handleApply($event)
+                    displayStatus !== '已額滿' && displayStatus !== '已成行' && displayStatus !== '已結束' && handleApply($event)
                   "
                 >
                   私訊報名
