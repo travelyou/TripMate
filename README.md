@@ -13,7 +13,7 @@
 
 ## TripMate 專案簡介
 
-**[TripMate](https://tripmate-mayoyo.com/) 是一個智慧旅遊社群平台，解決旅行者最核心的問題：找到志同道合的旅伴。**
+**[TripMate](https://tripmate-mayoyo.netlify.app/) 是一個智慧旅遊社群平台，解決旅行者最核心的問題：找到志同道合的旅伴。**
 
 ![TripMate Logo](./frontend/src/assets/pic/loginPage-removebg.png)
 
@@ -112,7 +112,7 @@
 
 ## TripMate │ 找到理想旅伴，開啟美好旅程。
 
-**專案網址**：https://tripmate-mayoyo.com/
+**專案網址**：[https://tripmate-mayoyo.com/](https://tripmate-mayoyo.netlify.app/)
 
 ---
 
